@@ -43,6 +43,7 @@ export const en: Catalog = {
     'hud.highContrast': 'High contrast',
     'hud.reducedMotion': 'Reduced motion',
     'hud.outline':    'Piece outline',
+    'viz.trichromatic': 'Trichromatic vision',
     'hud.vision':     'Colour vision',
     'hud.takeBack':   'Take back',
     'hud.replay':     'Play forward',

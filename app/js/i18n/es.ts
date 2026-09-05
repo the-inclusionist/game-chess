@@ -44,6 +44,7 @@ export const es: Catalog = {
     'hud.highContrast': 'Alto contraste',
     'hud.reducedMotion': 'Movimiento reducido',
     'hud.outline':    'Contorno de piezas',
+    'viz.trichromatic': 'Visión tricromática',
     'hud.vision':     'Visión de color',
     'hud.takeBack':   'Deshacer jugada',
     'hud.replay':     'Rehacer jugada',

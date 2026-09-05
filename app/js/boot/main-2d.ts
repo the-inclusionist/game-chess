@@ -91,8 +91,6 @@ export function boot2d(host: Document = document): void {
   let showCoordinates = remembered.coordinates ?? true;
   let setKey = remembered.set ?? DEFAULT_SET;
   let themeKey = remembered.theme ?? (paletteHigh ? CONTRAST_THEME : DEFAULT_THEME);
-  /** What to go back to when high contrast is switched off again. */
-  let previousTheme = DEFAULT_THEME;
 
   /**
    * ========================= CHANGING SIDES IS A NEW GAME =========================
@@ -159,21 +157,6 @@ export function boot2d(host: Document = document): void {
       hud.refresh();
       if (game.phase() === 'thinking') { opponent.cancel(); thinking = false; askOpponent(); }
     },
-    highContrast: () => paletteHigh,
-    onHighContrast: (on) => {
-      paletteHigh = on;
-      region.dataset.contrast = on ? 'high' : '';
-      // ONE state, two doors. High contrast picks the high-contrast palette and remembers what was
-      // there before, so turning it off returns the board a player had chosen rather than the
-      // factory one. Picking a palette by hand is the other door, below.
-      if (on) {
-        if (themeKey !== CONTRAST_THEME) previousTheme = themeKey;
-        applyTheme(CONTRAST_THEME);
-      } else {
-        applyTheme(previousTheme);
-      }
-      hud.refresh();
-    },
 
     themes: BOARD_THEMES.map((t) => ({ key: t.key, name: t.name })),
     theme: () => themeKey,
@@ -186,7 +169,6 @@ export function boot2d(host: Document = document): void {
         paletteHigh = contrast;
         region.dataset.contrast = contrast ? 'high' : '';
       }
-      if (!contrast) previousTheme = key;
       hud.refresh();
     },
     vision: () => vision,

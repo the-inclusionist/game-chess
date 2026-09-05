@@ -20,9 +20,7 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   const rules = createRules(fen);
   const state = createGameState({ rules, opponent: false });
   let difficulty: Difficulty = 'medium';
-  let highContrast = false;
   const onDifficulty = vi.fn((level: Difficulty) => { difficulty = level; });
-  const onHighContrast = vi.fn((on: boolean) => { highContrast = on; });
   let vision = 'normal';
   const onVision = vi.fn((key: string) => { vision = key; });
   let motion = false;
@@ -37,7 +35,6 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   hud = createHud({
     doc: document, i18n: createI18n(locale), rules, state,
     difficulty: () => difficulty, onDifficulty,
-    highContrast: () => highContrast, onHighContrast,
     vision: () => vision, onVision,
     reducedMotion: () => motion, onReducedMotion,
     outline: () => outline, onOutline,
@@ -53,9 +50,8 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
     state.animationDone();
     hud!.refresh();
   };
-  return { rules, state, hud, onDifficulty, onHighContrast, onVision, play,
-           getDifficulty: () => difficulty, getContrast: () => highContrast,
-           getVision: () => vision, onReducedMotion, getMotion: () => motion,
+  return { rules, state, hud, onDifficulty, onVision, play,
+           getDifficulty: () => difficulty, getVision: () => vision, onReducedMotion, getMotion: () => motion,
            onOutline, getOutline: () => outline, onTakeBack, onReplay,
            onCoords, getCoords: () => coords };
 }
@@ -155,33 +151,54 @@ describe('[Moves] a scoresheet, one line per pair', () => {
   });
 });
 
-describe('[Difficulty] a real control, with a real label', () => {
-  it('offers the three levels', () => {
+// ========================= DIFFICULTY IS THREE BUTTONS NOW =========================
+// It was a `select`, which hides two of its three options behind an arrow. Three options fit, so
+// showing them costs a row and saves a click and a guess. They are REAL RADIOS with their labels
+// drawn as buttons: the platform then supplies the grouping, the arrow keys, one tab stop for the
+// set and "2 of 3" to a screen reader — none of which a row of buttons gets for free.
+
+describe('[Difficulty] three buttons, and the platform does the grouping', () => {
+  const levels = (): HTMLInputElement[] =>
+    [...document.querySelectorAll<HTMLInputElement>('input[name="hud-difficulty"]')];
+
+  it('offers the three levels, all of them visible at once', () => {
     build();
-    expect([...document.querySelectorAll('#hud-difficulty option')].map((o) => o.textContent))
-      .toEqual(['Fácil', 'Médio', 'Difícil']);
+    expect(levels().map((input) => input.value)).toEqual(['easy', 'medium', 'hard']);
+    expect(levels().every((input) => input.type === 'radio')).toBe(true);
   });
 
-  it('is labelled, and the label points at it', () => {
+  it('is one group with a legend, not three loose controls', () => {
     build();
-    const select = document.querySelector<HTMLSelectElement>('#hud-difficulty')!;
-    const label = document.querySelector<HTMLLabelElement>('label[for="hud-difficulty"]')!;
-    expect(label.htmlFor).toBe(select.id);
-    expect(label.textContent).toBe('Dificuldade');
+    const group = document.querySelector('fieldset.hud-choice legend');
+    expect(group?.textContent).toBe('Dificuldade');
+    // One name for the set: that is what makes it a group and gives it one tab stop.
+    expect(new Set(levels().map((input) => input.name)).size).toBe(1);
   });
 
-  it('shows the level in force', () => {
+  it('shows the level in force, and names each in the reader’s language', () => {
     build();
-    expect(document.querySelector<HTMLSelectElement>('#hud-difficulty')!.value).toBe('medium');
+    const chosen = levels().filter((input) => input.checked);
+    expect(chosen).toHaveLength(1);
+    expect(chosen[0].value).toBe('medium');
+    expect(document.querySelector(`label[for="${levels()[0].id}"]`)?.textContent).toBe('Fácil');
   });
 
   it('reports a change', () => {
     const { onDifficulty, getDifficulty } = build();
-    const select = document.querySelector<HTMLSelectElement>('#hud-difficulty')!;
-    select.value = 'hard';
-    select.dispatchEvent(new Event('change', { bubbles: true }));
+    const hard = levels()[2];
+    hard.checked = true;
+    hard.dispatchEvent(new Event('change', { bubbles: true }));
     expect(onDifficulty).toHaveBeenCalledWith('hard');
     expect(getDifficulty()).toBe('hard');
+  });
+
+  it('speaks English and Spanish too', () => {
+    build('en');
+    expect(document.querySelector('fieldset.hud-choice legend')?.textContent).toBe('Difficulty');
+    hud?.destroy();
+    document.body.replaceChildren();
+    build('es');
+    expect(document.querySelector('fieldset.hud-choice legend')?.textContent).toBe('Dificultad');
   });
 });
 
@@ -189,50 +206,33 @@ describe('[i18n] the panel follows the interface language', () => {
   it('speaks English', () => {
     build('en');
     expect(text('.hud-turn')).toContain('White');
-    expect(document.querySelector('label[for="hud-difficulty"]')?.textContent).toBe('Difficulty');
-    expect([...document.querySelectorAll('#hud-difficulty option')].map((o) => o.textContent))
-      .toEqual(['Easy', 'Medium', 'Hard']);
+    const labels = [...document.querySelectorAll('.hud-choice label')].map((l) => l.textContent);
+    expect(labels).toContain('Easy');
+    expect(labels).toContain('Hard');
   });
 
   it('speaks Spanish', () => {
     build('es');
     expect(text('.hud-turn')).toContain('Blancas');
-    expect(document.querySelector('label[for="hud-difficulty"]')?.textContent).toBe('Dificultad');
+    expect(document.querySelector('fieldset.hud-choice legend')?.textContent).toBe('Dificultad');
   });
 });
 
-describe('[High contrast] a switch the system may have already thrown', () => {
-  it('offers a labelled checkbox', () => {
-    build();
-    const box = document.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
-    const label = document.querySelector<HTMLLabelElement>('label[for="hud-contrast"]')!;
-    expect(label.textContent).toBe('Alto contraste');
-    expect(label.htmlFor).toBe(box.id);
-  });
-
-  it('starts off, and reports being switched on', () => {
-    const { onHighContrast, getContrast } = build();
-    const box = document.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
-    expect(box.checked).toBe(false);
-    box.checked = true;
-    box.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(onHighContrast).toHaveBeenCalledWith(true);
-    expect(getContrast()).toBe(true);
-  });
-
-  it('follows the interface language', () => {
-    build('en');
-    expect(document.querySelector('label[for="hud-contrast"]')?.textContent).toBe('High contrast');
-  });
-});
+// ========================= THE HIGH-CONTRAST SWITCH IS GONE =========================
+// It was a second door onto one state: the palette list already contains both high-contrast
+// answers, so the checkbox and the list could disagree and had to be kept in step by hand. The
+// cases that guarded it went with it. `prefers-contrast: more` still selects a high-contrast
+// palette at boot, which is the part that was never about the control.
 
 describe('[Colour vision] the corrections, and only the corrections', () => {
-  it('offers normal plus the three corrections, named by the ENGINE', () => {
+  it('offers trichromatic vision plus the three corrections', () => {
     build();
     const options = [...document.querySelectorAll('#hud-vision option')];
     expect(options.map((o) => (o as HTMLOptionElement).value))
       .toEqual(['normal', 'fix-protan', 'fix-deuter', 'fix-tritan']);
-    expect(options[0].textContent).toBe('Cores normais');
+    // ⚠️ Named here rather than by the engine: "visão normal" makes every other entry in the same
+    // list an abnormality, in a menu a child opens BECAUSE of how they see.
+    expect(options[0].textContent).toBe('Visão tricromática');
     expect(options[1].textContent).toBe('Correção protanopia');
   });
 
@@ -327,9 +327,10 @@ describe('[Panel] the controls stay reachable however long the game runs', () =>
     // Every third-rank square is a pawn by now, so the knights go to the second rank.
     play('g1', 'e2'); play('g8', 'e7'); play('b1', 'd2'); play('b8', 'd7');
     expect(document.querySelectorAll('.hud-moves li').length).toBe(10);
-    for (const id of ['#hud-difficulty', '#hud-contrast', '#hud-vision', '#hud-motion', '#hud-outline']) {
+    for (const id of ['#hud-vision', '#hud-motion', '#hud-outline']) {
       expect(document.querySelector(id)).not.toBeNull();
     }
+    expect(document.querySelectorAll('input[name="hud-difficulty"]')).toHaveLength(3);
     expect(nav()).toHaveLength(2);
   });
 

@@ -124,7 +124,6 @@ export function boot(host: Document = document): void {
   const remembered = loadSettings();
   const systemContrast = window.matchMedia?.('(prefers-contrast: more)').matches ?? false;
   let themeKey = remembered.theme ?? (systemContrast ? CONTRAST_HERE : DEFAULT_THEME);
-  let previousTheme = themeKey.startsWith('contrast-') ? DEFAULT_THEME : themeKey;
   let vision = 'normal';
   let outlined = true;
   let showCoordinates = loadSettings().coordinates ?? true;
@@ -235,17 +234,6 @@ export function boot(host: Document = document): void {
       region.style.filter = VIZ_FILTER[key] ?? '';
       hud.refresh();
     },
-    highContrast: () => themeKey.startsWith('contrast-'),
-    onHighContrast: (on) => {
-      // One state, two doors — the same arrangement the flat board uses. Turning high contrast off
-      // returns the palette the player had chosen, not the factory one.
-      if (on) {
-        if (!themeKey.startsWith('contrast-')) previousTheme = themeKey;
-        applyTheme(CONTRAST_HERE);
-      } else {
-        applyTheme(previousTheme);
-      }
-    },
 
     themes: BOARD_THEMES.map((t) => ({ key: t.key, name: t.name })),
     theme: () => themeKey,
@@ -287,7 +275,6 @@ export function boot(host: Document = document): void {
 
   function applyTheme(key: string): void {
     themeKey = key;
-    if (!key.startsWith('contrast-')) previousTheme = key;
     const palette = projectedPalette(boardTheme(key));
     boardView.setPalette(palette);
     pieces.setPalette(palette);

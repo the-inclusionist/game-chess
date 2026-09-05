@@ -152,6 +152,50 @@
   .hud-nav button:disabled { opacity: 0.45; cursor: default; }
   .hud-nav-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hud label { display: block; font-size: 0.75em; color: #8b949e; }
+
+  /*
+   * ========================= TWO OR THREE OPTIONS ARE BUTTONS =========================
+   * A `select` hides every option but one until it is opened — the right trade for seven palettes,
+   * the wrong one for two sides or three difficulties, where the whole set fits and showing it
+   * saves a click and a guess about what is behind the arrow.
+   *
+   * Real radios with their labels drawn as buttons, so the platform supplies the grouping, the
+   * arrow-key movement, ONE tab stop for the set, and "2 of 3" to a screen reader. The input is
+   * moved off-screen rather than `display: none`, which would take it out of the accessibility
+   * tree and out of the tab order along with it.
+   */
+  .hud-choice { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px; }
+  .hud-choice legend {
+    width: 100%; padding: 0; margin-bottom: 0.15em;
+    font-size: 0.75em; color: #8b949e;
+  }
+  .hud-choice input {
+    position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  .hud-choice label {
+    flex: 1 1 0; min-width: 0;
+    display: flex; align-items: center; justify-content: center;
+    min-height: var(--tap, 44px);
+    padding: 0 0.2em;
+    font-size: 0.72em; font-weight: 600;
+    color: #c9d1d9; background: #1b2733;
+    border: 1px solid #2b3a4a; border-radius: 2px;
+    cursor: pointer;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .hud-choice label:hover { background: #24344a; }
+  .hud-choice input:checked + label {
+    color: #14202b; background: #FFD97D; border-color: #FFD97D;
+  }
+  /* The focus ring belongs on the thing that looks like the control, not on the hidden input. */
+  .hud-choice input:focus-visible + label { outline: 2px solid #FFD97D; outline-offset: 2px; }
+  #game-region[data-contrast="high"] .hud-choice label {
+    color: #FFFFFF; background: #000000; border-color: #FFFFFF;
+  }
+  #game-region[data-contrast="high"] .hud-choice input:checked + label {
+    color: #000000; background: #FFFFFF;
+  }
   /* --tap is 22*k, which is 44px at the k=2 floor: the WCAG 2.5.5 target size, inherited. */
   /* --tap is 22*k, which is 44px at the k=2 floor: the WCAG 2.5.5 target size, inherited.
      The font shrinks but the TARGET does not — "Correção deuteranopia" has to fit in 176px
@@ -347,11 +391,13 @@
   .board-2d[data-flipped="true"] { transform: translate(-50%, -50%) rotate(180deg); }
   .board-2d[data-flipped="true"] .cell-piece,
   .board-2d[data-flipped="true"] .cell-coord { transform: rotate(180deg); }
-  .board-2d[data-flipped="true"] .cell-piece[data-glyph]::before {
-    /* The silhouette is positioned by a translate of its own, so the turn has to be composed with
-       it rather than replacing it. */
-    transform: translate(-50%, -50%) rotate(180deg);
-  }
+  /*
+   * ⚠️ NO RULE FOR THE SILHOUETTE HERE, and its absence is the fix. `::before` is a CHILD of
+   * `.cell-piece`, which the line above already turns back — so it inherits that turn. Adding
+   * another 180° to it made the halo a full turn from the board and therefore half a turn from the
+   * glyph it belongs to: an upside-down piece sitting behind a right-way-up one, which is exactly
+   * what "the shadows are inverted when you play black" looks like.
+   */
 
   .board-2d [role="gridcell"] {
     position: relative;

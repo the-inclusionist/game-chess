@@ -41,8 +41,6 @@ export interface HudDeps {
   readonly state: GameState;
   difficulty(): Difficulty;
   onDifficulty(level: Difficulty): void;
-  highContrast(): boolean;
-  onHighContrast(on: boolean): void;
   /** A key from the engine's VIZ_MODES, or 'normal'. */
   vision(): string;
   onVision(key: string): void;
@@ -180,6 +178,41 @@ export function createHud(deps: HudDeps): Hud {
   const turnText = doc.createElement('span');
   turn.append(swatch, turnText);
 
+  // ========================= A CHOICE OF TWO OR THREE IS BUTTONS =========================
+  // A `select` hides every option but one until you open it, which is the right trade when there
+  // are seven palettes and the wrong one when there are two sides or three difficulties: the whole
+  // set fits, so showing it costs a row and saves a click and a decision about what is behind the
+  // arrow.
+  //
+  // They are REAL RADIOS with their labels styled as buttons, not buttons with `aria-pressed`. The
+  // platform then supplies the group semantics, arrow-key movement between the options, one tab
+  // stop for the whole set and the announcement "2 of 3" — none of which would come free from a
+  // row of buttons, and all of which would have to be rebuilt correctly here.
+  const groupOf = (
+    name: string, values: readonly string[], id: (v: string) => string,
+  ): { box: HTMLElement; legend: HTMLElement; options: { input: HTMLInputElement; label: HTMLElement }[] } => {
+    const box = doc.createElement('fieldset');
+    box.className = 'hud-choice';
+    const legend = doc.createElement('legend');
+    box.appendChild(legend);
+    // ⚠️ The label is KEPT, not looked up later. `createHud` calls its own `refresh()` while it is
+    // being built, before the panel is in the document — so a `document.querySelector` for it finds
+    // nothing and every button comes out blank. Holding the element is also simply cheaper.
+    const options = values.map((value) => {
+      const input = doc.createElement('input');
+      input.type = 'radio';
+      input.name = name;
+      input.value = value;
+      input.id = id(value);
+      const label = doc.createElement('label');
+      label.htmlFor = input.id;
+      box.append(input, label);
+      return { input, label };
+    });
+    return { box, legend, options };
+  };
+
+
   // --- captured --------------------------------------------------------------
   const capturedBox = doc.createElement('section');
   const capturedTitle = doc.createElement('h2');
@@ -233,27 +266,14 @@ export function createHud(deps: HudDeps): Hud {
   movesBox.append(movesTitle, movesList, navBox);
 
   // --- difficulty ------------------------------------------------------------
-  const difficultyBox = doc.createElement('p');
-  const difficultyLabel = doc.createElement('label');
-  const difficultySelect = doc.createElement('select');
-  difficultySelect.id = 'hud-difficulty';
-  difficultyLabel.htmlFor = difficultySelect.id;
-  for (const level of DIFFICULTIES) {
-    const option = doc.createElement('option');
-    option.value = level;
-    difficultySelect.appendChild(option);
-  }
-  difficultyBox.append(difficultyLabel, difficultySelect);
+  const difficulty = groupOf('hud-difficulty', DIFFICULTIES, (v) => `hud-difficulty-${v}`);
 
-  // --- high contrast ---------------------------------------------------------
-  const contrastBox = doc.createElement('p');
-  const contrastInput = doc.createElement('input');
-  contrastInput.type = 'checkbox';
-  contrastInput.id = 'hud-contrast';
-  const contrastLabel = doc.createElement('label');
-  contrastLabel.htmlFor = contrastInput.id;
-  contrastLabel.className = 'hud-check';
-  contrastBox.append(contrastInput, contrastLabel);
+  // ========================= NO HIGH-CONTRAST SWITCH =========================
+  // There was a checkbox here and it was a second door onto one state: the palette list already
+  // contains both high-contrast answers, so the switch and the list could disagree and had to be
+  // kept in step by hand. One control, one state. `prefers-contrast: more` still selects a
+  // high-contrast palette at boot — a preference someone has already expressed to their system is
+  // not something to make them express again.
 
   // --- colour vision ---------------------------------------------------------
   // Only the CORRECTIONS. The engine's list also holds simulations, which exist to show a
@@ -265,7 +285,15 @@ export function createHud(deps: HudDeps): Hud {
   const visionSelect = doc.createElement('select');
   visionSelect.id = 'hud-vision';
   visionLabel.htmlFor = visionSelect.id;
-  for (const mode of [{ key: 'normal', nome: 'viz.normal' }, ...VIZ_CORRECTIONS]) {
+  // ⚠️ THE FIRST ENTRY IS NAMED HERE AND NOT BY THE ENGINE, and the reason is the word. The
+  // engine's catalogue calls it "visão normal", which makes every other entry in the same list an
+  // abnormality — in a menu a child opens BECAUSE of how they see. The corrections keep the
+  // engine's names, since those name a condition and do it accurately; only this one is replaced,
+  // with the term for what it actually describes.
+  //
+  // The engine has the same line in its own games. That is worth fixing upstream, and it is not
+  // this repository's to fix.
+  for (const mode of [{ key: 'normal', nome: '' }, ...VIZ_CORRECTIONS]) {
     const option = doc.createElement('option');
     option.value = mode.key;
     option.dataset.nome = mode.nome;
@@ -287,18 +315,7 @@ export function createHud(deps: HudDeps): Hud {
   motionLabel.className = 'hud-check';
   motionBox.append(motionInput, motionLabel);
 
-  // --- which side you play ---------------------------------------------------
-  const sideBox = doc.createElement('p');
-  const sideLabel = doc.createElement('label');
-  const sideSelect = doc.createElement('select');
-  sideSelect.id = 'hud-side';
-  sideLabel.htmlFor = sideSelect.id;
-  for (const value of ['w', 'b'] as const) {
-    const option = doc.createElement('option');
-    option.value = value;
-    sideSelect.appendChild(option);
-  }
-  sideBox.append(sideLabel, sideSelect);
+  const sideGroup = groupOf('hud-side', ['w', 'b'], (v) => `hud-side-${v}`);
 
   // --- which drawing the pieces use ------------------------------------------
   const setBox = doc.createElement('p');
@@ -360,21 +377,23 @@ export function createHud(deps: HudDeps): Hud {
   coordsBox.append(coordsInput, coordsLabel);
 
   root.append(turn, capturedBox, movesBox);
-  if (deps.onPlayerSide) root.appendChild(sideBox);
-  root.append(difficultyBox, contrastBox);
+  if (deps.onPlayerSide) root.appendChild(sideGroup.box);
+  root.appendChild(difficulty.box);
   if (deps.pieceSets) root.appendChild(setBox);
   if (deps.themes) root.appendChild(themeBox);
   root.append(visionBox, motionBox);
   if (deps.onOutline) root.appendChild(outlineBox);
   root.appendChild(coordsBox);
 
-  function onDifficultyChange(): void {
-    deps.onDifficulty(difficultySelect.value as Difficulty);
+  function onDifficultyChange(event: Event): void {
+    deps.onDifficulty((event.target as HTMLInputElement).value as Difficulty);
   }
-  difficultySelect.addEventListener('change', onDifficultyChange);
+  for (const { input } of difficulty.options) input.addEventListener('change', onDifficultyChange);
 
-  function onContrastChange(): void { deps.onHighContrast(contrastInput.checked); }
-  contrastInput.addEventListener('change', onContrastChange);
+  function onSideInput(event: Event): void {
+    deps.onPlayerSide?.((event.target as HTMLInputElement).value as Side);
+  }
+  for (const { input } of sideGroup.options) input.addEventListener('change', onSideInput);
 
   function onVisionChange(): void { deps.onVision(visionSelect.value); }
   visionSelect.addEventListener('change', onVisionChange);
@@ -385,24 +404,30 @@ export function createHud(deps: HudDeps): Hud {
   function onOutlineChange(): void { deps.onOutline?.(outlineInput.checked); }
   outlineInput.addEventListener('change', onOutlineChange);
 
-  function onSideChange(): void { deps.onPlayerSide?.(sideSelect.value as Side); }
-  sideSelect.addEventListener('change', onSideChange);
-
   function onSetChange(): void { deps.onPieceSet?.(setSelect.value); }
   setSelect.addEventListener('change', onSetChange);
 
   function onThemeChange(): void { deps.onTheme?.(themeSelect.value); }
   themeSelect.addEventListener('change', onThemeChange);
 
-  // On screen exactly while someone is choosing, because that is what it describes.
+  // ========================= ON SCREEN WHILE THE LIST IS OPEN =========================
+  // It used to appear on hover, which put a table of numbers over the board every time a pointer
+  // crossed the panel. It belongs on screen while the list is OPEN and no longer.
+  //
+  // ⚠️ HTML gives no event for that. A `select` has no `open`, no `close` and no way to ask. What
+  // it does have is a reliable pattern around the native popup: it opens on `mousedown`, or on the
+  // keys that open one; it closes on `change`, and it closes on `blur` whichever way it went. So
+  // those four are the approximation, and it is stated as an approximation rather than dressed up
+  // as an event that exists.
   const showReport = (): void => { report.hidden = false; fillReport(); };
   const hideReport = (): void => { report.hidden = true; };
-  themeSelect.addEventListener('focus', showReport);
-  themeSelect.addEventListener('blur', hideReport);
-  themeSelect.addEventListener('pointerenter', showReport);
-  themeSelect.addEventListener('pointerleave', () => {
-    if (doc.activeElement !== themeSelect) hideReport();
+  themeSelect.addEventListener('mousedown', showReport);
+  themeSelect.addEventListener('keydown', (event) => {
+    // The keys that open a native list: Alt+Down, Enter, Space, and the arrows on some platforms.
+    if (['ArrowDown', 'ArrowUp', 'Enter', ' ', 'Spacebar'].includes(event.key)) showReport();
   });
+  themeSelect.addEventListener('change', hideReport);
+  themeSelect.addEventListener('blur', hideReport);
 
   /** Redraws the whole matrix: one row per measured pair, one column per palette. */
   function fillReport(): void {
@@ -528,21 +553,21 @@ export function createHud(deps: HudDeps): Hud {
     backButton.disabled = !deps.canTakeBack();
     forwardButton.disabled = !deps.canReplay();
 
-    difficultyLabel.textContent = i18n.t('hud.difficulty');
-    for (const option of difficultySelect.options) {
-      option.textContent = i18n.t(`difficulty.${option.value}`);
+    difficulty.legend.textContent = i18n.t('hud.difficulty');
+    const level = deps.difficulty();
+    for (const { input, label } of difficulty.options) {
+      label.textContent = i18n.t(`difficulty.${input.value}`);
+      input.checked = input.value === level;
     }
-    difficultySelect.value = deps.difficulty();
-
-    contrastLabel.textContent = i18n.t('hud.highContrast');
-    contrastInput.checked = deps.highContrast();
 
     // These labels come from the ENGINE's catalogue, not this game's: the modes are the engine's
     // and it already names them in all three languages. Restating them here would be a second
     // copy to drift.
     visionLabel.textContent = i18n.t('hud.vision');
     for (const option of visionSelect.options) {
-      option.textContent = engineT(option.dataset.nome ?? '');
+      option.textContent = option.value === 'normal'
+        ? i18n.t('viz.trichromatic')
+        : engineT(option.dataset.nome ?? '');
     }
     visionSelect.value = deps.vision();
 
@@ -550,9 +575,12 @@ export function createHud(deps: HudDeps): Hud {
     motionInput.checked = deps.reducedMotion();
 
     if (deps.onPlayerSide) {
-      sideLabel.textContent = i18n.t('hud.playAs');
-      for (const option of sideSelect.options) option.textContent = i18n.t(`turn.${option.value}`);
-      sideSelect.value = deps.playerSide?.() ?? 'w';
+      sideGroup.legend.textContent = i18n.t('hud.playAs');
+      const chosen = deps.playerSide?.() ?? 'w';
+      for (const { input, label } of sideGroup.options) {
+        label.textContent = i18n.t(`turn.${input.value}`);
+        input.checked = input.value === chosen;
+      }
     }
 
     if (deps.pieceSets) {
@@ -585,15 +613,15 @@ export function createHud(deps: HudDeps): Hud {
     report,
     refresh,
     destroy() {
-      difficultySelect.removeEventListener('change', onDifficultyChange);
-      contrastInput.removeEventListener('change', onContrastChange);
+      for (const { input } of difficulty.options) input.removeEventListener('change', onDifficultyChange);
+      for (const { input } of sideGroup.options) input.removeEventListener('change', onSideInput);
       visionSelect.removeEventListener('change', onVisionChange);
       motionInput.removeEventListener('change', onMotionChange);
       outlineInput.removeEventListener('change', onOutlineChange);
-      sideSelect.removeEventListener('change', onSideChange);
       setSelect.removeEventListener('change', onSetChange);
       themeSelect.removeEventListener('change', onThemeChange);
-      themeSelect.removeEventListener('focus', showReport);
+      themeSelect.removeEventListener('mousedown', showReport);
+      themeSelect.removeEventListener('change', hideReport);
       themeSelect.removeEventListener('blur', hideReport);
       report.remove();
       coordsInput.removeEventListener('change', onCoordsChange);
