@@ -285,6 +285,21 @@
   }
   .board-2d [role="row"] { display: grid; grid-template-columns: repeat(8, 1fr); }
 
+  /*
+   * Playing black turns the board round. The rotation is on the ELEMENT and not on the DOM order:
+   * the grid keeps its rows, its columns, its reading order and its arrow keys, and only the
+   * picture turns. Each piece and each coordinate is turned back so it is not upside down — which
+   * is what a real board does too, since the men do not rotate when you sit on the other side.
+   */
+  .board-2d[data-flipped="true"] { transform: rotate(180deg); }
+  .board-2d[data-flipped="true"] .cell-piece,
+  .board-2d[data-flipped="true"] .cell-coord { transform: rotate(180deg); }
+  .board-2d[data-flipped="true"] .cell-piece[data-glyph]::before {
+    /* The silhouette is positioned by a translate of its own, so the turn has to be composed with
+       it rather than replacing it. */
+    transform: translate(-50%, -50%) rotate(180deg);
+  }
+
   .board-2d [role="gridcell"] {
     position: relative;
     display: flex;

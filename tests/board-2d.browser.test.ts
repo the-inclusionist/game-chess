@@ -268,3 +268,25 @@ describe('[Themes] six named palettes, measured', () => {
     }
   });
 });
+
+describe('[Themes] José-2 keeps the experiment on the board', () => {
+  it('is José with the dark side outlined in the LIGHT side’s ink', () => {
+    const one = boardTheme('jose');
+    const two = boardTheme('jose2');
+    expect(two.light).toBe(one.light);
+    expect(two.dark).toBe(one.dark);
+    expect(two.white).toBe(one.white);
+    expect(two.black).toBe(one.black);
+    // The single difference, and the whole point of the entry.
+    expect(one.blackRim).toBe('#0E0722');
+    expect(two.blackRim).toBe('#FFE08A');
+  });
+
+  it('is a separate entry rather than a replacement', () => {
+    // The argument that condemned it at full stroke width — the ink that covers a piece names it —
+    // has not been withdrawn. Halving the dark side's outline changed the question, not the rule,
+    // so the experiment sits beside the answer instead of overwriting it.
+    expect(BOARD_THEMES.map((t) => t.key)).toContain('jose');
+    expect(BOARD_THEMES.map((t) => t.key)).toContain('jose2');
+  });
+});

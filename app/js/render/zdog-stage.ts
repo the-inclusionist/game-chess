@@ -82,9 +82,22 @@ export function createZdogStage(options: ZdogStageOptions = {}): ZdogStage {
   illo.rotate.x = CAMERA.pitch;
   illo.rotate.y = CAMERA.yaw;
 
-  // The offset is in WORLD units and the zoom already scales it to the screen — scaling it here
-  // as well double-counts, which is what pushed the board off the left edge the first time.
-  const root = new Zdog.Anchor({ addTo: illo, translate: { x: CAMERA.offsetX } });
+  // ========================= THE FRAMING OFFSET IS NOT PART OF THE SCENE =========================
+  // It shifts the board left so the panel gets its column, and it used to live on `root` — inside
+  // the graph the illustration rotates. That is fine until the camera turns: at half a turn, for a
+  // player who has chosen black, the rotation carried the offset with it and pushed the board
+  // RIGHT, under the panel.
+  //
+  // On the illustration itself it is applied AFTER its own rotation, so it is a framing decision
+  // about where the picture sits on the canvas rather than a fact about where the board is in the
+  // world — which is what it always meant. Picking is unaffected: it reads `renderPoint`, which
+  // carries every transform either way.
+  //
+  // Still in world units, and still not multiplied by the zoom here: the renderer scales the whole
+  // context by `zoom` when it draws, and doing it twice is what pushed the board off the left edge
+  // the first time.
+  illo.translate.x = CAMERA.offsetX;
+  const root = new Zdog.Anchor({ addTo: illo });
 
   return {
     canvas,

@@ -27,15 +27,16 @@ import { createChessDeclaration } from '../declaration/chess-declaration.ts';
 import { createEngineClient } from '../chess/engine/client.ts';
 import { DEFAULT_DIFFICULTY, DIFFICULTY_DEPTH, type Difficulty } from '../chess/engine/difficulty.ts';
 import { type MoveResult } from '../chess/rules.ts';
-import { loadSettings, resume, save as saveGame, saveSettings } from '../chess/session.ts';
+import { clear as clearGame, loadSettings, resume, save as saveGame, saveSettings }
+  from '../chess/session.ts';
 import { createGameState, type Activation } from '../chess/state.ts';
-import { type Square, toAlgebraic } from '../chess/types.ts';
+import { type Side, type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale, type I18n } from '../i18n/index.ts';
 import { createGridMirror } from '../ui/grid-mirror.ts';
 import { createHud } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
 import { BOARD_THEMES, CONTRAST_THEME, DEFAULT_THEME } from '../ui/board-themes.ts';
-import { DEFAULT_SET } from '../ui/piece-sets.ts';
+import { AVAILABLE_SETS, DEFAULT_SET } from '../ui/piece-sets.ts';
 
 /** What the move sounds like. Shared word for word with the 3D root, and worth keeping in step. */
 function moveSentence(i18n: I18n, move: MoveResult): string {
@@ -71,7 +72,8 @@ export function boot2d(host: Document = document): void {
   // sheet is written to the tab's own storage after anything that changes it and read back here,
   // which is why switching from 2D to 2.5D continues the game rather than starting one.
   const rules = resume();
-  const game = createGameState({ rules, opponent: true });
+  const playerSide: Side = loadSettings().side ?? 'w';
+  const game = createGameState({ rules, playerSide, opponent: true });
   const opponent = createEngineClient();
   let difficulty: Difficulty = DEFAULT_DIFFICULTY;
   let thinking = false;
@@ -92,10 +94,30 @@ export function boot2d(host: Document = document): void {
   /** What to go back to when high contrast is switched off again. */
   let previousTheme = DEFAULT_THEME;
 
+  /**
+   * ========================= CHANGING SIDES IS A NEW GAME =========================
+   * There is no honest way to swap sides in the middle of one: the position, the score sheet and
+   * the captured tally all belong to whoever played them. So the control starts a fresh game — the
+   * choice is written down first, the saved game is thrown away, and the page reloads into it.
+   *
+   * A reload rather than a rebuild because the composition root wires one game into a dozen
+   * closures, and tearing that down by hand would be a second, quieter way of starting over.
+   */
+  function choosePlayerSide(side: Side): void {
+    if (side === playerSide) return;
+    saveSettings({ ...currentSettings(), side });
+    clearGame();
+    window.location.reload();
+  }
+
+  const currentSettings = () => ({
+    theme: themeKey, set: setKey, coordinates: showCoordinates, side: playerSide,
+  });
+
   const applyTheme = (key: string): void => {
     themeKey = key;
     board.setTheme(key);
-    saveSettings({ theme: key, set: setKey, coordinates: showCoordinates });
+    saveSettings({ ...currentSettings(), theme: key });
   };
 
   const declaration = createChessDeclaration({ rules, state: game, i18n, cursor: () => cursor });
@@ -120,6 +142,10 @@ export function boot2d(host: Document = document): void {
   });
   region.appendChild(board.root);
   board.setTheme(themeKey);
+  // Turned round when you are black, so your own men are the ones nearest you. The rotation is on
+  // the ELEMENT, not on the DOM order: the grid keeps its rows and columns, so arrow keys, the
+  // reading order and every label go on meaning what they meant.
+  board.root.dataset.flipped = playerSide === 'b' ? 'true' : '';
 
   const hud = createHud({
     doc: host,
@@ -175,9 +201,21 @@ export function boot2d(host: Document = document): void {
     onCoordinates: (on) => {
       showCoordinates = on;
       region.dataset.coords = on ? 'on' : '';
-      saveSettings({ theme: themeKey, set: setKey, coordinates: on });
+      saveSettings({ ...currentSettings(), coordinates: on });
       hud.refresh();
     },
+    playerSide: () => playerSide,
+    onPlayerSide: choosePlayerSide,
+
+    pieceSets: AVAILABLE_SETS.map((set) => ({ key: set.key, name: set.description })),
+    pieceSet: () => setKey,
+    onPieceSet: (key) => {
+      setKey = key;
+      board.setPieceSet(key);
+      saveSettings({ ...currentSettings(), set: key });
+      hud.refresh();
+    },
+
     canTakeBack: () => !walking && game.canTakeBack(),
     canReplay: () => !walking && game.canReplay(),
     onTakeBack: () => { void walkHistory('back'); },

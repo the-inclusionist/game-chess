@@ -113,6 +113,33 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
     },
   },
   {
+    // ========================= THE SAME PALETTE, OUTLINED THE OTHER WAY =========================
+    // José with the dark side's rim taken from the LIGHT side: gold on indigo instead of a
+    // near-black line. It was tried by accident, looked wrong, and was reverted — and then the
+    // dark side's outline was halved, which changes the question. At full width that rim was a
+    // thick gold ring and the piece read as a light one; at half it is a fine line on a mass of
+    // indigo, which is a different proposition entirely.
+    //
+    // ⚠️ It is kept as its own entry rather than replacing anything, because the argument in
+    // `render/palette.ts` — the ink that covers a piece is the ink that names it — is what
+    // condemned it at full width, and that argument has not been withdrawn. This is the
+    // experiment, on the board, where it can be looked at rather than described.
+    key: 'jose2',
+    light: '#DCD6C8',
+    dark: '#8D8677',
+    white: '#FFE08A',
+    black: '#3F2B78',
+    whiteRim: '#3B2A12',
+    blackRim: '#FFE08A',
+    rim: '#0E0722',
+    name: 'theme.jose2',
+    short: 'theme.short.jose2',
+    solid: {
+      light: ['#FFE08A', '#E0A33A', '#B8781F'],
+      dark: ['#5B44A0', '#3A2670', '#1E1140'],
+    },
+  },
+  {
     // High contrast as the FLAT board solves it: the default already uses the extreme inks, so all
     // that is left to fix is the board.
     key: 'contrast-flat',

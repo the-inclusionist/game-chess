@@ -63,6 +63,19 @@ export interface HudDeps {
   themes?: readonly { readonly key: string; readonly name: string }[];
   theme?(): string;
   onTheme?(key: string): void;
+
+  /**
+   * Which side the player takes. Changing it starts a new game — there is no honest way to swap
+   * sides in the middle of one — so the control says so and the composition root asks.
+   */
+  playerSide?(): Side;
+  onPlayerSide?(side: Side): void;
+
+  /** The drawings available for the pieces. Only the flat view has any; the projected view draws
+   * geometry and has nothing to choose between. */
+  pieceSets?: readonly { readonly key: string; readonly name: string }[];
+  pieceSet?(): string;
+  onPieceSet?(key: string): void;
   coordinates(): boolean;
   onCoordinates(on: boolean): void;
   /** Whether the score sheet can be walked back or forward from where it stands. */
@@ -274,6 +287,35 @@ export function createHud(deps: HudDeps): Hud {
   motionLabel.className = 'hud-check';
   motionBox.append(motionInput, motionLabel);
 
+  // --- which side you play ---------------------------------------------------
+  const sideBox = doc.createElement('p');
+  const sideLabel = doc.createElement('label');
+  const sideSelect = doc.createElement('select');
+  sideSelect.id = 'hud-side';
+  sideLabel.htmlFor = sideSelect.id;
+  for (const value of ['w', 'b'] as const) {
+    const option = doc.createElement('option');
+    option.value = value;
+    sideSelect.appendChild(option);
+  }
+  sideBox.append(sideLabel, sideSelect);
+
+  // --- which drawing the pieces use ------------------------------------------
+  const setBox = doc.createElement('p');
+  const setLabel = doc.createElement('label');
+  const setSelect = doc.createElement('select');
+  setSelect.id = 'hud-set';
+  setLabel.htmlFor = setSelect.id;
+  if (deps.pieceSets) {
+    for (const item of deps.pieceSets) {
+      const option = doc.createElement('option');
+      option.value = item.key;
+      option.dataset.name = item.name;
+      setSelect.appendChild(option);
+    }
+    setBox.append(setLabel, setSelect);
+  }
+
   // --- board colours ---------------------------------------------------------
   const themeBox = doc.createElement('p');
   const themeLabel = doc.createElement('label');
@@ -316,7 +358,10 @@ export function createHud(deps: HudDeps): Hud {
   coordsLabel.className = 'hud-check';
   coordsBox.append(coordsInput, coordsLabel);
 
-  root.append(turn, capturedBox, movesBox, difficultyBox, contrastBox);
+  root.append(turn, capturedBox, movesBox);
+  if (deps.onPlayerSide) root.appendChild(sideBox);
+  root.append(difficultyBox, contrastBox);
+  if (deps.pieceSets) root.appendChild(setBox);
   if (deps.themes) root.appendChild(themeBox);
   root.append(visionBox, motionBox);
   if (deps.onOutline) root.appendChild(outlineBox);
@@ -338,6 +383,12 @@ export function createHud(deps: HudDeps): Hud {
 
   function onOutlineChange(): void { deps.onOutline?.(outlineInput.checked); }
   outlineInput.addEventListener('change', onOutlineChange);
+
+  function onSideChange(): void { deps.onPlayerSide?.(sideSelect.value as Side); }
+  sideSelect.addEventListener('change', onSideChange);
+
+  function onSetChange(): void { deps.onPieceSet?.(setSelect.value); }
+  setSelect.addEventListener('change', onSetChange);
 
   function onThemeChange(): void { deps.onTheme?.(themeSelect.value); }
   themeSelect.addEventListener('change', onThemeChange);
@@ -497,6 +548,18 @@ export function createHud(deps: HudDeps): Hud {
     motionLabel.textContent = i18n.t('hud.reducedMotion');
     motionInput.checked = deps.reducedMotion();
 
+    if (deps.onPlayerSide) {
+      sideLabel.textContent = i18n.t('hud.playAs');
+      for (const option of sideSelect.options) option.textContent = i18n.t(`turn.${option.value}`);
+      sideSelect.value = deps.playerSide?.() ?? 'w';
+    }
+
+    if (deps.pieceSets) {
+      setLabel.textContent = i18n.t('hud.pieceSet');
+      for (const option of setSelect.options) option.textContent = i18n.t(option.dataset.name ?? '');
+      setSelect.value = deps.pieceSet?.() ?? '';
+    }
+
     if (deps.themes) {
       themeLabel.textContent = i18n.t('hud.boardTheme');
       for (const option of themeSelect.options) option.textContent = i18n.t(option.dataset.name ?? '');
@@ -527,6 +590,8 @@ export function createHud(deps: HudDeps): Hud {
       visionSelect.removeEventListener('change', onVisionChange);
       motionInput.removeEventListener('change', onMotionChange);
       outlineInput.removeEventListener('change', onOutlineChange);
+      sideSelect.removeEventListener('change', onSideChange);
+      setSelect.removeEventListener('change', onSetChange);
       themeSelect.removeEventListener('change', onThemeChange);
       themeSelect.removeEventListener('focus', showReport);
       themeSelect.removeEventListener('blur', hideReport);

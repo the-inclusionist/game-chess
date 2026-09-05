@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
 import { createRules } from '../app/js/chess/rules.ts';
-import { clear, describe as describeGame, load, restore, resume, save } from '../app/js/chess/session.ts';
+import {
+  clear, describe as describeGame, load, loadSettings, restore, resume, save, saveSettings,
+} from '../app/js/chess/session.ts';
 import { fromAlgebraic, type Square } from '../app/js/chess/types.ts';
 
 // ========================= WHY THIS EXISTS =========================
@@ -139,5 +141,31 @@ describe('[Session] nothing it reads back is trusted', () => {
     };
     expect(() => save(opened(), angry)).not.toThrow();
     expect(() => clear(angry)).not.toThrow();
+  });
+});
+
+describe('[Session] the choices that must not reset when the view changes', () => {
+  it('remembers the palette, the drawing, the coordinates and the side', () => {
+    const store = fakeStore();
+    saveSettings({ theme: 'jose2', set: 'math', coordinates: false, side: 'b' }, store);
+    expect(loadSettings(store)).toEqual({
+      theme: 'jose2', set: 'math', coordinates: false, side: 'b',
+    });
+  });
+
+  it('drops anything it does not recognise instead of handing it on', () => {
+    // A stale or hand-edited entry must not reach the renderer as a colour or a side.
+    const store = fakeStore();
+    store.setItem('incl_chess_view', JSON.stringify({ theme: 7, side: 'purple', coordinates: 'yes' }));
+    expect(loadSettings(store)).toEqual({});
+  });
+
+  it('is separate from the game, so a new game keeps the settings', () => {
+    const store = fakeStore();
+    saveSettings({ theme: 'xboard', side: 'b' }, store);
+    save(opened(), store);
+    clear(store);
+    expect(load(store)).toBeNull();
+    expect(loadSettings(store)).toEqual({ theme: 'xboard', side: 'b' });
   });
 });

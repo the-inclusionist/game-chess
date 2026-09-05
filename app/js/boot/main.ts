@@ -21,9 +21,10 @@ import { applyLayout } from '../ui/layout.ts';
 import { createEngineClient } from '../chess/engine/client.ts';
 import { DEFAULT_DIFFICULTY, DIFFICULTY_DEPTH, type Difficulty } from '../chess/engine/difficulty.ts';
 import { type MoveResult } from '../chess/rules.ts';
-import { loadSettings, resume, save as saveGame, saveSettings } from '../chess/session.ts';
+import { clear as clearGame, loadSettings, resume, save as saveGame, saveSettings }
+  from '../chess/session.ts';
 import { createGameState, type Activation, type HistoryStep } from '../chess/state.ts';
-import { sameSquare, type Piece, type Square, toAlgebraic } from '../chess/types.ts';
+import { sameSquare, type Piece, type Side, type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale, type I18n } from '../i18n/index.ts';
 import { createMoveAnimation, type MoveAnimation } from '../render/animation.ts';
 import { createBoard, type Marker } from '../render/board.ts';
@@ -37,7 +38,7 @@ import { projectedPalette } from '../render/palette.ts';
 import { BOARD_THEMES, boardTheme, DEFAULT_THEME } from '../ui/board-themes.ts';
 import { createFrameTicker } from '../render/frame-ticker.ts';
 import { LOGICAL_W } from '../render/resolution.ts';
-import { createZdogStage } from '../render/zdog-stage.ts';
+import { CAMERA, createZdogStage } from '../render/zdog-stage.ts';
 
 /** What the move sounds like. The notation is exact; this is what a person actually hears. */
 function moveSentence(i18n: I18n, move: MoveResult): string {
@@ -83,7 +84,8 @@ export function boot(host: Document = document): void {
   // sheet is written to the tab's own storage after anything that changes it and read back here,
   // which is why switching from 2D to 2.5D continues the game rather than starting one.
   const rules = resume();
-  const game = createGameState({ rules, opponent: true });
+  const playerSide: Side = loadSettings().side ?? 'w';
+  const game = createGameState({ rules, playerSide, opponent: true });
   const opponent = createEngineClient();
   let difficulty: Difficulty = DEFAULT_DIFFICULTY;
   let thinking = false;
@@ -134,7 +136,12 @@ export function boot(host: Document = document): void {
   const stage = createZdogStage();
   const boardView = createBoard(stage.root, projectedPalette(boardTheme(themeKey)));
   const pieces = createPiecesLayer(stage.root, projectedPalette(boardTheme(themeKey)), outlined);
-  const camera = createCamera();
+  // Half a turn when you are black, so your own men are nearest you. Zdog projects the whole graph
+  // through the illustration's rotation, so this is the entire flip — no second board, no mirrored
+  // geometry, and picking keeps reading the same projected corners it always did.
+  const camera = createCamera(playerSide === 'b'
+    ? { pitch: CAMERA.pitch, yaw: Math.PI }
+    : { pitch: CAMERA.pitch, yaw: CAMERA.yaw });
 
   // ========================= NO COMPOSITOR =========================
   // Zdog's canvas goes straight into the document. It used to be uploaded to a PixiJS texture and
@@ -203,6 +210,9 @@ export function boot(host: Document = document): void {
     difficulty: () => difficulty,
     reducedMotion,
     onReducedMotion: (on) => { motionReduced = on; hud.refresh(); },
+    playerSide: () => playerSide,
+    onPlayerSide: choosePlayerSide,
+
     canTakeBack: () => !walking && game.canTakeBack(),
     canReplay: () => !walking && game.canReplay(),
     onTakeBack: () => walkHistory('back'),
@@ -213,7 +223,7 @@ export function boot(host: Document = document): void {
     onCoordinates: (on) => {
       showCoordinates = on;
       coordinates.setVisible(on);
-      saveSettings({ theme: themeKey, coordinates: on });
+      saveSettings({ ...currentSettings(), coordinates: on });
       hud.refresh();
       invalidate();
     },
@@ -255,6 +265,26 @@ export function boot(host: Document = document): void {
    * the null check into a function that could, as far as it knows, have been called before it.
    * The narrowed constant is captured once, above, where the check has already happened.
    */
+  const currentSettings = () => ({
+    theme: themeKey, coordinates: showCoordinates, side: playerSide,
+  });
+
+  /**
+   * ========================= CHANGING SIDES IS A NEW GAME =========================
+   * There is no honest way to swap sides in the middle of one: the position, the score sheet and
+   * the captured tally all belong to whoever played them. So the control starts a fresh game — the
+   * choice is written down first, the saved game is thrown away, and the page reloads into it.
+   *
+   * A reload rather than a rebuild because the composition root wires one game into a dozen
+   * closures, and tearing that down by hand would be a second, quieter way of starting over.
+   */
+  function choosePlayerSide(side: Side): void {
+    if (side === playerSide) return;
+    saveSettings({ ...currentSettings(), side });
+    clearGame();
+    window.location.reload();
+  }
+
   function applyTheme(key: string): void {
     themeKey = key;
     if (!key.startsWith('contrast-')) previousTheme = key;
@@ -263,7 +293,7 @@ export function boot(host: Document = document): void {
     pieces.setPalette(palette);
     // The DOM panel follows the same switch: it is over the same board and read by the same eye.
     area.dataset.contrast = key.startsWith('contrast-') ? 'high' : '';
-    saveSettings({ theme: key, coordinates: showCoordinates });
+    saveSettings({ ...currentSettings(), theme: key });
     hud.refresh();
     invalidate();
   }

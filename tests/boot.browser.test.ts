@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { boot } from '../app/js/boot/main.ts';
 import { boot2d } from '../app/js/boot/main-2d.ts';
+import { saveSettings } from '../app/js/chess/session.ts';
 
 // ========================= WHY THIS TEST EXISTS =========================
 // Twice now, a change to `boot/main.ts` has thrown on the very first line of the game and been
@@ -99,5 +100,20 @@ describe('[Boot] the flat composition root composes too', () => {
     boot2d(document);
     const drawn = [...document.querySelectorAll('.cell-piece')].filter((g) => g.textContent);
     expect(drawn).toHaveLength(32);
+  });
+});
+
+describe('[Boot] the board turns round for a player who chose black', () => {
+  it('flips the ELEMENT and leaves the grid alone', () => {
+    // The rotation is CSS on the board. The DOM keeps its rows, its columns, its reading order and
+    // its arrow keys — which is why a1 is still a1 to a screen reader on a turned board.
+    saveSettings({ side: 'b' });
+    fixture();
+    boot2d(document);
+    const board = document.querySelector<HTMLElement>('.board-2d');
+    expect(board?.dataset.flipped).toBe('true');
+    const first = document.querySelector('[role="gridcell"]');
+    expect(first?.getAttribute('data-square')).toBe('a8');
+    saveSettings({});
   });
 });

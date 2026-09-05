@@ -442,3 +442,38 @@ describe('[History] one ply at a time, so it can be drawn honestly', () => {
     expect(stepwise.phase()).toBe(atOnce.phase());
   });
 });
+
+describe('[Side] choosing black hands the first move to the opponent', () => {
+  it('starts THINKING rather than idle, because white is not the player', () => {
+    const game = createGameState({ rules: createRules(), playerSide: 'b', opponent: true });
+    expect(game.phase()).toBe('thinking');
+  });
+
+  it('refuses to move white for a player who chose black', () => {
+    const game = createGameState({ rules: createRules(), playerSide: 'b', opponent: true });
+    expect(game.activate(sq('e2'))).toEqual({ kind: 'ignored', reason: 'busy' });
+  });
+
+  it('takes back ONE ply for black, and that is not an inconsistency', () => {
+    // ⚠️ The unit is not "two plies". It is "until you are on move again", and those are the same
+    // thing only for the side that moves first. White at 1.e4 e5 has to unwind the reply AND the
+    // move it answered to get its choice back; black at the same position only has to unwind its
+    // own e5, because 1.e4 is then still on the board with black to move — which IS the moment
+    // black last had a decision to make.
+    //
+    // This test exists because the expectation was written the other way round first, and the
+    // state machine was right.
+    const game = createGameState({ rules: createRules(), playerSide: 'b', opponent: true });
+    game.applyOpponentMove(sq('e2'), sq('e4'));
+    game.animationDone();
+    expect(game.phase()).toBe('idle');
+    game.activate(sq('e7'));
+    game.activate(sq('e5'));
+    game.animationDone();
+
+    expect(game.takeBack()).toBe(true);
+    expect(game.rules.history().map((m) => m.san)).toEqual(['e4']);
+    expect(game.rules.turn()).toBe('b');
+    expect(game.phase()).toBe('idle');
+  });
+});
