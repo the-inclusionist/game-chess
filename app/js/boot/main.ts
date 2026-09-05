@@ -23,6 +23,7 @@ import { createI18n, preferredLocale } from '../i18n/index.ts';
 import { createBoard, type Marker } from '../render/board.ts';
 import { squareFromIndex } from '../render/board-geometry.ts';
 import { createCamera } from '../render/camera.ts';
+import { createPiecesLayer, type PiecePlacement } from '../render/pieces/index.ts';
 import { createPixiSurface } from '../render/pixi-surface.ts';
 import { pickTopmost, toIllustrationSpace } from '../render/picking.ts';
 import { LOGICAL_W } from '../render/resolution.ts';
@@ -41,6 +42,18 @@ function startingPosition(): (Piece | null)[][] {
     rows[7][f] = { type: BACK_RANK[f], side: 'w' };
   }
   return rows;
+}
+
+/** Flattens the position into what the render layer wants: piece plus square. */
+function placementsOf(board: readonly (Piece | null)[][]): PiecePlacement[] {
+  const out: PiecePlacement[] = [];
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      const piece = board[y][x];
+      if (piece) out.push({ piece, square: { x, y } });
+    }
+  }
+  return out;
 }
 
 /* ============================ composition ============================ */
@@ -104,6 +117,8 @@ export function boot(host: Document = document): void {
 
   const stage = createZdogStage();
   const boardView = createBoard(stage.root);
+  const pieces = createPiecesLayer(stage.root);
+  pieces.setPosition(placementsOf(board));
   const surface = createPixiSurface(stage.canvas);
   const camera = createCamera();
 

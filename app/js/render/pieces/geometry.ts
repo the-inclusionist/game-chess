@@ -1,0 +1,165 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// render/pieces/geometry — the six Hartwig pieces, as DATA.
+//
+// ========================= WHY DATA AND NOT ZDOG CALLS =========================
+// A table of boxes can be reasoned about without a renderer: whether a piece fits its square,
+// whether it stands on the board rather than floating, whether the six heights read in the order
+// a player expects, whether the knight really is four equal cubes. Those are the claims worth
+// holding, and they hold in the node project, in milliseconds, without a canvas.
+//
+// ========================= HARTWIG'S OWN WORDS =========================
+// Josef Hartwig explained the set in 1924, and the explanation IS the specification:
+//
+//   · "Pawn and rook move at right angles to the edge of the board: expressed by the CUBE."
+//     Two cubes, differing only in size.
+//   · "The knight moves at right angles in a hook over four squares: FOUR CUBES combined at
+//     right angles."
+//   · "The bishop moves diagonally: a CROSS cut from the cube."
+//   · "The king: a smaller cube turned ACROSS THE CORNER of a larger one." (über Eck — turned 45°,
+//     not balanced on a vertex.)
+//   · "A CIRCLE on the queen's top, for her versatile movement."
+//
+// Five of the six are boxes. Only the queen needs anything else, and Zdog draws her circle as a
+// single-point Shape with a large stroke — one draw call, and a disc that always faces the camera,
+// which is exactly what "a circle on top" means.
+//
+// ========================= UNITS AND AXES =========================
+// Everything is in Zdog units, where the square is TILE = 16. Zdog's Y points DOWN, so a piece
+// occupies NEGATIVE y and its base sits at y = 0. `restsOnBoard` is the invariant that keeps that
+// true: a piece that floats or sinks is not visible as an error, only as a wrongness.
+
+import type { PieceType } from '../../chess/types.ts';
+
+export interface BoxSpec {
+  readonly w: number;
+  readonly h: number;
+  readonly d: number;
+  readonly x?: number;
+  readonly y?: number;
+  readonly z?: number;
+  /** Turn about the vertical axis, in radians. */
+  readonly rotY?: number;
+}
+
+/** Zdog draws this as a single-point Shape with a large stroke: a disc facing the camera. */
+export interface DiscSpec {
+  readonly diameter: number;
+  readonly y: number;
+}
+
+export interface PieceSpec {
+  readonly boxes: readonly BoxSpec[];
+  readonly disc?: DiscSpec;
+}
+
+const QUARTER = Math.PI / 4;
+
+/** One cube for the knight. Four of these make the hook. */
+const HOOK = 4.6;
+
+export const PIECE_SPECS: Readonly<Record<PieceType, PieceSpec>> = {
+  // The cube, small. Spike 0 had pawn and rook at 1.31× apart, which is 4 px against 6 px on
+  // screen — too close to read. Widened to exactly half again.
+  p: { boxes: [{ w: 6, h: 6, d: 6, y: -3 }] },
+
+  // The cube, large. Same shape as the pawn because they share the same movement.
+  r: { boxes: [{ w: 9, h: 9, d: 9, y: -4.5 }] },
+
+  // Four cubes at right angles: two side by side, two more stacked on the left. The hook is
+  // the knight's move drawn in the piece.
+  n: {
+    boxes: [
+      { w: HOOK, h: HOOK, d: HOOK, x: -HOOK / 2, y: -HOOK / 2 },
+      { w: HOOK, h: HOOK, d: HOOK, x: +HOOK / 2, y: -HOOK / 2 },
+      { w: HOOK, h: HOOK, d: HOOK, x: -HOOK / 2, y: -HOOK * 1.5 },
+      { w: HOOK, h: HOOK, d: HOOK, x: -HOOK / 2, y: -HOOK * 2.5 },
+    ],
+  },
+
+  // The cross. Two slabs at right angles to each other, both turned 45° off the board axes —
+  // which is what makes the cross read as DIAGONAL movement rather than as a plus sign.
+  b: {
+    boxes: [
+      { w: 10, h: 11.5, d: 3.4, y: -5.75, rotY: +QUARTER },
+      { w: 10, h: 11.5, d: 3.4, y: -5.75, rotY: -QUARTER },
+    ],
+  },
+
+  // A circle on top, for the queen who moves every way.
+  q: {
+    boxes: [{ w: 8.5, h: 8.5, d: 8.5, y: -4.25 }],
+    disc: { diameter: 7.5, y: -11.5 },
+  },
+
+  // A smaller cube turned across the corner of a larger one.
+  k: {
+    boxes: [
+      { w: 10, h: 10, d: 10, y: -5, rotY: 0 },
+      { w: 7.5, h: 7.5, d: 7.5, y: -13.75, rotY: QUARTER },
+    ],
+  },
+};
+
+/** Half-extents of a box on the board plane, after its turn about the vertical axis. */
+function halfExtents(b: BoxSpec): { x: number; z: number } {
+  const t = b.rotY ?? 0;
+  const c = Math.abs(Math.cos(t));
+  const s = Math.abs(Math.sin(t));
+  return {
+    x: (b.w / 2) * c + (b.d / 2) * s,
+    z: (b.w / 2) * s + (b.d / 2) * c,
+  };
+}
+
+/**
+ * The largest span the piece occupies on the board plane. Must stay under TILE or neighbouring
+ * pieces run into each other on the back rank.
+ *
+ * ⚠️ Turning a THIN slab by 45° makes it NARROWER on the axis, not wider: `w·cos + d·sin` is
+ * less than `w` when `d` is small. It is a roughly CUBIC box whose diagonal reaches further —
+ * the king's finial, at 7.5·√2 ≈ 10.6. The spike 0 note stated this backwards.
+ */
+export function pieceFootprint(spec: PieceSpec): number {
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+
+  for (const b of spec.boxes) {
+    const half = halfExtents(b);
+    const x = b.x ?? 0;
+    const z = b.z ?? 0;
+    minX = Math.min(minX, x - half.x);
+    maxX = Math.max(maxX, x + half.x);
+    minZ = Math.min(minZ, z - half.z);
+    maxZ = Math.max(maxZ, z + half.z);
+  }
+
+  if (spec.disc) {
+    const r = spec.disc.diameter / 2;
+    minX = Math.min(minX, -r);
+    maxX = Math.max(maxX, r);
+    minZ = Math.min(minZ, -r);
+    maxZ = Math.max(maxZ, r);
+  }
+
+  return Math.max(maxX - minX, maxZ - minZ);
+}
+
+/** How tall the piece stands above the board, in Zdog units. */
+export function pieceHeight(spec: PieceSpec): number {
+  let top = 0;
+  for (const b of spec.boxes) top = Math.min(top, (b.y ?? 0) - b.h / 2);
+  if (spec.disc) top = Math.min(top, spec.disc.y - spec.disc.diameter / 2);
+  return -top;
+}
+
+/**
+ * Does the piece sit exactly on the board plane? A piece that floats or sinks looks like a
+ * drawing mistake rather than reading as an error, so it is asserted rather than eyeballed.
+ */
+export function restsOnBoard(spec: PieceSpec): boolean {
+  let bottom = -Infinity;
+  for (const b of spec.boxes) bottom = Math.max(bottom, (b.y ?? 0) + b.h / 2);
+  return Math.abs(bottom) < 1e-9;
+}
