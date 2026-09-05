@@ -50,6 +50,7 @@ export const es: Catalog = {
     'hud.takeBackShort': 'Deshacer',
     'hud.replayShort':   'Rehacer',
     'hud.movesRegion': 'Lista de jugadas, desplazable',
+    'hud.coordinates': 'Letras y números',
 
     'difficulty.easy':   'Fácil',
     'difficulty.medium': 'Medio',

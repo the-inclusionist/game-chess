@@ -14,6 +14,7 @@ import { srAlert, srSay } from '@the-inclusionist/engine/core/a11y-sr.js';
 import { startLoop } from '@the-inclusionist/engine/core/loop.js';
 import { VIZ_FILTER } from '@the-inclusionist/engine/render/viz-modes.js';
 import { createChessDeclaration } from '../declaration/chess-declaration.ts';
+import { createCoordinates } from '../ui/coordinates.ts';
 import { createGridMirror } from '../ui/grid-mirror.ts';
 import { createHud } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
@@ -104,6 +105,11 @@ export function boot(host: Document = document): void {
     window.matchMedia?.('(prefers-contrast: more)').matches ? 'high-contrast' : 'default';
   let vision = 'normal';
   let outlined = true;
+  let showCoordinates = true;
+
+  // Real DOM text over the board: Zdog has no text primitive, and `ui/coordinates` explains why
+  // that turns out to be a gain. Created before the HUD so the panel stacks above it.
+  const coordinates = createCoordinates({ doc: host, visible: showCoordinates });
 
   const stage = createZdogStage();
   const boardView = createBoard(stage.root, createPalette(paletteMode));
@@ -176,6 +182,13 @@ export function boot(host: Document = document): void {
     onReplay: () => walkHistory('forward'),
     outline: () => outlined,
     onOutline: (on) => { outlined = on; pieces.setOutline(on); hud.refresh(); invalidate(); },
+    coordinates: () => showCoordinates,
+    onCoordinates: (on) => {
+      showCoordinates = on;
+      coordinates.setVisible(on);
+      hud.refresh();
+      invalidate();
+    },
     vision: () => vision,
     onVision: (key) => {
       vision = key;
@@ -202,16 +215,35 @@ export function boot(host: Document = document): void {
       if (game.phase() === 'thinking') { opponent.cancel(); thinking = false; askOpponent(); }
     },
   });
+  region.appendChild(coordinates.root);
   region.appendChild(hud.root);
   region.dataset.contrast = paletteMode === 'high-contrast' ? 'high' : '';
 
-  const relayout = (): void => { applyLayout({ doc: host, win: window }); };
+  /**
+   * CSS pixels per canvas pixel, kept from the last layout instead of measured per frame.
+   * `getBoundingClientRect` inside a render loop forces a synchronous layout on every frame, which
+   * is the classic way to make a smooth animation stutter on the machine that can least afford it.
+   */
+  let cssPerPixel = 1;
+
+  // ⚠️ Declared ABOVE `relayout`, which calls `invalidate()` on its first run. This is the SECOND
+  // temporal-dead-zone fault in this file: the first was the walk state read by `createHud`'s own
+  // constructor. Both were invisible to tsc, to 375 tests and to the build, and both broke the
+  // whole boot in the bundle only. `tests/boot.browser.test.ts` exists because of this one.
+  let dirty = true;
+  const invalidate = (): void => { dirty = true; };
+
+  const relayout = (): void => {
+    const result = applyLayout({ doc: host, win: window });
+    if (result) cssPerPixel = result.width / LOGICAL_W;
+    // The labels are positioned in CSS pixels, so a resize moves them even though the canvas
+    // itself is only rescaled. Nothing else here needs a redraw on resize; they do.
+    invalidate();
+  };
   relayout();
   window.addEventListener('resize', relayout);
 
-  let dirty = true;
   let animation: MoveAnimation | null = null;
-  const invalidate = (): void => { dirty = true; };
 
   function syncPieces(): void {
     const flying = game.animating();
@@ -548,6 +580,9 @@ export function boot(host: Document = document): void {
     const view = camera.snapshot();
     stage.setCamera(view.pitch, view.yaw);
     stage.render();
+    // After the render, because the projected corners the labels extrapolate from are only valid
+    // once the graph has been updated — the same precondition `quads()` carries for picking.
+    coordinates.place(boardView.quads(), stage.viewport(), cssPerPixel);
     surface.present();
     surface.render();
   }
@@ -596,6 +631,7 @@ export function boot(host: Document = document): void {
       askOpponent,
       mirror,
       hud,
+      coordinates,
       stage,
       boardView,
       pieces,

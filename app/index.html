@@ -145,6 +145,33 @@
   #game-region[data-contrast="high"] .hud-swatch[data-side="w"] { background: #FFFFFF; }
   #game-region[data-contrast="high"] .hud-swatch[data-side="b"] { background: #000000; border-color: #FFFFFF; }
 
+  /*
+   * The board coordinates. Real DOM text over the canvas, because Zdog has no text primitive —
+   * see ui/coordinates.ts for why that is a gain rather than a workaround.
+   *
+   * `pointer-events: none` matters: the letters sit ON the board, and the board is dragged to turn
+   * the camera. A label that swallowed a pointerdown would put a dead spot on the very edge a
+   * player reaches for.
+   */
+  .coords {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    font-size: calc(var(--ui-fs, 16px) * 0.62);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: #6f6552;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  }
+  .coords-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    line-height: 1;
+    will-change: transform;
+  }
+  #game-region[data-contrast="high"] .coords { color: #FFFFFF; text-shadow: none; }
+
   .sr-only {
     position: absolute; width: 1px; height: 1px;
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;

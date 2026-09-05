@@ -49,6 +49,7 @@ export const en: Catalog = {
     'hud.takeBackShort': 'Back',
     'hud.replayShort':   'Forward',
     'hud.movesRegion': 'Move list, scrollable',
+    'hud.coordinates': 'Files and ranks',
 
     'difficulty.easy':   'Easy',
     'difficulty.medium': 'Medium',

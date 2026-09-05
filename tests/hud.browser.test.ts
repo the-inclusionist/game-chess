@@ -29,6 +29,8 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   const onReducedMotion = vi.fn((on: boolean) => { motion = on; });
   let outline = true;
   const onOutline = vi.fn((on: boolean) => { outline = on; });
+  let coords = true;
+  const onCoords = vi.fn((on: boolean) => { coords = on; });
   // The composition root cancels the search and redraws around these; the panel only asks.
   const onTakeBack = vi.fn(() => { state.takeBack(); hud!.refresh(); });
   const onReplay = vi.fn(() => { state.replay(); hud!.refresh(); });
@@ -39,6 +41,7 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
     vision: () => vision, onVision,
     reducedMotion: () => motion, onReducedMotion,
     outline: () => outline, onOutline,
+    coordinates: () => coords, onCoordinates: onCoords,
     canTakeBack: () => state.canTakeBack(), canReplay: () => state.canReplay(),
     onTakeBack, onReplay,
   });
@@ -52,7 +55,8 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   return { rules, state, hud, onDifficulty, onHighContrast, onVision, play,
            getDifficulty: () => difficulty, getContrast: () => highContrast,
            getVision: () => vision, onReducedMotion, getMotion: () => motion,
-           onOutline, getOutline: () => outline, onTakeBack, onReplay };
+           onOutline, getOutline: () => outline, onTakeBack, onReplay,
+           onCoords, getCoords: () => coords };
 }
 
 const text = (selector: string): string =>

@@ -43,6 +43,8 @@ export interface HudDeps {
   onReducedMotion(on: boolean): void;
   outline(): boolean;
   onOutline(on: boolean): void;
+  coordinates(): boolean;
+  onCoordinates(on: boolean): void;
   /** Whether the score sheet can be walked back or forward from where it stands. */
   canTakeBack(): boolean;
   canReplay(): boolean;
@@ -199,8 +201,21 @@ export function createHud(deps: HudDeps): Hud {
   outlineLabel.className = 'hud-check';
   outlineBox.append(outlineInput, outlineLabel);
 
+  // --- board coordinates ------------------------------------------------------
+  // On by default. The algebraic names are what the screen reader already speaks, and seeing them
+  // is how a sighted learner connects the two — so the pedagogical default is ON, and the switch
+  // exists because at this resolution sixteen labels are real pixels around a small board.
+  const coordsBox = doc.createElement('p');
+  const coordsInput = doc.createElement('input');
+  coordsInput.type = 'checkbox';
+  coordsInput.id = 'hud-coords';
+  const coordsLabel = doc.createElement('label');
+  coordsLabel.htmlFor = coordsInput.id;
+  coordsLabel.className = 'hud-check';
+  coordsBox.append(coordsInput, coordsLabel);
+
   root.append(turn, capturedBox, movesBox, difficultyBox,
-              contrastBox, visionBox, motionBox, outlineBox);
+              contrastBox, visionBox, motionBox, outlineBox, coordsBox);
 
   function onDifficultyChange(): void {
     deps.onDifficulty(difficultySelect.value as Difficulty);
@@ -218,6 +233,9 @@ export function createHud(deps: HudDeps): Hud {
 
   function onOutlineChange(): void { deps.onOutline(outlineInput.checked); }
   outlineInput.addEventListener('change', onOutlineChange);
+
+  function onCoordsChange(): void { deps.onCoordinates(coordsInput.checked); }
+  coordsInput.addEventListener('change', onCoordsChange);
 
   function onBackClick(): void { deps.onTakeBack(); }
   function onForwardClick(): void { deps.onReplay(); }
@@ -304,6 +322,9 @@ export function createHud(deps: HudDeps): Hud {
     outlineLabel.textContent = i18n.t('hud.outline');
     outlineInput.checked = deps.outline();
 
+    coordsLabel.textContent = i18n.t('hud.coordinates');
+    coordsInput.checked = deps.coordinates();
+
     const outcome = state.outcome();
     root.dataset.outcome = outcome ? outcome.kind : '';
   }
@@ -319,6 +340,7 @@ export function createHud(deps: HudDeps): Hud {
       visionSelect.removeEventListener('change', onVisionChange);
       motionInput.removeEventListener('change', onMotionChange);
       outlineInput.removeEventListener('change', onOutlineChange);
+      coordsInput.removeEventListener('change', onCoordsChange);
       backButton.removeEventListener('click', onBackClick);
       forwardButton.removeEventListener('click', onForwardClick);
       root.remove();

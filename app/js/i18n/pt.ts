@@ -54,6 +54,7 @@ export const pt: Catalog = {
     'hud.takeBackShort': 'Voltar',
     'hud.replayShort':   'Avançar',
     'hud.movesRegion': 'Lista de lances, rolável',
+    'hud.coordinates': 'Letras e números',
 
     'difficulty.easy':   'Fácil',
     'difficulty.medium': 'Médio',
