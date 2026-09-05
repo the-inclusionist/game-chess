@@ -450,6 +450,9 @@ export function boot(host: Document = document): void {
       askOpponent,
       mirror,
       hud,
+      stage,
+      boardView,
+      pieces,
       engine,
       declaration,
       /** Advances the loop by hand — see `frame`. */

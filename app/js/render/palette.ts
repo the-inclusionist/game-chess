@@ -66,14 +66,56 @@ export const MARKER_CHECK = '#B3341F';
 export const MARKER_CURSOR = '#0E7C86';
 
 /**
- * Stroke width in Zdog units. Thick enough to read as Zdog at this resolution, thin enough not to
- * swallow a face that is only a few pixels across. Measured in spike 0.
+ * Stroke width in Zdog units.
+ *
+ * ========================= WHY 1.5 AND NOT 0.9 =========================
+ * 0.9 came out of spike 0 by eye and it made the board look SOFT. The cause is not the upscale —
+ * that is an exact integer factor with `image-rendering: pixelated`, verified — it is that
+ * Canvas2D antialiases every path and cannot be told not to.
+ *
+ * A stroke of 0.9 units is 0.9 x 1.15 zoom = about ONE screen pixel. An antialiased one-pixel line
+ * at an arbitrary angle has no fully covered pixel anywhere along it: the whole line is
+ * half-opacity, and it reads as a grey smear rather than as an edge.
+ *
+ * Measured, sweeping the stroke and counting pixels with partial alpha:
+ *
+ *   0.9   9.2 % soft      0.7 % outline ink
+ *   1.1   9.0 %           0.8 %
+ *   1.3   4.5 %           0.9 %      <- the knee
+ *   1.5   3.5 %           1.0 %
+ *   1.8   1.9 %           1.0 %
+ *
+ * The knee sits between 1.1 and 1.3, which is exactly where the line first covers a whole pixel.
+ * The outline INK barely grows across the range — the fear that a thicker stroke would swallow a
+ * six-unit pawn was unfounded, because the stroke is centred on the edge and most of its width
+ * falls on the neighbouring face rather than on the background.
+ *
+ * 1.5 is past the knee with room to spare. Eliminating the softness entirely would mean
+ * rasterising through PIXI.Graphics with `antialias: false` — the fallback the plan reserved —
+ * and that is a different trade: hard edges on a board whose every line is diagonal.
  */
-export const STROKE = 0.9;
+export const STROKE = 1.5;
 
-/** Squares carry a lighter outline than pieces: they are ground, and 64 of them at full weight
- * would out-shout the 32 figures standing on them. */
-export const SQUARE_STROKE = STROKE * 0.5;
+/**
+ * The squares get the SAME weight as the pieces, and the reason is not about weight at all.
+ *
+ * This stroke is drawn in the square's OWN fill colour — it is not a grid line and is never seen
+ * as one. Its whole job is to give the filled quad a crisp edge, because a Canvas2D fill has an
+ * antialiased boundary whatever you do. A stroke thick enough to cover a whole pixel replaces that
+ * soft boundary with a line that has a solid core; a thin one does not.
+ *
+ * It was `STROKE * 0.5` — 0.75 units, about 0.86 screen pixels — on the reasoning that 64 squares
+ * at full weight would out-shout 32 pieces. That reasoning was about a visible line, and there is
+ * no visible line. What it actually bought was 64 soft-edged quads, and MEASURED they were the
+ * dominant source of blur on the whole board:
+ *
+ *   squares at 0.75   12.8 % of drawn pixels soft
+ *   squares at 1.5     3.5 %
+ *   squares with NO stroke at all   11.5 %   <- removing it barely helps: the FILL is still soft
+ *
+ * That last row is the point. The stroke is not decoration here, it is what makes an edge an edge.
+ */
+export const SQUARE_STROKE = STROKE;
 
 
 /* ============================ THE HIGH-CONTRAST MODE ============================ */
