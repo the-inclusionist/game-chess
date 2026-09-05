@@ -149,12 +149,22 @@ describe('[PieceSets] the drawing is a choice with no semantic surface', () => {
   it('swaps the set without touching one label', () => {
     const { mirror: m } = build();
     const before = cellAt('e2').getAttribute('aria-label');
-    m.setPieceSet('emoji');
-    expect(m.pieceSetKey()).toBe('emoji');
+    m.setPieceSet('math');
+    expect(m.pieceSetKey()).toBe('math');
+    // The whole reason this is a cheap control: the meaning lives in the label, and the label did
+    // not move.
     expect(cellAt('e2').getAttribute('aria-label')).toBe(before);
-    // A coloured set cannot be tinted, so the side moves to the element and the board says so.
-    expect(m.root.dataset.coloured).toBe('true');
-    expect(cellAt('e2').querySelector('.cell-piece')!.textContent).not.toBe('♟');
+    // What DID change is the face the cell asks for.
+    expect(m.root.style.getPropertyValue('--piece-font')).toContain('STIX Two Math');
+  });
+
+  it('names each set by its typeface, not by a description of it', () => {
+    // ⚠️ These were "chess symbols" and "mathematical symbols" — a description dressed as a name,
+    // which helps nobody: it hides the answer from someone who knows the face and teaches nothing
+    // to someone who does not. A typeface is a proper noun, so the label is a literal in every
+    // language, exactly as the engine's own font catalogue keeps `fam`.
+    expect(PIECE_SETS.map((set) => set.label))
+      .toEqual(['Noto Sans Symbols 2', 'STIX Two Math', 'Pecita']);
   });
 
   it('falls back rather than breaking on an unavailable or unknown set', () => {

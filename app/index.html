@@ -273,13 +273,26 @@
    * Sized in `em` off --ui-fs so the whole board grows with the engine's own type scale, which is
    * what a low-vision reader is already adjusting.
    */
+  /*
+   * ========================= BOTH BOARDS SIT ON THE SAME POINT =========================
+   * The flat board used to be a block in normal flow with a small margin, so it sat near the top
+   * left of the region while the projected board sat in the middle of the column the panel leaves
+   * — and switching view made the board jump across the screen.
+   *
+   * The numbers below are MEASURED from the projected board rather than guessed: its corners,
+   * read back through the same projection picking uses, centre on 34.91% of the region's width and
+   * 50% of its height, and it stands 68.8% of the region tall. The flat board is placed on that
+   * centre at that height, so the two are the same board seen two ways rather than two boards.
+   */
   .board-2d {
+    position: absolute;
+    top: 50%;
+    left: 34.91%;
+    transform: translate(-50%, -50%);
     display: grid;
     grid-template-rows: repeat(8, 1fr);
-    width: calc(var(--ui-fs, 16px) * 17.5);
-    max-width: 68%;
+    height: 68.8%;
     aspect-ratio: 1;
-    margin: calc(var(--ui-fs, 16px) * 0.8);
     border: 2px solid var(--piece-halo, #3a2a14);
     box-sizing: border-box;
   }
@@ -291,7 +304,7 @@
    * picture turns. Each piece and each coordinate is turned back so it is not upside down — which
    * is what a real board does too, since the men do not rotate when you sit on the other side.
    */
-  .board-2d[data-flipped="true"] { transform: rotate(180deg); }
+  .board-2d[data-flipped="true"] { transform: translate(-50%, -50%) rotate(180deg); }
   .board-2d[data-flipped="true"] .cell-piece,
   .board-2d[data-flipped="true"] .cell-coord { transform: rotate(180deg); }
   .board-2d[data-flipped="true"] .cell-piece[data-glyph]::before {
@@ -368,7 +381,7 @@
     line-height: 1;
     user-select: none;
   }
-  .board-2d:not([data-coloured="true"]) .cell-piece[data-glyph]::before {
+  .cell-piece[data-glyph]::before {
     content: attr(data-glyph);
     position: absolute;
     left: 50%;
@@ -416,30 +429,15 @@
    * standard. What identifies it is the black outline, at 14.57 against a light Wikipedia square —
    * which is why the stroke here is a real rim and not a hairline.
    */
-  .board-2d:not([data-coloured="true"]) .cell-piece[data-side="w"] {
+  .cell-piece[data-side="w"] {
     color: var(--piece-white, #FFFFFF);
     -webkit-text-stroke: 1px var(--piece-white-rim, #000000);
     paint-order: stroke fill;
   }
-  .board-2d:not([data-coloured="true"]) .cell-piece[data-side="b"] {
+  .cell-piece[data-side="b"] {
     color: var(--piece-black, #000000);
     -webkit-text-stroke: 1px var(--piece-black-rim, #FFFFFF);
     paint-order: stroke fill;
-  }
-
-  /* ⚠️ A coloured set paints its own pixels and cannot be tinted, so the SIDE moves to a disc
-     behind it — which is how a physical set does it too: same shape, different material. */
-  .board-2d[data-coloured="true"] .cell-piece {
-    width: 82%; height: 82%;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 50%;
-    box-sizing: border-box;
-  }
-  .board-2d[data-coloured="true"] .cell-piece[data-side="w"] {
-    background: var(--piece-white, #FFFFFF); border: 2px solid var(--piece-white-rim, #000000);
-  }
-  .board-2d[data-coloured="true"] .cell-piece[data-side="b"] {
-    background: var(--piece-black, #000000); border: 2px solid var(--piece-black-rim, #FFFFFF);
   }
 
   /*

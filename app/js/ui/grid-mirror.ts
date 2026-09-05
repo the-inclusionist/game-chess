@@ -312,7 +312,6 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
   if (visible) {
     root.dataset.set = set.key;
     root.style.setProperty('--piece-font', set.family);
-    root.dataset.coloured = set.coloured ? 'true' : '';
     applyTheme();
   }
 
@@ -380,7 +379,6 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
       set = pieceSet(key);
       root.dataset.set = set.key;
       root.style.setProperty('--piece-font', set.family);
-      root.dataset.coloured = set.coloured ? 'true' : '';
       refresh();
     },
     refresh,

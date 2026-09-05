@@ -73,7 +73,7 @@ export interface HudDeps {
 
   /** The drawings available for the pieces. Only the flat view has any; the projected view draws
    * geometry and has nothing to choose between. */
-  pieceSets?: readonly { readonly key: string; readonly name: string }[];
+  pieceSets?: readonly { readonly key: string; readonly label: string }[];
   pieceSet?(): string;
   onPieceSet?(key: string): void;
   coordinates(): boolean;
@@ -310,7 +310,8 @@ export function createHud(deps: HudDeps): Hud {
     for (const item of deps.pieceSets) {
       const option = doc.createElement('option');
       option.value = item.key;
-      option.dataset.name = item.name;
+      // Written straight in: a typeface's name is the same string in every language.
+      option.textContent = item.label;
       setSelect.appendChild(option);
     }
     setBox.append(setLabel, setSelect);
@@ -556,7 +557,6 @@ export function createHud(deps: HudDeps): Hud {
 
     if (deps.pieceSets) {
       setLabel.textContent = i18n.t('hud.pieceSet');
-      for (const option of setSelect.options) option.textContent = i18n.t(option.dataset.name ?? '');
       setSelect.value = deps.pieceSet?.() ?? '';
     }
 

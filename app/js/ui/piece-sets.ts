@@ -1,6 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // ui/piece-sets — what the 2D board draws a piece WITH. Data, and nothing else.
 //
+// ========================= ⚠️ THE EMOJI SET WAS TRIED AND REMOVED =========================
+// It drew the pieces with emoji instead of the chess block, and it brought a problem the text sets
+// do not have: an emoji is a full-colour bitmap that cannot be recoloured, so the SIDE could not be
+// carried by the glyph at all. It was carried by a disc behind the piece instead — and that is a
+// second thing to look at in every square, on a board whose whole job is to be read quickly.
+//
+// It also looked different on every machine, since the engine's standing decision for emoji is
+// `src: local(...)`: the system's font, no download. "A board that is not the same board twice" is
+// a poor thing to offer a classroom.
+//
+// Removed rather than left switched off, along with the machinery that existed only for it — the
+// `coloured` flag and the disc it drove. Something kept for a case nobody has is how a file starts
+// carrying weight it cannot justify.
+//
 // ========================= WHY A SET IS A CHEAP THING TO OFFER =========================
 // The meaning of a square lives in the `aria-label` of `ui/grid-mirror.ts`, in the player's own
 // language, with the piece's grammatical gender attached. A glyph is `aria-hidden` decoration on
@@ -46,68 +60,65 @@ const CHESS_BLOCK: Glyphs = {
   b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' },
 };
 
-/**
- * ⚠️ Emoji are not the chess block and never were: U+2654 upward are TEXT symbols, and no emoji
- * font carries them. So this set is a different picture of the same game, and it brings a problem
- * the others do not — an emoji is a full-colour bitmap and cannot be recoloured, so the SIDE
- * cannot be carried by the glyph.
- *
- * It is carried by a disc behind it instead (`.cell-piece[data-side]` in the stylesheet), which is
- * how a physical set does it too: the piece is the same shape, the material is what differs.
- */
-const EMOJI: Glyphs = {
-  w: { k: '\u{1F934}', q: '\u{1F478}', r: '\u{1F3F0}', b: '\u{1F3EF}', n: '\u{1F40E}', p: '\u{1F6E1}' },
-  b: { k: '\u{1F934}', q: '\u{1F478}', r: '\u{1F3F0}', b: '\u{1F3EF}', n: '\u{1F40E}', p: '\u{1F6E1}' },
-};
-
 export interface PieceSet {
   readonly key: string;
+  /**
+   * ========================= THE FACE'S OWN NAME, NEVER TRANSLATED =========================
+   * A typeface is a proper noun. It was "Símbolos de xadrez" and "Símbolos matemáticos" here,
+   * which is a description dressed as a name and helps nobody: someone who knows what STIX Two
+   * Math looks like could not find it, and someone who does not learns nothing from "mathematical
+   * symbols" either. The engine's own catalogue settled this — `ui/fonts.ts` keeps `fam` as a
+   * literal and puts only the DESCRIPTION behind an i18n key — and this follows it.
+   *
+   * So this string is shown as it is, in every language.
+   */
+  readonly label: string;
   /** Font stack. The first name is the intended face; the rest is what a machine is likely to have. */
   readonly family: string;
   readonly glyph: Glyphs;
-  /**
-   * True when the glyph paints its own colours, so the side has to be shown some other way and
-   * the palette cannot tint it.
-   */
-  readonly coloured?: boolean;
-  /** i18n key for the one-line description shown beside the name. */
-  readonly description: string;
+  /** i18n key for the one-line description, if the name alone does not say enough. */
+  readonly description?: string;
   /** Set when the set cannot be offered yet. The engine's own catalogue uses the same idea. */
   readonly off?: string;
 }
 
 const SYMBOL_STACK = "'Noto Sans Symbols 2', 'Segoe UI Symbol', 'Apple Symbols', 'DejaVu Sans', serif";
 const MATH_STACK = "'STIX Two Math', 'STIX Two Text', 'Cambria Math', 'Latin Modern Math', serif";
-const EMOJI_STACK = "'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif";
 
 export const PIECE_SETS: readonly PieceSet[] = [
   {
     key: 'symbols',
+    label: 'Noto Sans Symbols 2',
     family: SYMBOL_STACK,
     glyph: CHESS_BLOCK,
-    description: 'set.symbols',
   },
   {
     key: 'math',
+    label: 'STIX Two Math',
     family: MATH_STACK,
     glyph: CHESS_BLOCK,
-    description: 'set.math',
   },
   {
-    key: 'emoji',
-    family: EMOJI_STACK,
-    glyph: EMOJI,
-    coloured: true,
-    description: 'set.emoji',
-  },
-  {
-    // Pecita is SIL OFL and covers the chess block, but it is not on Google Fonts — it comes from
-    // pecita.eu, so it needs its own acquisition and its own confirmation before being shipped.
+    // ⚠️ THE LICENCE IS SETTLED AND THE SET IS STILL OFF, which is a different reason from the one
+    // that used to be here. Pecita is SIL OFL 1.1, © Philippe Cochy, with the Reserved Font Name
+    // "Pecita" — checked, not assumed — and the author's own documentation lists Chess Symbols
+    // among its coverage, so the block this needs is there. OFL permits bundling and
+    // redistribution outright.
+    //
+    // What is missing is the FILE. The stack below is `'Pecita', cursive`, and Pecita is on no
+    // system by default: without the font vendored the browser falls through `cursive` — which on
+    // most machines has no chess glyphs — and then falls through again, glyph by glyph, to the
+    // same symbol font the default set already uses. A player would choose "handwritten" and get
+    // exactly the board they already had. A set that lies is worse than a set that is absent.
+    //
+    // ⚠️ And one clause of the OFL will bite when it is vendored: a SUBSET is a modified version,
+    // and the Reserved Font Name may not be used for one. The @font-face will have to declare a
+    // different family name, with the unmodified `Pecita.otf` and the licence text beside it.
     key: 'pecita',
+    label: 'Pecita',
     family: "'Pecita', cursive",
     glyph: CHESS_BLOCK,
-    description: 'set.pecita',
-    off: 'set.off.licence',
+    off: 'set.off.notVendored',
   },
 ];
 
