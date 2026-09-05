@@ -1,8 +1,14 @@
 # Inclusionist Chess — Hartwig's Bauhaus set in pseudo-3D
 
 A playable chess game with an opponent. The board and the 32 pieces are drawn with **Zdog** and
-composited with **PixiJS**, at the Inclusionist engine's fixed **320×180** logical resolution,
-upscaled by an integer factor in physical pixels.
+composited with **PixiJS**, at **640×360** — twice the Inclusionist engine's base — upscaled by an
+integer factor in physical pixels.
+
+The doubling is measured, not aesthetic: a board drawn in projected 3D has no axis-aligned edges,
+because the camera is pitched, and diagonals are the one thing low-resolution pixel art handles
+worst. The staircase step is one source pixel, so it grows with the screen — five physical pixels
+at a 1600-wide window. Doubling the source halves it while keeping the art integer-scaled, 16:9,
+and recognisably a sibling of the platformer. See `app/js/render/resolution.ts`.
 
 It reimplements [`juliangarnier/3D-Hartwig-chess-set`](https://github.com/juliangarnier/3D-Hartwig-chess-set)
 (2013, MIT), which achieved its 3D entirely with CSS transforms on DOM nodes, targeting feature

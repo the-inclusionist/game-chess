@@ -4,7 +4,8 @@ import { fromAlgebraic } from '../app/js/chess/types.ts';
 import { createBoard, markersFor, SQUARE_COUNT } from '../app/js/render/board.ts';
 import { squareFromIndex, squareIndex } from '../app/js/render/board-geometry.ts';
 import { pickTopmost, quadArea, type Point2, type Quad } from '../app/js/render/picking.ts';
-import { createZdogStage, type ZdogStage } from '../app/js/render/zdog-stage.ts';
+import { CAMERA, createZdogStage, type ZdogStage } from '../app/js/render/zdog-stage.ts';
+import { HUD_W, HUD_X, LOGICAL_H, LOGICAL_W } from '../app/js/render/resolution.ts';
 
 // ========================= WHAT THIS PROVES =========================
 // The node tests prove the picking ARITHMETIC against fixtures. They cannot prove the claim the
@@ -35,15 +36,15 @@ function build() {
 afterEach(() => { stage?.destroy(); stage = null; });
 
 describe('[Stage] the resolution invariant survives a real Illustration', () => {
-  it('keeps a 320×180 backing store despite Zdog defaulting pixelRatio to devicePixelRatio', () => {
+  it('keeps the logical backing store despite Zdog defaulting pixelRatio to devicePixelRatio', () => {
     const { stage: s } = build();
-    expect(s.canvas.width).toBe(320);
-    expect(s.canvas.height).toBe(180);
+    expect(s.canvas.width).toBe(LOGICAL_W);
+    expect(s.canvas.height).toBe(LOGICAL_H);
   });
 
   it('reports its viewport for picking', () => {
     const { stage: s } = build();
-    expect(s.viewport()).toEqual({ width: 320, height: 180, zoom: 1.15 });
+    expect(s.viewport()).toEqual({ width: LOGICAL_W, height: LOGICAL_H, zoom: CAMERA.zoom });
   });
 });
 
@@ -163,8 +164,8 @@ describe('[Render] the canvas is not blank', () => {
     const { stage: s } = build();
     s.render();
     const ctx = s.canvas.getContext('2d')!;
-    // The 88 px HUD column starts at x = 232 and nothing 3D should reach into it.
-    const hud = ctx.getImageData(232, 0, 88, 180).data;
+    // Nothing 3D may reach into the HUD column, wherever the resolution puts it.
+    const hud = ctx.getImageData(HUD_X, 0, HUD_W, LOGICAL_H).data;
     let painted = 0;
     for (let i = 3; i < hud.length; i += 4) if (hud[i] > 0) painted++;
     expect(painted).toBe(0);

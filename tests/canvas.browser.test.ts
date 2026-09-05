@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { afterEach, describe, expect, it } from 'vitest';
-import { LOGICAL_H, LOGICAL_W } from '../app/js/render/resolution.ts';
+import { LOGICAL_H, LOGICAL_W, SOURCE_MULTIPLE } from '../app/js/render/resolution.ts';
 
 // ========================= WHAT THIS GUARDS =========================
 // Spike 0 found a trap that fails SILENTLY: Zdog's `Illustration` sizes itself from the element's
@@ -24,22 +24,24 @@ function upscaledCanvas(cssScale: number): HTMLCanvasElement {
 afterEach(() => { document.body.replaceChildren(); });
 
 describe('[Resolution] the backing store is the logical size, whatever CSS says', () => {
-  it('stays 320×180 while the element measures four times that', () => {
+  it('stays at the logical size while the element measures four times that', () => {
     const c = upscaledCanvas(4);
-    expect(c.width).toBe(320);
-    expect(c.height).toBe(180);
+    expect(c.width).toBe(LOGICAL_W);
+    expect(c.height).toBe(LOGICAL_H);
     // The trap, stated as an assertion: measuring the ELEMENT does not give you the resolution.
-    expect(Math.round(c.getBoundingClientRect().width)).toBe(1280);
+    expect(Math.round(c.getBoundingClientRect().width)).toBe(LOGICAL_W * 4);
   });
 
-  it('holds at the k=2 floor — the government Chromebook the engine sizes for', () => {
-    const c = upscaledCanvas(2);
-    expect(c.width).toBe(320);
-    expect(Math.round(c.getBoundingClientRect().width)).toBe(640);
+  it('holds at the smallest scale the layout will produce', () => {
+    const c = upscaledCanvas(1);
+    expect(c.width).toBe(LOGICAL_W);
+    expect(Math.round(c.getBoundingClientRect().width)).toBe(LOGICAL_W);
   });
 
-  it('matches the engine: 320×180 is 16:9 and integer-scales', () => {
+  it('is 16:9 and a whole multiple of the engine base, so it integer-scales beside it', () => {
     expect(LOGICAL_W / LOGICAL_H).toBeCloseTo(16 / 9, 5);
+    expect(LOGICAL_W).toBe(320 * SOURCE_MULTIPLE);
+    expect(Number.isInteger(SOURCE_MULTIPLE)).toBe(true);
     expect(Number.isInteger(LOGICAL_W / 16)).toBe(true);
   });
 });

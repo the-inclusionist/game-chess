@@ -16,7 +16,7 @@ import { VIZ_FILTER } from '@pm-monte/inclusionist-engine/render/viz-modes.ts';
 import { createChessDeclaration } from '../declaration/chess-declaration.ts';
 import { createGridMirror } from '../ui/grid-mirror.ts';
 import { createHud } from '../ui/hud.ts';
-import { initLayout, layout } from '@pm-monte/inclusionist-engine/ui/layout.ts';
+import { applyLayout } from '../ui/layout.ts';
 import { createEngineClient } from '../chess/engine/client.ts';
 import { DEFAULT_DIFFICULTY, DIFFICULTY_DEPTH, type Difficulty } from '../chess/engine/difficulty.ts';
 import { createRules, type MoveResult } from '../chess/rules.ts';
@@ -169,9 +169,9 @@ export function boot(host: Document = document): void {
   region.appendChild(hud.root);
   region.dataset.contrast = paletteMode === 'high-contrast' ? 'high' : '';
 
-  initLayout({ numJogadores: () => 1 });
-  layout();
-  window.addEventListener('resize', layout);
+  const relayout = (): void => { applyLayout({ doc: host, win: window }); };
+  relayout();
+  window.addEventListener('resize', relayout);
 
   let dirty = true;
   let animation: MoveAnimation | null = null;
@@ -453,6 +453,8 @@ export function boot(host: Document = document): void {
       stage,
       boardView,
       pieces,
+      // fabricas, para montar um palco de teste em qualquer resolucao e medir o custo
+      make: { createZdogStage, createBoard, createPiecesLayer },
       engine,
       declaration,
       /** Advances the loop by hand — see `frame`. */

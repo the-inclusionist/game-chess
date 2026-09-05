@@ -4,7 +4,12 @@ import type { Piece, PieceType } from '../app/js/chess/types.ts';
 import { LIGHT_PIECES } from '../app/js/render/palette.ts';
 import { buildPiece, createPiecesLayer } from '../app/js/render/pieces/index.ts';
 import { PIECE_SPECS } from '../app/js/render/pieces/geometry.ts';
-import { createZdogStage, type ZdogStage } from '../app/js/render/zdog-stage.ts';
+import { CAMERA, createZdogStage, type ZdogStage } from '../app/js/render/zdog-stage.ts';
+import { LOGICAL_H, LOGICAL_W } from '../app/js/render/resolution.ts';
+
+/** Where the board's origin lands on the canvas: centre, shifted by the camera offset. */
+const ORIGIN_X = Math.round(LOGICAL_W / 2 + CAMERA.offsetX * CAMERA.zoom);
+const ORIGIN_Y = Math.round(LOGICAL_H / 2);
 
 let stage: ZdogStage | null = null;
 afterEach(() => { stage?.destroy(); stage = null; });
@@ -48,7 +53,7 @@ describe("[Queen] the circle is a disc, not a ring", () => {
     buildPiece(stage.root, { boxes: [], disc: { diameter: 40, y: 0 } }, LIGHT_PIECES);
     stage.render();
 
-    const [r, g, b, a] = pixelAt(stage, 160 + Math.round(-42 * 1.15), 90);
+    const [r, g, b, a] = pixelAt(stage, ORIGIN_X, ORIGIN_Y);
     expect(a).toBe(255);
     expect([r, g, b]).toEqual(rgb(LIGHT_PIECES.top));
   });
@@ -58,9 +63,8 @@ describe("[Queen] the circle is a disc, not a ring", () => {
     buildPiece(stage.root, { boxes: [], disc: { diameter: 40, y: 0 } }, LIGHT_PIECES);
     stage.render();
 
-    const cx = 160 + Math.round(-42 * 1.15);
     // Just inside the outer disc but outside the inner one.
-    const [r, g, b] = pixelAt(stage, cx + Math.round((40 / 2 + 0.5) * 1.15), 90);
+    const [r, g, b] = pixelAt(stage, ORIGIN_X + Math.round((40 / 2 + 0.5) * CAMERA.zoom), ORIGIN_Y);
     expect([r, g, b]).not.toEqual(rgb(LIGHT_PIECES.top));
   });
 });

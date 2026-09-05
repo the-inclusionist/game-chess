@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { createBoard } from '../app/js/render/board.ts';
 import { createPixiSurface, type PixiSurface } from '../app/js/render/pixi-surface.ts';
+import { LOGICAL_H, LOGICAL_W } from '../app/js/render/resolution.ts';
 import { createZdogStage, type ZdogStage } from '../app/js/render/zdog-stage.ts';
 
 // ========================= WHAT THIS PROVES =========================
@@ -49,10 +50,10 @@ function signature(data: Uint8ClampedArray): string {
 }
 
 describe('[Surface] the compositor keeps the engine pixel identity', () => {
-  it('is 320×180 at resolution 1', () => {
+  it('is the logical size at resolution 1', () => {
     const { surface: s } = build();
-    expect(s.view.width).toBe(320);
-    expect(s.view.height).toBe(180);
+    expect(s.view.width).toBe(LOGICAL_W);
+    expect(s.view.height).toBe(LOGICAL_H);
   });
 
   it('exposes a ticker shaped the way the engine startLoop expects', () => {

@@ -27,7 +27,12 @@ export const CAMERA = {
   /** Pitch in radians. Negative tilts the far edge of the board away from the viewer. */
   pitch: -1,
   yaw: 0,
-  zoom: 1.15,
+  /**
+   * Doubled with the source resolution. The WORLD is unchanged — TILE is still 16 and every piece
+   * keeps its size — so the same geometry simply rasterises twice as finely and the board occupies
+   * the same fraction of the screen it always did.
+   */
+  zoom: 2.3,
   /** Pushes the board left so the HUD gets its 88 px column on the right. */
   offsetX: -42,
 } as const;
@@ -48,14 +53,22 @@ export interface ZdogStage {
   destroy(): void;
 }
 
-export function createZdogStage(): ZdogStage {
+export interface ZdogStageOptions {
+  /** Overrides the logical size. Only for measuring what a different resolution would cost. */
+  readonly width?: number;
+  readonly height?: number;
+}
+
+export function createZdogStage(options: ZdogStageOptions = {}): ZdogStage {
+  const width = options.width ?? LOGICAL_W;
+  const height = options.height ?? LOGICAL_H;
   const canvas = document.createElement('canvas');
-  canvas.width = LOGICAL_W;
-  canvas.height = LOGICAL_H;
+  canvas.width = width;
+  canvas.height = height;
 
   const illo: Illustration = new Zdog.Illustration({
     element: canvas,
-    zoom: CAMERA.zoom,
+    zoom: CAMERA.zoom * (width / LOGICAL_W),
     centered: true,
     // The engine owns the frame loop and the pointer; Zdog must not add listeners of its own.
     resize: false,
@@ -64,11 +77,13 @@ export function createZdogStage(): ZdogStage {
 
   // ⚠️ Both lines are the invariant described at the top. Do not remove either.
   illo.pixelRatio = 1;
-  illo.setSize(LOGICAL_W, LOGICAL_H);
+  illo.setSize(width, height);
 
   illo.rotate.x = CAMERA.pitch;
   illo.rotate.y = CAMERA.yaw;
 
+  // The offset is in WORLD units and the zoom already scales it to the screen — scaling it here
+  // as well double-counts, which is what pushed the board off the left edge the first time.
   const root = new Zdog.Anchor({ addTo: illo, translate: { x: CAMERA.offsetX } });
 
   return {
@@ -79,7 +94,7 @@ export function createZdogStage(): ZdogStage {
     update() { illo.updateGraph(); },
 
     viewport() {
-      return { width: LOGICAL_W, height: LOGICAL_H, zoom: illo.zoom };
+      return { width, height, zoom: illo.zoom };
     },
 
     setCamera(pitch, yaw) {
