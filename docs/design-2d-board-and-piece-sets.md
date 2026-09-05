@@ -60,12 +60,24 @@ time. On a school Chromebook that is battery, not benchmark.
 - **As a mode inside this game**, 2D saves nothing and costs the fonts. The bundle already carries
   PixiJS because the 3D board needs it, and a mode does not remove it. Current build: **600 KB
   minified, 190 KB gzipped**.
-- **As its own game, it can drop PixiJS entirely** — and that is the large number. The engine's
-  `createGame` does not import PixiJS at all, and the engine proves it deliberately: its
-  `consumer-quiz.node.test.js` asserts the quiz source never imports pixi, in a test whose own name
-  says *"quem não desenha mundo não paga 467 kB por isso"*. Subtracting that from our 600 KB leaves
-  roughly **130 KB before fonts** — about a fifth. ⚠️ That is arithmetic on two measured numbers,
-  not a measured build, and it must be verified by building one.
+- **As its own game, it drops PixiJS entirely** — and that is the large number. ⚠️ This paragraph
+  used to end with an estimate by subtraction and a note saying arithmetic on two measured numbers
+  is not a measured build. **The build was made** (`spike/2d-weight/`): one entry importing
+  everything a DOM-only chess needs — `createGame`, the rules, the state machine, the search
+  client, the declaration, the grid mirror, the HUD, the layout, i18n — and nothing from `render/`
+  beyond the pure geometry the mirror already reaches for.
+
+  |  | raw | gzip |
+  |---|---|---|
+  | 3D — Zdog + PixiJS | 600.21 KB | 182.97 KB |
+  | 2D — DOM only | **104.17 KB** | **36.70 KB** |
+
+  **5.8× smaller raw, 5.0× gzipped**, and `grep` finds zero occurrences of `pixi` or `zdog` in the
+  2D bundle: the bundler was not persuaded to leave them out, it was never given a reason to
+  include them. The estimate said "roughly 130 KB before fonts" and was conservative on the right
+  side. The dynamically imported chunks — the ONNX runtime and the Piper voice behind the engine's
+  neural TTS — are byte-identical in both builds and gated on a user choice, so they are deploy
+  weight in both and not part of this comparison.
 
 Everything the engine gives stays either way. Its colour-vision corrections are SVG/CSS filters
 applied to `#game-region` — `boot/main.ts` sets `region.style.filter` — so a DOM board inherits
@@ -133,10 +145,10 @@ deliberately rather than by accident, and the font route already gives the 2D bo
 
 ## Open decisions
 
-1. **Mode or game?** §2 says the answer decides whether the 2D board costs 470 KB or saves it. The
-   recommendation is one repository with two entry points, and it needs a measured build to confirm
-   the arithmetic.
-2. **Which second 3D set?** Staunton is recommended; a set of our own is the alternative.
-3. **Pecita.** Not on Google Fonts, obtained from `pecita.eu`, SIL OFL — so subsetting and shipping
+1. ~~**Mode or game?**~~ **SETTLED by measurement**: one repository, two entry points. A 2D-only
+   build is 104 KB against 600 KB, so a 2D board offered as a mode inside the 3D bundle would ask a
+   school's connection for 496 KB it never uses. What remains is engineering, not a decision.
+2. **Pecita.** Not on Google Fonts, obtained from `pecita.eu`, SIL OFL — so subsetting and shipping
    is permitted if the licence is confirmed. Until it is, it belongs in the catalogue with the
    engine's own `off:` marker, which exists for exactly this state.
+3. **The figurative sets.** See §5.
