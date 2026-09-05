@@ -56,6 +56,7 @@
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
   }
 
+  kbd { font: inherit; border: 1px solid #30363d; border-radius: 3px; padding: 0 4px; }
   p.hint { color: #6e7681; margin: 0; padding: 10px; text-align: center; font-size: 12px; flex: 0 0 auto; }
 </style>
 </head>
@@ -68,7 +69,8 @@
 </div>
 
 <p class="hint">
-  Arraste para girar &middot; Shift + setas gira sem ponteiro &middot; clique seleciona uma casa
+  Setas navegam o tabuleiro &middot; Enter seleciona &middot; <kbd>S</kbd> sonar &middot;
+  arraste ou Shift + setas gira a c&acirc;mera
 </p>
 
 <div id="sr-status" class="sr-only" role="status" aria-live="polite"></div>

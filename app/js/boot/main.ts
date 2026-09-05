@@ -82,6 +82,10 @@ export function boot(host: Document = document): void {
     declaration,
     host: { doc: host, win: window, cvdHost: host.getElementById('cvd') },
     declines: { semMenuDePausa: true, semAssistenteDePad: true, semAtorDePausa: true },
+    // The sonar needs to know WHERE the listener is standing. On a grid that is simply the
+    // cursor's square, so the engine can measure to the targets the declaration hands it — in
+    // king's steps, which is the unit the player already counts in.
+    sonarPlayers: () => [{ i: 0, x: cursor.x, y: cursor.y, viz: 'normal' }],
   });
 
   /* ---------- render ---------- */
@@ -290,6 +294,16 @@ export function boot(host: Document = document): void {
   // Listened on #game-region, never on window — the engine's rule, and what keeps the camera from
   // swallowing keys meant for a dialog. Plain arrows are reserved for the grid cursor at step 7.
   region.addEventListener('keydown', (e) => {
+    // The sonar. It pans a tone towards the nearest target and SPEAKS its name — both of which
+    // come out of the seven fields, with no audio written in this repository. Bound to a bare
+    // key here; routing it through the engine's remappable intent layer belongs with the
+    // settings panel at step 8, and is noted rather than pretended.
+    if (e.key === 's' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      engine.sonar.sonar({ i: 0, x: cursor.x, y: cursor.y, viz: 'normal' });
+      e.preventDefault();
+      return;
+    }
+
     if (!e.shiftKey) return;
     const direction = {
       ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
@@ -374,6 +388,8 @@ export function boot(host: Document = document): void {
       setDifficulty(level: Difficulty) { difficulty = level; },
       askOpponent,
       mirror,
+      engine,
+      declaration,
       /** Advances the loop by hand — see `frame`. */
       step: frame,
     };
