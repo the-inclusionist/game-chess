@@ -16,7 +16,7 @@
 import type { LegalMove } from '../rules.ts';
 import { fromAlgebraic, type PieceType } from '../types.ts';
 import type { EngineClient, EngineMove } from './client.ts';
-import { SAME_LEVEL_CP } from './search.ts';
+import { HINT_LIMIT, sameLevel } from './same-level.ts';
 import { limitFor, parseBestMove, parseInfo, parseSpinOption, type Thought } from './uci.ts';
 
 /** Where the vendored build lives, served from this origin. */
@@ -159,8 +159,7 @@ export function createStockfishClient(options: StockfishOptions = {}): Stockfish
     const ranked = [...settle.best.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
     const top = ranked[0]?.score;
     const ties = settle.hint && top !== undefined
-      ? ranked.filter((entry) => top - entry.score <= SAME_LEVEL_CP)
-        .slice(0, 3)
+      ? sameLevel(ranked, HINT_LIMIT)
         .map((entry) => toMove(entry.move))
         .filter((move): move is LegalMove => move !== null)
       : [];
@@ -192,7 +191,7 @@ export function createStockfishClient(options: StockfishOptions = {}): Stockfish
     return started;
   };
 
-  async function ask(fen: string, depth: number, hint: boolean): Promise<EngineMove | null> {
+  async function ask(fen: string, hint: boolean): Promise<EngineMove | null> {
     await start();
     if (pending) { pending.resolve(null); pending = null; }
 
@@ -219,7 +218,6 @@ export function createStockfishClient(options: StockfishOptions = {}): Stockfish
     // the opponent is worse than no hint.
     if (limit.nodes !== undefined && !hint) send(`go nodes ${limit.nodes}`);
     else send(`go movetime ${hint ? HINT_MS : MOVE_MS}`);
-    void depth;
 
     return new Promise<EngineMove | null>((resolve, reject) => {
       pending = { id, resolve, reject, hint, best: new Map(), depth: 0, nodes: 0 };
@@ -227,8 +225,8 @@ export function createStockfishClient(options: StockfishOptions = {}): Stockfish
   }
 
   return {
-    requestMove(fen, depth) { return ask(fen, depth, false); },
-    requestHint(fen, depth) { return ask(fen, depth, true); },
+    requestMove(fen) { return ask(fen, false); },
+    requestHint(fen) { return ask(fen, true); },
 
     setStrength(next) { elo = next; },
     ready: start,

@@ -15,18 +15,15 @@ import { startLoop } from '@the-inclusionist/engine/core/loop.js';
 import { VIZ_FILTER } from '@the-inclusionist/engine/render/viz-modes.js';
 import { createChessDeclaration } from '../declaration/chess-declaration.ts';
 import { createCoordinates } from '../ui/coordinates.ts';
-import { createGridMirror, type HintMove } from '../ui/grid-mirror.ts';
+import { createGridMirror } from '../ui/grid-mirror.ts';
 import { createHud, type GameMode } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
-import type { EngineClient } from '../chess/engine/client.ts';
-import { createEngineClient } from '../chess/engine/client.ts';
 import { createStockfishClient } from '../chess/engine/stockfish-client.ts';
 import { DEFAULT_ELO, STRENGTH_LADDER } from '../chess/engine/strength.ts';
 import { createThinkingPanel } from '../ui/thinking.ts';
-import { DEFAULT_DIFFICULTY, DIFFICULTY_DEPTH, type Difficulty } from '../chess/engine/difficulty.ts';
 import { type MoveResult } from '../chess/rules.ts';
 import {
-  clear as clearGame, type EngineKind, loadSettings, resume, save as saveGame, saveSettings,
+  clear as clearGame, loadSettings, resume, save as saveGame, saveSettings,
 } from '../chess/session.ts';
 import { createGameState, type Activation, type HistoryStep } from '../chess/state.ts';
 import { sameSquare, type Piece, type Side, type Square, toAlgebraic } from '../chess/types.ts';
@@ -92,7 +89,6 @@ export function boot(host: Document = document): void {
   const mode: GameMode = loadSettings().mode ?? 'w';
   const playerSide: Side = mode === 'b' ? 'b' : 'w';
   const game = createGameState({ rules, playerSide, opponent: mode !== 'two' });
-  let difficulty: Difficulty = DEFAULT_DIFFICULTY;
   let searching = false;
 
   // The keyboard cursor. It lives here rather than inside the grid mirror because the DECLARATION
@@ -104,27 +100,6 @@ export function boot(host: Document = document): void {
   // for four numbers that change several times a second.
   const thinking = createThinkingPanel({ doc: host, i18n });
 
-  /**
-   * ========================= WHICH ENGINE, AND HOW STRONG =========================
-   * Ours is two kilobytes and has one dial: depth. Stockfish is 6.98 MB, fetched only when chosen,
-   * and can be told a rating — which is the whole reason it is here, since "1400" means something
-   * to a child who has a rating and "medium" does not.
-   *
-   * ⚠️ The strength list is offered ONLY for an engine that can honour it. A rating control over
-   * our negamax would be a dial connected to nothing.
-   */
-  const engineKind: EngineKind = loadSettings().engine ?? 'own';
-  let elo = loadSettings().elo ?? DEFAULT_ELO;
-
-  const opponent: EngineClient = engineKind === 'stockfish'
-    ? createStockfishClient({
-      onThought: (thought) => thinking.update(thought),
-    })
-    : createEngineClient();
-
-  if (engineKind === 'stockfish') {
-    (opponent as ReturnType<typeof createStockfishClient>).setStrength(elo);
-  }
 
   const declaration = createChessDeclaration({ rules, state: game, i18n, cursor: () => cursor });
 
@@ -153,6 +128,25 @@ export function boot(host: Document = document): void {
   // pieces, because a solid whose ink is mostly STROKE needs a different answer from a glyph.
   const CONTRAST_HERE = 'contrast-solid';
   const remembered = loadSettings();
+
+  /**
+   * ========================= ONE ENGINE, AND A RATING RATHER THAN A WORD =========================
+   * There were two: a two-kilobyte negamax with one dial, depth, and Stockfish 18 lite, 6.98 MB,
+   * which can be told a RATING. Only one of those can answer the question a player actually has.
+   * "1400" means something to a child who has a rating; "medium" means nothing to anybody, and
+   * two engines meant two ladders that could not be compared with each other.
+   *
+   * ⚠️ WHAT IT COST, written down rather than discovered later: there is no opponent at all until
+   * 6.98 MB of WebAssembly has arrived. No offline play, no first move during the download. On a
+   * school connection that is a real wait, and it is the price of the rating dial and of a hint
+   * that is genuinely full strength.
+   */
+  let elo = remembered.elo ?? DEFAULT_ELO;
+
+  const opponent = createStockfishClient({
+    onThought: (thought) => thinking.update(thought),
+  });
+  opponent.setStrength(elo);
   const systemContrast = window.matchMedia?.('(prefers-contrast: more)').matches ?? false;
   let themeKey = remembered.theme ?? (systemContrast ? CONTRAST_HERE : DEFAULT_THEME);
   let vision = 'normal';
@@ -224,7 +218,20 @@ export function boot(host: Document = document): void {
   let walkMore = false;
   /** A hint is in flight, and the squares it last pointed at. */
   let hinting = false;
-  let hinted: readonly HintMove[] = [];
+  /**
+   * ========================= A SUGGESTION IS A SETTING, NOT A QUESTION =========================
+   * It was a question — press, get an answer, watch it vanish on the next redraw. Which meant it
+   * vanished exactly when it was about to be used, because touching a piece redraws the board.
+   *
+   * So it is a switch, and `hintFen` is what makes a switch honest: the arrows describe ONE
+   * position, and the moment the position is not that one any more they are retired and a fresh
+   * search is asked for. Selecting a piece does not change the position, so the advice survives
+   * being acted on — which was the whole complaint.
+   */
+  let hintsOn = remembered.hints ?? false;
+  let hintFen: string | null = null;
+
+  let hinted: readonly { from: Square; to: Square }[] = [];
 
   // ⚠️ Both declared ABOVE `createHud` on purpose. `createHud` calls its own `refresh()` while it
   // is still being built, `refresh` asks `canTakeBack`, and that reads `walking` — a `let` below
@@ -240,36 +247,37 @@ export function boot(host: Document = document): void {
     i18n,
     rules,
     state: game,
-    difficulty: () => difficulty,
     reducedMotion,
     onReducedMotion: (on) => { motionReduced = on; hud.refresh(); },
     mode: () => mode,
     onMode: chooseMode,
 
-    engines: [
-      { key: 'own', label: i18n.t('engine.own') },
-      // A proper noun, like a typeface: shown as it is, in every language.
-      { key: 'stockfish', label: 'Stockfish 18 lite' },
-    ],
-    engine: () => engineKind,
-    onEngine: (key) => {
-      if (key === engineKind) return;
-      saveSettings({ ...currentSettings(), engine: key as EngineKind });
-      clearGame();
-      window.location.reload();
+    strengths: STRENGTH_LADDER.map((rung) => ({ elo: rung.elo, name: rung.name })),
+    strength: () => elo,
+    onStrength: (next) => {
+      elo = next;
+      opponent.setStrength(next);
+      saveSettings({ ...currentSettings(), elo: next });
+      hud.refresh();
+      // A change mid-search would otherwise be answered at the OLD rating. The client drops the
+      // stale reply either way; cancelling makes the new one prompt rather than merely correct.
+      if (game.phase() === 'thinking') {
+        opponent.cancel();
+        searching = false;
+        askOpponent();
+      }
     },
-
-    ...(engineKind === 'stockfish' ? {
-      strengths: STRENGTH_LADDER.map((rung) => ({ elo: rung.elo, name: rung.name })),
-      strength: () => elo,
-      onStrength: (next) => {
-        elo = next;
-        (opponent as ReturnType<typeof createStockfishClient>).setStrength(next);
-        saveSettings({ ...currentSettings(), elo: next });
+    ...(mode === 'two' ? {} : {
+      onHint: () => {
+        hintsOn = !hintsOn;
+        saveSettings({ ...currentSettings(), hints: hintsOn });
+        if (!hintsOn) clearHints();
         hud.refresh();
+        refreshHints();
       },
-    } : {}),
-    ...(mode === 'two' ? {} : { onHint: () => { void askHint(); }, hintBusy: () => hinting }),
+      hintsOn: () => hintsOn,
+      hintBusy: () => hinting,
+    }),
 
     canTakeBack: () => !walking && game.canTakeBack(),
     canReplay: () => !walking && game.canReplay(),
@@ -297,18 +305,6 @@ export function boot(host: Document = document): void {
     themes: BOARD_THEMES.map((t) => ({ key: t.key, name: t.name })),
     theme: () => themeKey,
     onTheme: (key) => { applyTheme(key); },
-    onDifficulty: (level) => {
-      difficulty = level;
-      hud.refresh();
-      // A change mid-search would otherwise be answered by the OLD depth: cancel, then ask again
-      // at the new one. The client drops the stale reply either way, but this makes it prompt.
-      if (game.phase() === 'thinking') {
-        opponent.cancel();
-        searching = false;
-        thinking.setBusy(false);
-        askOpponent();
-      }
-    },
   });
   /**
    * Repaints the board and the panel from a named palette, and remembers the choice.
@@ -318,7 +314,7 @@ export function boot(host: Document = document): void {
    * The narrowed constant is captured once, above, where the check has already happened.
    */
   const currentSettings = () => ({
-    theme: themeKey, coordinates: showCoordinates, mode, engine: engineKind, elo,
+    theme: themeKey, coordinates: showCoordinates, mode, elo,
   });
 
   /**
@@ -337,7 +333,14 @@ export function boot(host: Document = document): void {
     window.location.reload();
   }
 
-  /** Marks the hinted moves, piece and square, and says them aloud. */
+  /** Takes the advice off the board. Its own function because three paths need exactly this. */
+  function clearHints(): void {
+    hintFen = null;
+    hinted = [];
+    syncMarkers();
+  }
+
+  /** Draws the suggested moves as arrows and says them aloud. */
   function showHint(moves: readonly { from: Square; to: Square }[]): void {
     hinted = moves.map((m) => ({ from: m.from, to: m.to }));
     syncMarkers();
@@ -356,6 +359,18 @@ export function boot(host: Document = document): void {
    * ⚠️ What it says is carefully limited. "The engine would play this, and rates these the same" is
    * a fact about a three-ply negamax with a material-and-placement evaluator, not about chess.
    */
+  /**
+   * Retires advice that no longer describes the position, and asks for more when the switch is on.
+   * Called from every path that redraws, which is cheap: the `hintFen` guard means a selection,
+   * a theme change or a window resize all fall straight through.
+   */
+  function refreshHints(): void {
+    const fen = rules.fen();
+    if (hintFen !== null && hintFen !== fen) clearHints();
+    if (!hintsOn || hinting || game.phase() !== 'idle' || hintFen === fen) return;
+    void askHint();
+  }
+
   async function askHint(): Promise<void> {
     if (hinting || game.phase() !== 'idle') return;
     hinting = true;
@@ -363,8 +378,9 @@ export function boot(host: Document = document): void {
     hud.refresh();
     srSay(i18n.t('a11y.hintAsked'));
     try {
-      const hint = await opponent.requestHint(rules.fen(), DIFFICULTY_DEPTH[difficulty]);
+      const hint = await opponent.requestHint(rules.fen());
       if (!hint) { srSay(i18n.t('a11y.hintNone')); return; }
+      hintFen = rules.fen();
       showHint(hint.ties.length ? hint.ties : [hint.move]);
     } catch {
       srSay(i18n.t('status.engineFailed'));
@@ -425,8 +441,6 @@ export function boot(host: Document = document): void {
   let animation: MoveAnimation | null = null;
 
   function syncPieces(): void {
-    // A hint describes ONE position, so anything that changes the position retires it.
-    hinted = [];
     const flying = game.animating();
     // The rules have ALREADY applied the move — forwards or backwards — so the travelling piece is
     // standing on the square it is flying TO. It is left out of the static set and drawn
@@ -440,15 +454,16 @@ export function boot(host: Document = document): void {
     // Every path that changes the position comes through here — a move, a leg of a walk, the
     // opponent's reply — which makes it the one place the score sheet has to be written down.
     saveGame(rules);
+    // ⚠️ And the one place advice is retired, by comparing positions rather than by assuming any
+    // redraw invalidates it. Selecting a piece redraws and does NOT change the position, which is
+    // why a suggestion now survives being acted on.
+    refreshHints();
   }
 
   function syncMarkers(): void {
+    // A hint is drawn over the game's own state rather than competing with it for squares.
+    boardView.setHintArrows(hinted);
     const markers = new Map<number, Marker>();
-    // First, so anything more urgent — a selection, a check — writes over them.
-    // The piece first and the destination second, so where a hint's two squares collide with
-    // another's the destination — the answer — is the one left standing.
-    for (const move of hinted) markers.set(squareIndex(move.from), 'hintFrom');
-    for (const move of hinted) markers.set(squareIndex(move.to), 'hintTo');
     const selected = game.selection();
     if (selected) {
       markers.set(squareIndex(selected), 'selected');
@@ -524,7 +539,7 @@ export function boot(host: Document = document): void {
     thinking.setBusy(true);
     srSay(i18n.t('status.thinking'));
 
-    opponent.requestMove(rules.fen(), DIFFICULTY_DEPTH[difficulty])
+    opponent.requestMove(rules.fen())
       .then((reply) => {
         searching = false;
         thinking.setBusy(false);
@@ -875,7 +890,6 @@ export function boot(host: Document = document): void {
       takeBack: () => walkHistory('back'),
       replay: () => walkHistory('forward'),
       opponent,
-      setDifficulty(level: Difficulty) { difficulty = level; },
       askOpponent,
       mirror,
       hud,

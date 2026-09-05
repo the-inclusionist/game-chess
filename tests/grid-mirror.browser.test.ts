@@ -270,42 +270,61 @@ function shown() {
   return mirror;
 }
 
-describe('[GridMirror] a hint is two squares', () => {
-  it('marks the piece as well as the square it goes to', () => {
+describe('[GridMirror] a hint is an arrow', () => {
+  /** The drawn paths, in order. Two per move: a dark halo under a coloured line. */
+  const arrows = (): SVGPathElement[] =>
+    [...document.querySelectorAll<SVGPathElement>('.hint-arrows path')];
+
+  it('draws one arrow per suggested move', () => {
     const mirror = shown();
-    mirror.setHints([{ from: sq('g1'), to: sq('f3') }]);
-    expect(cellAt('g1').dataset.hint).toBe('from');
-    expect(cellAt('f3').dataset.hint).toBe('to');
+    mirror.setHints([{ from: sq('g1'), to: sq('f3') }, { from: sq('e2'), to: sq('e4') }]);
+    expect(arrows()).toHaveLength(4);
   });
 
-  it('ranks them, so three hints still say which one the engine chose', () => {
+  it('points from the piece to the square, not the other way round', () => {
+    // ⚠️ The direction IS the advice. An arrow drawn tail-for-head would be a different, wrong
+    // suggestion rendered perfectly, which no type and no colour test would ever catch.
     const mirror = shown();
-    mirror.setHints([
-      { from: sq('e2'), to: sq('e4') },
-      { from: sq('d2'), to: sq('d4') },
-      { from: sq('g1'), to: sq('f3') },
-    ]);
-    expect(cellAt('e4').dataset.hintRank).toBe('1');
-    expect(cellAt('d4').dataset.hintRank).toBe('2');
-    expect(cellAt('f3').dataset.hintRank).toBe('3');
-    expect(cellAt('g1').dataset.hintRank).toBe('3');
+    mirror.setHints([{ from: sq('a1'), to: sq('a8') }]);
+    const d = arrows()[0].getAttribute('d') ?? '';
+    const [firstY, secondY] = [...d.matchAll(/[ML][\d.]+ ([\d.]+)/g)].map((m) => Number(m[1]));
+    // a1 is the bottom row and a8 the top, and SVG y grows downwards.
+    expect(firstY).toBeGreaterThan(secondY);
   });
 
-  it('lets the destination win a square both roles want', () => {
-    // One hint ends where another begins. The destination is the answer, so it is the mark that
-    // survives — a square wearing the subject of one sentence and the answer to another would
-    // read as neither.
+  it('draws each arrow twice, the halo under the colour', () => {
+    // No hue clears 3:1 against every square this game can draw — measured, five triples tried.
+    // So the boundary is the dark halo's, and losing it would be a silent contrast regression.
     const mirror = shown();
-    mirror.setHints([{ from: sq('b1'), to: sq('c3') }, { from: sq('c3'), to: sq('d5') }]);
-    expect(cellAt('c3').dataset.hint).toBe('to');
+    mirror.setHints([{ from: sq('e2'), to: sq('e4') }]);
+    const [halo, line] = arrows();
+    expect(Number(halo.getAttribute('stroke-width')))
+      .toBeGreaterThan(Number(line.getAttribute('stroke-width')));
+    expect(halo.getAttribute('stroke')).not.toBe(line.getAttribute('stroke'));
   });
 
-  it('clears every mark, not only the ones it set last', () => {
+  it('gives each move its own colour and its own weight', () => {
     const mirror = shown();
-    mirror.setHints([{ from: sq('g1'), to: sq('f3') }]);
+    mirror.setHints([{ from: sq('e2'), to: sq('e4') }, { from: sq('d2'), to: sq('d4') }]);
+    const [, first, , second] = arrows();
+    expect(first.getAttribute('stroke')).not.toBe(second.getAttribute('stroke'));
+    expect(Number(first.getAttribute('stroke-width')))
+      .toBeGreaterThan(Number(second.getAttribute('stroke-width')));
+  });
+
+  it('clears every arrow, not only the ones it drew last', () => {
+    const mirror = shown();
+    mirror.setHints([{ from: sq('g1'), to: sq('f3') }, { from: sq('e2'), to: sq('e4') }]);
     mirror.setHints([]);
-    expect(cellAt('g1').dataset.hint).toBeUndefined();
-    expect(cellAt('f3').dataset.hint).toBeUndefined();
-    expect(cellAt('g1').dataset.hintRank).toBeUndefined();
+    expect(arrows()).toHaveLength(0);
+  });
+
+  it('never takes a click meant for the square underneath', () => {
+    // 2.1.1 and 2.5.7: the arrow is a picture of something already said in words. If it could
+    // swallow a pointer event, a hint would make part of the board unplayable.
+    const mirror = shown();
+    mirror.setHints([{ from: sq('e2'), to: sq('e4') }]);
+    const layer = document.querySelector('.hint-arrows');
+    expect(layer?.getAttribute('aria-hidden')).toBe('true');
   });
 });

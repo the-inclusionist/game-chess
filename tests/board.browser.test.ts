@@ -152,34 +152,54 @@ describe('[Markers] shape carries the meaning, not only colour', () => {
     expect(() => board.setMarkers(new Map([[64, 'move'], [-1, 'move']]))).not.toThrow();
   });
 
-  /** The visible marker rings, thickest first. Read off the graph, since that is what renders. */
-  const rings = (board: ReturnType<typeof createBoard>): number[] =>
-    (board.anchor.children as { visible?: boolean; fill?: boolean; stroke?: number }[])
-      .filter((child) => child.visible === true && child.fill === false)
-      .map((child) => child.stroke ?? 0)
-      .sort((a, b) => b - a);
+  /** Every shape under the board, however deeply nested — which is what Zdog actually sorts. */
+  const shapeCount = (board: ReturnType<typeof createBoard>): number => {
+    const walk = (node: { children?: unknown[] }): number =>
+      1 + (node.children ?? []).reduce<number>((n, c) => n + walk(c as { children?: unknown[] }), 0);
+    return walk(board.anchor as unknown as { children?: unknown[] });
+  };
 
-  it('draws the two halves of a hint at different weights, not only in different colours', () => {
-    // ⚠️ 1.4.1. Zdog has no dashed or double stroke, so thickness is the channel that carries
-    // "which of these is the answer" for a reader who sees no colour at all.
+  it('draws an arrow per suggested move, and nothing at all without one', () => {
     const { board } = build();
-    board.setMarkers(markersFor([[sq('g1'), 'hintFrom'], [sq('f3'), 'hintTo']]));
-    const [heavy, fine] = rings(board);
-    expect(heavy).toBeGreaterThan(fine);
+    const before = shapeCount(board);
+
+    board.setHintArrows([{ from: sq('g1'), to: sq('f3') }, { from: sq('e2'), to: sq('e4') }]);
+    expect(shapeCount(board)).toBe(before + 4);   // a shaft and a pair of barbs, per move
+
+    // ⚠️ Costs NOTHING when no hint is showing. Zdog re-sorts every shape in the graph each
+    // frame, so a suggestion that left its geometry behind would be a permanent tax on a
+    // drawing nobody asked for.
+    board.setHintArrows([]);
+    expect(shapeCount(board)).toBe(before);
   });
 
-  it('gives a marker back its own weight after a hint has borrowed the ring', () => {
-    // The Rects are reused, so a weight set for one kind and not reset is a selection wearing a
-    // hint's thin ring — invisible to tsc and to every test that only looks at colour.
+  it('leaves the arrow open, so it is an arrow and not a triangle', () => {
+    // Zdog closes every path it is not told to leave open — the barbs would join into a solid
+    // wedge, and the shaft into a line doubled back on itself.
     const { board } = build();
-    const fresh = (() => {
-      board.setMarkers(markersFor([[sq('e2'), 'selected']]));
-      return rings(board);
-    })();
+    board.setHintArrows([{ from: sq('g1'), to: sq('f3') }]);
+    const all: { closed?: boolean; path?: unknown[]; children?: unknown[] }[] = [];
+    const walk = (node: { children?: unknown[] }): void => {
+      for (const child of node.children ?? []) {
+        all.push(child as { closed?: boolean; path?: unknown[] });
+        walk(child as { children?: unknown[] });
+      }
+    };
+    walk(board.anchor as unknown as { children?: unknown[] });
+    // The squares are closed paths too, so count the OPEN ones: exactly the shaft and the barbs.
+    const open = all.filter((child) => Array.isArray(child.path) && child.closed === false);
+    expect(open).toHaveLength(2);
 
-    board.setMarkers(markersFor([[sq('e2'), 'hintFrom']]));
-    board.setMarkers(markersFor([[sq('e2'), 'selected']]));
-    expect(rings(board)).toEqual(fresh);
+    board.setHintArrows([]);
+    const after: { closed?: boolean; path?: unknown[] }[] = [];
+    const walkAgain = (node: { children?: unknown[] }): void => {
+      for (const child of node.children ?? []) {
+        after.push(child as { closed?: boolean; path?: unknown[] });
+        walkAgain(child as { children?: unknown[] });
+      }
+    };
+    walkAgain(board.anchor as unknown as { children?: unknown[] });
+    expect(after.filter((c) => c.closed === false)).toHaveLength(0);
   });
 });
 

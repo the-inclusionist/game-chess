@@ -24,15 +24,12 @@ import { createGame } from '@the-inclusionist/engine';
 import { srAlert, srSay } from '@the-inclusionist/engine/core/a11y-sr.js';
 import { VIZ_FILTER } from '@the-inclusionist/engine/render/viz-modes.js';
 import { createChessDeclaration } from '../declaration/chess-declaration.ts';
-import type { EngineClient } from '../chess/engine/client.ts';
-import { createEngineClient } from '../chess/engine/client.ts';
 import { createStockfishClient } from '../chess/engine/stockfish-client.ts';
 import { DEFAULT_ELO, STRENGTH_LADDER } from '../chess/engine/strength.ts';
 import { createThinkingPanel } from '../ui/thinking.ts';
-import { DEFAULT_DIFFICULTY, DIFFICULTY_DEPTH, type Difficulty } from '../chess/engine/difficulty.ts';
 import { type MoveResult } from '../chess/rules.ts';
 import {
-  clear as clearGame, type EngineKind, loadSettings, resume, save as saveGame, saveSettings,
+  clear as clearGame, loadSettings, resume, save as saveGame, saveSettings,
 } from '../chess/session.ts';
 import { createGameState, type Activation } from '../chess/state.ts';
 import { type Side, type Square, toAlgebraic } from '../chess/types.ts';
@@ -83,12 +80,12 @@ export function boot2d(host: Document = document): void {
   const mode: GameMode = loadSettings().mode ?? 'w';
   const playerSide: Side = mode === 'b' ? 'b' : 'w';
   const game = createGameState({ rules, playerSide, opponent: mode !== 'two' });
-  let difficulty: Difficulty = DEFAULT_DIFFICULTY;
   let searching = false;
   /** A walk is in flight: the board must not accept a move played on top of it. */
   let walking = false;
   /** A hint is in flight: the button says so and a second press is refused. */
   let hinting = false;
+
   let cursor: Square = { x: 4, y: 6 };
 
   // There is no animation to reduce — a flat board places a piece where the rules put it — but the
@@ -98,6 +95,18 @@ export function boot2d(host: Document = document): void {
   let paletteHigh = window.matchMedia?.('(prefers-contrast: more)').matches ?? false;
   let vision = 'normal';
   const remembered = loadSettings();
+  /**
+   * ========================= A SUGGESTION IS A SETTING, NOT A QUESTION =========================
+   * It was a question — press, get an answer, watch it vanish on the next redraw. Which meant it
+   * vanished exactly when it was about to be used, because touching a piece redraws the board.
+   *
+   * So it is a switch, and `hintFen` is what makes a switch honest: the arrows describe ONE
+   * position, and the moment the position is not that one any more they are retired and a fresh
+   * search is asked for. Selecting a piece does not change the position, so the advice survives
+   * being acted on — which was the whole complaint.
+   */
+  let hintsOn = remembered.hints ?? false;
+  let hintFen: string | null = null;
   let showCoordinates = remembered.coordinates ?? true;
   let setKey = remembered.set ?? DEFAULT_SET;
   let themeKey = remembered.theme ?? (paletteHigh ? CONTRAST_THEME : DEFAULT_THEME);
@@ -111,7 +120,13 @@ export function boot2d(host: Document = document): void {
    * A reload rather than a rebuild because the composition root wires one game into a dozen
    * closures, and tearing that down by hand would be a second, quieter way of starting over.
    */
-  /** Marks the hinted moves, piece and square, and says them. Cleared by the next redraw. */
+  /** Takes the advice off the board. Its own function because three paths need exactly this. */
+  function clearHints(): void {
+    hintFen = null;
+    board.setHints([]);
+  }
+
+  /** Draws the suggested moves as arrows and says them. Retired when the position moves on. */
   function showHint(moves: readonly { from: Square; to: Square }[]): void {
     board.setHints(moves.map((m) => ({ from: m.from, to: m.to })));
     const say = (m: { from: Square; to: Square }): string =>
@@ -132,6 +147,18 @@ export function boot2d(host: Document = document): void {
    * chess. The wording says "for it", because a child told "these are equal" would have been told
    * something nobody knows.
    */
+  /**
+   * Retires advice that no longer describes the position, and asks for more when the switch is on.
+   * Called from every path that redraws, which is cheap: the `hintFen` guard means a selection,
+   * a theme change or a window resize all fall straight through.
+   */
+  function refreshHints(): void {
+    const fen = rules.fen();
+    if (hintFen !== null && hintFen !== fen) clearHints();
+    if (!hintsOn || hinting || game.phase() !== 'idle' || hintFen === fen) return;
+    void askHint();
+  }
+
   async function askHint(): Promise<void> {
     if (hinting || game.phase() !== 'idle') return;
     hinting = true;
@@ -139,8 +166,9 @@ export function boot2d(host: Document = document): void {
     hud.refresh();
     srSay(i18n.t('a11y.hintAsked'));
     try {
-      const hint = await opponent.requestHint(rules.fen(), DIFFICULTY_DEPTH[difficulty]);
+      const hint = await opponent.requestHint(rules.fen());
       if (!hint) { srSay(i18n.t('a11y.hintNone')); return; }
+      hintFen = rules.fen();
       showHint(hint.ties.length ? hint.ties : [hint.move]);
     } catch {
       srSay(i18n.t('status.engineFailed'));
@@ -159,7 +187,7 @@ export function boot2d(host: Document = document): void {
   }
 
   const currentSettings = () => ({
-    theme: themeKey, set: setKey, coordinates: showCoordinates, mode, engine: engineKind, elo,
+    theme: themeKey, set: setKey, coordinates: showCoordinates, mode, elo,
   });
 
   const applyTheme = (key: string): void => {
@@ -173,26 +201,23 @@ export function boot2d(host: Document = document): void {
   const thinking = createThinkingPanel({ doc: host, i18n });
 
   /**
-   * ========================= WHICH ENGINE, AND HOW STRONG =========================
-   * Ours is two kilobytes and has one dial: depth. Stockfish is 6.98 MB, fetched only when chosen,
-   * and can be told a rating — which is the whole reason it is here, since "1400" means something
-   * to a child who has a rating and "medium" does not.
+   * ========================= ONE ENGINE, AND A RATING RATHER THAN A WORD =========================
+   * There were two: a two-kilobyte negamax with one dial, depth, and Stockfish 18 lite, 6.98 MB,
+   * which can be told a RATING. Only one of those can answer the question a player actually has.
+   * "1400" means something to a child who has a rating; "medium" means nothing to anybody, and
+   * two engines meant two ladders that could not be compared with each other.
    *
-   * ⚠️ The strength list is offered ONLY for an engine that can honour it. A rating control over
-   * our negamax would be a dial connected to nothing.
+   * ⚠️ WHAT IT COST, written down rather than discovered later: there is no opponent at all until
+   * 6.98 MB of WebAssembly has arrived. No offline play, no first move during the download. On a
+   * school connection that is a real wait, and it is the price of the rating dial and of a hint
+   * that is genuinely full strength.
    */
-  const engineKind: EngineKind = loadSettings().engine ?? 'own';
-  let elo = loadSettings().elo ?? DEFAULT_ELO;
+  let elo = remembered.elo ?? DEFAULT_ELO;
 
-  const opponent: EngineClient = engineKind === 'stockfish'
-    ? createStockfishClient({
-      onThought: (thought) => thinking.update(thought),
-    })
-    : createEngineClient();
-
-  if (engineKind === 'stockfish') {
-    (opponent as ReturnType<typeof createStockfishClient>).setStrength(elo);
-  }
+  const opponent = createStockfishClient({
+    onThought: (thought) => thinking.update(thought),
+  });
+  opponent.setStrength(elo);
 
   const declaration = createChessDeclaration({ rules, state: game, i18n, cursor: () => cursor });
   const engine = createGame({
@@ -227,17 +252,6 @@ export function boot2d(host: Document = document): void {
     i18n,
     rules,
     state: game,
-    difficulty: () => difficulty,
-    onDifficulty: (level) => {
-      difficulty = level;
-      hud.refresh();
-      if (game.phase() === 'thinking') {
-        opponent.cancel();
-        searching = false;
-        thinking.setBusy(false);
-        askOpponent();
-      }
-    },
 
     themes: BOARD_THEMES.map((t) => ({ key: t.key, name: t.name })),
     theme: () => themeKey,
@@ -270,32 +284,34 @@ export function boot2d(host: Document = document): void {
     mode: () => mode,
     onMode: chooseMode,
 
-    engines: [
-      { key: 'own', label: i18n.t('engine.own') },
-      // A proper noun, like a typeface: shown as it is, in every language.
-      { key: 'stockfish', label: 'Stockfish 18 lite' },
-    ],
-    engine: () => engineKind,
-    onEngine: (key) => {
-      if (key === engineKind) return;
-      saveSettings({ ...currentSettings(), engine: key as EngineKind });
-      clearGame();
-      window.location.reload();
+    strengths: STRENGTH_LADDER.map((rung) => ({ elo: rung.elo, name: rung.name })),
+    strength: () => elo,
+    onStrength: (next) => {
+      elo = next;
+      opponent.setStrength(next);
+      saveSettings({ ...currentSettings(), elo: next });
+      hud.refresh();
+      // A change mid-search would otherwise be answered at the OLD rating. The client drops the
+      // stale reply either way; cancelling makes the new one prompt rather than merely correct.
+      if (game.phase() === 'thinking') {
+        opponent.cancel();
+        searching = false;
+        askOpponent();
+      }
     },
 
-    ...(engineKind === 'stockfish' ? {
-      strengths: STRENGTH_LADDER.map((rung) => ({ elo: rung.elo, name: rung.name })),
-      strength: () => elo,
-      onStrength: (next) => {
-        elo = next;
-        (opponent as ReturnType<typeof createStockfishClient>).setStrength(next);
-        saveSettings({ ...currentSettings(), elo: next });
-        hud.refresh();
-      },
-    } : {}),
-
     // No engine in a two-player game, so nobody to ask.
-    ...(mode === 'two' ? {} : { onHint: () => { void askHint(); }, hintBusy: () => hinting }),
+    ...(mode === 'two' ? {} : {
+      onHint: () => {
+        hintsOn = !hintsOn;
+        saveSettings({ ...currentSettings(), hints: hintsOn });
+        if (!hintsOn) clearHints();
+        hud.refresh();
+        refreshHints();
+      },
+      hintsOn: () => hintsOn,
+      hintBusy: () => hinting,
+    }),
 
     // The face's own name, not an i18n key: a typeface is a proper noun.
     pieceSets: AVAILABLE_SETS.map((set) => ({ key: set.key, label: set.label })),
@@ -366,12 +382,13 @@ export function boot2d(host: Document = document): void {
   }
 
   function redraw(): void {
-    // A hint describes ONE position. Anything that changes the position retires it rather than
-    // leaving marks that now point at squares nobody asked about.
-    board.setHints([]);
     board.refresh();
     hud.refresh();
     saveGame(rules);
+    // ⚠️ AFTER the redraw, not instead of it. Advice that no longer describes the position is
+    // retired here — and only here, by comparing positions — which is why selecting a piece no
+    // longer throws it away. Selecting a piece does not change the position.
+    refreshHints();
   }
 
   function askOpponent(): void {
@@ -380,7 +397,7 @@ export function boot2d(host: Document = document): void {
     thinking.setBusy(true);
     srSay(i18n.t('status.thinking'));
 
-    opponent.requestMove(rules.fen(), DIFFICULTY_DEPTH[difficulty])
+    opponent.requestMove(rules.fen())
       .then((reply) => {
         searching = false;
         thinking.setBusy(false);

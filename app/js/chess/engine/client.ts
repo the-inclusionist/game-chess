@@ -1,117 +1,51 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// chess/engine/client — asking the opponent for a move, from the page's side.
+// chess/engine/client — what the game may ask an engine, and nothing about which engine answers.
 //
-// ========================= WHY A WORKER AND NOT A setTimeout =========================
-// Measured: depth 3 costs 443 ms. On the main thread that is 443 ms in which the frame loop does
-// not tick, the camera does not turn, and — worse — the screen reader's live region does not
-// update. Chopping the search into timeslices would fix the frame rate and keep every other
-// problem, at the price of a search that has to be written inside out. A worker is the smaller
-// change and the honest one.
+// ========================= WHY THE INTERFACE OUTLIVED ITS FIRST IMPLEMENTATION =========================
+// This file used to carry a negamax in a Web Worker as well as the contract for talking to it.
+// The negamax is gone: Stockfish 18 lite can be told a rating, and a rating is the only difficulty
+// dial worth having — "1400" means something to a child who has a rating and "medium" does not.
+// Two engines meant two ladders that could not be compared, and one of them could not honour a
+// rating at all.
+//
+// ⚠️ WHAT THAT COST, written down rather than discovered later: the game now REQUIRES 6.98 MB of
+// WebAssembly to have an opponent at all. There is no offline fallback and no first move before
+// the download finishes. On a school connection that is a real wait, and it is the price of the
+// rating dial and of a hint that is genuinely full strength.
+//
+// The interface stayed because it is the right size: the composition roots ask for a move and for
+// a hint and know nothing else. `stockfish-client` satisfies it today, and a future engine — a
+// smaller build for offline play, say — satisfies the same shape without the roots changing.
 //
 // ========================= STALE REPLIES =========================
 // Every request carries an id and only the newest is honoured. Without it, a player who takes a
-// move back, restarts, or changes difficulty mid-search gets an answer computed for a position
-// that no longer exists — a legal-looking move that is simply wrong, with nothing to indicate it.
+// move back, restarts, or changes strength mid-search gets an answer computed for a position that
+// no longer exists — a legal-looking move that is simply wrong, with nothing to indicate it.
 
 import type { LegalMove } from '../rules.ts';
-import type { SearchReply, SearchRequest } from './protocol.ts';
 
 export interface EngineMove {
   readonly move: LegalMove;
   readonly score: number;
   readonly nodes: number;
   readonly depth: number;
-  /** For a hint: every move that ties for best, this one first. Empty for an ordinary search. */
+  /** For a hint: every move the engine rates at the same level, this one first. Empty otherwise. */
   readonly ties: readonly LegalMove[];
 }
 
 export interface EngineClient {
   /** Resolves with the opponent's move, or null when the position has none. */
-  requestMove(fen: string, depth: number): Promise<EngineMove | null>;
+  requestMove(fen: string): Promise<EngineMove | null>;
   /**
    * The same engine asked a different question: which move it would play, and which others it
-   * rates the same. It goes through the SAME id-matching as a move, so a hint asked for and then
-   * abandoned cannot arrive later and mark squares in a position that has moved on.
+   * rates at the same level. It goes through the SAME id-matching as a move, so a hint asked for
+   * and then abandoned cannot arrive later and mark squares in a position that has moved on.
+   *
+   * ⚠️ A hint is FULL STRENGTH whatever the opponent is set to. A hint from a 1000-rated engine
+   * is worse than no hint: it is wrong advice with the authority of a machine behind it.
    */
-  requestHint(fen: string, depth: number): Promise<EngineMove | null>;
+  requestHint(fen: string): Promise<EngineMove | null>;
   /** Abandons any search in flight. Its reply, if it arrives, is dropped. */
   cancel(): void;
   destroy(): void;
-}
-
-/** The worker factory, injectable so a test can supply a stub instead of a real thread. */
-export type WorkerFactory = () => Worker;
-
-const defaultWorker: WorkerFactory = () =>
-  new Worker(new URL('./engine.worker.ts', import.meta.url), { type: 'module' });
-
-export function createEngineClient(makeWorker: WorkerFactory = defaultWorker): EngineClient {
-  const worker = makeWorker();
-  let nextId = 1;
-  let pending: {
-    id: number;
-    resolve: (value: EngineMove | null) => void;
-    reject: (reason: Error) => void;
-  } | null = null;
-
-  worker.onmessage = (event: MessageEvent<SearchReply>): void => {
-    const reply = event.data;
-    // Not the search we are waiting for: the position moved on. Dropping it is the point.
-    if (!pending || pending.id !== reply.id) return;
-
-    const settle = pending;
-    pending = null;
-    if (reply.error) settle.reject(new Error(reply.error));
-    else if (!reply.move) settle.resolve(null);
-    else {
-      settle.resolve({
-        move: reply.move,
-        score: reply.score,
-        nodes: reply.nodes,
-        depth: reply.depth,
-        ties: reply.ties ?? [],
-      });
-    }
-  };
-
-  worker.onerror = (event: ErrorEvent): void => {
-    // A worker that fails and says nothing leaves the game on "thinking" forever.
-    if (!pending) return;
-    const settle = pending;
-    pending = null;
-    settle.reject(new Error(event.message || 'engine worker failed'));
-  };
-
-  /**
-   * One search at a time. A second request supersedes the first rather than queueing behind it,
-   * because the only position anyone cares about is the current one — and that holds across the
-   * two KINDS as well: a hint asked for while the opponent is thinking replaces the opponent's
-   * search rather than racing it, which is also what stops a hint arriving after a move is played.
-   */
-  const ask = (fen: string, depth: number, kind: 'move' | 'hint'): Promise<EngineMove | null> => {
-    if (pending) pending.resolve(null);
-    const id = nextId++;
-    const request: SearchRequest = { id, fen, depth, kind };
-    return new Promise<EngineMove | null>((resolve, reject) => {
-      pending = { id, resolve, reject };
-      worker.postMessage(request);
-    });
-  };
-
-  return {
-    requestMove(fen, depth) { return ask(fen, depth, 'move'); },
-    requestHint(fen, depth) { return ask(fen, depth, 'hint'); },
-
-    cancel() {
-      if (!pending) return;
-      const settle = pending;
-      pending = null;
-      settle.resolve(null);
-    },
-
-    destroy() {
-      pending = null;
-      worker.terminate();
-    },
-  };
 }

@@ -7,12 +7,14 @@
 
 import Zdog, { type Anchor, type Rect, type Shape } from 'zdog';
 import type { Square } from '../chess/types.ts';
+import type { HintMove } from './hint-arrows.ts';
 import { isLightSquare, squareCenter, squareFromIndex, squareIndex } from './board-geometry.ts';
 import {
   DEFAULT_PALETTE, MARKER_CAPTURE, MARKER_CHECK,
-  MARKER_HINT, MARKER_HINT_FROM, MARKER_CURSOR, MARKER_MOVE, MARKER_SELECTED,
+  HINT_HUES, MARKER_CURSOR, MARKER_MOVE, MARKER_SELECTED,
   type Palette, SQUARE_STROKE,
 } from './palette.ts';
+import { ARROW_WIDTH, arrowFor } from './hint-arrows.ts';
 import type { Quad } from './picking.ts';
 import { TILE } from './resolution.ts';
 
@@ -41,8 +43,7 @@ const MARKER_LIFT = -0.5;
  * visually hidden, so a sighted person navigating by keyboard would otherwise have focus sitting
  * somewhere invisible. This marker is that focus, drawn on the board.
  */
-export type Marker = 'cursor' | 'selected' | 'move' | 'capture' | 'check'
-  | 'hintFrom' | 'hintTo';
+export type Marker = 'cursor' | 'selected' | 'move' | 'capture' | 'check';
 
 export interface BoardView {
   /** The subtree to add to the scene. */
@@ -55,19 +56,18 @@ export interface BoardView {
   quads(): Quad[];
   /** Replaces every marker at once. Absent squares are cleared. */
   setMarkers(markers: ReadonlyMap<number, Marker>): void;
+  /**
+   * The engine's suggestions, best first, drawn as arrows across the board.
+   *
+   * A CHANNEL OF ITS OWN rather than more `Marker`s, and for a reason worth keeping: a marker map
+   * holds one thing per square, and a hint is not about squares. Three pieces can all be able to
+   * take on d4, and three marks on d4 cannot say who is being asked to go there. The arrow can.
+   */
+  setHintArrows(moves: readonly HintMove[]): void;
   clearMarkers(): void;
   /** Recolours the 64 squares in place. Cheaper than rebuilding, and keeps the markers. */
   setPalette(palette: Palette): void;
 }
-
-/**
- * ⚠️ NEVER COLOUR ALONE (1.4.1). The two halves of a hint are told apart by WEIGHT as well as by
- * hue — the destination is the answer and wears the heavy ring, the piece is the subject and wears
- * a fine one. The flat board says the same thing with one line against two; Zdog has no dashed or
- * double stroke, so here the channel is thickness. Either way the difference survives greyscale,
- * every kind of colour blindness, and the tricolour correction filters.
- */
-const OUTLINE_WEIGHT: Partial<Record<Marker, number>> = { hintFrom: 1.4 };
 
 const OUTLINE_COLOUR: Record<Marker, string> = {
   cursor: MARKER_CURSOR,
@@ -75,8 +75,6 @@ const OUTLINE_COLOUR: Record<Marker, string> = {
   capture: MARKER_CAPTURE,
   selected: MARKER_SELECTED,
   check: MARKER_CHECK,
-  hintFrom: MARKER_HINT_FROM,
-  hintTo: MARKER_HINT,
 };
 
 export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE): BoardView {
@@ -129,6 +127,13 @@ export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE):
     }));
   }
 
+  /**
+   * ⚠️ Built when asked and thrown away, rather than kept hidden in the graph. Zdog re-flattens
+   * and re-sorts every shape each frame — the measured budget is 450 shapes in 1.44 ms — and a
+   * hint is on screen for seconds of a whole match. Six shapes when asked and none otherwise.
+   */
+  const hintAnchor = new Zdog.Anchor({ addTo: anchor });
+
   function hideAll(): void {
     for (let i = 0; i < SQUARE_COUNT; i++) {
       dots[i].visible = false;
@@ -162,10 +167,46 @@ export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE):
         dots[index].color = kind === 'selected' ? MARKER_SELECTED : MARKER_MOVE;
         outlines[index].visible = showOutline;
         outlines[index].color = OUTLINE_COLOUR[kind];
-        // Reset rather than set: these Rects are reused every frame, and a marker that inherited
-        // the previous kind's weight would be a hint's thin ring left on a selection.
-        outlines[index].stroke = SQUARE_STROKE * (OUTLINE_WEIGHT[kind] ?? 3);
       }
+    },
+
+    setHintArrows(moves) {
+      hintAnchor.children = [];
+      moves.forEach((move, i) => {
+        const from = squareCenter(move.from, TILE);
+        const to = squareCenter(move.to, TILE);
+        // The board lies in XZ, so the arrow's second axis is z. Naming it `y` in the geometry
+        // and reading it back as z here is the whole of the mapping — the maths is plane maths.
+        const arrow = arrowFor({ x: from.x, y: from.z }, { x: to.x, y: to.z }, TILE, i + 1);
+        if (!arrow) return;
+
+        const hue = HINT_HUES[i] ?? HINT_HUES[HINT_HUES.length - 1];
+        const width = TILE * (ARROW_WIDTH[i] ?? ARROW_WIDTH[ARROW_WIDTH.length - 1]);
+        const at = (point: { x: number; y: number }) => ({
+          x: point.x,
+          // Above the game's own markers, so a suggestion is never buried under the ring of a
+          // selection that happens to share a square with it.
+          y: MARKER_LIFT * 2,
+          z: point.y,
+        });
+
+        new Zdog.Shape({
+          addTo: hintAnchor,
+          path: [at(arrow.tail), at(arrow.head)],
+          stroke: width,
+          color: hue,
+          closed: false,
+        });
+        // The barbs as one open three-point path rather than two lines: Zdog rounds its caps, so
+        // a single path meets itself at the tip instead of showing the seam two would leave.
+        new Zdog.Shape({
+          addTo: hintAnchor,
+          path: [at(arrow.wings[0]), at(arrow.head), at(arrow.wings[1])],
+          stroke: width,
+          color: hue,
+          closed: false,
+        });
+      });
     },
 
     setPalette(next) {

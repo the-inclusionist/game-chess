@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Difficulty } from '../app/js/chess/engine/difficulty.ts';
 import { createRules } from '../app/js/chess/rules.ts';
 import { createGameState } from '../app/js/chess/state.ts';
 import { fromAlgebraic, type Square } from '../app/js/chess/types.ts';
+import { DEFAULT_ELO, STRENGTH_LADDER } from '../app/js/chess/engine/strength.ts';
 import { createI18n } from '../app/js/i18n/index.ts';
 import { createHud, type Hud } from '../app/js/ui/hud.ts';
 
@@ -19,8 +19,6 @@ afterEach(() => { hud?.destroy(); hud = null; document.body.replaceChildren(); }
 function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   const rules = createRules(fen);
   const state = createGameState({ rules, opponent: false });
-  let difficulty: Difficulty = 'medium';
-  const onDifficulty = vi.fn((level: Difficulty) => { difficulty = level; });
   let vision = 'normal';
   const onVision = vi.fn((key: string) => { vision = key; });
   let motion = false;
@@ -34,12 +32,17 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   const onReplay = vi.fn(() => { state.replay(); hud!.refresh(); });
   hud = createHud({
     doc: document, i18n: createI18n(locale), rules, state,
-    difficulty: () => difficulty, onDifficulty,
     vision: () => vision, onVision,
     reducedMotion: () => motion, onReducedMotion,
     outline: () => outline, onOutline,
     coordinates: () => coords, onCoordinates: onCoords,
     view: '2.5d',
+    // The two controls the panel has that are about the OPPONENT: who plays which colour, and how
+    // strong the engine is. Both are optional to the panel — the two-player board has neither —
+    // so a builder that left them out was testing a panel the game never actually shows.
+    mode: () => 'w', onMode: vi.fn(),
+    strengths: STRENGTH_LADDER.map((rung) => ({ elo: rung.elo, name: rung.name })),
+    strength: () => DEFAULT_ELO, onStrength: vi.fn(),
     canTakeBack: () => state.canTakeBack(), canReplay: () => state.canReplay(),
     onTakeBack, onReplay,
   });
@@ -50,8 +53,8 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
     state.animationDone();
     hud!.refresh();
   };
-  return { rules, state, hud, onDifficulty, onVision, play,
-           getDifficulty: () => difficulty, getVision: () => vision, onReducedMotion, getMotion: () => motion,
+  return { rules, state, hud, onVision, play,
+           getVision: () => vision, onReducedMotion, getMotion: () => motion,
            onOutline, getOutline: () => outline, onTakeBack, onReplay,
            onCoords, getCoords: () => coords };
 }
@@ -157,64 +160,19 @@ describe('[Moves] a scoresheet, one line per pair', () => {
 // drawn as buttons: the platform then supplies the grouping, the arrow keys, one tab stop for the
 // set and "2 of 3" to a screen reader — none of which a row of buttons gets for free.
 
-describe('[Difficulty] three buttons, and the platform does the grouping', () => {
-  const levels = (): HTMLInputElement[] =>
-    [...document.querySelectorAll<HTMLInputElement>('input[name="hud-difficulty"]')];
-
-  it('offers the three levels, all of them visible at once', () => {
-    build();
-    expect(levels().map((input) => input.value)).toEqual(['easy', 'medium', 'hard']);
-    expect(levels().every((input) => input.type === 'radio')).toBe(true);
-  });
-
-  it('is one group with a legend, not three loose controls', () => {
-    build();
-    const group = document.querySelector('fieldset.hud-choice legend');
-    expect(group?.textContent).toBe('Dificuldade');
-    // One name for the set: that is what makes it a group and gives it one tab stop.
-    expect(new Set(levels().map((input) => input.name)).size).toBe(1);
-  });
-
-  it('shows the level in force, and names each in the reader’s language', () => {
-    build();
-    const chosen = levels().filter((input) => input.checked);
-    expect(chosen).toHaveLength(1);
-    expect(chosen[0].value).toBe('medium');
-    expect(document.querySelector(`label[for="${levels()[0].id}"]`)?.textContent).toBe('Fácil');
-  });
-
-  it('reports a change', () => {
-    const { onDifficulty, getDifficulty } = build();
-    const hard = levels()[2];
-    hard.checked = true;
-    hard.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(onDifficulty).toHaveBeenCalledWith('hard');
-    expect(getDifficulty()).toBe('hard');
-  });
-
-  it('speaks English and Spanish too', () => {
-    build('en');
-    expect(document.querySelector('fieldset.hud-choice legend')?.textContent).toBe('Difficulty');
-    hud?.destroy();
-    document.body.replaceChildren();
-    build('es');
-    expect(document.querySelector('fieldset.hud-choice legend')?.textContent).toBe('Dificultad');
-  });
-});
 
 describe('[i18n] the panel follows the interface language', () => {
   it('speaks English', () => {
     build('en');
     expect(text('.hud-turn')).toContain('White');
     const labels = [...document.querySelectorAll('.hud-choice label')].map((l) => l.textContent);
-    expect(labels).toContain('Easy');
-    expect(labels).toContain('Hard');
+    expect(labels).toContain('1 · white');
   });
 
   it('speaks Spanish', () => {
     build('es');
     expect(text('.hud-turn')).toContain('Blancas');
-    expect(document.querySelector('fieldset.hud-choice legend')?.textContent).toBe('Dificultad');
+    expect(document.querySelector('fieldset.hud-choice legend')?.textContent).toBe('Quién juega');
   });
 });
 
@@ -309,7 +267,7 @@ describe('[Outline] on by default, and switchable', () => {
 // ========================= THE PANEL MUST NOT RUN OUT OF ROOM =========================
 // The report was concrete: as moves accumulated the menus below the score sheet went out of
 // reach. Two independent causes, so two independent guards — the list is bounded, and the panel
-// itself scrolls. Losing the difficulty control because you played twenty moves is a bug.
+// itself scrolls. Losing the strength control because you played twenty moves is a bug.
 
 describe('[Panel] the controls stay reachable however long the game runs', () => {
   const nav = (): HTMLButtonElement[] =>
@@ -330,7 +288,7 @@ describe('[Panel] the controls stay reachable however long the game runs', () =>
     for (const id of ['#hud-vision', '#hud-motion', '#hud-outline']) {
       expect(document.querySelector(id)).not.toBeNull();
     }
-    expect(document.querySelectorAll('input[name="hud-difficulty"]')).toHaveLength(3);
+    expect(document.querySelector('#hud-strength')).not.toBeNull();
     expect(nav()).toHaveLength(2);
   });
 

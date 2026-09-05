@@ -47,6 +47,8 @@ import type { I18n } from '../i18n/index.ts';
 import { boardTheme, DEFAULT_THEME, type BoardTheme } from './board-themes.ts';
 import { DEFAULT_SET, pieceSet, type PieceSet } from './piece-sets.ts';
 import { squareFromIndex, squareIndex } from '../render/board-geometry.ts';
+import { ARROW_WIDTH, arrowFor, type HintMove } from '../render/hint-arrows.ts';
+import { HINT_HUES } from '../render/palette.ts';
 
 export interface GridMirrorDeps {
   readonly doc: Document;
@@ -73,12 +75,6 @@ export interface GridMirrorDeps {
   readonly theme?: string;
 }
 
-/** One hint: the piece to move and where it goes. Both halves, because half is not advice. */
-export interface HintMove {
-  readonly from: Square;
-  readonly to: Square;
-}
-
 export interface GridMirror {
   readonly root: HTMLElement;
   /** Re-labels every cell from the current position. Call after anything changes. */
@@ -89,10 +85,8 @@ export interface GridMirror {
   setPieceSet(key: string): void;
   pieceSetKey(): string;
   /**
-   * The moves a hint is pointing at, best first. BOTH halves of each are marked: marking only the
-   * destination leaves the more important part unsaid, because "play to d4" is not advice until
-   * you know which piece. Also named in the live region by whoever asked — a mark alone would be
-   * a hint only for the players who can see it.
+   * The moves a hint is pointing at, best first, drawn as arrows. Also named in the live region by
+   * whoever asked — an arrow alone would be a hint only for the players who can see it.
    */
   setHints(moves: readonly HintMove[]): void;
   /** Swaps the board colours. Also nothing a screen reader hears. */
@@ -131,7 +125,7 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
   const visible = deps.visible ?? false;
   let set: PieceSet = pieceSet(deps.set ?? DEFAULT_SET);
   let theme: BoardTheme = boardTheme(deps.theme ?? DEFAULT_THEME);
-  let hints: readonly HintMove[] = [];
+
 
   const root = doc.createElement('div');
   root.className = visible ? 'board-2d' : 'sr-only';
@@ -206,6 +200,68 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
     root.appendChild(row);
   }
 
+  /**
+   * ========================= THE ARROWS ARE ONE SVG OVER THE WHOLE BOARD =========================
+   * Not one per cell: an arrow crosses squares, and anything drawn inside a cell is clipped by it
+   * or has to be positioned against a box it does not belong to. One overlay in board coordinates
+   * — eight units across, a square to the unit — and the arithmetic is the same arithmetic the
+   * Zdog board does, out of the same module.
+   *
+   * `aria-hidden`, and that is not an oversight. The arrow is a drawing of something the live
+   * region has ALREADY said in words, and a screen reader meeting it again as a graphic would
+   * hear the hint twice, the second time as geometry. It also keeps the grid's owned children
+   * legal: a `role="grid"` owns rows, and an element removed from the accessibility tree is not
+   * one of them.
+   *
+   * It inherits the board's own flip, because it is inside it — an arrow from e2 to e4 points
+   * from e2 to e4 whichever way round the player is sitting.
+   */
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const arrowLayer = visible ? doc.createElementNS(SVG_NS, 'svg') : null;
+  if (arrowLayer) {
+    arrowLayer.setAttribute('viewBox', `0 0 ${FILES} ${RANKS}`);
+    arrowLayer.setAttribute('aria-hidden', 'true');
+    arrowLayer.setAttribute('focusable', 'false');
+    arrowLayer.classList.add('hint-arrows');
+    root.appendChild(arrowLayer);
+  }
+
+  /** The centre of a square in board units, which is what the arrow geometry works in. */
+  const centreOf = (square: Square) => ({ x: square.x + 0.5, y: square.y + 0.5 });
+
+  function drawArrows(moves: readonly HintMove[]): void {
+    if (!arrowLayer) return;
+    const drawn: SVGElement[] = [];
+
+    moves.forEach((move, i) => {
+      const arrow = arrowFor(centreOf(move.from), centreOf(move.to), 1, i + 1);
+      if (!arrow) return;
+      const hue = HINT_HUES[i] ?? HINT_HUES[HINT_HUES.length - 1];
+      const width = ARROW_WIDTH[i] ?? ARROW_WIDTH[ARROW_WIDTH.length - 1];
+      const p = (point: { x: number; y: number }) => `${point.x.toFixed(3)} ${point.y.toFixed(3)}`;
+      const d = `M${p(arrow.tail)}L${p(arrow.head)}M${p(arrow.wings[0])}L${p(arrow.head)}`
+        + `L${p(arrow.wings[1])}`;
+
+      // ⚠️ TWICE, and the first pass is the accessible one. MEASURED: no colour clears 3:1
+      // against every square this game can draw — the best of five candidate triples still fell
+      // to 1.17:1 on the dark grey of the high-contrast board, and so did every other candidate.
+      // So the hue cannot carry the boundary. A dark halo under a light-cored line always can
+      // (1.4.11), and it costs one more path.
+      for (const [colour, stroke] of [['#14100A', width * 1.75], [hue, width]] as const) {
+        const path = doc.createElementNS(SVG_NS, 'path');
+        path.setAttribute('d', d);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', colour);
+        path.setAttribute('stroke-width', String(stroke));
+        path.setAttribute('stroke-linecap', 'round');
+        path.setAttribute('stroke-linejoin', 'round');
+        drawn.push(path);
+      }
+    });
+
+    arrowLayer.replaceChildren(...drawn);
+  }
+
   // Starts on e2 — the square a beginner is most likely to want first, and a sensible place for
   // focus to land rather than the far corner.
   let cursor: Square = { x: 4, y: 6 };
@@ -266,22 +322,6 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
       if (check && sameSquare(check, square)) cell.dataset.check = 'true';
       else delete cell.dataset.check;
 
-      // Role AND rank. Role, because the piece and the square it goes to are different halves
-      // of one sentence and are drawn as different shapes. Rank, because a board carrying three
-      // hints has to still say which one the engine actually chose.
-      //
-      // Destination wins a collision: where one hinted move ends on another's starting square,
-      // the answer is the mark that has to survive.
-      const asTo = hints.findIndex((h) => sameSquare(h.to, square));
-      const asFrom = hints.findIndex((h) => sameSquare(h.from, square));
-      const role = asTo >= 0 ? asTo : asFrom;
-      if (role >= 0) {
-        cell.dataset.hint = asTo >= 0 ? 'to' : 'from';
-        cell.dataset.hintRank = String(role + 1);
-      } else {
-        delete cell.dataset.hint;
-        delete cell.dataset.hintRank;
-      }
     }
   }
 
@@ -352,8 +392,7 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
     root,
 
     setHints(moves) {
-      hints = moves;
-      refresh();
+      drawArrows(moves);
     },
 
     pieceSetKey: () => set.key,

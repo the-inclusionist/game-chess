@@ -44,7 +44,6 @@ export const pt: Catalog = {
     'hud.turn':       'Vez',
     'hud.captured':   'Capturadas',
     'hud.moves':      'Lances',
-    'hud.difficulty': 'Dificuldade',
     'hud.highContrast': 'Alto contraste',
     'hud.reducedMotion': 'Movimento reduzido',
     'hud.outline':    'Contorno das peças',
@@ -73,8 +72,6 @@ export const pt: Catalog = {
     'elo.2400': 'mestre internacional',
     'elo.2500': 'grande mestre',
     'elo.3000': 'força total',
-    'hud.engine': 'Adversário',
-    'engine.own': 'A nossa (negamax)',
     'hud.strength': 'Força do adversário',
     'hud.thinking': 'Pensamento da engine',
     'think.idle': 'parada',
@@ -124,9 +121,6 @@ export const pt: Catalog = {
     'theme.contrast1': 'Alto contraste 1',
     'theme.contrast2': 'Alto contraste 2',
 
-    'difficulty.easy':   'Fácil',
-    'difficulty.medium': 'Médio',
-    'difficulty.hard':   'Difícil',
 
     'move.plain':       '{piece} de {from} para {to}',
     'move.capture':     '{piece} de {from} captura {target} em {to}',

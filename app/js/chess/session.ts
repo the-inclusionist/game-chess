@@ -163,9 +163,6 @@ export function resume(store: SessionStore | null = defaultStore()): Rules {
  * Deliberately NOT everything. Difficulty and the colour-vision correction belong to the engine's
  * own settings and are its to remember; this is the short list this game owns.
  */
-/** Which engine plays and hints. */
-export type EngineKind = 'own' | 'stockfish';
-
 export interface ViewSettings {
   readonly theme?: string;
   readonly set?: string;
@@ -177,9 +174,9 @@ export interface ViewSettings {
    * every change of view would be a bug.
    */
   readonly mode?: 'w' | 'b' | 'two';
-  /** Which engine plays and hints: this game's own negamax, or Stockfish. */
-  readonly engine?: EngineKind;
-  /** The rating the opponent is asked to play at. Only Stockfish can honour it. */
+  /** Whether the engine keeps a suggestion on the board. A setting, not a one-off question. */
+  readonly hints?: boolean;
+  /** The rating the opponent is asked to play at. */
   readonly elo?: number;
 }
 
@@ -195,13 +192,13 @@ export function loadSettings(store: SessionStore | null = defaultStore()): ViewS
     if (!raw) return {};
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return {};
-    const { theme, set, coordinates, mode, engine, elo } = parsed as ViewSettings;
+    const { theme, set, coordinates, mode, elo, hints } = parsed as ViewSettings;
     return {
       ...(typeof theme === 'string' ? { theme } : {}),
       ...(typeof set === 'string' ? { set } : {}),
       ...(typeof coordinates === 'boolean' ? { coordinates } : {}),
       ...(mode === 'w' || mode === 'b' || mode === 'two' ? { mode } : {}),
-      ...(engine === 'own' || engine === 'stockfish' ? { engine } : {}),
+      ...(typeof hints === 'boolean' ? { hints } : {}),
       ...(typeof elo === 'number' && Number.isFinite(elo) ? { elo } : {}),
     };
   } catch {

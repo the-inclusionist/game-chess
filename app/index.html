@@ -155,6 +155,25 @@
   }
   .hud-hint:hover:not(:disabled) { background: #CDBAF0; }
   .hud-hint:disabled { opacity: 0.5; cursor: default; }
+  /*
+   * ON, and saying so in more than colour: the switch fills in and gains an inset rule, so the
+   * state survives greyscale and every colour-vision correction (1.4.1). `aria-pressed` carries
+   * the same fact to a screen reader, which is where it actually has to be said.
+   */
+  .hud-hint[aria-pressed="true"] {
+    color: #F4EEFF; background: #5A2FA0;
+    box-shadow: inset 0 0 0 2px #14202b, inset 0 0 0 4px #B79BE8;
+  }
+  .hud-hint[aria-pressed="true"]:hover { background: #6B3CB8; }
+  /*
+   * Searching. A pulse rather than a disabled button, because the switch stays usable while the
+   * answer is on its way — disabling it would move focus off the control the instant it was used.
+   */
+  .hud-hint[data-busy="true"] { animation: hud-hint-busy 1.1s ease-in-out infinite; }
+  @keyframes hud-hint-busy { 50% { opacity: 0.62; } }
+  @media (prefers-reduced-motion: reduce) {
+    .hud-hint[data-busy="true"] { animation: none; opacity: 0.75; }
+  }
   #game-region[data-contrast="high"] .hud-hint {
     color: #000000; background: #FFFFFF; border-color: #FFFFFF;
   }
@@ -495,51 +514,26 @@
   .board-2d [role="gridcell"][data-check] { background: #B3341F; }
 
   /*
-   * ========================= A HINT IS TWO SQUARES, NOT ONE =========================
-   * A ring INSIDE the square rather than a fill, so it sits over a piece without hiding it — a
-   * hint is usually about a piece that is already there. The colour is its own: a hint is an
-   * opinion from outside the game, and wearing the selection blue would make it look like
-   * something the player had done.
+   * ========================= A HINT IS AN ARROW =========================
+   * The first version marked only the destination, which is half a sentence: "play to d4" is not
+   * advice until you know which piece. The second marked both ends, and then had to invent a way
+   * of saying which end belonged to which move — a hue per move, plus a non-colour twin for it,
+   * because three pieces can all be able to take on d4 and three marks there name none of them.
    *
-   * ⚠️ The first version marked only the DESTINATION, and that is half a sentence. "Play to d4"
-   * is not advice until you know which piece, and on a board with sixteen pieces the reader was
-   * left to guess. Both ends are marked now, and they are told apart by SHAPE — one line against
-   * two — so the difference survives greyscale, every kind of colour blindness, and a projector
-   * with the contrast wound down (1.4.1).
+   * An arrow does not encode the pairing. It draws it. Nothing to decode, no legend, and no
+   * meaning carried by colour alone (1.4.1) — direction is a shape.
    *
-   * The hairline sandwich is what makes the ring legal on any square: a dark line outside and a
-   * light one inside means one of the two always carries the boundary, instead of the purple
-   * having to clear 3:1 against a brown, a green, a grey and a cream by itself (1.4.11). Measured
-   * on the default board, the purple alone is 4.14:1 on the light square and 1.80:1 on the dark
-   * one — the ring was already failing on half the board before this, and marking two squares
-   * would have doubled how often it did.
+   * The overlay is the whole board rather than one drawing per cell, because an arrow crosses
+   * squares. `pointer-events: none` so it never takes a click meant for the square underneath,
+   * which is the whole reason 2.5.7 and 2.1.1 stay satisfied: the arrow is only ever a picture.
    */
-  .board-2d [role="gridcell"][data-hint]::before {
-    content: '';
+  .board-2d .hint-arrows {
     position: absolute;
-    inset: 8%;
-    border: 4px solid #7A4FBF;
-    border-radius: 12%;
-    box-shadow: 0 0 0 1px rgba(23, 17, 10, .92), inset 0 0 0 1px rgba(255, 255, 255, .92);
+    inset: 0;
+    width: 100%;
+    height: 100%;
     pointer-events: none;
-  }
-
-  /* The piece to move, as against the square it goes to: two concentric lines rather than one. */
-  .board-2d [role="gridcell"][data-hint="from"]::before {
-    border-style: double;
-    border-width: 6px;
-  }
-
-  /*
-   * Which one the engine actually chose. The alternatives are drawn THINNER, never fainter —
-   * fading them would trade away the boundary contrast to say something a weight already says,
-   * and the second-best move is a real suggestion, not a ghost of one.
-   */
-  .board-2d [role="gridcell"][data-hint]:not([data-hint-rank="1"])::before {
-    border-width: 2px;
-  }
-  .board-2d [role="gridcell"][data-hint="from"]:not([data-hint-rank="1"])::before {
-    border-width: 4px;
+    overflow: visible;
   }
 
   /*

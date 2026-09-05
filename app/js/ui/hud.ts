@@ -8,7 +8,7 @@
 // At 320×180 a HUD line is about seven pixels tall. In a canvas that is illegible without a bitmap
 // font, it cannot be resized by anyone who needs it larger, and a screen reader cannot see it at
 // all. In the DOM it is text: it scales with `--ui-fs` (which the engine's own `ui/layout` sets to
-// `8·k`, so 16 px at the k=2 floor), it honours the reader's own font size, the difficulty control
+// `8·k`, so 16 px at the k=2 floor), it honours the reader's own font size, the strength control
 // gets a 44 px tap target from `--tap` without being asked, and the move list is simply readable.
 //
 // This is also how the ENGINE does it. `--ui-fs` and `--tap` are scoped to `#game-region` precisely
@@ -20,8 +20,6 @@
 
 import { t as engineT } from '@the-inclusionist/engine/core/i18n.js';
 import { VIZ_CORRECTIONS } from '@the-inclusionist/engine/render/viz-modes.js';
-import type { Difficulty } from '../chess/engine/difficulty.ts';
-import { DIFFICULTIES } from '../chess/engine/difficulty.ts';
 import type { Rules } from '../chess/rules.ts';
 import type { GameState } from '../chess/state.ts';
 import type { PieceType, Side } from '../chess/types.ts';
@@ -42,8 +40,6 @@ export interface HudDeps {
   readonly i18n: I18n;
   readonly rules: Rules;
   readonly state: GameState;
-  difficulty(): Difficulty;
-  onDifficulty(level: Difficulty): void;
   /** A key from the engine's VIZ_MODES, or 'normal'. */
   vision(): string;
   onVision(key: string): void;
@@ -73,16 +69,12 @@ export interface HudDeps {
   onMode?(mode: GameMode): void;
 
   /**
-   * Which engine plays. Changing it starts a new game for the same reason changing sides does: the
-   * moves already on the board were chosen by the one being replaced.
-   */
-  engines?: readonly { readonly key: string; readonly label: string }[];
-  engine?(): string;
-  onEngine?(key: string): void;
-
-  /**
-   * The opponent's rating, from `STRENGTH_LADDER`. Absent for an engine that cannot honour one —
-   * a control that pretended to set a strength nothing acted on would be worse than none.
+   * The opponent's rating, from `STRENGTH_LADDER`.
+   *
+   * ⚠️ This REPLACED an easy/medium/hard control, and the replacement is the whole reason there
+   * is only one engine left. A rating is a number a child may already have; "medium" is a number
+   * nobody has. Two engines meant two ladders that could not be compared with each other, and one
+   * of the two could not honour a rating at all.
    */
   strengths?: readonly { readonly elo: number; readonly name: string }[];
   strength?(): number;
@@ -94,6 +86,11 @@ export interface HudDeps {
    */
   onHint?(): void;
   hintBusy?(): boolean;
+  /**
+   * Whether suggestions are ON. Present makes the button a SWITCH rather than a verb — see the
+   * note where it is built.
+   */
+  hintsOn?(): boolean;
 
   /** The drawings available for the pieces. Only the flat view has any; the projected view draws
    * geometry and has nothing to choose between. */
@@ -291,9 +288,6 @@ export function createHud(deps: HudDeps): Hud {
 
   movesBox.append(movesTitle, movesList, navBox);
 
-  // --- difficulty ------------------------------------------------------------
-  const difficulty = groupOf('hud-difficulty', DIFFICULTIES, (v) => `hud-difficulty-${v}`);
-
   // ========================= NO HIGH-CONTRAST SWITCH =========================
   // There was a checkbox here and it was a second door onto one state: the palette list already
   // contains both high-contrast answers, so the switch and the list could disagree and had to be
@@ -343,22 +337,7 @@ export function createHud(deps: HudDeps): Hud {
 
   const modeGroup = groupOf('hud-mode', ['w', 'b', 'two'], (v) => `hud-mode-${v}`);
 
-  // --- which engine, and how strong ------------------------------------------
-  const engineBox = doc.createElement('p');
-  const engineLabel = doc.createElement('label');
-  const engineSelect = doc.createElement('select');
-  engineSelect.id = 'hud-engine';
-  engineLabel.htmlFor = engineSelect.id;
-  if (deps.engines) {
-    for (const item of deps.engines) {
-      const option = doc.createElement('option');
-      option.value = item.key;
-      option.textContent = item.label;   // engine names are proper nouns, like typefaces
-      engineSelect.appendChild(option);
-    }
-    engineBox.append(engineLabel, engineSelect);
-  }
-
+  // --- how strong the opponent plays ------------------------------------------
   const strengthBox = doc.createElement('p');
   const strengthLabel = doc.createElement('label');
   const strengthSelect = doc.createElement('select');
@@ -435,7 +414,13 @@ export function createHud(deps: HudDeps): Hud {
 
   // --- the hint --------------------------------------------------------------
   // ========================= WHY THIS IS A BUTTON AND NOT A PANEL =========================
-  // A hint is a question asked once, so it is a verb. What it answers with goes on the BOARD —
+  // ⚠️ A SWITCH, not a verb. It was a verb, and the verb was wrong: an answer that appeared once
+  // and vanished the next time the board redrew meant a player who wanted help had to keep asking
+  // for it, and lost it precisely when they touched a piece to act on it. Help you have to
+  // re-request is help you stop requesting. `aria-pressed` is what says so to a screen reader,
+  // and it is the difference between "Hint" being read as a button and as a setting that is on.
+  //
+  // What it answers with goes on the BOARD —
   // marks on the squares — and into the live region, because a player who cannot see the marks is
   // exactly the player a hint is for.
   const hintBox = doc.createElement('p');
@@ -448,29 +433,17 @@ export function createHud(deps: HudDeps): Hud {
   root.append(turn, capturedBox, movesBox);
   if (deps.onHint) root.appendChild(hintBox);
   if (deps.onMode) root.appendChild(modeGroup.box);
-  if (deps.engines) root.appendChild(engineBox);
-  // ⚠️ One of the two, never both. A rating IS the difficulty when the engine can honour one, and
-  // showing "medium" beside "1600" would be two dials for one thing that disagree by design.
   if (deps.strengths) root.appendChild(strengthBox);
-  else root.appendChild(difficulty.box);
   if (deps.pieceSets) root.appendChild(setBox);
   if (deps.themes) root.appendChild(themeBox);
   root.append(visionBox, motionBox);
   if (deps.onOutline) root.appendChild(outlineBox);
   root.appendChild(coordsBox);
 
-  function onDifficultyChange(event: Event): void {
-    deps.onDifficulty((event.target as HTMLInputElement).value as Difficulty);
-  }
-  for (const { input } of difficulty.options) input.addEventListener('change', onDifficultyChange);
-
   function onModeInput(event: Event): void {
     deps.onMode?.((event.target as HTMLInputElement).value as GameMode);
   }
   for (const { input } of modeGroup.options) input.addEventListener('change', onModeInput);
-
-  function onEngineChange(): void { deps.onEngine?.(engineSelect.value); }
-  engineSelect.addEventListener('change', onEngineChange);
 
   function onStrengthChange(): void { deps.onStrength?.(Number(strengthSelect.value)); }
   strengthSelect.addEventListener('change', onStrengthChange);
@@ -636,13 +609,6 @@ export function createHud(deps: HudDeps): Hud {
     backButton.disabled = !deps.canTakeBack();
     forwardButton.disabled = !deps.canReplay();
 
-    difficulty.legend.textContent = i18n.t('hud.difficulty');
-    const level = deps.difficulty();
-    for (const { input, label } of difficulty.options) {
-      label.textContent = i18n.t(`difficulty.${input.value}`);
-      input.checked = input.value === level;
-    }
-
     // These labels come from the ENGINE's catalogue, not this game's: the modes are the engine's
     // and it already names them in all three languages. Restating them here would be a second
     // copy to drift.
@@ -657,11 +623,6 @@ export function createHud(deps: HudDeps): Hud {
     motionLabel.textContent = i18n.t('hud.reducedMotion');
     motionInput.checked = deps.reducedMotion();
 
-    if (deps.engines) {
-      engineLabel.textContent = i18n.t('hud.engine');
-      engineSelect.value = deps.engine?.() ?? '';
-    }
-
     if (deps.strengths) {
       strengthLabel.textContent = i18n.t('hud.strength');
       for (const option of strengthSelect.options) {
@@ -673,7 +634,14 @@ export function createHud(deps: HudDeps): Hud {
 
     if (deps.onHint) {
       hintButton.textContent = i18n.t('hud.hint');
-      hintButton.disabled = deps.hintBusy?.() ?? false;
+      hintButton.disabled = false;
+      const on = deps.hintsOn?.();
+      if (on === undefined) hintButton.removeAttribute('aria-pressed');
+      else hintButton.setAttribute('aria-pressed', String(on));
+      // ⚠️ BUSY IS NOT OFF. The switch stays on and stays pressable while the engine searches;
+      // disabling it would move focus off the control the moment it was used, and would say
+      // "this setting is unavailable" when what is true is "the answer is on its way".
+      hintButton.dataset.busy = String(deps.hintBusy?.() ?? false);
     }
 
     if (deps.onMode) {
@@ -717,10 +685,8 @@ export function createHud(deps: HudDeps): Hud {
     report,
     refresh,
     destroy() {
-      for (const { input } of difficulty.options) input.removeEventListener('change', onDifficultyChange);
       for (const { input } of modeGroup.options) input.removeEventListener('change', onModeInput);
       hintButton.removeEventListener('click', onHintClick);
-      engineSelect.removeEventListener('change', onEngineChange);
       strengthSelect.removeEventListener('change', onStrengthChange);
       visionSelect.removeEventListener('change', onVisionChange);
       motionInput.removeEventListener('change', onMotionChange);

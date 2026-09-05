@@ -40,7 +40,6 @@ export const es: Catalog = {
     'hud.turn':       'Turno',
     'hud.captured':   'Capturadas',
     'hud.moves':      'Jugadas',
-    'hud.difficulty': 'Dificultad',
     'hud.highContrast': 'Alto contraste',
     'hud.reducedMotion': 'Movimiento reducido',
     'hud.outline':    'Contorno de piezas',
@@ -69,8 +68,6 @@ export const es: Catalog = {
     'elo.2400': 'maestro internacional',
     'elo.2500': 'gran maestro',
     'elo.3000': 'fuerza total',
-    'hud.engine': 'Rival',
-    'engine.own': 'La nuestra (negamax)',
     'hud.strength': 'Fuerza del rival',
     'hud.thinking': 'Pensamiento del motor',
     'think.idle': 'detenido',
@@ -120,9 +117,6 @@ export const es: Catalog = {
     'theme.contrast1': 'Alto contraste 1',
     'theme.contrast2': 'Alto contraste 2',
 
-    'difficulty.easy':   'Fácil',
-    'difficulty.medium': 'Medio',
-    'difficulty.hard':   'Difícil',
 
     'move.plain':       '{piece} de {from} a {to}',
     'move.capture':     '{piece} de {from} captura {target} en {to}',

@@ -39,7 +39,6 @@ export const en: Catalog = {
     'hud.turn':       'Turn',
     'hud.captured':   'Captured',
     'hud.moves':      'Moves',
-    'hud.difficulty': 'Difficulty',
     'hud.highContrast': 'High contrast',
     'hud.reducedMotion': 'Reduced motion',
     'hud.outline':    'Piece outline',
@@ -68,8 +67,6 @@ export const en: Catalog = {
     'elo.2400': 'International Master',
     'elo.2500': 'Grandmaster',
     'elo.3000': 'full strength',
-    'hud.engine': 'Opponent',
-    'engine.own': 'Ours (negamax)',
     'hud.strength': 'Opponent strength',
     'hud.thinking': 'Engine thinking',
     'think.idle': 'idle',
@@ -119,9 +116,6 @@ export const en: Catalog = {
     'theme.contrast1': 'High contrast 1',
     'theme.contrast2': 'High contrast 2',
 
-    'difficulty.easy':   'Easy',
-    'difficulty.medium': 'Medium',
-    'difficulty.hard':   'Hard',
 
     'move.plain':       '{piece} {from} to {to}',
     'move.capture':     '{piece} {from} takes {target} on {to}',

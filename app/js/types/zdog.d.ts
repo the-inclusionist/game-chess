@@ -76,6 +76,12 @@ declare module 'zdog' {
     backface?: boolean | string;
     front?: VectorLike;
     path?: VectorLike[];
+    /**
+     * Whether the last point joins back to the first. TRUE by default, which is why an arrow
+     * drawn without it comes back as a triangle: Zdog closes every path it is not told to leave
+     * open. Absent from this file until an open path was first needed.
+     */
+    closed?: boolean;
   }
 
   export class Shape extends Anchor {
