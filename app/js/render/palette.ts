@@ -151,25 +151,42 @@ export const SQUARE_STROKE = STROKE;
  * which WCAG accepts only because 1.4.11 judges the BOUNDARY. This mode does not lean.
  *
  * Making it work forces a conclusion worth stating. For a shaded SIDE face — darker than the top
- * by design — to reach 3:1 against the light square, its luminance would have to exceed 0.97:
- * essentially white. So in high contrast the shading has to go. The light side becomes uniformly
- * white and the dark side uniformly black, and the FORM comes entirely from the outline.
+ * by design — to reach 3:1 against the light square, its luminance would have to exceed 0.93.
+ * So in high contrast the shading has to go: each side is one flat tone and the FORM comes
+ * entirely from the outline. That works here because the outline is a real second Box drawn in a
+ * single colour over every face, so the edges between faces stay drawn and a cube still reads as
+ * a cube, in line.
  *
- * That is not a loss, it is what high contrast means — and it works here because Zdog draws every
- * face of a Box with its own outline, so the edges between faces stay drawn and a cube still
- * reads as a cube, in line.
+ * ========================= WHY THE PIECES ARE NOT WHITE AND BLACK =========================
+ * They were, and it was reported as making things worse rather than better: a white piece outlined
+ * in black and a black piece outlined in white are, at a glance, THE SAME TWO INKS. The one
+ * distinction chess cannot afford to lose — whose piece is that — was being carried only by which
+ * ink was inside and which was around, at a scale where the fill of a pawn is a few dozen pixels.
  *
- * The square pair was solved numerically: these are the two tones with the LARGEST separation
- * from each other that still keep all four piece-against-square pairs at or above 3:1.
+ * So the mode keeps the game's own two hues and takes them to the ends of the luminance range:
+ * yellow #FFFF00 and navy #001040. That preserves the founding argument of this file — the sides
+ * are told apart by LUMINANCE, which survives every colour-vision deficiency and every one of the
+ * engine's simulation filters — while giving each side back the colour a player already learned
+ * on the default board.
  *
- *   white against light square   3.00      black against light square   6.99
- *   white against dark square    6.95      black against dark square    3.02
- *   light side against dark     21.00      square against square        2.31
+ * The squares were re-solved for the new pair: the two tones with the largest separation from each
+ * other that still keep all four piece-against-square pairs at or above 3:1.
  *
- * The squares themselves land at 2.31, under the floor — and that is a deliberate acceptance
- * rather than an oversight. Four tones cannot satisfy all six pairs at once, and a square is not
- * identified by its colour alone: it is identified by WHERE it is on the board, which is why a
- * chess diagram works in one ink.
+ *   yellow against light square   3.01      navy against light square   5.66
+ *   yellow against dark square    5.59      navy against dark square    3.04
+ *   yellow against navy          17.03      square against square       1.86
+ *
+ * ========================= WHAT THIS COST, STATED =========================
+ * Square against square falls from 2.31 to 1.86. That is a real loss and it is accepted for a
+ * reason, not overlooked: four tones cannot satisfy all six pairs at once, and of the six, the one
+ * that must never fail is piece against piece. A square is identified by WHERE it is — which is
+ * why a chess diagram works in a single ink — and a piece is not.
+ *
+ * The bound is arithmetic, not taste. Squares have to sit below (L_yellow + 0.05)/3 − 0.05 and
+ * above 3·(L_navy + 0.05) − 0.05; #FFFF00 is chosen because it is the brightest yellow there is
+ * and therefore leaves that window as wide as it can be. Every ratio above is asserted in
+ * `tests/palette.node.test.ts`, computed rather than copied, because the last time this file
+ * carried a table of numbers it also carried one that had never been measured.
  */
 
 export interface Palette {
@@ -189,10 +206,14 @@ export const DEFAULT_PALETTE: Palette = {
 };
 
 export const HIGH_CONTRAST_PALETTE: Palette = {
-  lightPieces: { top: '#FFFFFF', side: '#FFFFFF', face: '#FFFFFF', stroke: '#000000' },
-  darkPieces: { top: '#000000', side: '#000000', face: '#000000', stroke: '#FFFFFF' },
-  squareLight: '#9A948C',
-  squareDark: '#5E5951',
+  // Flat, for the reason above. The stroke stays black-on-yellow and white-on-navy: its job here
+  // is to draw the edges, and each of those is the maximum contrast available against its fill.
+  lightPieces: { top: '#FFFF00', side: '#FFFF00', face: '#FFFF00', stroke: '#000000' },
+  darkPieces: { top: '#001040', side: '#001040', face: '#001040', stroke: '#FFFFFF' },
+  // Neutral greys now. The old pair was warm, chosen against white and black; against yellow and
+  // navy a tint would only push one of the four pairs around for no gain.
+  squareLight: '#8F8F8F',
+  squareDark: '#636363',
 };
 
 export function createPalette(mode: PaletteMode): Palette {
