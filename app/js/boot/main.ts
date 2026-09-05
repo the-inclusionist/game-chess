@@ -27,7 +27,9 @@ import { createMoveAnimation, type MoveAnimation } from '../render/animation.ts'
 import { createBoard, type Marker } from '../render/board.ts';
 import { squareFromIndex, squareIndex } from '../render/board-geometry.ts';
 import { createCamera } from '../render/camera.ts';
-import { createPiecesLayer } from '../render/pieces/index.ts';
+import { buildPiece, createPiecesLayer } from '../render/pieces/index.ts';
+import { PIECE_SPECS } from '../render/pieces/geometry.ts';
+import { DARK_PIECES, LIGHT_PIECES } from '../render/palette.ts';
 import { pickTopmost, toIllustrationSpace } from '../render/picking.ts';
 import { createPalette, type PaletteMode } from '../render/palette.ts';
 import { createPixiSurface } from '../render/pixi-surface.ts';
@@ -454,7 +456,7 @@ export function boot(host: Document = document): void {
       boardView,
       pieces,
       // fabricas, para montar um palco de teste em qualquer resolucao e medir o custo
-      make: { createZdogStage, createBoard, createPiecesLayer },
+      make: { createZdogStage, createBoard, createPiecesLayer, buildPiece, PIECE_SPECS, LIGHT_PIECES, DARK_PIECES },
       engine,
       declaration,
       /** Advances the loop by hand — see `frame`. */

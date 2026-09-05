@@ -84,16 +84,18 @@ describe('[Hartwig] the shapes are the ones he described, not approximations', (
 
   // "The knight moves at right angles in a hook over four squares: four cubes combined at
   //  right angles."
-  it('builds the knight from exactly four equal cubes', () => {
+  //
+  // Asserted as FOUR CUBES' WORTH OF MATERIAL rather than as four literal boxes. The shape is
+  // Hartwig's; the decomposition is a rendering decision, and it changed — four cubes share three
+  // internal faces, and coplanar faces tie in a depth sort, which made the hook come apart as the
+  // camera turned. Two boxes describe the same solid and touch on one face.
+  it('is four cubes of material, in a two-by-three footprint', () => {
     const spec = PIECE_SPECS.n;
-    expect(spec.boxes).toHaveLength(4);
-    const first = spec.boxes[0];
-    for (const b of spec.boxes) {
-      expect(b.w).toBe(first.w);
-      expect(b.h).toBe(first.h);
-      expect(b.d).toBe(first.d);
-      expect(b.w).toBe(b.h);
-    }
+    const unit = Math.min(...spec.boxes.map((b) => Math.min(b.w, b.h, b.d)));
+    const volume = spec.boxes.reduce((sum, b) => sum + b.w * b.h * b.d, 0);
+    expect(volume).toBeCloseTo(4 * unit ** 3, 6);
+    expect(pieceFootprint(spec)).toBeCloseTo(2 * unit, 6);
+    expect(pieceHeight(spec)).toBeCloseTo(3 * unit, 6);
   });
 
   it('arranges those four as a hook, not a stack or a row', () => {
@@ -106,13 +108,15 @@ describe('[Hartwig] the shapes are the ones he described, not approximations', (
   });
 
   // "The bishop moves diagonally: a cross cut from the cube."
-  it('crosses two slabs at right angles to each other, on the diagonals', () => {
-    const boxes = PIECE_SPECS.b.boxes;
-    expect(boxes).toHaveLength(2);
-    const rotations = boxes.map((b) => b.rotY ?? 0);
-    expect(Math.abs(rotations[0] - rotations[1])).toBeCloseTo(Math.PI / 2, 6);
-    // Both sit off the board axes, which is what makes the cross read as DIAGONAL movement.
-    for (const r of rotations) expect(Math.abs(r) % (Math.PI / 2)).toBeCloseTo(Math.PI / 4, 6);
+  it('is a cross, and sits off the board axes so the cross reads as DIAGONAL', () => {
+    const spec = PIECE_SPECS.b;
+    // Every part turned 45° off the axes — that turn is Hartwig's whole reason for the cross.
+    for (const b of spec.boxes) {
+      expect(Math.abs(b.rotY ?? 0) % (Math.PI / 2)).toBeCloseTo(Math.PI / 4, 6);
+    }
+    // A cross reaches the same distance both ways: the arms and the slab share a span.
+    const spans = spec.boxes.map((b) => Math.max(b.w, b.d));
+    expect(Math.max(...spans)).toBeCloseTo(10, 6);
   });
 
   // "The king: a smaller cube turned across the corner of a larger one."
@@ -148,5 +152,56 @@ describe('[Hartwig] the shapes are the ones he described, not approximations', (
     const ballBottom = spec.sphere!.y + spec.sphere!.diameter / 2;
     // Touching, or slightly sunk into the cube — never a gap.
     expect(ballBottom).toBeGreaterThanOrEqual(baseTop - 0.01);
+  });
+});
+
+
+describe('[Solidity] no piece contains boxes that pass through each other', () => {
+  // The invariant a painter's algorithm needs, and the bug it was written for. Zdog sorts whole
+  // FACES by depth: where two boxes interpenetrate, one entire face wins over the other and the
+  // piece collapses into something else — the bishop's cross became a notched block, and the
+  // effect came and went with the camera angle, which is what makes it so hard to see as a bug.
+  //
+  // Sampled rather than solved analytically: the boxes carry rotations, and a point test in each
+  // box's own frame is exact where a bounding-box test would not be.
+  const inside = (b: (typeof PIECE_SPECS)['b']['boxes'][number], p: [number, number, number]) => {
+    const t = b.rotY ?? 0;
+    const dx = p[0] - (b.x ?? 0);
+    const dy = p[1] - (b.y ?? 0);
+    const dz = p[2] - (b.z ?? 0);
+    // Undo the box's turn about the vertical axis.
+    const lx = dx * Math.cos(-t) - dz * Math.sin(-t);
+    const lz = dx * Math.sin(-t) + dz * Math.cos(-t);
+    const slack = 1e-6;
+    return Math.abs(lx) < b.w / 2 - slack
+        && Math.abs(dy) < b.h / 2 - slack
+        && Math.abs(lz) < b.d / 2 - slack;
+  };
+
+  it.each(ALL)('%s is one solid, not overlapping parts', (type) => {
+    const boxes = PIECE_SPECS[type].boxes;
+    const N = 5;
+    for (let i = 0; i < boxes.length; i++) {
+      const b = boxes[i];
+      const t = b.rotY ?? 0;
+      for (let ix = 1; ix < N; ix++) {
+        for (let iy = 1; iy < N; iy++) {
+          for (let iz = 1; iz < N; iz++) {
+            const lx = (ix / N - 0.5) * b.w;
+            const ly = (iy / N - 0.5) * b.h;
+            const lz = (iz / N - 0.5) * b.d;
+            const p: [number, number, number] = [
+              (b.x ?? 0) + lx * Math.cos(t) - lz * Math.sin(t),
+              (b.y ?? 0) + ly,
+              (b.z ?? 0) + lx * Math.sin(t) + lz * Math.cos(t),
+            ];
+            for (let j = 0; j < boxes.length; j++) {
+              if (j === i) continue;
+              expect(inside(boxes[j], p), `${type}: box ${i} reaches inside box ${j}`).toBe(false);
+            }
+          }
+        }
+      }
+    }
   });
 });

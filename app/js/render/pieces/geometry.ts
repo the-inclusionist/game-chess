@@ -76,25 +76,51 @@ export const PIECE_SPECS: Readonly<Record<PieceType, PieceSpec>> = {
   // The cube, large. Same shape as the pawn because they share the same movement.
   r: { boxes: [{ w: 9, h: 9, d: 9, y: -4.5 }] },
 
-  // Four cubes at right angles: two side by side, two more stacked on the left. The hook is
-  // the knight's move drawn in the piece.
+  // The hook: a column three cubes tall with a fourth cube beside its foot. Hartwig's own words
+  // are "four cubes combined at right angles", and the SHAPE here is exactly that — but it is
+  // built from TWO boxes rather than four.
+  //
+  // The decomposition matters because Zdog sorts whole FACES by depth. Four cubes share three
+  // internal faces, and a shared face is coplanar with its twin: identical sort value, order
+  // decided by nothing. Those interior faces are drawn (Zdog does not cull backfaces) and win the
+  // tie often enough that the hook comes apart into loose cubes as the camera turns. Two boxes
+  // touch on ONE face instead of three, and the piece holds together.
   n: {
     boxes: [
-      { w: HOOK, h: HOOK, d: HOOK, x: -HOOK / 2, y: -HOOK / 2 },
+      { w: HOOK, h: HOOK * 3, d: HOOK, x: -HOOK / 2, y: -HOOK * 1.5 },
       { w: HOOK, h: HOOK, d: HOOK, x: +HOOK / 2, y: -HOOK / 2 },
-      { w: HOOK, h: HOOK, d: HOOK, x: -HOOK / 2, y: -HOOK * 1.5 },
-      { w: HOOK, h: HOOK, d: HOOK, x: -HOOK / 2, y: -HOOK * 2.5 },
     ],
   },
 
-  // The cross. Two slabs at right angles to each other, both turned 45° off the board axes —
-  // which is what makes the cross read as DIAGONAL movement rather than as a plus sign.
-  b: {
-    boxes: [
-      { w: 10, h: 11.5, d: 3.4, y: -5.75, rotY: +QUARTER },
-      { w: 10, h: 11.5, d: 3.4, y: -5.75, rotY: -QUARTER },
-    ],
-  },
+  // The cross, built so nothing INTERPENETRATES.
+  //
+  // It was two slabs crossed through each other, and that is unrenderable by a painter's
+  // algorithm: Zdog sorts whole faces, so where the slabs pass through one another an entire
+  // face of one wins over the other and the cross collapses into a notched block. Seen at a
+  // large scale it is unmistakable, and it is what makes the X vanish as the board turns.
+  //
+  // Now one full slab plus two ARMS that meet its sides — three boxes that touch and never
+  // overlap. The 45° turn is kept: it is what makes the cross read as DIAGONAL movement rather
+  // than as a plus sign, which is Hartwig's whole reason for giving the bishop a cross.
+  b: (() => {
+    const SPAN = 10;
+    const THICK = 3.4;
+    const ARM = (SPAN - THICK) / 2;
+    const REACH = (THICK + ARM) / 2;
+    // The arms sit on the slab's local Z axis — perpendicular to its long side. Zdog's rotateY is
+    // `x' = x·cos − z·sin, z' = z·cos + x·sin`, so local +Z points to world (−sin t, +cos t) and
+    // NOT (+sin t, +cos t). Getting that sign wrong puts the arms along the slab's LONG axis,
+    // where they sit inside it — which is the very overlap this shape exists to avoid, and which
+    // the solidity test caught on its first run.
+    const OFF = REACH * Math.SQRT1_2;
+    return {
+      boxes: [
+        { w: SPAN, h: 11.5, d: THICK, y: -5.75, rotY: QUARTER },
+        { w: THICK, h: 11.5, d: ARM, x: -OFF, z: +OFF, y: -5.75, rotY: QUARTER },
+        { w: THICK, h: 11.5, d: ARM, x: +OFF, z: -OFF, y: -5.75, rotY: QUARTER },
+      ],
+    };
+  })(),
 
   // A ball on top, for the queen who moves every way.
   q: {
