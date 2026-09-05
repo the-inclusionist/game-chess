@@ -41,31 +41,63 @@ const rgb = (hex: string): [number, number, number] => [
   parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16),
 ];
 
-describe("[Queen] the circle is a disc, not a ring", () => {
-  // The queen is drawn as two stacked single-point Shapes: a larger one in the outline colour
-  // and a smaller one in the face colour on top, so her circle carries the same outline as every
-  // other face. They share a position and therefore a sort value, and the whole thing rests on
-  // Array.prototype.sort being stable. If it were not, the outline would land in FRONT and the
-  // queen would read as an empty ring — which is exactly what it looked like on screen.
-  it('fills the centre with the face colour, not the outline colour', () => {
+describe('[Queen] a ball, not a sticker', () => {
+  // She was a flat disc: a single-point Shape with a large stroke, which draws a filled circle
+  // that always faces the camera. It was cheap and it read as a sticker — a circle painted on the
+  // piece rather than an object sitting on it. Two Hemispheres, apex up and apex down, make a
+  // ball; Zdog gives Hemisphere its own sort value so the pair behaves as one solid.
+  it('fills its centre with a face colour rather than the outline', () => {
     stage = createZdogStage();
-    // Only the discs: no boxes, so nothing else can be under the sample point.
-    buildPiece(stage.root, { boxes: [], disc: { diameter: 40, y: 0 } }, LIGHT_PIECES);
+    // Only the ball: no boxes, so nothing else can be under the sample point.
+    buildPiece(stage.root, { boxes: [], sphere: { diameter: 60, y: 0 } }, LIGHT_PIECES);
     stage.render();
 
     const [r, g, b, a] = pixelAt(stage, ORIGIN_X, ORIGIN_Y);
     expect(a).toBe(255);
-    expect([r, g, b]).toEqual(rgb(LIGHT_PIECES.top));
+    expect([r, g, b]).not.toEqual(rgb(LIGHT_PIECES.stroke));
   });
 
-  it('still shows the outline at the rim', () => {
+  it('is SHADED — a column through it crosses more than one fill', () => {
+    // Written first with two magic sample points, which both landed in the LIT half: looking down
+    // at 57 degrees the top hemisphere covers most of the silhouette and the shadow is a thin
+    // crescent along the bottom. Scanning the whole column says what the test means to say —
+    // "this ball is not one flat colour" — without depending on where the terminator falls.
     stage = createZdogStage();
-    buildPiece(stage.root, { boxes: [], disc: { diameter: 40, y: 0 } }, LIGHT_PIECES);
+    buildPiece(stage.root, { boxes: [], sphere: { diameter: 60, y: 0 } }, LIGHT_PIECES);
     stage.render();
 
-    // Just inside the outer disc but outside the inner one.
-    const [r, g, b] = pixelAt(stage, ORIGIN_X + Math.round((40 / 2 + 0.5) * CAMERA.zoom), ORIGIN_Y);
-    expect([r, g, b]).not.toEqual(rgb(LIGHT_PIECES.top));
+    const outline = rgb(LIGHT_PIECES.stroke).join(',');
+    const fills = new Set<string>();
+    for (let dy = -80; dy <= 80; dy++) {
+      const [r, g, b, a] = pixelAt(stage, ORIGIN_X, ORIGIN_Y + dy);
+      if (a < 255) continue;
+      const key = [r, g, b].join(',');
+      if (key !== outline) fills.add(key);
+    }
+    // Antialiasing contributes blends, so require the two PALETTE colours specifically.
+    expect(fills.has(rgb(LIGHT_PIECES.top).join(','))).toBe(true);
+    expect(fills.has(rgb(LIGHT_PIECES.side).join(',')) || fills.has(rgb(LIGHT_PIECES.face).join(',')))
+      .toBe(true);
+  });
+
+  it('reads against its background by its FILL, because there is no outline', () => {
+    // Written first as "is outlined", and it failed — which is how the absence was found. Zdog's
+    // `setFace` gives each face `color = <that face's colour>`, and `Shape` uses `color` for the
+    // stroke as well as the fill. There is no separate stroke colour anywhere in Zdog, so the
+    // `stroke:` we pass a Box is only a WIDTH: every face is outlined in its own colour, which
+    // means it is not outlined at all. Measured on a full board: 65 pixels out of 76,495 carry
+    // either stroke colour, and those are antialiasing coincidences.
+    //
+    // What actually gives a piece its form is the SHADING between faces, which is why widening it
+    // from 1.18 to 1.72 mattered so much more than it looked like it should.
+    stage = createZdogStage();
+    buildPiece(stage.root, { boxes: [], sphere: { diameter: 60, y: 0 } }, LIGHT_PIECES);
+    stage.render();
+
+    const centro = pixelAt(stage, ORIGIN_X, ORIGIN_Y);
+    const fora = pixelAt(stage, ORIGIN_X + 120, ORIGIN_Y);
+    expect(centro[3]).toBe(255);
+    expect(fora[3]).toBe(0);
   });
 });
 
@@ -142,7 +174,7 @@ describe('[Layer] the position replaces, it does not accumulate', () => {
   });
 });
 
-describe('[Queen] the disc holds up near and far, alone and in a crowd', () => {
+describe('[Queen] the ball holds up near and far, alone and in a crowd', () => {
   // These began as a hunt for a defect that turned out not to exist. On screen at 2x, an 8.6 px
   // disc with a 1 px rim read as a RING, and the misreading survived two plausible theories
   // (unstable sort, occlusion by a neighbour) before either was measured. Both cases below pass.
@@ -171,7 +203,7 @@ describe('[Queen] the disc holds up near and far, alone and in a crowd', () => {
     return { x: Math.round(p.x * v.zoom + v.width / 2), y: Math.round(p.y * v.zoom + v.height / 2) };
   };
 
-  it('fills the disc with the face colour in a FULL position, near rank included', () => {
+  it('fills the ball with the lit colour in a FULL position, near rank included', () => {
     // The lone-queen case below already passes, so if this one fails the cause is interaction
     // with the neighbouring pieces rather than the disc itself.
     stage = createZdogStage();

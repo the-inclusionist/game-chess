@@ -69,7 +69,7 @@ describe('[Hartwig] the shapes are the ones he described, not approximations', (
     for (const t of ['p', 'r'] as const) {
       const spec = PIECE_SPECS[t];
       expect(spec.boxes, t).toHaveLength(1);
-      expect(spec.disc, t).toBeUndefined();
+      expect(spec.sphere, t).toBeUndefined();
       const { w, h, d } = spec.boxes[0];
       expect(w, t).toBe(h);
       expect(h, t).toBe(d);
@@ -125,19 +125,28 @@ describe('[Hartwig] the shapes are the ones he described, not approximations', (
     expect(base.rotY ?? 0).toBe(0);
   });
 
-  // "A circle on the queen's top, for her versatile movement."
-  it('gives the queen the only circle on the board', () => {
-    expect(PIECE_SPECS.q.disc).toBeDefined();
+  // "A circle on the queen's top, for her versatile movement." — the physical set carries a
+  // wooden BALL, and the circle is that ball described in two dimensions.
+  it('gives the queen the only ball on the board', () => {
+    expect(PIECE_SPECS.q.sphere).toBeDefined();
     for (const t of ALL) {
-      if (t !== 'q') expect(PIECE_SPECS[t].disc, t).toBeUndefined();
+      if (t !== 'q') expect(PIECE_SPECS[t].sphere, t).toBeUndefined();
     }
   });
 
-  it('puts that circle above the queen, not inside her', () => {
+  it('puts that ball above the queen, not inside her', () => {
     const spec = PIECE_SPECS.q;
-    const disc = spec.disc!;
+    const sphere = spec.sphere!;
     const base = spec.boxes[0];
     const baseTop = (base.y ?? 0) - base.h / 2;
-    expect(disc.y).toBeLessThan(baseTop);  // Zdog Y points down: smaller is higher
+    expect(sphere.y).toBeLessThan(baseTop);  // Zdog Y points down: smaller is higher
+  });
+
+  it('rests the ball ON the cube rather than floating it above', () => {
+    const spec = PIECE_SPECS.q;
+    const baseTop = (spec.boxes[0].y ?? 0) - spec.boxes[0].h / 2;
+    const ballBottom = spec.sphere!.y + spec.sphere!.diameter / 2;
+    // Touching, or slightly sunk into the cube — never a gap.
+    expect(ballBottom).toBeGreaterThanOrEqual(baseTop - 0.01);
   });
 });

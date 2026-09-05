@@ -99,6 +99,30 @@ declare module 'zdog' {
     height: number;
   }
 
+  export interface EllipseOptions extends ShapeOptions {
+    diameter?: number;
+    width?: number;
+    height?: number;
+    /** How many quarter-arcs to draw. 4 is a full ellipse. */
+    quarters?: number;
+  }
+
+  export class Ellipse extends Shape {
+    constructor(options?: EllipseOptions);
+    diameter: number;
+  }
+
+  /**
+   * A dome: the curved half plus its flat elliptical base, drawn as two paths.
+   *
+   * It carries its own `updateSortValue` — the centroid sits 3/8 of the way from the origin to
+   * the apex rather than at the mean of the path points — which is what lets two of them, apex up
+   * and apex down, sort against each other and against everything else as a single ball would.
+   */
+  export class Hemisphere extends Ellipse {
+    constructor(options?: EllipseOptions);
+  }
+
   export interface BoxOptions extends AnchorOptions {
     width?: number;
     height?: number;
@@ -165,6 +189,8 @@ declare module 'zdog' {
     Anchor: typeof Anchor;
     Shape: typeof Shape;
     Rect: typeof Rect;
+    Ellipse: typeof Ellipse;
+    Hemisphere: typeof Hemisphere;
     Box: typeof Box;
     Illustration: typeof Illustration;
   };

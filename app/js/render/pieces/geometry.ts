@@ -19,9 +19,10 @@
 //     not balanced on a vertex.)
 //   · "A CIRCLE on the queen's top, for her versatile movement."
 //
-// Five of the six are boxes. Only the queen needs anything else, and Zdog draws her circle as a
-// single-point Shape with a large stroke — one draw call, and a disc that always faces the camera,
-// which is exactly what "a circle on top" means.
+// Five of the six are boxes. Only the queen needs anything else, and what she needs is a BALL: the
+// physical set carries a wooden sphere, and "a circle" is that sphere described in two dimensions.
+// Zdog builds it from two Hemispheres. It was a flat disc at first — cheaper, and it read as a
+// sticker.
 //
 // ========================= UNITS AND AXES =========================
 // Everything is in Zdog units, where the square is TILE = 16. Zdog's Y points DOWN, so a piece
@@ -41,15 +42,25 @@ export interface BoxSpec {
   readonly rotY?: number;
 }
 
-/** Zdog draws this as a single-point Shape with a large stroke: a disc facing the camera. */
-export interface DiscSpec {
+/**
+ * The ball on the queen's head.
+ *
+ * It was a flat disc — a single-point `Zdog.Shape` with a large stroke, which draws a filled circle
+ * that always faces the camera. Cheap, and wrong: Hartwig's queen carries a wooden BALL, and
+ * "a circle on the queen's top" is that ball described in two dimensions. Drawn flat it reads as a
+ * sticker rather than as a sphere, and no amount of turning the board changes it.
+ *
+ * Now two `Zdog.Hemisphere`s, apex up and apex down. Zdog gives Hemisphere its own sort value —
+ * the centroid 3/8 of the way to the apex — precisely so a pair of them behaves like one ball.
+ */
+export interface SphereSpec {
   readonly diameter: number;
   readonly y: number;
 }
 
 export interface PieceSpec {
   readonly boxes: readonly BoxSpec[];
-  readonly disc?: DiscSpec;
+  readonly sphere?: SphereSpec;
 }
 
 const QUARTER = Math.PI / 4;
@@ -85,10 +96,10 @@ export const PIECE_SPECS: Readonly<Record<PieceType, PieceSpec>> = {
     ],
   },
 
-  // A circle on top, for the queen who moves every way.
+  // A ball on top, for the queen who moves every way.
   q: {
     boxes: [{ w: 8.5, h: 8.5, d: 8.5, y: -4.25 }],
-    disc: { diameter: 7.5, y: -11.5 },
+    sphere: { diameter: 7.5, y: -11.5 },
   },
 
   // A smaller cube turned across the corner of a larger one.
@@ -135,8 +146,8 @@ export function pieceFootprint(spec: PieceSpec): number {
     maxZ = Math.max(maxZ, z + half.z);
   }
 
-  if (spec.disc) {
-    const r = spec.disc.diameter / 2;
+  if (spec.sphere) {
+    const r = spec.sphere.diameter / 2;
     minX = Math.min(minX, -r);
     maxX = Math.max(maxX, r);
     minZ = Math.min(minZ, -r);
@@ -150,7 +161,7 @@ export function pieceFootprint(spec: PieceSpec): number {
 export function pieceHeight(spec: PieceSpec): number {
   let top = 0;
   for (const b of spec.boxes) top = Math.min(top, (b.y ?? 0) - b.h / 2);
-  if (spec.disc) top = Math.min(top, spec.disc.y - spec.disc.diameter / 2);
+  if (spec.sphere) top = Math.min(top, spec.sphere.y - spec.sphere.diameter / 2);
   return -top;
 }
 

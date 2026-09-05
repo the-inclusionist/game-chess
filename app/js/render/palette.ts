@@ -41,10 +41,17 @@
 //   light against dark (top faces): 5.86
 //   top against front: 1.72 light, 1.64 dark
 //
-// The light side's FILLS have almost no contrast against a light square — 1.07:1 is nothing. What
-// makes a light piece legible there is its OUTLINE at 9.50:1, and WCAG 1.4.11 judges the boundary,
-// so this passes. It is thinner ice than it looks, and step 8's high-contrast variant is where the
-// fills themselves should be brought up. Recorded rather than glossed.
+// ⚠️ THE "OUTLINE" ROWS BELOW ARE NOT DRAWN. This was asserted for several commits and it is
+// false. Zdog's `Box.setFace` assigns `color = <that face's colour>`, and `Shape` uses `color` for
+// the stroke as well as the fill — there is no separate stroke colour anywhere in the library. The
+// `stroke:` passed to a Box is a WIDTH only, so every face is outlined in its own colour, which is
+// to say not outlined at all. Measured on a full board: 65 pixels out of 76,495 carry either
+// stroke colour, and those are antialiasing coincidences.
+//
+// So the stroke rows are kept for what they would be worth IF an outline were ever drawn, and the
+// legibility of a light piece on a light square rests on something else entirely: the SHADING
+// between its faces. That is why widening top-against-front from 1.18 to 1.72 mattered far more
+// than a shading tweak has any right to.
 //
 // The look is "Zdog assumed": flat saturated fills, a visible rounded stroke, toy-like. That is a
 // deliberate aesthetic choice, and it happens to push in the same direction as contrast.

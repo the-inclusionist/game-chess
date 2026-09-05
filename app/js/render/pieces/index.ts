@@ -68,25 +68,29 @@ export function buildPiece(parent: Anchor, spec: PieceSpec, colours: SidePalette
     });
   }
 
-  if (spec.disc) {
-    // Two discs, outer then inner, so the queen's circle carries the same outline as every other
-    // face. They share a position and therefore a sort value; Array.prototype.sort is stable in
-    // every engine this ships to, so insertion order decides — outer behind, inner in front.
-    // `diameter + STROKE`, not `+ STROKE * 2`. A dot's stroke IS its diameter, so this leaves a
-    // rim of STROKE/2 on each side — the same apparent weight as a box edge, which is drawn with
-    // width STROKE centred on the edge. Doubling it made the rim 24% of the disc against the 11%
-    // the cube faces carry, and the queen read as an empty ring at final scale.
-    new Zdog.Shape({
-      addTo: anchor,
-      stroke: spec.disc.diameter + STROKE,
-      color: colours.stroke,
-      translate: { y: spec.disc.y },
+  if (spec.sphere) {
+    // ========================= A BALL, NOT A STICKER =========================
+    // Two Hemispheres, apex up and apex down. Zdog gives Hemisphere its own `updateSortValue` —
+    // the centroid sits 3/8 of the way from origin to apex, not at the mean of the path points —
+    // which is exactly what lets a pair of them sort against each other, and against the rest of
+    // the board, as one solid ball would.
+    //
+    // Zdog's Y points DOWN and a Hemisphere's apex points along +z. Rotating the apex (0,0,d/2)
+    // about X by +TAU/4 sends it to y = -d/2, which is UP. Getting that sign backwards puts the
+    // lit half underneath, and the ball comes out looking flat again — which is exactly what the
+    // shading test caught.
+    //
+    // The two halves take DIFFERENT colours, and that is the whole reason this beats the flat disc
+    // it replaced: a single-colour sphere reads as a circle from every angle. Lit from above is the
+    // same convention the box faces already use.
+    const half = { diameter: spec.sphere.diameter, stroke: STROKE, translate: { y: spec.sphere.y } };
+    new Zdog.Hemisphere({
+      ...half, addTo: anchor, rotate: { x: Zdog.TAU / 4 },
+      color: colours.top, backface: colours.face,
     });
-    new Zdog.Shape({
-      addTo: anchor,
-      stroke: spec.disc.diameter,
-      color: colours.top,
-      translate: { y: spec.disc.y },
+    new Zdog.Hemisphere({
+      ...half, addTo: anchor, rotate: { x: -Zdog.TAU / 4 },
+      color: colours.side, backface: colours.face,
     });
   }
 
