@@ -50,6 +50,11 @@ export const en: Catalog = {
     'hud.replayShort':   'Forward',
     'hud.movesRegion': 'Move list, scrollable',
     'hud.coordinates': 'Files and ranks',
+    'set.symbols':  'Chess symbols',
+    'set.math':     'Mathematical symbols',
+    'set.emoji':    'Emoji (varies by device)',
+    'set.pecita':   'Handwritten',
+    'set.off.licence': 'licence to confirm',
 
     'difficulty.easy':   'Easy',
     'difficulty.medium': 'Medium',

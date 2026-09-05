@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { afterEach, describe, expect, it } from 'vitest';
 import { boot } from '../app/js/boot/main.ts';
+import { boot2d } from '../app/js/boot/main-2d.ts';
 
 // ========================= WHY THIS TEST EXISTS =========================
 // Twice now, a change to `boot/main.ts` has thrown on the very first line of the game and been
@@ -69,5 +70,34 @@ describe('[Boot] the composition root actually composes', () => {
     // Node.DOCUMENT_POSITION_FOLLOWING: the canvas comes after the grid, so a reader meets the
     // board it can use first.
     expect(grid.compareDocumentPosition(canvas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+// The flat board has its own composition root, and the same gap: nothing else builds it. The 3D
+// root has now thrown at boot twice for faults no other test could see, and this one composes the
+// same modules in a different order — which is exactly where that class of fault lives.
+describe('[Boot] the flat composition root composes too', () => {
+  it('boots without throwing', () => {
+    fixture();
+    expect(() => boot2d(document)).not.toThrow();
+  });
+
+  it('puts a VISIBLE board and the panel on the screen, and no canvas', () => {
+    fixture();
+    boot2d(document);
+    const region = document.getElementById('game-region');
+    expect(region?.querySelector('.board-2d')).not.toBeNull();
+    expect(region?.querySelectorAll('[role="gridcell"]')).toHaveLength(64);
+    expect(region?.querySelectorAll('.cell-coord')).toHaveLength(16);
+    expect(region?.querySelector('.hud')).not.toBeNull();
+    // The whole point of the second entry: this view never builds a renderer.
+    expect(region?.querySelector('canvas')).toBeNull();
+  });
+
+  it('draws the opening position', () => {
+    fixture();
+    boot2d(document);
+    const drawn = [...document.querySelectorAll('.cell-piece')].filter((g) => g.textContent);
+    expect(drawn).toHaveLength(32);
   });
 });

@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config'; // not 'vite': vitest/config is what types the `test` field
+import { fileURLToPath } from 'node:url';
 import { playwright } from '@vitest/browser-playwright';
 
 // ============================ THE ENGINE IS A LINKED DEPENDENCY ============================
@@ -13,7 +14,22 @@ import { playwright } from '@vitest/browser-playwright';
 // load weight. See docs/spike-1-file-dependency.md.
 export default defineConfig({
   root: 'app',
-  build: { outDir: '../dist', emptyOutDir: true, target: 'es2022' },
+  build: {
+    outDir: '../dist',
+    emptyOutDir: true,
+    target: 'es2022',
+    // ========================= TWO ENTRIES, ONE REPOSITORY =========================
+    // Measured, in `spike/2d-weight/`: a flat board needs 104 KB and the Zdog one needs 146. As a
+    // MODE the flat board would have carried the renderer it never draws with. As a second entry
+    // it carries what it uses, and the shared half — rules, search, declaration, HUD, i18n — is
+    // one chunk both pages fetch.
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./app/index.html', import.meta.url)),
+        flat: fileURLToPath(new URL('./app/2d.html', import.meta.url)),
+      },
+    },
+  },
   optimizeDeps: {
     exclude: ['@the-inclusionist/engine'],
     // Zdog is CommonJS, so it must be pre-bundled. Naming it here stops Vitest's browser mode

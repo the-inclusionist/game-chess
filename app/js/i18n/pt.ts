@@ -55,6 +55,11 @@ export const pt: Catalog = {
     'hud.replayShort':   'Avançar',
     'hud.movesRegion': 'Lista de lances, rolável',
     'hud.coordinates': 'Letras e números',
+    'set.symbols':  'Símbolos de xadrez',
+    'set.math':     'Símbolos matemáticos',
+    'set.emoji':    'Emoji (varia com o aparelho)',
+    'set.pecita':   'Manuscrita',
+    'set.off.licence': 'licença a confirmar',
 
     'difficulty.easy':   'Fácil',
     'difficulty.medium': 'Médio',

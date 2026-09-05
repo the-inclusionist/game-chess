@@ -26,14 +26,25 @@
 //    any piece; "selecionada" would not. The catalogue carries gender for the piece NOUN and
 //    nothing else, so every other phrase is written to sidestep agreement.
 //
-//  · FOCUS IS MIRRORED ONTO THE BOARD. This grid is visually hidden, so a sighted person moving
+//  · FOCUS IS MIRRORED ONTO THE BOARD. When this grid is visually hidden, a sighted person moving
 //    by keyboard would have focus in a place they cannot see. The `cursor` marker is that focus,
 //    drawn on the canvas.
+//
+// ========================= AND IT IS ALSO THE 2D BOARD =========================
+// `visible: true` takes the `sr-only` off and puts a glyph in each cell. That is the whole of the
+// 2D mode's board, and it is not a shortcut: this grid was already 64 real buttons in a real grid,
+// with roving tabindex, `aria-selected`, arrow navigation clamped at the edges, and one funnel to
+// `onActivate` shared with the pointer. Building a second board for the 2D view would have meant
+// building all of that again and then keeping two of them correct.
+//
+// The glyph is `aria-hidden`: the meaning is in the label, in the player's language and with the
+// piece's gender attached. Which is why the piece SET is a free choice — see `ui/piece-sets.ts`.
 
 import type { Rules } from '../chess/rules.ts';
 import type { GameState } from '../chess/state.ts';
 import { FILES, RANKS, sameSquare, type Square, toAlgebraic } from '../chess/types.ts';
 import type { I18n } from '../i18n/index.ts';
+import { DEFAULT_SET, pieceSet, type PieceSet } from './piece-sets.ts';
 import { squareFromIndex, squareIndex } from '../render/board-geometry.ts';
 
 export interface GridMirrorDeps {
@@ -53,6 +64,10 @@ export interface GridMirrorDeps {
    * Injected rather than imported so the grid can be tested without booting an engine.
    */
   resolveAction?(code: string): string | null;
+  /** Show the grid and draw pieces in it: this is the 2D board. Default false. */
+  readonly visible?: boolean;
+  /** Which drawing to use. Only consulted when visible. */
+  readonly set?: string;
 }
 
 export interface GridMirror {
@@ -61,22 +76,41 @@ export interface GridMirror {
   refresh(): void;
   focusSquare(square: Square): void;
   cursor(): Square;
+  /** Swaps the drawing. No effect on anything a screen reader hears. */
+  setPieceSet(key: string): void;
+  pieceSetKey(): string;
   destroy(): void;
 }
 
 const CELL_COUNT = FILES * RANKS;
 
+const FILE_NAMES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
+
 export function createGridMirror(deps: GridMirrorDeps): GridMirror {
   const { doc, i18n, rules, state } = deps;
 
+  const visible = deps.visible ?? false;
+  let set: PieceSet = pieceSet(deps.set ?? DEFAULT_SET);
+
   const root = doc.createElement('div');
-  root.className = 'sr-only';
+  root.className = visible ? 'board-2d' : 'sr-only';
   root.setAttribute('role', 'grid');
   root.setAttribute('aria-label', `${i18n.t('a11y.boardLabel')}. ${i18n.t('a11y.gridHint')}`);
   root.setAttribute('aria-rowcount', String(RANKS));
   root.setAttribute('aria-colcount', String(FILES));
 
   const cells: HTMLButtonElement[] = [];
+  const glyphs: HTMLElement[] = [];
+
+  /** A corner mark on a cell. Hidden from the reader: the cell's own label already says "e4". */
+  function coordLabel(kind: 'file' | 'rank', text: string): HTMLElement {
+    const mark = doc.createElement('span');
+    mark.className = 'cell-coord';
+    mark.dataset.kind = kind;
+    mark.setAttribute('aria-hidden', 'true');
+    mark.textContent = text;
+    return mark;
+  }
 
   for (let y = 0; y < RANKS; y++) {
     const row = doc.createElement('div');
@@ -89,7 +123,25 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
       cell.setAttribute('role', 'gridcell');
       cell.setAttribute('aria-colindex', String(x + 1));
       cell.dataset.square = toAlgebraic({ x, y });
+      // a1 is dark, and the parity that gives it is (x + y) EVEN = light — the same rule
+      // `render/board.ts` proves for the 3D squares, so the two boards cannot disagree.
+      cell.dataset.shade = (x + y) % 2 === 0 ? 'light' : 'dark';
       cell.tabIndex = -1;
+      if (visible) {
+        const glyph = doc.createElement('span');
+        glyph.className = 'cell-piece';
+        // The label already says what stands here, in the player's language and with the piece's
+        // gender. A glyph read out on top of that would be noise.
+        glyph.setAttribute('aria-hidden', 'true');
+        cell.appendChild(glyph);
+        glyphs.push(glyph);
+
+        // The coordinates, which on a flat board need no projection at all: the file letter
+        // belongs in the bottom row and the rank number in the first column. `ui/coordinates`
+        // exists because Zdog has no text primitive — here the cells are text already.
+        if (y === RANKS - 1) cell.appendChild(coordLabel('file', FILE_NAMES[x]));
+        if (x === 0) cell.appendChild(coordLabel('rank', String(RANKS - y)));
+      }
       row.appendChild(cell);
       cells.push(cell);
     }
@@ -119,6 +171,9 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
 
   function refresh(): void {
     const selected = state.selection();
+    const targets = state.legalTargets();
+    const check = state.kingInCheck();
+
     for (let i = 0; i < CELL_COUNT; i++) {
       const square = squareFromIndex(i);
       const cell = cells[i];
@@ -126,6 +181,26 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
       // aria-selected rather than a word in the label: the reader says it in the user's language.
       cell.setAttribute('aria-selected', String(!!selected && sameSquare(selected, square)));
       cell.tabIndex = sameSquare(square, cursor) ? 0 : -1;
+
+      if (!visible) continue;
+      const piece = rules.pieceAt(square);
+      const glyph = glyphs[i];
+      glyph.textContent = piece ? set.glyph[piece.side][piece.type] : '';
+      // The side is a data attribute rather than a colour written here, so the stylesheet owns
+      // the palette and the high-contrast variant can override it in one place. It is also what
+      // carries the side for a coloured set, whose glyph cannot be tinted at all.
+      if (piece) glyph.dataset.side = piece.side;
+      else delete glyph.dataset.side;
+
+      // Never colour alone: a legal move is a marked cell AND a named one — the label already
+      // carries "lance possível". This is the visual half of the same fact.
+      const legal = targets.some((t) => sameSquare(t, square));
+      const mark = legal ? (piece ? 'capture' : 'move') : '';
+      if (mark) cell.dataset.mark = mark;
+      else delete cell.dataset.mark;
+
+      if (check && sameSquare(check, square)) cell.dataset.check = 'true';
+      else delete cell.dataset.check;
     }
   }
 
@@ -184,10 +259,26 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
   root.addEventListener('keydown', onKeyDown);
   root.addEventListener('click', onClick);
 
+  if (visible) {
+    root.dataset.set = set.key;
+    root.style.setProperty('--piece-font', set.family);
+    root.dataset.coloured = set.coloured ? 'true' : '';
+  }
+
   refresh();
 
   return {
     root,
+
+    pieceSetKey: () => set.key,
+
+    setPieceSet(key) {
+      set = pieceSet(key);
+      root.dataset.set = set.key;
+      root.style.setProperty('--piece-font', set.family);
+      root.dataset.coloured = set.coloured ? 'true' : '';
+      refresh();
+    },
     refresh,
     cursor: () => cursor,
     focusSquare: (square) => setCursor(square, true),
