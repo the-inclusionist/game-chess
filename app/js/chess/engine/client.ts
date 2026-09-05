@@ -24,13 +24,36 @@
 
 import type { LegalMove } from '../rules.ts';
 
+/** One of the moves a hint offers, and how far behind the best it scored, in centipawns. */
+export interface Suggestion {
+  readonly move: LegalMove;
+  readonly behind: number;
+}
+
 export interface EngineMove {
   readonly move: LegalMove;
   readonly score: number;
   readonly nodes: number;
   readonly depth: number;
-  /** For a hint: every move the engine rates at the same level, this one first. Empty otherwise. */
-  readonly ties: readonly LegalMove[];
+  /**
+   * For a hint: every move the engine rates at the same level, best first and this one first.
+   * Empty for any other kind of search.
+   *
+   * ⚠️ EACH CARRIES ITS DISTANCE from the best, because the drawing needs it. There is no fixed
+   * number of suggestions — it is however many fall inside the margin, two in a sharp position
+   * and six in a quiet one — so "which one is this" is not a rank to look up in a list of
+   * colours. It is a distance to place on a ramp.
+   */
+  readonly ties: readonly Suggestion[];
+  /**
+   * The root moves the engine reported, best first, with the score it gave each. As many as the
+   * MultiPV it was asked for — one for an ordinary search.
+   *
+   * ⚠️ SCORES ARE FROM THE SIDE TO MOVE'S POINT OF VIEW, which is how UCI reports them and the
+   * single easiest thing to get wrong here. Comparing the evaluation before a move with the one
+   * after it means negating one of them, because the side to move has changed.
+   */
+  readonly lines: readonly { readonly move: LegalMove; readonly score: number }[];
 }
 
 export interface EngineClient {
@@ -45,6 +68,16 @@ export interface EngineClient {
    * is worse than no hint: it is wrong advice with the authority of a machine behind it.
    */
   requestHint(fen: string): Promise<EngineMove | null>;
+  /**
+   * What the engine thinks of a position, at full strength — not a move to play, a verdict on the
+   * position. It is the one primitive behind three features: the advantage readout, the mark the
+   * score sheet puts beside a move, and the warning that a move was a blunder.
+   *
+   * ⚠️ Every review uses the SAME settings, and that is the whole reason the numbers can be
+   * subtracted from each other. An evaluation at full strength minus one at 1200 Elo is not a
+   * measure of anything.
+   */
+  requestReview(fen: string): Promise<EngineMove | null>;
   /** Abandons any search in flight. Its reply, if it arrives, is dropped. */
   cancel(): void;
   destroy(): void;

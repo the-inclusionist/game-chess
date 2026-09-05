@@ -5,7 +5,7 @@
 // tests pin the margin that replaced it, because the number is a JUDGEMENT and a judgement with
 // no test around it is a number somebody will quietly change.
 import { describe, expect, it } from 'vitest';
-import { HINT_LIMIT, sameLevel, SAME_LEVEL_CP } from '../app/js/chess/engine/same-level.ts';
+import { HINT_LINES, sameLevel, SAME_LEVEL_CP } from '../app/js/chess/engine/same-level.ts';
 
 /** The engine's lines reduced to the only field the decision reads. Best first, as they arrive. */
 const lines = (...scores: number[]) => scores.map((score, i) => ({ score, id: i }));
@@ -28,8 +28,12 @@ describe('[Hint] the margin', () => {
     expect(sameLevel(lines(500, 40, 35, 30))).toHaveLength(1);
   });
 
-  it('never shows more than the limit, however flat the position', () => {
-    expect(sameLevel(lines(10, 10, 10, 10, 10, 10))).toHaveLength(HINT_LIMIT);
+  it('shows every move inside the margin, not a fixed number of them', () => {
+    // ⚠️ There is NO rank cap. A quiet position where six moves are indistinguishable offers
+    // six, and a sharp one offers one — which is the honest answer in both cases. The only
+    // ceiling is how many lines the engine was asked to keep.
+    expect(sameLevel(lines(10, 10, 10, 10, 10, 10))).toHaveLength(6);
+    expect(sameLevel(lines(...Array<number>(HINT_LINES + 4).fill(10)))).toHaveLength(HINT_LINES);
   });
 
   it('always answers when there is something to answer with, and never when there is not', () => {

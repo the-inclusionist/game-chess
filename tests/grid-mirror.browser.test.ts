@@ -4,6 +4,7 @@ import { createRules } from '../app/js/chess/rules.ts';
 import { createGameState } from '../app/js/chess/state.ts';
 import { fromAlgebraic, toAlgebraic, type Square } from '../app/js/chess/types.ts';
 import { createI18n } from '../app/js/i18n/index.ts';
+import { SAME_LEVEL_CP } from '../app/js/chess/engine/same-level.ts';
 import { createGridMirror, type GridMirror } from '../app/js/ui/grid-mirror.ts';
 
 const sq = (name: string): Square => {
@@ -277,7 +278,7 @@ describe('[GridMirror] a hint is an arrow', () => {
 
   it('draws one arrow per suggested move', () => {
     const mirror = shown();
-    mirror.setHints([{ from: sq('g1'), to: sq('f3') }, { from: sq('e2'), to: sq('e4') }]);
+    mirror.setHints([{ from: sq('g1'), to: sq('f3'), behind: 0 }, { from: sq('e2'), to: sq('e4'), behind: 0 }]);
     expect(arrows()).toHaveLength(4);
   });
 
@@ -285,7 +286,7 @@ describe('[GridMirror] a hint is an arrow', () => {
     // ⚠️ The direction IS the advice. An arrow drawn tail-for-head would be a different, wrong
     // suggestion rendered perfectly, which no type and no colour test would ever catch.
     const mirror = shown();
-    mirror.setHints([{ from: sq('a1'), to: sq('a8') }]);
+    mirror.setHints([{ from: sq('a1'), to: sq('a8'), behind: 0 }]);
     const d = arrows()[0].getAttribute('d') ?? '';
     const [firstY, secondY] = [...d.matchAll(/[ML][\d.]+ ([\d.]+)/g)].map((m) => Number(m[1]));
     // a1 is the bottom row and a8 the top, and SVG y grows downwards.
@@ -296,25 +297,42 @@ describe('[GridMirror] a hint is an arrow', () => {
     // No hue clears 3:1 against every square this game can draw — measured, five triples tried.
     // So the boundary is the dark halo's, and losing it would be a silent contrast regression.
     const mirror = shown();
-    mirror.setHints([{ from: sq('e2'), to: sq('e4') }]);
+    mirror.setHints([{ from: sq('e2'), to: sq('e4'), behind: 0 }]);
     const [halo, line] = arrows();
+    expect(halo).toBeDefined();
     expect(Number(halo.getAttribute('stroke-width')))
       .toBeGreaterThan(Number(line.getAttribute('stroke-width')));
     expect(halo.getAttribute('stroke')).not.toBe(line.getAttribute('stroke'));
   });
 
-  it('gives each move its own colour and its own weight', () => {
+  it('ramps colour and weight by how far behind the best a move is', () => {
+    // ⚠️ Drawn BEST LAST so it sits on top, which is why the best move's pair is at the end.
     const mirror = shown();
-    mirror.setHints([{ from: sq('e2'), to: sq('e4') }, { from: sq('d2'), to: sq('d4') }]);
-    const [, first, , second] = arrows();
-    expect(first.getAttribute('stroke')).not.toBe(second.getAttribute('stroke'));
-    expect(Number(first.getAttribute('stroke-width')))
-      .toBeGreaterThan(Number(second.getAttribute('stroke-width')));
+    mirror.setHints([
+      { from: sq('e2'), to: sq('e4'), behind: 0 },
+      { from: sq('d2'), to: sq('d4'), behind: SAME_LEVEL_CP },
+    ]);
+    const [, worst, , best] = arrows();
+    expect(best.getAttribute('stroke')).not.toBe(worst.getAttribute('stroke'));
+    expect(Number(best.getAttribute('stroke-width')))
+      .toBeGreaterThan(Number(worst.getAttribute('stroke-width')));
+  });
+
+  it('offers as many as fall inside the margin, with no rank cap', () => {
+    const mirror = shown();
+    mirror.setHints([
+      { from: sq('e2'), to: sq('e4'), behind: 0 },
+      { from: sq('d2'), to: sq('d4'), behind: 6 },
+      { from: sq('g1'), to: sq('f3'), behind: 12 },
+      { from: sq('b1'), to: sq('c3'), behind: 18 },
+      { from: sq('c2'), to: sq('c4'), behind: 24 },
+    ]);
+    expect(arrows()).toHaveLength(10);
   });
 
   it('clears every arrow, not only the ones it drew last', () => {
     const mirror = shown();
-    mirror.setHints([{ from: sq('g1'), to: sq('f3') }, { from: sq('e2'), to: sq('e4') }]);
+    mirror.setHints([{ from: sq('g1'), to: sq('f3'), behind: 0 }, { from: sq('e2'), to: sq('e4'), behind: 0 }]);
     mirror.setHints([]);
     expect(arrows()).toHaveLength(0);
   });
@@ -323,7 +341,7 @@ describe('[GridMirror] a hint is an arrow', () => {
     // 2.1.1 and 2.5.7: the arrow is a picture of something already said in words. If it could
     // swallow a pointer event, a hint would make part of the board unplayable.
     const mirror = shown();
-    mirror.setHints([{ from: sq('e2'), to: sq('e4') }]);
+    mirror.setHints([{ from: sq('e2'), to: sq('e4'), behind: 0 }]);
     const layer = document.querySelector('.hint-arrows');
     expect(layer?.getAttribute('aria-hidden')).toBe('true');
   });

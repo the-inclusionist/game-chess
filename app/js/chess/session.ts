@@ -176,6 +176,8 @@ export interface ViewSettings {
   readonly mode?: 'w' | 'b' | 'two';
   /** Whether the engine keeps a suggestion on the board. A setting, not a one-off question. */
   readonly hints?: boolean;
+  /** Whether the engine stops the game when the player throws it away. */
+  readonly protect?: boolean;
   /** The rating the opponent is asked to play at. */
   readonly elo?: number;
 }
@@ -192,13 +194,14 @@ export function loadSettings(store: SessionStore | null = defaultStore()): ViewS
     if (!raw) return {};
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return {};
-    const { theme, set, coordinates, mode, elo, hints } = parsed as ViewSettings;
+    const { theme, set, coordinates, mode, elo, hints, protect } = parsed as ViewSettings;
     return {
       ...(typeof theme === 'string' ? { theme } : {}),
       ...(typeof set === 'string' ? { set } : {}),
       ...(typeof coordinates === 'boolean' ? { coordinates } : {}),
       ...(mode === 'w' || mode === 'b' || mode === 'two' ? { mode } : {}),
       ...(typeof hints === 'boolean' ? { hints } : {}),
+      ...(typeof protect === 'boolean' ? { protect } : {}),
       ...(typeof elo === 'number' && Number.isFinite(elo) ? { elo } : {}),
     };
   } catch {

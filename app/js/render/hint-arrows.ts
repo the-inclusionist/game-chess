@@ -23,6 +23,8 @@
 export interface HintMove {
   readonly from: { readonly x: number; readonly y: number };
   readonly to: { readonly x: number; readonly y: number };
+  /** Centipawns behind the best move. Zero for the best move itself. */
+  readonly behind: number;
 }
 
 /** A point in whatever unit the caller works in. The maths below is scale-free. */
@@ -33,8 +35,8 @@ export interface Point {
 
 /** The arrow for one suggested move: a shaft and two wings, ready to stroke. */
 export interface Arrow {
-  /** Which of the offered moves this is, counting from 1. Chooses width and hue. */
-  readonly rank: number;
+  /** How far behind the best move this one scored, in centipawns. Chooses width and hue. */
+  readonly behind: number;
   readonly tail: Point;
   readonly head: Point;
   /** The two barbs, each a point to draw a line to the head from. */
@@ -54,8 +56,24 @@ const HEAD_INSET = 0.10;
 const BARB_LENGTH = 0.30;
 const BARB_SPREAD = 0.22;
 
-/** Shaft width by rank, in fractions of a tile. The engine's own choice is the boldest line. */
-export const ARROW_WIDTH: readonly number[] = [0.15, 0.11, 0.085];
+/**
+ * Shaft width, in fractions of a tile: boldest for the engine's own choice, thinnest for a move
+ * at the far edge of what still counts as the same level.
+ *
+ * ⚠️ THIS IS THE CHANNEL THAT ACTUALLY RANKS THEM. The colours ramp too, but a red-to-violet
+ * ramp is close to one colour for a deuteranope, and no hue in it clears 3:1 against every square
+ * this game can draw. Thickness survives greyscale, every kind of colour blindness and a
+ * projector with the contrast wound down (1.4.1).
+ */
+const WIDEST = 0.15;
+const NARROWEST = 0.07;
+
+/** How thick the arrow for a move this far behind the best should be. `band` is the margin. */
+export function arrowWidth(behind: number, band: number): number {
+  if (band <= 0) return WIDEST;
+  const away = Math.min(Math.max(behind, 0), band) / band;
+  return WIDEST - (WIDEST - NARROWEST) * away;
+}
 
 /**
  * The arrow from one square centre to another, in the caller's units.
@@ -84,7 +102,7 @@ export function arrowBetween(from: Point, to: Point, tile: number): Arrow | null
   const side = { x: -uy * tile * BARB_SPREAD, y: ux * tile * BARB_SPREAD };
 
   return {
-    rank: 1,
+    behind: 0,
     tail,
     head,
     wings: [
@@ -94,8 +112,8 @@ export function arrowBetween(from: Point, to: Point, tile: number): Arrow | null
   };
 }
 
-/** The same, carrying the rank the caller already knows. */
-export function arrowFor(from: Point, to: Point, tile: number, rank: number): Arrow | null {
+/** The same, carrying the distance the caller already knows. */
+export function arrowFor(from: Point, to: Point, tile: number, behind: number): Arrow | null {
   const arrow = arrowBetween(from, to, tile);
-  return arrow ? { ...arrow, rank } : null;
+  return arrow ? { ...arrow, behind } : null;
 }

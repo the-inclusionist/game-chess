@@ -163,7 +163,7 @@ describe('[Markers] shape carries the meaning, not only colour', () => {
     const { board } = build();
     const before = shapeCount(board);
 
-    board.setHintArrows([{ from: sq('g1'), to: sq('f3') }, { from: sq('e2'), to: sq('e4') }]);
+    board.setHintArrows([{ from: sq('g1'), to: sq('f3'), behind: 0 }, { from: sq('e2'), to: sq('e4'), behind: 0 }]);
     expect(shapeCount(board)).toBe(before + 4);   // a shaft and a pair of barbs, per move
 
     // ⚠️ Costs NOTHING when no hint is showing. Zdog re-sorts every shape in the graph each
@@ -177,7 +177,7 @@ describe('[Markers] shape carries the meaning, not only colour', () => {
     // Zdog closes every path it is not told to leave open — the barbs would join into a solid
     // wedge, and the shaft into a line doubled back on itself.
     const { board } = build();
-    board.setHintArrows([{ from: sq('g1'), to: sq('f3') }]);
+    board.setHintArrows([{ from: sq('g1'), to: sq('f3'), behind: 0 }]);
     const all: { closed?: boolean; path?: unknown[]; children?: unknown[] }[] = [];
     const walk = (node: { children?: unknown[] }): void => {
       for (const child of node.children ?? []) {

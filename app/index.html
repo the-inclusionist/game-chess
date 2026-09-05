@@ -256,6 +256,87 @@
     color: #000000; background: #FFFFFF; border-color: #FFFFFF;
   }
 
+
+  /*
+   * ========================= THE ADVANTAGE READOUT =========================
+   * A real table, because it is real tabular data — two players, three figures each — and a
+   * screen reader then gets row and column headers for nothing. Tight, because it sits in an
+   * 88-pixel column and is meant to be glanced at rather than studied.
+   */
+  .hud-score {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.68em;
+    color: #c9d1d9;
+  }
+  .hud-score caption {
+    text-align: left;
+    font-size: 0.95em; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: #8b98a5;
+    padding-bottom: 0.2em;
+  }
+  .hud-score th, .hud-score td { padding: 0.15em 0.25em; text-align: right; }
+  .hud-score thead th { font-weight: 600; color: #8b98a5; }
+  .hud-score tbody th { text-align: left; font-weight: 600; }
+  /* Tabular figures, so a column of numbers does not shuffle sideways as the game goes on. */
+  .hud-score td { font-variant-numeric: tabular-nums; }
+  /* ⚠️ Reinforcement only. The sign is already in the text — this is never the only difference. */
+  .hud-score td[data-lead="ahead"] { color: #7DD3A0; }
+  .hud-score td[data-lead="behind"] { color: #E8A0A0; }
+
+  /*
+   * The engine's mark beside a move. `??` is the notation every chess book uses, so there is
+   * nothing to invent and nothing that depends on colour — the colour here only sorts praise
+   * from criticism at a glance for the people who can use it.
+   */
+  .hud-mark { margin-left: 0.1em; font-weight: 800; }
+  .hud-mark[data-mark="!"], .hud-mark[data-mark="!!"] { color: #7DD3A0; }
+  .hud-mark[data-mark="?!"] { color: #E8C07D; }
+  .hud-mark[data-mark="?"] { color: #E8A05A; }
+  .hud-mark[data-mark="??"] { color: #FF8B7D; }
+
+  /*
+   * ========================= PROTECTED MODE, WHEN IT HAS SOMETHING TO SAY =========================
+   * UNDER the board and not over it. A dialog would cover the position, and the position is the
+   * argument — a player deciding whether to take a move back has to be able to look at what the
+   * move did. The game waits for an answer either way, which is what `alertdialog` is for.
+   */
+  /* ⚠️ `display: flex` beats `[hidden]`, which is display:none from the UA sheet at LOWER
+     specificity. Without this line the bar is on screen from the first frame of every game,
+     warning about a blunder nobody played. */
+  .blunder-bar[hidden] { display: none; }
+  .blunder-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5em 0.9em;
+    margin: 0.4em 0 0;
+    padding: 0.55em 0.8em;
+    background: #2A1416;
+    border: 2px solid #FF8B7D;
+    border-radius: 3px;
+    color: #FFD9D4;
+    font-size: 0.82em;
+  }
+  .blunder-message { margin: 0; flex: 1 1 14em; font-weight: 600; }
+  .blunder-actions { margin: 0; display: flex; gap: 0.4em; }
+  .blunder-actions button {
+    min-height: var(--tap, 44px);
+    padding: 0 0.9em;
+    font: inherit; font-weight: 700;
+    color: #14202b; background: #FFD9D4;
+    border: 1px solid #FF8B7D; border-radius: 2px;
+    cursor: pointer;
+  }
+  /* The reversible choice reads as the primary one; carrying on is offered as an equal, not as a
+     cancel — a player told they made a mistake and given one way forward has been overruled. */
+  .blunder-actions button:last-child { color: #FFD9D4; background: transparent; }
+  .blunder-actions button:hover { background: #FFFFFF; color: #14202b; }
+  .blunder-actions button:focus-visible { outline: 3px solid #FFD97D; outline-offset: 2px; }
+  @media (prefers-contrast: more) {
+    .blunder-bar { background: #000000; border-color: #FFFFFF; color: #FFFFFF; }
+  }
+
   .hud-nav { display: flex; gap: 0.3em; }
   .hud-nav button {
     flex: 1 1 0; min-width: 0; min-height: var(--tap, 44px);
@@ -299,7 +380,12 @@
     color: #c9d1d9; background: #1b2733;
     border: 1px solid #2b3a4a; border-radius: 2px;
     cursor: pointer;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    /*
+     * ⚠️ `pre-line`, not `nowrap`. "1 jog. / brancas" is two facts — how many people are playing
+     * and which colour this one takes — and on one line at 0.72em in an 88-pixel column the
+     * second was the half that got the ellipsis. Two short lines fit where one long one did not.
+     */
+    text-align: center; line-height: 1.15; white-space: pre-line;
   }
   .hud-choice label:hover { background: #24344a; }
   .hud-choice input:checked + label {

@@ -95,37 +95,45 @@ export const MARKER_CURSOR = '#0E7C86';
  * would make it look like something the player had done.
  */
 /**
- * ========================= ONE HUE PER MOVE, AND THE HUE IS NOT THE BOUNDARY =========================
- * A hint offers up to three moves, and each is drawn in its own colour on BOTH of its squares —
- * so a board wearing six marks reads as three sentences rather than six loose facts. Where two
- * moves want the same square, that square wears both colours.
+ * ========================= A RAMP, NOT A LIST =========================
+ * The suggestions are every move within `SAME_LEVEL_CP` of the best — two in a sharp position,
+ * six in a quiet one — so there is no fixed number of them to give fixed colours to. What there
+ * IS, for each, is a distance from the best move, and that is what the ramp is over: violet at
+ * zero, and red at the far edge of what still counts as the same level.
  *
- * ⚠️ MEASURED, and the measurement changed the design. No colour clears 3:1 against every square
- * this game can draw: the best of five candidate triples still fell to 1.17:1 on the dark grey of
- * the high-contrast board, and every candidate did. So the hue CANNOT carry the boundary — the
- * hairline sandwich in the stylesheet does, a dark line outside and a light one inside, one of
- * which always contrasts whatever is under it (1.4.11). The hue is identity, nothing else.
+ * Warm for further, cool for nearer, in the order a rainbow already has. It is a convention
+ * nobody has to be taught.
  *
- * Which then makes the hue information conveyed by colour, so it needs a second channel (1.4.1).
- * That is the RADIAL SLOT: the best move always takes the outer ring, the second the middle one,
- * the third the centre. Someone who sees no colour at all counts inwards.
- *
- * ========================= WHY THESE THREE =========================
- * Chosen by measuring ΔE between the three, as seen through the Machado 2009 simulations the game
- * already ships, against four rival triples — and by measuring the distance to the marks the game
- * already uses, so a hint is never mistaken for a check or a legal-move ring.
- *
- *   violet · amber · wine   ΔE 60 normal, 52 protan, 56 deuteran, 29 tritan; 40 from the nearest
- *                           existing marker — the largest clearance of every triple tried.
- *
- * The runner-up (violet · amber · crimson) separated better for a tritan viewer, 33 against 29,
- * and sat 28 from the red of check and capture. A hint that can be mistaken for "you are in
- * check" is a worse failure than a rare viewer leaning on the radial slot, which is there anyway.
+ * ⚠️ MEASURED, and the measurement is why colour is never the only channel here. No colour clears
+ * 3:1 against every square this game can draw: the best of five candidate triples still fell to
+ * 1.17:1 on the dark grey of the high-contrast board, and every candidate did. So the hue cannot
+ * carry the boundary — the dark halo stroked under every arrow does (1.4.11) — and the hue cannot
+ * carry the ranking either, since a red-to-violet ramp is close to a single colour for a
+ * deuteranope. THICKNESS carries the ranking (1.4.1), and the arrow's own direction carries the
+ * thing that actually matters, which is which piece goes where.
  */
-export const HINT_HUES: readonly string[] = ['#7A4FBF', '#C07A00', '#7A1038'];
+export const HINT_RAMP: readonly string[] = [
+  '#7A4FBF',   // the best move, and anything the engine cannot tell from it
+  '#2E64C8',
+  '#1F7A4A',
+  '#B08A00',
+  '#C2600C',
+  '#B3231F',   // as far from the best as a suggestion is allowed to be
+];
 
-/** The best move's hue, for anything that needs to speak about hints in general. */
-export const MARKER_HINT = HINT_HUES[0];
+/** The best move's hue, for anything that needs to speak about suggestions in general. */
+export const MARKER_HINT = HINT_RAMP[0];
+
+/**
+ * Where on the ramp a move sits, given how far behind the best it scored and how wide the band
+ * is. Clamped at both ends: a score outside the band should never have been offered, and a
+ * negative one is a rounding artefact, not a move better than the best move.
+ */
+export function hintHue(behind: number, band: number): string {
+  if (band <= 0) return HINT_RAMP[0];
+  const step = Math.round((Math.min(Math.max(behind, 0), band) / band) * (HINT_RAMP.length - 1));
+  return HINT_RAMP[step];
+}
 
 /**
  * Stroke width in Zdog units.

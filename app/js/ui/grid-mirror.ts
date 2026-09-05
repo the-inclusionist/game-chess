@@ -47,8 +47,9 @@ import type { I18n } from '../i18n/index.ts';
 import { boardTheme, DEFAULT_THEME, type BoardTheme } from './board-themes.ts';
 import { DEFAULT_SET, pieceSet, type PieceSet } from './piece-sets.ts';
 import { squareFromIndex, squareIndex } from '../render/board-geometry.ts';
-import { ARROW_WIDTH, arrowFor, type HintMove } from '../render/hint-arrows.ts';
-import { HINT_HUES } from '../render/palette.ts';
+import { arrowFor, arrowWidth, type HintMove } from '../render/hint-arrows.ts';
+import { hintHue } from '../render/palette.ts';
+import { SAME_LEVEL_CP } from '../chess/engine/same-level.ts';
 
 export interface GridMirrorDeps {
   readonly doc: Document;
@@ -231,13 +232,13 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
 
   function drawArrows(moves: readonly HintMove[]): void {
     if (!arrowLayer) return;
-    const drawn: SVGElement[] = [];
+    const perMove: SVGElement[][] = [];
 
-    moves.forEach((move, i) => {
-      const arrow = arrowFor(centreOf(move.from), centreOf(move.to), 1, i + 1);
-      if (!arrow) return;
-      const hue = HINT_HUES[i] ?? HINT_HUES[HINT_HUES.length - 1];
-      const width = ARROW_WIDTH[i] ?? ARROW_WIDTH[ARROW_WIDTH.length - 1];
+    for (const move of moves) {
+      const arrow = arrowFor(centreOf(move.from), centreOf(move.to), 1, move.behind);
+      if (!arrow) continue;
+      const hue = hintHue(move.behind, SAME_LEVEL_CP);
+      const width = arrowWidth(move.behind, SAME_LEVEL_CP);
       const p = (point: { x: number; y: number }) => `${point.x.toFixed(3)} ${point.y.toFixed(3)}`;
       const d = `M${p(arrow.tail)}L${p(arrow.head)}M${p(arrow.wings[0])}L${p(arrow.head)}`
         + `L${p(arrow.wings[1])}`;
@@ -247,6 +248,7 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
       // to 1.17:1 on the dark grey of the high-contrast board, and so did every other candidate.
       // So the hue cannot carry the boundary. A dark halo under a light-cored line always can
       // (1.4.11), and it costs one more path.
+      const pair: SVGElement[] = [];
       for (const [colour, stroke] of [['#14100A', width * 1.75], [hue, width]] as const) {
         const path = doc.createElementNS(SVG_NS, 'path');
         path.setAttribute('d', d);
@@ -255,11 +257,16 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
         path.setAttribute('stroke-width', String(stroke));
         path.setAttribute('stroke-linecap', 'round');
         path.setAttribute('stroke-linejoin', 'round');
-        drawn.push(path);
+        pair.push(path);
       }
-    });
+      perMove.push(pair);
+    }
 
-    arrowLayer.replaceChildren(...drawn);
+    // ⚠️ Best move LAST, so it is drawn on top — where two suggestions cross, the one being
+    // recommended must not be the one underneath. Reversed BY MOVE and not by path: each arrow is
+    // a halo and then a coloured line, and flipping that pair would bury every line under its
+    // own halo, which looks exactly like the arrows having no colour at all.
+    arrowLayer.replaceChildren(...perMove.reverse().flat());
   }
 
   // Starts on e2 — the square a beginner is most likely to want first, and a sensible place for

@@ -166,7 +166,7 @@ describe('[i18n] the panel follows the interface language', () => {
     build('en');
     expect(text('.hud-turn')).toContain('White');
     const labels = [...document.querySelectorAll('.hud-choice label')].map((l) => l.textContent);
-    expect(labels).toContain('1 · white');
+    expect(labels).toContain('1 player\nwhite');
   });
 
   it('speaks Spanish', () => {

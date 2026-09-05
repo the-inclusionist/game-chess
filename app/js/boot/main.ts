@@ -16,6 +16,13 @@ import { VIZ_FILTER } from '@the-inclusionist/engine/render/viz-modes.js';
 import { createChessDeclaration } from '../declaration/chess-declaration.ts';
 import { createCoordinates } from '../ui/coordinates.ts';
 import { createGridMirror } from '../ui/grid-mirror.ts';
+import { createReviewer, type ReviewedMove } from '../chess/reviewer.ts';
+import { isBlunder } from '../chess/review.ts';
+import { createScoreboard } from '../ui/scoreboard.ts';
+import { STUMBLES_BEFORE_HELP } from '../chess/protection.ts';
+import { createBlunderBar } from '../ui/blunder-bar.ts';
+import type { Suggestion } from '../chess/engine/client.ts';
+import type { HintMove } from '../render/hint-arrows.ts';
 import { createSplash } from '../ui/splash.ts';
 import { createHud, type GameMode } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
@@ -100,6 +107,16 @@ export function boot(host: Document = document): void {
   // Under the board, because that is what it is about — and outside the panel, which has no room
   // for four numbers that change several times a second.
   const thinking = createThinkingPanel({ doc: host, i18n });
+  /**
+   * Under the board rather than over it: a player being told their move gave the game away has to
+   * be able to LOOK at the position while they decide. See `ui/blunder-bar.ts`.
+   */
+  const blunderBar = createBlunderBar({
+    doc: host,
+    i18n,
+    onAnswer: (takeBack) => { answerBlunder(takeBack); },
+  });
+
 
 
 
@@ -149,6 +166,32 @@ export function boot(host: Document = document): void {
     onThought: (thought) => thinking.update(thought),
   });
   opponent.setStrength(elo);
+
+  /**
+   * One search per ply, feeding three things at once: the advantage readout, the marks on the
+   * score sheet, and protected mode. See `chess/reviewer.ts` for why one is enough.
+   */
+  const reviewer = createReviewer({
+    rules,
+    engine: opponent,
+    onChange: () => {
+      scoreboard.refresh();
+      hud.refresh();
+      // The reviewer is also a clock: protected mode holds the opponent until a verdict lands,
+      // and this is the tick that lets it go again.
+      askOpponent();
+    },
+    onVerdict: (entry) => { onVerdict(entry); },
+  });
+
+  const scoreboard = createScoreboard({
+    doc: host,
+    i18n,
+    rules,
+    evaluation: () => reviewer.evaluation(),
+    blunders: (side) => reviewer.blunders(side),
+  });
+
 
   /**
    * ========================= THE WAIT IS SHOWN, NOT HIDDEN =========================
@@ -257,8 +300,37 @@ export function boot(host: Document = document): void {
    */
   let hintsOn = remembered.hints ?? false;
   let hintFen: string | null = null;
+  /**
+   * ========================= PROTECTED MODE =========================
+   * The engine watches the player's own moves and stops the game when one throws it away. Not a
+   * difficulty setting — it changes nothing about how the opponent plays — but a teaching aid:
+   * the moment a blunder is worth talking about is while the position it ruined is still on the
+   * board and the reason is still in the player's head.
+   *
+   * ⚠️ THE OPPONENT WAITS. A warning that arrived after the reply had been played would be about
+   * a position two plies old, and taking the move back would mean unpicking someone else's move
+   * as well. So `askOpponent` holds while a verdict on the player's last move is outstanding —
+   * which costs one review, and only in this mode.
+   */
+  let protectedOn = remembered.protect ?? false;
+  /** A blunder is on the board and the player has not yet said what to do about it. */
+  let blunderHeld: ReviewedMove | null = null;
+  /**
+   * Blunders played from THIS position, one after another. Three is the point at which being told
+   * "that was a mistake" has plainly stopped working, and the game starts showing the answer
+   * instead of asking for it again.
+   */
+  let stumbles = 0;
+  /**
+   * ⚠️ The PLY, not the position. Keying on the resulting FEN looked equivalent and was exactly
+   * backwards: two different blunders from the same position produce two different positions, so
+   * the counter reset on every attempt and never reached three. The ply is what stays the same
+   * when a move is taken back and another one tried.
+   */
+  let stumbleAt = -1;
 
-  let hinted: readonly { from: Square; to: Square }[] = [];
+
+  let hinted: readonly HintMove[] = [];
 
   // ⚠️ Both declared ABOVE `createHud` on purpose. `createHud` calls its own `refresh()` while it
   // is still being built, `refresh` asks `canTakeBack`, and that reads `walking` — a `let` below
@@ -279,6 +351,18 @@ export function boot(host: Document = document): void {
     mode: () => mode,
     onMode: chooseMode,
 
+    markAt: (ply) => reviewer.markAt(ply),
+    scoreboard: scoreboard.root,
+    ...(mode === 'two' ? {} : {
+      protectedOn: () => protectedOn,
+      onProtected: (on) => {
+        protectedOn = on;
+        if (!on) { blunderHeld = null; blunderBar.show(null); }
+        saveSettings({ ...currentSettings(), protect: on });
+        hud.refresh();
+        askOpponent();
+      },
+    }),
     strengths: STRENGTH_LADDER.map((rung) => ({ elo: rung.elo, name: rung.name })),
     strength: () => elo,
     onStrength: (next) => {
@@ -341,7 +425,7 @@ export function boot(host: Document = document): void {
    * The narrowed constant is captured once, above, where the check has already happened.
    */
   const currentSettings = () => ({
-    theme: themeKey, coordinates: showCoordinates, mode, elo,
+    theme: themeKey, coordinates: showCoordinates, mode, elo, hints: hintsOn, protect: protectedOn,
   });
 
   /**
@@ -360,6 +444,51 @@ export function boot(host: Document = document): void {
     window.location.reload();
   }
 
+
+  /**
+   * A move has been judged. Almost always this does nothing visible — most moves are ordinary —
+   * and the whole of protected mode is the exception.
+   */
+  function onVerdict(entry: ReviewedMove): void {
+    if (!protectedOn || !isBlunder(entry.mark) || mode === 'two') return;
+    if (entry.side !== playerSide) return;
+    if (entry.ply !== rules.history().length - 1) return;   // already answered for, or replayed
+
+    blunderHeld = entry;
+    // ⚠️ Counted per POSITION, not per game. Three blunders spread over forty moves is somebody
+    // learning; three in a row from the same position is somebody stuck, and the answer to being
+    // stuck is not a fourth chance to guess.
+    if (stumbleAt !== entry.ply) { stumbleAt = entry.ply; stumbles = 0; }
+    stumbles++;
+
+    blunderBar.show({ mark: entry.mark ?? '', lost: entry.lost });
+    if (stumbles >= STUMBLES_BEFORE_HELP && !hintsOn) {
+      hintsOn = true;
+      saveSettings({ ...currentSettings(), hints: hintsOn });
+      srSay(i18n.t('protected.teaching'));
+      // Turning the switch on is not enough: the arrows are drawn when a suggestion arrives, and
+      // nothing else is going to ask for one — the position has not changed and will not until
+      // the player answers the warning that is on screen because of it.
+      refreshHints();
+    }
+    hud.refresh();
+  }
+
+  /** The player chose. Either way the game moves on — this mode never leaves anybody stuck. */
+  function answerBlunder(takeBack: boolean): void {
+    if (!blunderHeld) return;
+    blunderHeld = null;
+    blunderBar.show(null);
+    if (takeBack) {
+      srSay(i18n.t('protected.tookBack'));
+      void walkHistory('back');
+    } else {
+      srSay(i18n.t('protected.kept'));
+      hud.refresh();
+      askOpponent();
+    }
+  }
+
   /** Takes the advice off the board. Its own function because three paths need exactly this. */
   function clearHints(): void {
     hintFen = null;
@@ -368,11 +497,11 @@ export function boot(host: Document = document): void {
   }
 
   /** Draws the suggested moves as arrows and says them aloud. */
-  function showHint(moves: readonly { from: Square; to: Square }[]): void {
-    hinted = moves.map((m) => ({ from: m.from, to: m.to }));
+  function showHint(moves: readonly Suggestion[]): void {
+    hinted = moves.map((m) => ({ from: m.move.from, to: m.move.to, behind: m.behind }));
     syncMarkers();
-    const say = (m: { from: Square; to: Square }): string =>
-      `${toAlgebraic(m.from)} ${toAlgebraic(m.to)}`;
+    const say = (m: Suggestion): string =>
+      `${toAlgebraic(m.move.from)} ${toAlgebraic(m.move.to)}`;
     srSay(moves.length > 1
       ? i18n.t('a11y.hintMany', { move: say(moves[0]), others: moves.slice(1).map(say).join(', ') })
       : i18n.t('a11y.hintOne', { move: say(moves[0]) }));
@@ -408,7 +537,7 @@ export function boot(host: Document = document): void {
       const hint = await opponent.requestHint(rules.fen());
       if (!hint) { srSay(i18n.t('a11y.hintNone')); return; }
       hintFen = rules.fen();
-      showHint(hint.ties.length ? hint.ties : [hint.move]);
+      showHint(hint.ties.length ? hint.ties : [{ move: hint.move, behind: 0 }]);
     } catch {
       srSay(i18n.t('status.engineFailed'));
     } finally {
@@ -439,6 +568,8 @@ export function boot(host: Document = document): void {
   // board, and under the board is the next sibling.
   const wrap = host.getElementById('stage-wrap');
   wrap?.parentElement?.insertBefore(thinking.root, wrap.nextSibling);
+  // Above the thinking panel: it is the thing being waited on, not commentary.
+  wrap?.parentElement?.insertBefore(blunderBar.root, thinking.root);
   region.dataset.contrast = themeKey.startsWith('contrast-') ? 'high' : '';
 
   /**
@@ -484,6 +615,9 @@ export function boot(host: Document = document): void {
     // ⚠️ And the one place advice is retired, by comparing positions rather than by assuming any
     // redraw invalidates it. Selecting a piece redraws and does NOT change the position, which is
     // why a suggestion now survives being acted on.
+    // And the one place the engine is told the game has moved: one search per ply feeds the
+    // readout, the marks on the score sheet and protected mode all three.
+    reviewer.observe();
     refreshHints();
   }
 
@@ -562,6 +696,17 @@ export function boot(host: Document = document): void {
 
   function askOpponent(): void {
     if (game.phase() !== 'thinking' || searching) return;
+    // ⚠️ HELD. Protected mode's whole value is that the warning arrives while the position it
+    // ruined is still on the board — a reply played first would make the take-back unpick
+    // someone else's move as well, and would put the warning two plies in the past.
+    //
+    // So the opponent waits for TWO things: an unanswered warning, and a verdict that has not
+    // landed yet. The second is the one that actually bites: the review is queued before this
+    // search and still resolves after it starts, so without the wait the reply is on the board
+    // before the warning exists. `reviewer.onChange` is what tries again.
+    if (blunderHeld) return;
+    if (protectedOn && mode !== 'two' && !reviewer.judged(rules.history().length - 1)) return;
+
     searching = true;
     thinking.setBusy(true);
     srSay(i18n.t('status.thinking'));

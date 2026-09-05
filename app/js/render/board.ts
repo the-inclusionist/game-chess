@@ -6,15 +6,16 @@
 // tree that has not structurally changed.
 
 import Zdog, { type Anchor, type Rect, type Shape } from 'zdog';
+import { SAME_LEVEL_CP } from '../chess/engine/same-level.ts';
 import type { Square } from '../chess/types.ts';
 import type { HintMove } from './hint-arrows.ts';
 import { isLightSquare, squareCenter, squareFromIndex, squareIndex } from './board-geometry.ts';
 import {
   DEFAULT_PALETTE, MARKER_CAPTURE, MARKER_CHECK,
-  HINT_HUES, MARKER_CURSOR, MARKER_MOVE, MARKER_SELECTED,
+  hintHue, MARKER_CURSOR, MARKER_MOVE, MARKER_SELECTED,
   type Palette, SQUARE_STROKE,
 } from './palette.ts';
-import { ARROW_WIDTH, arrowFor } from './hint-arrows.ts';
+import { arrowFor, arrowWidth } from './hint-arrows.ts';
 import type { Quad } from './picking.ts';
 import { TILE } from './resolution.ts';
 
@@ -172,16 +173,16 @@ export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE):
 
     setHintArrows(moves) {
       hintAnchor.children = [];
-      moves.forEach((move, i) => {
+      for (const move of moves) {
         const from = squareCenter(move.from, TILE);
         const to = squareCenter(move.to, TILE);
         // The board lies in XZ, so the arrow's second axis is z. Naming it `y` in the geometry
         // and reading it back as z here is the whole of the mapping — the maths is plane maths.
-        const arrow = arrowFor({ x: from.x, y: from.z }, { x: to.x, y: to.z }, TILE, i + 1);
-        if (!arrow) return;
+        const arrow = arrowFor({ x: from.x, y: from.z }, { x: to.x, y: to.z }, TILE, move.behind);
+        if (!arrow) continue;
 
-        const hue = HINT_HUES[i] ?? HINT_HUES[HINT_HUES.length - 1];
-        const width = TILE * (ARROW_WIDTH[i] ?? ARROW_WIDTH[ARROW_WIDTH.length - 1]);
+        const hue = hintHue(move.behind, SAME_LEVEL_CP);
+        const width = TILE * arrowWidth(move.behind, SAME_LEVEL_CP);
         const at = (point: { x: number; y: number }) => ({
           x: point.x,
           // Above the game's own markers, so a suggestion is never buried under the ring of a
@@ -206,7 +207,7 @@ export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE):
           color: hue,
           closed: false,
         });
-      });
+      }
     },
 
     setPalette(next) {

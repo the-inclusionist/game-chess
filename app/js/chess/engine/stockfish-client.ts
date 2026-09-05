@@ -16,16 +16,27 @@
 import type { LegalMove } from '../rules.ts';
 import { fromAlgebraic, type PieceType } from '../types.ts';
 import type { EngineClient, EngineMove } from './client.ts';
-import { HINT_LIMIT, sameLevel } from './same-level.ts';
+import { HINT_LINES, sameLevel } from './same-level.ts';
 import { limitFor, parseBestMove, parseInfo, parseSpinOption, type Thought } from './uci.ts';
 
 /** Where the vendored build lives, served from this origin. */
 const ENGINE_URL = '/vendor/engine/stockfish-18-lite-single.js';
 const WASM_URL = '/vendor/engine/stockfish-18-lite-single.wasm';
 
-/** How long the opponent thinks, and how long a hint thinks. Milliseconds. */
+/** How long the opponent thinks, how long a hint thinks, how long a verdict takes. Milliseconds. */
 const MOVE_MS = 600;
 const HINT_MS = 2400;
+/**
+ * ⚠️ A review runs on EVERY ply, so it is the one budget that is paid over and over — four times
+ * a minute in a brisk game. It is also the one that must never change, because reviews are
+ * subtracted from each other: a verdict computed in 900 ms and another in 2400 would differ by
+ * the search rather than by the move, and the score sheet would mark a good move as a mistake
+ * purely because the machine was busier that second.
+ */
+const REVIEW_MS = 900;
+
+/** What a search is FOR. It decides the strength, the number of lines, and the time. */
+type Job = 'move' | 'hint' | 'review';
 
 /** Long algebraic — `e2e4`, `e7e8q` — into this game's own move shape. */
 export function toMove(token: string): LegalMove | null {
@@ -100,8 +111,7 @@ export function createStockfishClient(options: StockfishOptions = {}): Stockfish
     id: number;
     resolve: (value: EngineMove | null) => void;
     reject: (reason: Error) => void;
-    /** A hint collects every MultiPV line; a move only needs the last `bestmove`. */
-    readonly hint: boolean;
+    readonly job: Job;
     best: Map<number, { move: string; score: number }>;
     depth: number;
     nodes: number;
@@ -119,7 +129,11 @@ export function createStockfishClient(options: StockfishOptions = {}): Stockfish
       // last one to arrive is the fourth-best — so the panel was showing a line the engine had
       // just decided against while the announcement named the move it had chosen. Rank 1 is what
       // "it is thinking about this" means; the rest are for the tie list and nothing else.
-      if ((info.rank ?? 1) === 1) options.onThought?.(info);
+      // ⚠️ A REVIEW IS SILENT. It runs on every ply, in the background, about a position the
+      // player has already left — narrating it would make the panel flicker between "thinking
+      // about your move" and "thinking about the last one" several times a second, and the panel
+      // is there to show what the opponent is doing now.
+      if ((info.rank ?? 1) === 1 && pending?.job !== 'review') options.onThought?.(info);
       if (pending) {
         if (info.depth !== undefined) pending.depth = info.depth;
         if (info.nodes !== undefined) pending.nodes = info.nodes;
@@ -158,10 +172,10 @@ export function createStockfishClient(options: StockfishOptions = {}): Stockfish
     // exactly what the panel below the board says out loud.
     const ranked = [...settle.best.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
     const top = ranked[0]?.score;
-    const ties = settle.hint && top !== undefined
-      ? sameLevel(ranked, HINT_LIMIT)
-        .map((entry) => toMove(entry.move))
-        .filter((move): move is LegalMove => move !== null)
+    const ties = settle.job === 'hint' && top !== undefined
+      ? sameLevel(ranked)
+        .map((entry) => ({ move: toMove(entry.move), behind: top - entry.score }))
+        .filter((entry): entry is { move: LegalMove; behind: number } => entry.move !== null)
       : [];
 
     settle.resolve({
@@ -170,6 +184,9 @@ export function createStockfishClient(options: StockfishOptions = {}): Stockfish
       nodes: settle.nodes,
       depth: settle.depth,
       ties,
+      lines: ranked
+        .map((entry) => ({ move: toMove(entry.move), score: entry.score }))
+        .filter((line): line is { move: LegalMove; score: number } => line.move !== null),
     });
   }
 
@@ -191,18 +208,42 @@ export function createStockfishClient(options: StockfishOptions = {}): Stockfish
     return started;
   };
 
-  async function ask(fen: string, hint: boolean): Promise<EngineMove | null> {
+  /**
+   * ========================= ONE ENGINE, THREE CALLERS, ONE QUEUE =========================
+   * ⚠️ Requests used to CANCEL each other: a new one resolved the one in flight with null and
+   * took the thread. That was right while the only two callers were the opponent and a hint,
+   * where a stale answer is worthless. It became wrong the moment reviews arrived, because a
+   * review that is silently dropped is a move the score sheet never marks and a blunder nobody is
+   * warned about — a missing feature that looks like a working one.
+   *
+   * So they queue. `cancel()` is still there for the case the cancelling was FOR: abandoning what
+   * is running now. What it no longer does is throw away work that has not started.
+   */
+  let chain: Promise<unknown> = Promise.resolve();
+  function enqueue<T>(job: () => Promise<T>): Promise<T> {
+    const next = chain.then(job, job);
+    // Swallowed on the CHAIN only: the caller still sees its own rejection, but one failed
+    // search must not poison every search after it.
+    chain = next.then(() => undefined, () => undefined);
+    return next;
+  }
+
+  async function ask(fen: string, job: Job): Promise<EngineMove | null> {
     await start();
     if (pending) { pending.resolve(null); pending = null; }
 
     const id = nextId++;
-    // A hint is FULL STRENGTH, always. It is the one thing in the game that should not be as weak
-    // as the opponent: a hint from a 1000-rated engine is worse than no hint.
-    const limit = hint ? { elo: limits.maxElo } : limitFor(elo, limits.minElo);
+    // ⚠️ FULL STRENGTH for anything that is not the opponent playing. A hint from a 1000-rated
+    // engine is worse than no hint, and a verdict from one is worse than no verdict — it would
+    // call the player's good moves mistakes with a machine's authority behind it.
+    const full = job !== 'move';
+    const limit = full ? { elo: limits.maxElo } : limitFor(elo, limits.minElo);
 
-    send(`setoption name UCI_LimitStrength value ${hint || limit.elo === undefined ? 'false' : 'true'}`);
-    if (limit.elo !== undefined && !hint) send(`setoption name UCI_Elo value ${limit.elo}`);
-    send(`setoption name MultiPV value ${hint ? 4 : 1}`);
+    send(`setoption name UCI_LimitStrength value ${full || limit.elo === undefined ? 'false' : 'true'}`);
+    if (limit.elo !== undefined && !full) send(`setoption name UCI_Elo value ${limit.elo}`);
+    // A hint offers alternatives, so it needs them. A review needs the SECOND-best line and
+    // nothing more: the gap between first and second is what says whether a move had to be found.
+    send(`setoption name MultiPV value ${job === 'hint' ? HINT_LINES : job === 'review' ? 2 : 1}`);
     send(`position fen ${fen}`);
 
     // ========================= TIME, NOT DEPTH =========================
@@ -216,17 +257,18 @@ export function createStockfishClient(options: StockfishOptions = {}): Stockfish
     //
     // A hint gets four times as long AND no limiter, because a hint from an opponent as weak as
     // the opponent is worse than no hint.
-    if (limit.nodes !== undefined && !hint) send(`go nodes ${limit.nodes}`);
-    else send(`go movetime ${hint ? HINT_MS : MOVE_MS}`);
+    if (limit.nodes !== undefined && !full) send(`go nodes ${limit.nodes}`);
+    else send(`go movetime ${job === 'hint' ? HINT_MS : job === 'review' ? REVIEW_MS : MOVE_MS}`);
 
     return new Promise<EngineMove | null>((resolve, reject) => {
-      pending = { id, resolve, reject, hint, best: new Map(), depth: 0, nodes: 0 };
+      pending = { id, resolve, reject, job, best: new Map(), depth: 0, nodes: 0 };
     });
   }
 
   return {
-    requestMove(fen) { return ask(fen, false); },
-    requestHint(fen) { return ask(fen, true); },
+    requestMove(fen) { return enqueue(() => ask(fen, 'move')); },
+    requestHint(fen) { return enqueue(() => ask(fen, 'hint')); },
+    requestReview(fen) { return enqueue(() => ask(fen, 'review')); },
 
     setStrength(next) { elo = next; },
     ready: start,

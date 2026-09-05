@@ -25,8 +25,16 @@
  */
 export const SAME_LEVEL_CP = 30;
 
-/** How many suggestions a hint will ever show. More than three stops being advice and becomes a list. */
-export const HINT_LIMIT = 3;
+/**
+ * How many lines the engine is asked for when it is asked for suggestions.
+ *
+ * ⚠️ It is a CEILING ON THE SEARCH, not on the advice. The advice is bounded by the margin above
+ * — every move within thirty of the best, however many that is — and this is only how many lines
+ * MultiPV is told to keep, since it cannot be told "as many as qualify". Eight because a position
+ * with more than eight moves inside a third of a pawn is a position where the choice does not
+ * matter, and because every extra line is depth taken away from all of them.
+ */
+export const HINT_LINES = 8;
 
 /** Anything with a score. The engine's own line shape, reduced to what this decision needs. */
 export interface Scored {
@@ -40,7 +48,7 @@ export interface Scored {
  * scores of 100, 80 and 60 are two moves at the same level and a third that is not, even though
  * every step is inside the margin.
  */
-export function sameLevel<T extends Scored>(entries: readonly T[], limit = HINT_LIMIT): readonly T[] {
+export function sameLevel<T extends Scored>(entries: readonly T[], limit = HINT_LINES): readonly T[] {
   const top = entries[0]?.score;
   if (top === undefined) return [];
   return entries.filter((entry) => top - entry.score <= SAME_LEVEL_CP).slice(0, limit);

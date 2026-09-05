@@ -99,6 +99,30 @@ export interface HudDeps {
   onPieceSet?(key: string): void;
   coordinates(): boolean;
   onCoordinates(on: boolean): void;
+  /**
+   * The engine's mark beside the move played at this ply — `!`, `?`, `??` and so on, or null
+   * while it is still being worked out or for an ordinary move, which is most of them.
+   *
+   * ⚠️ A FUNCTION, asked per ply, rather than a list handed over. The marks arrive one at a time
+   * and a second behind the moves; a snapshot passed in would be a snapshot of what was known
+   * when the panel was last built, and the mark for the move just played is precisely the one
+   * that would always be missing from it.
+   */
+  markAt?(ply: number): string | null;
+
+  /**
+   * The advantage readout. Optional because a board with no engine has half of it to show and
+   * would have to invent the other half.
+   */
+  scoreboard?: HTMLElement;
+
+  /**
+   * Protected mode: the engine stops the game when the player throws it away. Absent where there
+   * is nobody to protect anyone from — the two-player board.
+   */
+  protectedOn?(): boolean;
+  onProtected?(on: boolean): void;
+
   /** Whether the score sheet can be walked back or forward from where it stands. */
   canTakeBack(): boolean;
   canReplay(): boolean;
@@ -337,6 +361,19 @@ export function createHud(deps: HudDeps): Hud {
 
   const modeGroup = groupOf('hud-mode', ['w', 'b', 'two'], (v) => `hud-mode-${v}`);
 
+  // --- protected mode ---------------------------------------------------------
+  // A switch and not a difficulty: it does not change how the opponent plays, it changes what
+  // happens when the PLAYER throws the game away. Which is a teaching aid, so it sits with the
+  // other things a teacher turns on rather than with the ones that set the level.
+  const protectedBox = doc.createElement('p');
+  protectedBox.className = 'hud-check';
+  const protectedInput = doc.createElement('input');
+  protectedInput.type = 'checkbox';
+  protectedInput.id = 'hud-protected';
+  const protectedLabel = doc.createElement('label');
+  protectedLabel.htmlFor = protectedInput.id;
+  protectedBox.append(protectedInput, protectedLabel);
+
   // --- how strong the opponent plays ------------------------------------------
   const strengthBox = doc.createElement('p');
   const strengthLabel = doc.createElement('label');
@@ -433,7 +470,9 @@ export function createHud(deps: HudDeps): Hud {
   root.append(turn, capturedBox, movesBox);
   if (deps.onHint) root.appendChild(hintBox);
   if (deps.onMode) root.appendChild(modeGroup.box);
+  if (deps.scoreboard) root.appendChild(deps.scoreboard);
   if (deps.strengths) root.appendChild(strengthBox);
+  if (deps.onProtected) root.appendChild(protectedBox);
   if (deps.pieceSets) root.appendChild(setBox);
   if (deps.themes) root.appendChild(themeBox);
   root.append(visionBox, motionBox);
@@ -444,6 +483,9 @@ export function createHud(deps: HudDeps): Hud {
     deps.onMode?.((event.target as HTMLInputElement).value as GameMode);
   }
   for (const { input } of modeGroup.options) input.addEventListener('change', onModeInput);
+
+  function onProtectedChange(): void { deps.onProtected?.(protectedInput.checked); }
+  protectedInput.addEventListener('change', onProtectedChange);
 
   function onStrengthChange(): void { deps.onStrength?.(Number(strengthSelect.value)); }
   strengthSelect.addEventListener('change', onStrengthChange);
@@ -557,15 +599,34 @@ export function createHud(deps: HudDeps): Hud {
     return glyphs || '—';
   }
 
-  /** "1. e4 e5" per line, which is how a scoresheet reads. */
+  /**
+   * "1. e4 e5" per line, which is how a scoresheet reads — with the engine's mark where it has
+   * one, which is how an annotated one reads.
+   *
+   * ⚠️ The mark is a `<b>` and not a colour. `??` beside a move has to survive being printed in
+   * grey, read aloud, and looked at by someone who sees no colour at all (1.4.1) — and it is
+   * already the notation every chess book on earth uses, so there is nothing to invent.
+   */
   function fillMoves(): void {
     const history = rules.history();
     movesList.replaceChildren();
     for (let i = 0; i < history.length; i += 2) {
       const item = doc.createElement('li');
-      item.textContent = history[i + 1]
-        ? `${history[i].san} ${history[i + 1].san}`
-        : history[i].san;
+      for (const ply of [i, i + 1]) {
+        if (!history[ply]) continue;
+        if (ply > i) item.appendChild(doc.createTextNode(' '));
+        item.appendChild(doc.createTextNode(history[ply].san));
+        const mark = deps.markAt?.(ply);
+        if (!mark) continue;
+        const flag = doc.createElement('b');
+        flag.className = 'hud-mark';
+        flag.textContent = mark;
+        flag.dataset.mark = mark;
+        // Spoken as well as seen: "e4 question mark" is not a sentence, and the title is what
+        // makes it one for anybody hovering or reading the accessibility tree.
+        flag.title = i18n.t('mark.title', { mark });
+        item.appendChild(flag);
+      }
       movesList.appendChild(item);
     }
     movesList.scrollTop = movesList.scrollHeight;
@@ -622,6 +683,11 @@ export function createHud(deps: HudDeps): Hud {
 
     motionLabel.textContent = i18n.t('hud.reducedMotion');
     motionInput.checked = deps.reducedMotion();
+
+    if (deps.onProtected) {
+      protectedLabel.textContent = i18n.t('hud.protected');
+      protectedInput.checked = deps.protectedOn?.() ?? false;
+    }
 
     if (deps.strengths) {
       strengthLabel.textContent = i18n.t('hud.strength');
@@ -688,6 +754,7 @@ export function createHud(deps: HudDeps): Hud {
       for (const { input } of modeGroup.options) input.removeEventListener('change', onModeInput);
       hintButton.removeEventListener('click', onHintClick);
       strengthSelect.removeEventListener('change', onStrengthChange);
+      protectedInput.removeEventListener('change', onProtectedChange);
       visionSelect.removeEventListener('change', onVisionChange);
       motionInput.removeEventListener('change', onMotionChange);
       outlineInput.removeEventListener('change', onOutlineChange);
