@@ -196,12 +196,27 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
     rim: '#0E0722',
     name: 'theme.jose',
     short: 'theme.short.jose',
-    // The numbers `render/palette.ts` solved: top against front is 1.72 on the light side and 1.64
-    // on the dark, widened from 1.18 after counting pixels by face and finding that at this camera
-    // pitch only top-against-front does any work.
+    /*
+     * ========================= ⚠️ THE DARK SIDE, OUTLINED IN BLACK =========================
+     * Its projected stroke was the lavender inner rim, `#8C80AE`, and in Zdog the stroke is the
+     * OUTERMOST ink — so that lavender was what met the square: 2.49 against the light one and
+     * 1.23 against the dark. Neither is an edge.
+     *
+     * Black meets both at 14.50 and 4.72, and every other board here was moved to it for the same
+     * reason. What that costs is the indigo: `#1E1140` against a black stroke is 1.34, so the
+     * three planes had to come up until the darkest of them clears 3:1. `#6545C0` is the least
+     * lift that does it (3.17) with the hue untouched, and the other two are placed to reproduce
+     * THIS palette's own measured shading — 1.53 top-against-face and 1.43 face-against-side,
+     * where the originals were 1.54 and 1.42.
+     *
+     * The LIGHT side keeps `#3B2A12`, because it already works: 9.50 and 3.09 against the two
+     * squares. It is a very dark brown rather than black, and it is where the warmth of this
+     * palette lives.
+     */
+    solidStroke: { light: '#3B2A12', dark: '#000000' },
     solid: {
       light: ['#FFE08A', '#E0A33A', '#B8781F'],
-      dark: ['#5B44A0', '#3A2670', '#1E1140'],
+      dark: ['#9C88D7', '#7E63CA', '#6545C0'],
     },
   },
   {

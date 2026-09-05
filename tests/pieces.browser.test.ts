@@ -359,7 +359,7 @@ describe('[Ink] the colour that covers a piece is the colour that names it', () 
 // dominates the piece, which is exactly what the ink counts said governs how a piece reads.
 
 describe('[Outline] the two sides are not given the same weight', () => {
-  it('draws the two sides with different amounts of line, from one board', () => {
+  it('draws the two sides with the SAME amount of line, from one board', () => {
     // Through the LAYER, which is where the per-side decision is made — building a piece by hand
     // would test the parameter and not the rule that uses it.
     stage = createZdogStage();
@@ -384,19 +384,20 @@ describe('[Outline] the two sides are not given the same weight', () => {
       return n;
     };
 
-    // Same piece, same size, on one board: the dark side spends proportionally LESS of itself on
-    // line than the light side does. That difference IS `DARK_OUTLINE_SCALE`.
-    //
-    // ⚠️ It used to be written as "the dark one is mostly its filling", an absolute claim that
-    // held only while the dark piece's stroke was a pale blue against a black fill. Both strokes
-    // are black now — a light stroke cannot touch these squares at 3:1, so the side moved into
-    // the fill — and the absolute figure moved with it. The RULE did not.
-    expect(count(light.stroke) / count(light.top)).toBeGreaterThan(2);
-    expect(count(dark.stroke) / count(dark.top))
-      .toBeLessThan(count(light.stroke) / count(light.top));
+    // ⚠️ THE DARK SIDE USED TO GET HALF THE LINE, and this test used to assert exactly that. The
+    // argument for halving was about a dark piece outlined in a LIGHT ink, where more outline
+    // only thickens an already dark mass. These palettes no longer do that: the projected stroke
+    // has to clear 3:1 against both squares, which only a near-black can, so a dark piece is now
+    // black-outlined over a lifted filling — where the outline is DRAWING and half of it is half
+    // a drawing. Same piece, same size, same amount of line on both sides.
+    const lightRatio = count(light.stroke) / count(light.top);
+    const darkRatio = count(dark.stroke) / count(dark.top);
+    expect(lightRatio).toBeGreaterThan(2);
+    expect(darkRatio / lightRatio).toBeGreaterThan(0.8);
+    expect(darkRatio / lightRatio).toBeLessThan(1.25);
   });
 
-  it('inverts which ink dominates a dark piece, by about six', () => {
+  it('still turns on the outline width, which is what the constant is for', () => {
     const dark = HIGH_CONTRAST_PALETTE.darkPieces;
     const ratio = (width: number): number => {
       stage?.destroy();
@@ -419,18 +420,23 @@ describe('[Outline] the two sides are not given the same weight', () => {
       return line / Math.max(1, fill);
     };
 
+    // ⚠️ Measured through the BUILDER rather than through the constant, so the test still says
+    // something once the constant is 1: halving the width really does hand the piece back to its
+    // filling, which is the fact that made halving worth trying and the fact that made undoing it
+    // a visible change rather than a tidy-up.
     const full = ratio(STROKE);
-    const half = ratio(STROKE * DARK_OUTLINE_SCALE);
-    // The bishop is the extreme case, and it crosses from outline-dominated to filling-dominated.
+    const half = ratio(STROKE / 2);
     expect(full).toBeGreaterThan(2);
     expect(half).toBeLessThan(1);
     expect(full / half).toBeGreaterThan(4);
+    // And the shipped value is the full one: both sides draw the same line.
+    expect(DARK_OUTLINE_SCALE).toBe(1);
   });
 
-  it('leaves a piece with an outline at all — half is near the floor, not past it', () => {
+  it('leaves a piece with an outline at all — the floor is STROKE/2', () => {
     // Zdog centres a stroke, so a fill box already reaches STROKE/2 past its faces. Below that an
-    // outline is entirely inside the silhouette and stops being an edge, which is why this is the
-    // first thing tried and not the third.
+    // outline is entirely inside the silhouette and stops being an edge. The scale is 1 now and
+    // this is nowhere near the floor, which is exactly the point of keeping the check.
     expect(STROKE * DARK_OUTLINE_SCALE).toBeGreaterThanOrEqual(STROKE / 2);
   });
 });

@@ -188,27 +188,21 @@ export const STROKE = 1.5;
 export const SQUARE_STROKE = STROKE;
 
 /**
- * ========================= THE DARK SIDE'S OUTLINE, HALVED =========================
- * An intuition being tested rather than a measurement being applied, and it is worth saying which
- * of the two it is.
+ * ========================= ⚠️ BOTH SIDES GET THE SAME LINE AGAIN =========================
+ * This was 0.5 — the dark side drawn with half the outline of the light one — on the argument
+ * that a dark piece is already a dark mass and that more outline only thickens it. That argument
+ * was about a dark piece outlined in a LIGHT ink, which is what these palettes used to do.
  *
- * The reasoning behind it: the ink counts in `tests/pieces.browser.test.ts` showed that a piece is
- * mostly its own outline — the bishop worst at 4.94 to one — and that the ink which COVERS a piece
- * is the ink that names it. That cuts differently for the two sides. A light piece outlined dark
- * reads as a light piece with lines on it, because the eye takes the bright interior for the
- * object. A dark piece outlined dark has nothing to separate the line from the mass, so the
- * outline only thickens it; and a dark piece outlined LIGHT becomes a light piece, which is the
- * fault this project already found and fixed once in high contrast.
+ * They do not any more. In the projected view the stroke is the outermost ink and has to clear
+ * 3:1 against both squares, which only a near-black can do, so every dark piece is now outlined
+ * in black with its filling lifted to stay 3:1 clear of it. A black outline on a lighter filling
+ * is drawing, not thickening — and half of it is half a drawing.
  *
- * So the dark side may not need as much line as the light side does. Half is the first thing to
- * try, and it is a constant here rather than a literal in the builder precisely so the next
- * measurement can move it.
- *
- * ⚠️ It cannot go much below this and stay visible. Zdog's stroke is CENTRED on the path, so a
- * fill box already reaches STROKE/2 = 0.75 units beyond its faces; an outline narrower than that
- * sits entirely inside the silhouette and stops being an edge at all.
+ * One number for both sides. The constant stays rather than being deleted, because it is the
+ * thing the next measurement would move, and because the note above is worth keeping where the
+ * change would be made.
  */
-export const DARK_OUTLINE_SCALE = 0.5;
+export const DARK_OUTLINE_SCALE = 1;
 
 
 /* ============================ THE HIGH-CONTRAST MODE ============================ */
