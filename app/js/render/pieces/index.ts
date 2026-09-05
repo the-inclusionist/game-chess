@@ -14,7 +14,9 @@
 import Zdog, { type Anchor } from 'zdog';
 import type { Piece, Square } from '../../chess/types.ts';
 import { squareCenter } from '../board-geometry.ts';
-import { DEFAULT_PALETTE, type Palette, type SidePalette, STROKE } from '../palette.ts';
+import {
+  DARK_OUTLINE_SCALE, DEFAULT_PALETTE, STROKE, type Palette, type SidePalette,
+} from '../palette.ts';
 import { TILE } from '../resolution.ts';
 import { PIECE_SPECS, type PieceSpec } from './geometry.ts';
 
@@ -63,6 +65,12 @@ export interface BuildOptions {
    * itself, and the pair still sorts against the rest of the board as one surface.
    */
   readonly outline?: string;
+  /**
+   * How wide that outline is, in Zdog units. Defaults to the piece's own stroke, which is what
+   * makes the outline exactly cover the fill's stroke expansion; narrower than that and it sits
+   * inside the silhouette instead of edging it.
+   */
+  readonly outlineWidth?: number;
 }
 
 export function buildPiece(
@@ -120,6 +128,7 @@ export function buildPiece(
 
   if (options.outline) {
     const line = options.outline;
+    const width = options.outlineWidth ?? STROKE;
     for (const box of spec.boxes) {
       new Zdog.Box({
         addTo: anchor,
@@ -128,7 +137,7 @@ export function buildPiece(
         depth: box.d,
         translate: { x: box.x ?? 0, y: box.y ?? 0, z: box.z ?? 0 },
         rotate: { y: box.rotY ?? 0 },
-        stroke: STROKE,
+        stroke: width,
         fill: false,
         color: line,
         topFace: line,
@@ -143,7 +152,7 @@ export function buildPiece(
     if (spec.sphere) {
       const half = {
         diameter: spec.sphere.diameter,
-        stroke: STROKE,
+        stroke: width,
         fill: false,
         color: line,
         backface: line,
@@ -169,8 +178,14 @@ export function createPiecesLayer(
   let placed = 0;
   let current: readonly PiecePlacement[] = [];
 
-  const opts = (piece: Piece): BuildOptions =>
-    (outline ? { outline: sideColours(piece, palette).stroke } : {});
+  const opts = (piece: Piece): BuildOptions => (outline
+    ? {
+      outline: sideColours(piece, palette).stroke,
+      // The dark side gets half the line — see DARK_OUTLINE_SCALE in `render/palette.ts` for the
+      // reasoning, which is an intuition under test rather than a settled measurement.
+      ...(piece.side === 'b' ? { outlineWidth: STROKE * DARK_OUTLINE_SCALE } : {}),
+    }
+    : {});
 
   return {
     anchor: layer,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Piece, PieceType } from '../app/js/chess/types.ts';
-import { HIGH_CONTRAST_PALETTE, LIGHT_PIECES } from '../app/js/render/palette.ts';
+import { DARK_OUTLINE_SCALE, HIGH_CONTRAST_PALETTE, LIGHT_PIECES, STROKE } from '../app/js/render/palette.ts';
 import { buildPiece, createPiecesLayer } from '../app/js/render/pieces/index.ts';
 import { PIECE_SPECS } from '../app/js/render/pieces/geometry.ts';
 import { CAMERA, createZdogStage, type ZdogStage } from '../app/js/render/zdog-stage.ts';
@@ -334,5 +334,97 @@ describe('[Ink] the colour that covers a piece is the colour that names it', () 
     // ever moves that, the reasoning in palette.ts needs re-reading rather than trusting.
     expect(ratios.get('b')).toBeGreaterThan(3);
     expect(Math.max(...ratios.values())).toBe(ratios.get('b'));
+  });
+});
+
+// ========================= THE DARK SIDE GETS HALF THE LINE =========================
+// An intuition, tried and then measured. The reasoning: a light piece outlined dark reads as a
+// light piece with lines on it, because the eye takes the bright interior for the object — but a
+// dark piece outlined dark has nothing separating the line from the mass, so the outline only
+// thickens it. The two sides may not need the same amount of line.
+//
+// ⚠️ AND HALVING THE WIDTH DOES NOT HALVE THE INK. It cuts it by about six. Line against filling
+// on the dark side, at full width and at half:
+//
+//   piece    1.50u   0.75u        piece    1.50u   0.75u
+//   pawn      1.83    0.29        bishop    5.70    0.91
+//   rook      0.88    0.22        queen     1.84    0.33
+//   knight    2.12    0.37        king      1.55    0.41
+//
+// The reason is geometric: Zdog centres a stroke on its path, so a FILL box already reaches
+// STROKE/2 = 0.75 units past its faces. A 1.5-wide outline spends 0.75 of itself covering exactly
+// that overhang and 0.75 eating into the face. A 0.75-wide one reaches only 0.375 out — no longer
+// to the silhouette's edge — and 0.375 in. It loses ink at both ends at once, and the filling wins
+// back everything it gives up. So the change is not "a thinner line"; it inverts which ink
+// dominates the piece, which is exactly what the ink counts said governs how a piece reads.
+
+describe('[Outline] the two sides are not given the same weight', () => {
+  it('draws the two sides with different amounts of line, from one board', () => {
+    // Through the LAYER, which is where the per-side decision is made — building a piece by hand
+    // would test the parameter and not the rule that uses it.
+    stage = createZdogStage();
+    const pieces = createPiecesLayer(stage.root, HIGH_CONTRAST_PALETTE);
+    pieces.setPosition([
+      { piece: { type: 'b', side: 'w' }, square: { x: 2, y: 7 } },
+      { piece: { type: 'b', side: 'b' }, square: { x: 5, y: 0 } },
+    ]);
+    stage.render();
+
+    const light = HIGH_CONTRAST_PALETTE.lightPieces;
+    const dark = HIGH_CONTRAST_PALETTE.darkPieces;
+    const d = stage.canvas.getContext('2d')!
+      .getImageData(0, 0, stage.canvas.width, stage.canvas.height).data;
+    const count = (hex: string): number => {
+      const [r, g, b] = rgb(hex);
+      let n = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] < 128) continue;
+        if (Math.abs(d[i] - r) < 18 && Math.abs(d[i + 1] - g) < 18 && Math.abs(d[i + 2] - b) < 18) n++;
+      }
+      return n;
+    };
+
+    // Same piece, same size, on one board: the light one is mostly its black line, the dark one
+    // is mostly its filling. That difference IS the change.
+    expect(count(light.stroke) / count(light.top)).toBeGreaterThan(2);
+    expect(count(dark.stroke) / count(dark.top)).toBeLessThan(1);
+  });
+
+  it('inverts which ink dominates a dark piece, by about six', () => {
+    const dark = HIGH_CONTRAST_PALETTE.darkPieces;
+    const ratio = (width: number): number => {
+      stage?.destroy();
+      stage = createZdogStage();
+      buildPiece(stage.root, PIECE_SPECS.b, dark, { outline: dark.stroke, outlineWidth: width });
+      stage.render();
+      const d = stage.canvas.getContext('2d')!
+        .getImageData(0, 0, stage.canvas.width, stage.canvas.height).data;
+      const near = (i: number, hex: string): boolean => {
+        const [r, g, b] = rgb(hex);
+        return Math.abs(d[i] - r) < 18 && Math.abs(d[i + 1] - g) < 18 && Math.abs(d[i + 2] - b) < 18;
+      };
+      let line = 0;
+      let fill = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] < 128) continue;
+        if (near(i, dark.stroke)) line++;
+        else if (near(i, dark.top)) fill++;
+      }
+      return line / Math.max(1, fill);
+    };
+
+    const full = ratio(STROKE);
+    const half = ratio(STROKE * DARK_OUTLINE_SCALE);
+    // The bishop is the extreme case, and it crosses from outline-dominated to filling-dominated.
+    expect(full).toBeGreaterThan(2);
+    expect(half).toBeLessThan(1);
+    expect(full / half).toBeGreaterThan(4);
+  });
+
+  it('leaves a piece with an outline at all — half is near the floor, not past it', () => {
+    // Zdog centres a stroke, so a fill box already reaches STROKE/2 past its faces. Below that an
+    // outline is entirely inside the silhouette and stops being an edge, which is why this is the
+    // first thing tried and not the third.
+    expect(STROKE * DARK_OUTLINE_SCALE).toBeGreaterThanOrEqual(STROKE / 2);
   });
 });
