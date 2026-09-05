@@ -145,6 +145,20 @@
 
   /* Two targets side by side in an 88-logical-pixel column: --tap keeps each at 44 CSS px tall
      (WCAG 2.5.5) and they split the width, which is the one dimension there is none of. */
+  .hud-hint {
+    width: 100%;
+    min-height: var(--tap, 44px);
+    font: inherit; font-size: 0.78em; font-weight: 600;
+    color: #14202b; background: #B79BE8;
+    border: 1px solid #7A4FBF; border-radius: 2px;
+    cursor: pointer;
+  }
+  .hud-hint:hover:not(:disabled) { background: #CDBAF0; }
+  .hud-hint:disabled { opacity: 0.5; cursor: default; }
+  #game-region[data-contrast="high"] .hud-hint {
+    color: #000000; background: #FFFFFF; border-color: #FFFFFF;
+  }
+
   .hud-nav { display: flex; gap: 0.3em; }
   .hud-nav button {
     flex: 1 1 0; min-width: 0; min-height: var(--tap, 44px);
@@ -446,6 +460,21 @@
     width: 78%; height: 78%; border: 3px solid #B3341F;
   }
   .board-2d [role="gridcell"][data-check] { background: #B3341F; }
+
+  /*
+   * Where the engine would play. A ring INSIDE the square rather than a fill, so it sits over a
+   * piece without hiding it — a hint is usually about a piece that is already there. The colour is
+   * its own: a hint is an opinion from outside the game, and wearing the selection blue would make
+   * it look like something the player had done.
+   */
+  .board-2d [role="gridcell"][data-hint]::before {
+    content: '';
+    position: absolute;
+    inset: 8%;
+    border: 3px solid #7A4FBF;
+    border-radius: 12%;
+    pointer-events: none;
+  }
 
   /*
    * ========================= A SILHOUETTE BEHIND THE PIECE =========================

@@ -82,6 +82,11 @@ export interface GridMirror {
   /** Swaps the drawing. No effect on anything a screen reader hears. */
   setPieceSet(key: string): void;
   pieceSetKey(): string;
+  /**
+   * The squares a hint is pointing at. Marked, and also named in the live region by whoever asked
+   * — a mark alone would be a hint only for the players who can see it.
+   */
+  setHints(squares: readonly Square[]): void;
   /** Swaps the board colours. Also nothing a screen reader hears. */
   setTheme(key: string): void;
   themeKey(): string;
@@ -118,6 +123,7 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
   const visible = deps.visible ?? false;
   let set: PieceSet = pieceSet(deps.set ?? DEFAULT_SET);
   let theme: BoardTheme = boardTheme(deps.theme ?? DEFAULT_THEME);
+  let hints: readonly Square[] = [];
 
   const root = doc.createElement('div');
   root.className = visible ? 'board-2d' : 'sr-only';
@@ -251,6 +257,9 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
 
       if (check && sameSquare(check, square)) cell.dataset.check = 'true';
       else delete cell.dataset.check;
+
+      if (hints.some((s) => sameSquare(s, square))) cell.dataset.hint = 'true';
+      else delete cell.dataset.hint;
     }
   }
 
@@ -319,6 +328,11 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
 
   return {
     root,
+
+    setHints(squares) {
+      hints = squares;
+      refresh();
+    },
 
     pieceSetKey: () => set.key,
     themeKey: () => theme.key,

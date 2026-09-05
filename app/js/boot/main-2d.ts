@@ -33,7 +33,7 @@ import { createGameState, type Activation } from '../chess/state.ts';
 import { type Side, type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale, type I18n } from '../i18n/index.ts';
 import { createGridMirror } from '../ui/grid-mirror.ts';
-import { createHud } from '../ui/hud.ts';
+import { createHud, type GameMode } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
 import { BOARD_THEMES, CONTRAST_THEME, DEFAULT_THEME } from '../ui/board-themes.ts';
 import { AVAILABLE_SETS, DEFAULT_SET } from '../ui/piece-sets.ts';
@@ -72,13 +72,19 @@ export function boot2d(host: Document = document): void {
   // sheet is written to the tab's own storage after anything that changes it and read back here,
   // which is why switching from 2D to 2.5D continues the game rather than starting one.
   const rules = resume();
-  const playerSide: Side = loadSettings().side ?? 'w';
-  const game = createGameState({ rules, playerSide, opponent: true });
+  // Three modes rather than two sides: one player as white, one as black, or two people sharing
+  // the board — which is the case the state machine already had and nothing in the panel could
+  // reach.
+  const mode: GameMode = loadSettings().mode ?? 'w';
+  const playerSide: Side = mode === 'b' ? 'b' : 'w';
+  const game = createGameState({ rules, playerSide, opponent: mode !== 'two' });
   const opponent = createEngineClient();
   let difficulty: Difficulty = DEFAULT_DIFFICULTY;
   let thinking = false;
   /** A walk is in flight: the board must not accept a move played on top of it. */
   let walking = false;
+  /** A hint is in flight: the button says so and a second press is refused. */
+  let hinting = false;
   let cursor: Square = { x: 4, y: 6 };
 
   // There is no animation to reduce — a flat board places a piece where the rules put it — but the
@@ -101,15 +107,53 @@ export function boot2d(host: Document = document): void {
    * A reload rather than a rebuild because the composition root wires one game into a dozen
    * closures, and tearing that down by hand would be a second, quieter way of starting over.
    */
-  function choosePlayerSide(side: Side): void {
-    if (side === playerSide) return;
-    saveSettings({ ...currentSettings(), side });
+  /** Marks the hinted destinations and says them. Cleared by the next thing that redraws. */
+  function showHint(moves: readonly { from: Square; to: Square }[]): void {
+    board.setHints(moves.map((m) => m.to));
+    const say = (m: { from: Square; to: Square }): string =>
+      `${toAlgebraic(m.from)} ${toAlgebraic(m.to)}`;
+    srSay(moves.length > 1
+      ? i18n.t('a11y.hintMany', { move: say(moves[0]), others: moves.slice(1).map(say).join(', ') })
+      : i18n.t('a11y.hintOne', { move: say(moves[0]) }));
+  }
+
+  /**
+   * ========================= A HINT IS THE SAME ENGINE, ASKED DIFFERENTLY =========================
+   * It goes through the same client and the same id matching as the opponent's own search, which
+   * is what stops a hint asked for and then abandoned from arriving later and marking squares in a
+   * position that has moved on.
+   *
+   * ⚠️ And what it says is carefully limited. "The engine would play this, and rates these the
+   * same" is a fact about a three-ply negamax with a material-and-placement evaluator — not about
+   * chess. The wording says "for it", because a child told "these are equal" would have been told
+   * something nobody knows.
+   */
+  async function askHint(): Promise<void> {
+    if (hinting || game.phase() !== 'idle') return;
+    hinting = true;
+    hud.refresh();
+    srSay(i18n.t('a11y.hintAsked'));
+    try {
+      const hint = await opponent.requestHint(rules.fen(), DIFFICULTY_DEPTH[difficulty]);
+      if (!hint) { srSay(i18n.t('a11y.hintNone')); return; }
+      showHint(hint.ties.length ? hint.ties : [hint.move]);
+    } catch {
+      srSay(i18n.t('status.engineFailed'));
+    } finally {
+      hinting = false;
+      hud.refresh();
+    }
+  }
+
+  function chooseMode(next: GameMode): void {
+    if (next === mode) return;
+    saveSettings({ ...currentSettings(), mode: next });
     clearGame();
     window.location.reload();
   }
 
   const currentSettings = () => ({
-    theme: themeKey, set: setKey, coordinates: showCoordinates, side: playerSide,
+    theme: themeKey, set: setKey, coordinates: showCoordinates, mode,
   });
 
   const applyTheme = (key: string): void => {
@@ -186,8 +230,11 @@ export function boot2d(host: Document = document): void {
       saveSettings({ ...currentSettings(), coordinates: on });
       hud.refresh();
     },
-    playerSide: () => playerSide,
-    onPlayerSide: choosePlayerSide,
+    mode: () => mode,
+    onMode: chooseMode,
+
+    // No engine in a two-player game, so nobody to ask.
+    ...(mode === 'two' ? {} : { onHint: () => { void askHint(); }, hintBusy: () => hinting }),
 
     // The face's own name, not an i18n key: a typeface is a proper noun.
     pieceSets: AVAILABLE_SETS.map((set) => ({ key: set.key, label: set.label })),
@@ -253,6 +300,9 @@ export function boot2d(host: Document = document): void {
   }
 
   function redraw(): void {
+    // A hint describes ONE position. Anything that changes the position retires it rather than
+    // leaving marks that now point at squares nobody asked about.
+    board.setHints([]);
     board.refresh();
     hud.refresh();
     saveGame(rules);

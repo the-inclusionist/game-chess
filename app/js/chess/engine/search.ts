@@ -98,6 +98,64 @@ function run(rules: Rules, depth: number, prune: boolean): SearchResult | null {
   return bestMove ? { move: bestMove, score: bestScore, depth, nodes: counter.nodes } : null;
 }
 
+/**
+ * ========================= WHY A HINT CANNOT USE THE ORDINARY SEARCH =========================
+ * A hint has to say "this is best, and these are as good" — which needs a SCORE for every root
+ * move, and alpha-beta does not produce one. Narrowing the window is the whole point of the
+ * pruning: once `alpha` has risen, every later move that cannot beat it is abandoned early and
+ * what comes back is a BOUND, not a value. "All the moves with the same score" read off a pruned
+ * search would be a list of moves that merely failed to be proved worse, which is a different and
+ * much longer list.
+ *
+ * So the root here searches every move with a FULL window and only prunes below it. That costs
+ * real time — the saving alpha-beta makes at the root is the largest one it makes — and it is
+ * affordable precisely because a hint is asked for by hand, once, and not sixty times a minute.
+ *
+ * ⚠️ AND "THE SAME LEVEL" MEANS THE SAME TO THIS ENGINE AT THIS DEPTH. Two moves tying here are
+ * tied in the opinion of a three-ply negamax with a material-and-placement evaluator. That is a
+ * fact about the hint, not about chess, and it belongs in what the player is told.
+ */
+export interface RankedMove {
+  readonly move: LegalMove;
+  readonly score: number;
+}
+
+export interface RankedResult {
+  /** Best first. Every root move, with a real score rather than a bound. */
+  readonly moves: readonly RankedMove[];
+  readonly depth: number;
+  readonly nodes: number;
+}
+
+export function rankMoves(rules: Rules, depth: number): RankedResult | null {
+  if (depth < 1) return null;
+  const moves = rules.allMoves();
+  if (moves.length === 0) return null;
+
+  const counter: Counter = { nodes: 0 };
+  const scored: RankedMove[] = [];
+
+  for (const move of moves) {
+    rules.move(move.from, move.to, move.promotion ?? undefined);
+    // Full window, every time. This is the line that makes the scores comparable.
+    const score = -negamax(rules, depth - 1, -Infinity, Infinity, 1, counter, true);
+    rules.undo();
+    scored.push({ move, score });
+  }
+
+  // Stable by score, so an equal-scoring set keeps the order `allMoves` produced and the same
+  // position always gives the same hint.
+  scored.sort((a, b) => b.score - a.score);
+  return { moves: scored, depth, nodes: counter.nodes };
+}
+
+/** The moves that tie for best, best first. At least one whenever there is a legal move. */
+export function bestMoves(result: RankedResult, limit = 4): readonly RankedMove[] {
+  const top = result.moves[0]?.score;
+  if (top === undefined) return [];
+  return result.moves.filter((entry) => entry.score === top).slice(0, limit);
+}
+
 /** The search the game uses. */
 export function search(rules: Rules, depth: number): SearchResult | null {
   return run(rules, depth, true);

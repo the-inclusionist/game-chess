@@ -39,7 +39,8 @@ export const DRAG_SENSITIVITY = Math.PI / 320;
 
 /**
  * ========================= HOW LONG A PRESS HAS TO BE BEFORE IT TURNS =========================
- * Two seconds, and the number is not about the mechanism. A board that starts turning on the first
+ * One second, and the number is not about the mechanism — it was two, and a second of waiting for
+ * a gesture you meant is a long time to spend proving you meant it. A board that starts turning on the first
  * pixel of movement turns while a teacher is pointing at a square in front of a class — the
  * gesture for "look here" and the gesture for "spin the board" were the same one, and only one of
  * them was ever wanted mid-lesson.
@@ -51,7 +52,7 @@ export const DRAG_SENSITIVITY = Math.PI / 320;
  * both WCAG 2.5.7 — nothing may require a drag — and the reason a delay is affordable here: the
  * player who cannot wait two seconds on a button already has the faster path.
  */
-export const ROTATE_HOLD_MS = 2000;
+export const ROTATE_HOLD_MS = 1000;
 
 export interface CameraState {
   readonly pitch: number;

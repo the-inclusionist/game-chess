@@ -21,11 +21,19 @@ export interface EngineMove {
   readonly score: number;
   readonly nodes: number;
   readonly depth: number;
+  /** For a hint: every move that ties for best, this one first. Empty for an ordinary search. */
+  readonly ties: readonly LegalMove[];
 }
 
 export interface EngineClient {
   /** Resolves with the opponent's move, or null when the position has none. */
   requestMove(fen: string, depth: number): Promise<EngineMove | null>;
+  /**
+   * The same engine asked a different question: which move it would play, and which others it
+   * rates the same. It goes through the SAME id-matching as a move, so a hint asked for and then
+   * abandoned cannot arrive later and mark squares in a position that has moved on.
+   */
+  requestHint(fen: string, depth: number): Promise<EngineMove | null>;
   /** Abandons any search in flight. Its reply, if it arrives, is dropped. */
   cancel(): void;
   destroy(): void;
@@ -57,7 +65,11 @@ export function createEngineClient(makeWorker: WorkerFactory = defaultWorker): E
     else if (!reply.move) settle.resolve(null);
     else {
       settle.resolve({
-        move: reply.move, score: reply.score, nodes: reply.nodes, depth: reply.depth,
+        move: reply.move,
+        score: reply.score,
+        nodes: reply.nodes,
+        depth: reply.depth,
+        ties: reply.ties ?? [],
       });
     }
   };
@@ -70,19 +82,25 @@ export function createEngineClient(makeWorker: WorkerFactory = defaultWorker): E
     settle.reject(new Error(event.message || 'engine worker failed'));
   };
 
-  return {
-    requestMove(fen, depth) {
-      // One search at a time. A second request supersedes the first rather than queueing behind
-      // it, because the only position anyone cares about is the current one.
-      if (pending) pending.resolve(null);
+  /**
+   * One search at a time. A second request supersedes the first rather than queueing behind it,
+   * because the only position anyone cares about is the current one — and that holds across the
+   * two KINDS as well: a hint asked for while the opponent is thinking replaces the opponent's
+   * search rather than racing it, which is also what stops a hint arriving after a move is played.
+   */
+  const ask = (fen: string, depth: number, kind: 'move' | 'hint'): Promise<EngineMove | null> => {
+    if (pending) pending.resolve(null);
+    const id = nextId++;
+    const request: SearchRequest = { id, fen, depth, kind };
+    return new Promise<EngineMove | null>((resolve, reject) => {
+      pending = { id, resolve, reject };
+      worker.postMessage(request);
+    });
+  };
 
-      const id = nextId++;
-      const request: SearchRequest = { id, fen, depth };
-      return new Promise<EngineMove | null>((resolve, reject) => {
-        pending = { id, resolve, reject };
-        worker.postMessage(request);
-      });
-    },
+  return {
+    requestMove(fen, depth) { return ask(fen, depth, 'move'); },
+    requestHint(fen, depth) { return ask(fen, depth, 'hint'); },
 
     cancel() {
       if (!pending) return;

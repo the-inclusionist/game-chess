@@ -15,11 +15,19 @@ export interface SearchRequest {
   readonly id: number;
   readonly fen: string;
   readonly depth: number;
+  /**
+   * `'move'` is the opponent choosing what to play. `'hint'` ranks every root move with a full
+   * window so the reply can say which ones tie — see `rankMoves` for why those are two different
+   * searches and not one search read two ways.
+   */
+  readonly kind?: 'move' | 'hint';
 }
 
 export interface SearchReply {
   readonly id: number;
   readonly move: LegalMove | null;
+  /** Set for a hint: the moves that tie for best, best first, this one included. */
+  readonly ties?: readonly LegalMove[];
   readonly score: number;
   readonly nodes: number;
   readonly depth: number;

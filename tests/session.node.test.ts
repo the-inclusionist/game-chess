@@ -147,25 +147,25 @@ describe('[Session] nothing it reads back is trusted', () => {
 describe('[Session] the choices that must not reset when the view changes', () => {
   it('remembers the palette, the drawing, the coordinates and the side', () => {
     const store = fakeStore();
-    saveSettings({ theme: 'jose2', set: 'math', coordinates: false, side: 'b' }, store);
+    saveSettings({ theme: 'jose2', set: 'math', coordinates: false, mode: 'b' }, store);
     expect(loadSettings(store)).toEqual({
-      theme: 'jose2', set: 'math', coordinates: false, side: 'b',
+      theme: 'jose2', set: 'math', coordinates: false, mode: 'b',
     });
   });
 
   it('drops anything it does not recognise instead of handing it on', () => {
     // A stale or hand-edited entry must not reach the renderer as a colour or a side.
     const store = fakeStore();
-    store.setItem('incl_chess_view', JSON.stringify({ theme: 7, side: 'purple', coordinates: 'yes' }));
+    store.setItem('incl_chess_view', JSON.stringify({ theme: 7, mode: 'purple', coordinates: 'yes' }));
     expect(loadSettings(store)).toEqual({});
   });
 
   it('is separate from the game, so a new game keeps the settings', () => {
     const store = fakeStore();
-    saveSettings({ theme: 'xboard', side: 'b' }, store);
+    saveSettings({ theme: 'xboard', mode: 'b' }, store);
     save(opened(), store);
     clear(store);
     expect(load(store)).toBeNull();
-    expect(loadSettings(store)).toEqual({ theme: 'xboard', side: 'b' });
+    expect(loadSettings(store)).toEqual({ theme: 'xboard', mode: 'b' });
   });
 });

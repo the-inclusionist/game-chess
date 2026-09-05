@@ -9,7 +9,8 @@ import Zdog, { type Anchor, type Rect, type Shape } from 'zdog';
 import type { Square } from '../chess/types.ts';
 import { isLightSquare, squareCenter, squareFromIndex, squareIndex } from './board-geometry.ts';
 import {
-  DEFAULT_PALETTE, MARKER_CAPTURE, MARKER_CHECK, MARKER_CURSOR, MARKER_MOVE, MARKER_SELECTED,
+  DEFAULT_PALETTE, MARKER_CAPTURE, MARKER_CHECK,
+  MARKER_HINT, MARKER_CURSOR, MARKER_MOVE, MARKER_SELECTED,
   type Palette, SQUARE_STROKE,
 } from './palette.ts';
 import type { Quad } from './picking.ts';
@@ -40,7 +41,7 @@ const MARKER_LIFT = -0.5;
  * visually hidden, so a sighted person navigating by keyboard would otherwise have focus sitting
  * somewhere invisible. This marker is that focus, drawn on the board.
  */
-export type Marker = 'cursor' | 'selected' | 'move' | 'capture' | 'check';
+export type Marker = 'cursor' | 'selected' | 'move' | 'capture' | 'check' | 'hint';
 
 export interface BoardView {
   /** The subtree to add to the scene. */
@@ -64,6 +65,7 @@ const OUTLINE_COLOUR: Record<Marker, string> = {
   capture: MARKER_CAPTURE,
   selected: MARKER_SELECTED,
   check: MARKER_CHECK,
+  hint: MARKER_HINT,
 };
 
 export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE): BoardView {

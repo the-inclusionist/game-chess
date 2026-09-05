@@ -16,7 +16,7 @@ import { VIZ_FILTER } from '@the-inclusionist/engine/render/viz-modes.js';
 import { createChessDeclaration } from '../declaration/chess-declaration.ts';
 import { createCoordinates } from '../ui/coordinates.ts';
 import { createGridMirror } from '../ui/grid-mirror.ts';
-import { createHud } from '../ui/hud.ts';
+import { createHud, type GameMode } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
 import { createEngineClient } from '../chess/engine/client.ts';
 import { DEFAULT_DIFFICULTY, DIFFICULTY_DEPTH, type Difficulty } from '../chess/engine/difficulty.ts';
@@ -84,8 +84,9 @@ export function boot(host: Document = document): void {
   // sheet is written to the tab's own storage after anything that changes it and read back here,
   // which is why switching from 2D to 2.5D continues the game rather than starting one.
   const rules = resume();
-  const playerSide: Side = loadSettings().side ?? 'w';
-  const game = createGameState({ rules, playerSide, opponent: true });
+  const mode: GameMode = loadSettings().mode ?? 'w';
+  const playerSide: Side = mode === 'b' ? 'b' : 'w';
+  const game = createGameState({ rules, playerSide, opponent: mode !== 'two' });
   const opponent = createEngineClient();
   let difficulty: Difficulty = DEFAULT_DIFFICULTY;
   let thinking = false;
@@ -191,6 +192,9 @@ export function boot(host: Document = document): void {
   /** Which way the walk is going, and whether the unit has another ply to move after this leg. */
   let walkDirection: 'back' | 'forward' = 'back';
   let walkMore = false;
+  /** A hint is in flight, and the squares it last pointed at. */
+  let hinting = false;
+  let hinted: readonly Square[] = [];
 
   // ⚠️ Both declared ABOVE `createHud` on purpose. `createHud` calls its own `refresh()` while it
   // is still being built, `refresh` asks `canTakeBack`, and that reads `walking` — a `let` below
@@ -209,8 +213,9 @@ export function boot(host: Document = document): void {
     difficulty: () => difficulty,
     reducedMotion,
     onReducedMotion: (on) => { motionReduced = on; hud.refresh(); },
-    playerSide: () => playerSide,
-    onPlayerSide: choosePlayerSide,
+    mode: () => mode,
+    onMode: chooseMode,
+    ...(mode === 'two' ? {} : { onHint: () => { void askHint(); }, hintBusy: () => hinting }),
 
     canTakeBack: () => !walking && game.canTakeBack(),
     canReplay: () => !walking && game.canReplay(),
@@ -254,7 +259,7 @@ export function boot(host: Document = document): void {
    * The narrowed constant is captured once, above, where the check has already happened.
    */
   const currentSettings = () => ({
-    theme: themeKey, coordinates: showCoordinates, side: playerSide,
+    theme: themeKey, coordinates: showCoordinates, mode,
   });
 
   /**
@@ -266,11 +271,47 @@ export function boot(host: Document = document): void {
    * A reload rather than a rebuild because the composition root wires one game into a dozen
    * closures, and tearing that down by hand would be a second, quieter way of starting over.
    */
-  function choosePlayerSide(side: Side): void {
-    if (side === playerSide) return;
-    saveSettings({ ...currentSettings(), side });
+  function chooseMode(next: GameMode): void {
+    if (next === mode) return;
+    saveSettings({ ...currentSettings(), mode: next });
     clearGame();
     window.location.reload();
+  }
+
+  /** Marks the hinted destinations and says them aloud. */
+  function showHint(moves: readonly { from: Square; to: Square }[]): void {
+    hinted = moves.map((m) => m.to);
+    syncMarkers();
+    const say = (m: { from: Square; to: Square }): string =>
+      `${toAlgebraic(m.from)} ${toAlgebraic(m.to)}`;
+    srSay(moves.length > 1
+      ? i18n.t('a11y.hintMany', { move: say(moves[0]), others: moves.slice(1).map(say).join(', ') })
+      : i18n.t('a11y.hintOne', { move: say(moves[0]) }));
+  }
+
+  /**
+   * ========================= A HINT IS THE SAME ENGINE, ASKED DIFFERENTLY =========================
+   * Same client, same id matching as the opponent's own search — which is what stops a hint asked
+   * for and then abandoned from arriving later and marking squares in a position that has moved on.
+   *
+   * ⚠️ What it says is carefully limited. "The engine would play this, and rates these the same" is
+   * a fact about a three-ply negamax with a material-and-placement evaluator, not about chess.
+   */
+  async function askHint(): Promise<void> {
+    if (hinting || game.phase() !== 'idle') return;
+    hinting = true;
+    hud.refresh();
+    srSay(i18n.t('a11y.hintAsked'));
+    try {
+      const hint = await opponent.requestHint(rules.fen(), DIFFICULTY_DEPTH[difficulty]);
+      if (!hint) { srSay(i18n.t('a11y.hintNone')); return; }
+      showHint(hint.ties.length ? hint.ties : [hint.move]);
+    } catch {
+      srSay(i18n.t('status.engineFailed'));
+    } finally {
+      hinting = false;
+      hud.refresh();
+    }
   }
 
   function applyTheme(key: string): void {
@@ -318,6 +359,8 @@ export function boot(host: Document = document): void {
   let animation: MoveAnimation | null = null;
 
   function syncPieces(): void {
+    // A hint describes ONE position, so anything that changes the position retires it.
+    hinted = [];
     const flying = game.animating();
     // The rules have ALREADY applied the move — forwards or backwards — so the travelling piece is
     // standing on the square it is flying TO. It is left out of the static set and drawn
@@ -335,6 +378,8 @@ export function boot(host: Document = document): void {
 
   function syncMarkers(): void {
     const markers = new Map<number, Marker>();
+    // First, so anything more urgent — a selection, a check — writes over them.
+    for (const square of hinted) markers.set(squareIndex(square), 'hint');
     const selected = game.selection();
     if (selected) {
       markers.set(squareIndex(selected), 'selected');

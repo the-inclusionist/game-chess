@@ -107,7 +107,7 @@ describe('[Boot] the board turns round for a player who chose black', () => {
   it('flips the ELEMENT and leaves the grid alone', () => {
     // The rotation is CSS on the board. The DOM keeps its rows, its columns, its reading order and
     // its arrow keys — which is why a1 is still a1 to a screen reader on a turned board.
-    saveSettings({ side: 'b' });
+    saveSettings({ mode: 'b' });
     fixture();
     boot2d(document);
     const board = document.querySelector<HTMLElement>('.board-2d');

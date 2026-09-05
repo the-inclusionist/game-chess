@@ -25,6 +25,9 @@ import { DIFFICULTIES } from '../chess/engine/difficulty.ts';
 import type { Rules } from '../chess/rules.ts';
 import type { GameState } from '../chess/state.ts';
 import type { PieceType, Side } from '../chess/types.ts';
+
+/** One person as white, one as black, or two people sharing the board. */
+export type GameMode = 'w' | 'b' | 'two';
 import { BOARD_THEMES } from './board-themes.ts';
 import { contrastRows } from './contrast-report.ts';
 import type { I18n } from '../i18n/index.ts';
@@ -63,11 +66,18 @@ export interface HudDeps {
   onTheme?(key: string): void;
 
   /**
-   * Which side the player takes. Changing it starts a new game — there is no honest way to swap
-   * sides in the middle of one — so the control says so and the composition root asks.
+   * Who is playing. Changing it starts a new game — there is no honest way to change who owns the
+   * pieces in the middle of one — so the composition root does exactly that.
    */
-  playerSide?(): Side;
-  onPlayerSide?(side: Side): void;
+  mode?(): GameMode;
+  onMode?(mode: GameMode): void;
+
+  /**
+   * Asks the engine what it would play. Absent on a board with no engine, which is the two-player
+   * mode: there is nobody to ask.
+   */
+  onHint?(): void;
+  hintBusy?(): boolean;
 
   /** The drawings available for the pieces. Only the flat view has any; the projected view draws
    * geometry and has nothing to choose between. */
@@ -315,7 +325,7 @@ export function createHud(deps: HudDeps): Hud {
   motionLabel.className = 'hud-check';
   motionBox.append(motionInput, motionLabel);
 
-  const sideGroup = groupOf('hud-side', ['w', 'b'], (v) => `hud-side-${v}`);
+  const modeGroup = groupOf('hud-mode', ['w', 'b', 'two'], (v) => `hud-mode-${v}`);
 
   // --- which drawing the pieces use ------------------------------------------
   const setBox = doc.createElement('p');
@@ -376,8 +386,21 @@ export function createHud(deps: HudDeps): Hud {
   coordsLabel.className = 'hud-check';
   coordsBox.append(coordsInput, coordsLabel);
 
+  // --- the hint --------------------------------------------------------------
+  // ========================= WHY THIS IS A BUTTON AND NOT A PANEL =========================
+  // A hint is a question asked once, so it is a verb. What it answers with goes on the BOARD —
+  // marks on the squares — and into the live region, because a player who cannot see the marks is
+  // exactly the player a hint is for.
+  const hintBox = doc.createElement('p');
+  const hintButton = doc.createElement('button');
+  hintButton.type = 'button';
+  hintButton.id = 'hud-hint';
+  hintButton.className = 'hud-hint';
+  hintBox.appendChild(hintButton);
+
   root.append(turn, capturedBox, movesBox);
-  if (deps.onPlayerSide) root.appendChild(sideGroup.box);
+  if (deps.onHint) root.appendChild(hintBox);
+  if (deps.onMode) root.appendChild(modeGroup.box);
   root.appendChild(difficulty.box);
   if (deps.pieceSets) root.appendChild(setBox);
   if (deps.themes) root.appendChild(themeBox);
@@ -390,10 +413,13 @@ export function createHud(deps: HudDeps): Hud {
   }
   for (const { input } of difficulty.options) input.addEventListener('change', onDifficultyChange);
 
-  function onSideInput(event: Event): void {
-    deps.onPlayerSide?.((event.target as HTMLInputElement).value as Side);
+  function onModeInput(event: Event): void {
+    deps.onMode?.((event.target as HTMLInputElement).value as GameMode);
   }
-  for (const { input } of sideGroup.options) input.addEventListener('change', onSideInput);
+  for (const { input } of modeGroup.options) input.addEventListener('change', onModeInput);
+
+  function onHintClick(): void { deps.onHint?.(); }
+  hintButton.addEventListener('click', onHintClick);
 
   function onVisionChange(): void { deps.onVision(visionSelect.value); }
   visionSelect.addEventListener('change', onVisionChange);
@@ -574,11 +600,18 @@ export function createHud(deps: HudDeps): Hud {
     motionLabel.textContent = i18n.t('hud.reducedMotion');
     motionInput.checked = deps.reducedMotion();
 
-    if (deps.onPlayerSide) {
-      sideGroup.legend.textContent = i18n.t('hud.playAs');
-      const chosen = deps.playerSide?.() ?? 'w';
-      for (const { input, label } of sideGroup.options) {
-        label.textContent = i18n.t(`turn.${input.value}`);
+    if (deps.onHint) {
+      hintButton.textContent = i18n.t('hud.hint');
+      hintButton.disabled = deps.hintBusy?.() ?? false;
+    }
+
+    if (deps.onMode) {
+      modeGroup.legend.textContent = i18n.t('hud.mode');
+      const chosen = deps.mode?.() ?? 'w';
+      for (const { input, label } of modeGroup.options) {
+        label.textContent = i18n.t(`mode.${input.value}`);
+        // The short label fits three across an 88-pixel column; the full phrase is what is spoken.
+        label.setAttribute('aria-label', i18n.t(`mode.${input.value}.long`));
         input.checked = input.value === chosen;
       }
     }
@@ -614,7 +647,8 @@ export function createHud(deps: HudDeps): Hud {
     refresh,
     destroy() {
       for (const { input } of difficulty.options) input.removeEventListener('change', onDifficultyChange);
-      for (const { input } of sideGroup.options) input.removeEventListener('change', onSideInput);
+      for (const { input } of modeGroup.options) input.removeEventListener('change', onModeInput);
+      hintButton.removeEventListener('click', onHintClick);
       visionSelect.removeEventListener('change', onVisionChange);
       motionInput.removeEventListener('change', onMotionChange);
       outlineInput.removeEventListener('change', onOutlineChange);

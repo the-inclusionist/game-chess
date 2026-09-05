@@ -168,11 +168,12 @@ export interface ViewSettings {
   readonly set?: string;
   readonly coordinates?: boolean;
   /**
-   * Which side the person is playing. Not a rendering preference — it decides who the opponent
-   * answers as — but it belongs here for the same reason the others do: a player who chose black
-   * and then changed view would otherwise find themselves white again.
+   * Who is playing: one person as white, one as black, or two people sharing the board. Not a
+   * rendering preference — it decides whether there is an opponent at all, and which side it
+   * answers as — but it belongs here for the same reason the others do: a choice that reset on
+   * every change of view would be a bug.
    */
-  readonly side?: 'w' | 'b';
+  readonly mode?: 'w' | 'b' | 'two';
 }
 
 export function saveSettings(settings: ViewSettings, store: SessionStore | null = defaultStore()): void {
@@ -187,12 +188,12 @@ export function loadSettings(store: SessionStore | null = defaultStore()): ViewS
     if (!raw) return {};
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return {};
-    const { theme, set, coordinates, side } = parsed as ViewSettings;
+    const { theme, set, coordinates, mode } = parsed as ViewSettings;
     return {
       ...(typeof theme === 'string' ? { theme } : {}),
       ...(typeof set === 'string' ? { set } : {}),
       ...(typeof coordinates === 'boolean' ? { coordinates } : {}),
-      ...(side === 'w' || side === 'b' ? { side } : {}),
+      ...(mode === 'w' || mode === 'b' || mode === 'two' ? { mode } : {}),
     };
   } catch {
     return {};

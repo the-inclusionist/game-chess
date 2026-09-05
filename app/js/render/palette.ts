@@ -89,6 +89,12 @@ export const MARKER_SELECTED = '#1B4F8A';
 export const MARKER_CHECK = '#B3341F';
 /** Where the keyboard is. Distinct from selection: the cursor is looking, the selection is held. */
 export const MARKER_CURSOR = '#0E7C86';
+/**
+ * Where the engine would play. A HUE of its own, because it is not one of the player's own states:
+ * a hint is an opinion from outside the game, and giving it the selection blue or the move green
+ * would make it look like something the player had done.
+ */
+export const MARKER_HINT = '#7A4FBF';
 
 /**
  * Stroke width in Zdog units.
