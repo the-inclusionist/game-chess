@@ -56,6 +56,11 @@ export const en: Catalog = {
     'set.pecita':   'Handwritten',
     'set.off.licence': 'licence to confirm',
     'hud.boardStandard': 'GNU Chess colours',
+    'view.2d':   '2D',
+    'view.25d':  '2.5D',
+    'view.3d':   '3D',
+    'view.go':   'See the board in {name}',
+    'view.soon': 'not available yet',
     'theme.wikipedia': "Wikipedia's board",
     'theme.gnuchess':  "GNU Chess's board",
 

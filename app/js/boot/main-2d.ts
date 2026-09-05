@@ -26,7 +26,8 @@ import { VIZ_FILTER } from '@the-inclusionist/engine/render/viz-modes.js';
 import { createChessDeclaration } from '../declaration/chess-declaration.ts';
 import { createEngineClient } from '../chess/engine/client.ts';
 import { DEFAULT_DIFFICULTY, DIFFICULTY_DEPTH, type Difficulty } from '../chess/engine/difficulty.ts';
-import { createRules, type MoveResult } from '../chess/rules.ts';
+import { type MoveResult } from '../chess/rules.ts';
+import { resume, save as saveGame } from '../chess/session.ts';
 import { createGameState, type Activation } from '../chess/state.ts';
 import { type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale, type I18n } from '../i18n/index.ts';
@@ -65,7 +66,11 @@ export function boot2d(host: Document = document): void {
   const i18n = createI18n(preferredLocale(navigator.language));
   host.documentElement.lang = i18n.bcp47();
 
-  const rules = createRules();
+  // ========================= THE GAME SURVIVES A CHANGE OF VIEW =========================
+  // The three views are three pages, so a navigation throws away every object in memory. The score
+  // sheet is written to the tab's own storage after anything that changes it and read back here,
+  // which is why switching from 2D to 2.5D continues the game rather than starting one.
+  const rules = resume();
   const game = createGameState({ rules, opponent: true });
   const opponent = createEngineClient();
   let difficulty: Difficulty = DEFAULT_DIFFICULTY;
@@ -106,6 +111,7 @@ export function boot2d(host: Document = document): void {
 
   const hud = createHud({
     doc: host,
+    view: '2d',
     i18n,
     rules,
     state: game,
@@ -198,6 +204,7 @@ export function boot2d(host: Document = document): void {
   function redraw(): void {
     board.refresh();
     hud.refresh();
+    saveGame(rules);
   }
 
   function askOpponent(): void {
@@ -211,13 +218,14 @@ export function boot2d(host: Document = document): void {
         if (!reply || game.phase() !== 'thinking') return;
         const move = game.applyOpponentMove(reply.move.from, reply.move.to, reply.move.promotion);
         if (!move) return;
-        // No flight to wait for: the piece is where the rules put it, so the phase settles at once.
         game.animationDone();
         redraw();
         srSay(moveSentence(i18n, move));
         if (!move.checkmate && move.check) srAlert(i18n.t('status.check'));
         announceOutcome();
-        askOpponent();
+        // The reply is the move nobody was watching for, so it is the one that most needs to be
+        // seen travelling rather than to have simply appeared somewhere else.
+        void board.animate(move.from, move.to, { reducedMotion: motionReduced });
       })
       .catch((error: unknown) => {
         thinking = false;
@@ -229,10 +237,22 @@ export function boot2d(host: Document = document): void {
   function onActivate(square: Square): void {
     cursor = square;
     const result = game.activate(square);
-    if (result.kind === 'moved') game.animationDone();
+    if (result.kind !== 'moved') {
+      redraw();
+      announce(result);
+      return;
+    }
+
+    const move = result.move;
+    // The rules have already applied it, so the phase settles now and the travel is only the
+    // picture catching up. Said before the flight, not after: a player who cannot see it should
+    // not wait a third of a second to be told what happened.
+    game.animationDone();
     redraw();
     announce(result);
-    if (result.kind === 'moved') { announceOutcome(); askOpponent(); }
+    announceOutcome();
+    void board.animate(move.from, move.to, { reducedMotion: motionReduced })
+      .then(() => askOpponent());
   }
 
   function walkHistory(direction: 'back' | 'forward'): void {

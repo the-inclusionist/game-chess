@@ -42,6 +42,7 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
     reducedMotion: () => motion, onReducedMotion,
     outline: () => outline, onOutline,
     coordinates: () => coords, onCoordinates: onCoords,
+    view: '2.5d',
     canTakeBack: () => state.canTakeBack(), canReplay: () => state.canReplay(),
     onTakeBack, onReplay,
   });
@@ -401,5 +402,54 @@ describe('[Panel] walking the game backwards and forwards', () => {
     build('es');
     expect(nav()[0].textContent).toContain('Deshacer');
     expect(nav()[0].getAttribute('aria-label')).toBe('Deshacer jugada');
+  });
+});
+
+// ========================= THE THREE VIEWS =========================
+// Each view is its own page, because a flat board is 110 KB and the projected one 148, and one
+// bundle carrying both would make every player download the one they are not looking at. So the
+// control that changes view is a NAVIGATION, and the element for a navigation is an anchor.
+
+describe('[Views] 2D, 2.5D and 3D across the top of the panel', () => {
+  const views = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>('.hud-view')];
+
+  it('offers all three, in order, at the top', () => {
+    build();
+    expect(views().map((v) => v.textContent)).toEqual(['2D', '2,5D', '3D']);
+    // First child of the panel: a view switch below the score sheet would be a scroll away.
+    expect(document.querySelector('.hud')!.firstElementChild!.className).toBe('hud-views');
+  });
+
+  it('marks the current one for the eye AND for the reader', () => {
+    build();
+    const current = views().filter((v) => v.getAttribute('aria-current') === 'page');
+    expect(current).toHaveLength(1);
+    expect(current[0].dataset.view).toBe('2.5d');
+    // It stays in the list rather than being removed: a control that changed length between views
+    // would move under the pointer, and a reader would lose the answer to "which am I in".
+    expect(views()).toHaveLength(3);
+  });
+
+  it('uses real links, so the platform gives back what a button would take away', () => {
+    build();
+    const [flat, projected] = views();
+    expect(flat.tagName).toBe('A');
+    expect(flat.getAttribute('href')).toBe('2d.html');
+    expect(projected.getAttribute('href')).toBe('index.html');
+  });
+
+  it('shows the view that does not exist yet as disabled, and says why', () => {
+    build();
+    const third = views()[2];
+    // A control that appears later moves the other two; saying "not yet" beats pretending there
+    // were only ever two.
+    expect(third.tagName).toBe('SPAN');
+    expect(third.getAttribute('aria-disabled')).toBe('true');
+    expect(third.getAttribute('aria-label')).toContain('ainda não disponível');
+  });
+
+  it('names each destination in the language the reader chose', () => {
+    build('en');
+    expect(views()[0].getAttribute('aria-label')).toBe('See the board in 2D');
   });
 });

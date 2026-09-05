@@ -84,6 +84,38 @@
     overflow-y: auto;
     overscroll-behavior: contain;
   }
+  /*
+   * The view switcher, at the top of the panel. Three targets across an 88-logical-pixel column,
+   * so --tap keeps each one 44 CSS px tall (WCAG 2.5.5) and they split the width, which is the
+   * dimension there is none of. The current one is filled rather than merely marked, because
+   * `aria-current` is for the reader and the fill is for the eye.
+   */
+  .hud-views { display: flex; gap: 2px; }
+  .hud-view {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: var(--tap, 44px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75em;
+    font-weight: 600;
+    text-decoration: none;
+    color: #c9d1d9;
+    background: #1b2733;
+    border: 1px solid #2b3a4a;
+    border-radius: 2px;
+  }
+  .hud-view:hover { background: #24344a; }
+  .hud-view[aria-current="page"] { background: #FFD97D; color: #14202b; border-color: #FFD97D; }
+  .hud-view[aria-disabled="true"] { opacity: 0.4; cursor: default; }
+  #game-region[data-contrast="high"] .hud-view {
+    color: #FFFFFF; background: #000000; border-color: #FFFFFF;
+  }
+  #game-region[data-contrast="high"] .hud-view[aria-current="page"] {
+    color: #000000; background: #FFFFFF;
+  }
+
   .hud h2 {
     margin: 0; font-size: 0.75em; font-weight: 600;
     color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em;
@@ -246,11 +278,72 @@
   }
   .board-2d [role="gridcell"][data-check] { background: #B3341F; }
 
+  /*
+   * ========================= A SILHOUETTE BEHIND THE PIECE =========================
+   * The 1px stroke is right INSIDE a piece — it separates the crown from the collar and the horse
+   * from its base — and too weak AROUND it: against a board of similar tone the piece has no edge,
+   * only its own fill ending. What it needs outside is one heavy unbroken line, and what it needs
+   * inside is the thin one. Those are different jobs, so they are two draws.
+   *
+   * `::before` repeats the glyph from `data-glyph` with a much heavier stroke, behind the real one.
+   * `isolation: isolate` makes `.cell-piece` a stacking context, so `z-index: -1` puts the copy
+   * behind the glyph and still in FRONT of the square — which is the whole trick.
+   *
+   * ⚠️ THE RIM IS DARK FOR BOTH SIDES, and the arithmetic forces it. A rim has to clear 3:1
+   * against BOTH squares to be an edge at all: against Wikipedia's #ffce9e and #d18b47 that means
+   * luminance at or below 0.075, so near-black — a light rim would need luminance above 2.1, which
+   * does not exist. A dark rim gives 14.57 against the light square and 7.50 against the dark. It
+   * is invisible against a black piece's own fill, and that does not matter: what it is edging is
+   * the BOARD.
+   */
   .cell-piece {
+    position: relative;
+    isolation: isolate;
     font-family: var(--piece-font, serif);
     font-size: calc(var(--ui-fs, 16px) * 1.5);
     line-height: 1;
     user-select: none;
+  }
+  .board-2d:not([data-coloured="true"]) .cell-piece[data-glyph]::before {
+    content: attr(data-glyph);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: -1;
+    color: var(--piece-halo, #17110a);
+    pointer-events: none;
+
+    /*
+     * ⚠️ NOT `-webkit-text-stroke`, and the reason is the one an illustrator knows by hand: a
+     * stroke joins its segments with a MITRE, and a mitre at an acute angle runs out to a spike.
+     * A knight's ear and a crown's points are exactly those angles, so a heavy text-stroke grew
+     * thorns off the silhouette. CSS has no `stroke-linejoin` for text to round them off with.
+     *
+     * So the rim is a DILATION instead: the same glyph drawn at twelve angles around a circle,
+     * each copy hard (zero blur) and in the rim colour. The union of a shape with copies of itself
+     * displaced around a circle is that shape grown by the radius, with round corners by
+     * construction — there is no join to mitre. Twelve steps is 30° apart, which at this radius
+     * leaves no scallop the eye can find.
+     *
+     * The radius is in `em`, so it grows with the piece when a reader enlarges the type.
+     */
+    --rim: 0.085em;
+    --rim-far: calc(var(--rim) * 0.866);
+    --rim-near: calc(var(--rim) * 0.5);
+    text-shadow:
+      var(--rim) 0 0 var(--piece-halo, #17110a),
+      var(--rim-far) var(--rim-near) 0 var(--piece-halo, #17110a),
+      var(--rim-near) var(--rim-far) 0 var(--piece-halo, #17110a),
+      0 var(--rim) 0 var(--piece-halo, #17110a),
+      calc(var(--rim-near) * -1) var(--rim-far) 0 var(--piece-halo, #17110a),
+      calc(var(--rim-far) * -1) var(--rim-near) 0 var(--piece-halo, #17110a),
+      calc(var(--rim) * -1) 0 0 var(--piece-halo, #17110a),
+      calc(var(--rim-far) * -1) calc(var(--rim-near) * -1) 0 var(--piece-halo, #17110a),
+      calc(var(--rim-near) * -1) calc(var(--rim-far) * -1) 0 var(--piece-halo, #17110a),
+      0 calc(var(--rim) * -1) 0 var(--piece-halo, #17110a),
+      var(--rim-near) calc(var(--rim-far) * -1) 0 var(--piece-halo, #17110a),
+      var(--rim-far) calc(var(--rim-near) * -1) 0 var(--piece-halo, #17110a);
   }
   /*
    * White and black with the opposite ink around them — the convention every printed diagram and
@@ -283,6 +376,22 @@
    * than a point that has to be extrapolated from a camera. `ui/coordinates` exists because Zdog
    * has no text primitive; here the cells are text already.
    */
+  /*
+   * The travelling piece. Position: fixed against the viewport, because it has to cross cells and
+   * a cell is `overflow` clipped by nothing but is still a grid item — a child of one cell cannot
+   * be drawn over another. Removed the moment it lands.
+   */
+  .cell-flight {
+    position: fixed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 5;
+    font-family: var(--piece-font, serif);
+    line-height: 1;
+  }
+
   .board-2d [role="gridcell"] .cell-coord {
     position: absolute;
     font-size: calc(var(--ui-fs, 16px) * 0.5);
@@ -300,9 +409,28 @@
   #game-region[data-contrast="high"] .board-2d { border-color: #FFFFFF; }
   #game-region[data-contrast="high"] .board-2d [role="gridcell"][data-shade="light"] { background: #8F8F8F; }
   #game-region[data-contrast="high"] .board-2d [role="gridcell"][data-shade="dark"]  { background: #5A5A5A; }
-  #game-region[data-contrast="high"] .cell-piece[data-side="w"] { color: #FFFF00; -webkit-text-stroke: 0.5px #000000; }
-  #game-region[data-contrast="high"] .cell-piece[data-side="b"] { color: #000000; -webkit-text-stroke: 0.5px #0099FF; }
+  /*
+   * ⚠️ THE PIECES DO NOT CHANGE HERE, and that is the finding rather than an omission. These rules
+   * used to import the 3D high-contrast palette — yellow #FFFF00 and black under a #0099FF rim —
+   * which was solved for SOLIDS whose faces catch light, and which had no business on a glyph.
+   *
+   * A flat board's default already uses the two extreme inks, so high contrast has nothing left to
+   * do to the pieces; the whole of its work is the BOARD. Measured on the grey pair below:
+   *
+   *              vs light   vs dark          against the tan default it replaces
+   *   white        3.23       6.90           white on light was 1.44
+   *   black        6.49       3.04           black on light was 14.57
+   *   piece against piece  21.00             square against square  2.13
+   *
+   * All four pairs clear 3:1 — which the default board cannot do and does not claim to, because
+   * there the white piece is carried by its outline. Stated explicitly rather than left to
+   * inheritance, so that changing the default cannot silently change this.
+   */
+  #game-region[data-contrast="high"] .cell-piece[data-side="w"] { color: #FFFFFF; -webkit-text-stroke: 1px #000000; }
+  #game-region[data-contrast="high"] .cell-piece[data-side="b"] { color: #000000; -webkit-text-stroke: 1px #FFFFFF; }
   #game-region[data-contrast="high"] .cell-coord { color: #FFFFFF; }
+  /* 3.04 against the darker grey and 6.49 against the lighter — an edge on both. */
+  #game-region[data-contrast="high"] .board-2d { --piece-halo: #000000; }
 </style>
 </head>
 <body>

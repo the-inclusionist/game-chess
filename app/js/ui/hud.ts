@@ -27,8 +27,13 @@ import type { GameState } from '../chess/state.ts';
 import type { PieceType, Side } from '../chess/types.ts';
 import type { I18n } from '../i18n/index.ts';
 
+/** Which drawing of the board this page is. Also which of the three buttons is the current one. */
+export type ViewKind = '2d' | '2.5d' | '3d';
+
 export interface HudDeps {
   readonly doc: Document;
+  /** The view this page shows. Omit and the switcher is left out entirely. */
+  readonly view?: ViewKind;
   readonly i18n: I18n;
   readonly rules: Rules;
   readonly state: GameState;
@@ -70,6 +75,13 @@ const GLYPH: Readonly<Record<PieceType, string>> = {
   p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚',
 };
 
+/** The three views and the page each one lives on. `null` is a view that is not built yet. */
+const VIEW_PAGES: readonly (readonly [ViewKind, string | null])[] = [
+  ['2d', '2d.html'],
+  ['2.5d', 'index.html'],
+  ['3d', null],
+];
+
 /** Heaviest first, so a captured queen is not buried behind six pawns. */
 const ORDER: readonly PieceType[] = ['q', 'r', 'b', 'n', 'p'];
 
@@ -78,6 +90,40 @@ export function createHud(deps: HudDeps): Hud {
 
   const root = doc.createElement('div');
   root.className = 'hud';
+
+  // --- the three views ---------------------------------------------------------
+  // ========================= LINKS, NOT BUTTONS =========================
+  // Each view is its own page, because the measurement said so: a flat board is 110 KB and the
+  // projected one 148, and a switch inside one bundle would make every player download both. So
+  // the control that changes view is a NAVIGATION, and the element for a navigation is an anchor —
+  // which gets middle-click, open-in-new-tab, the browser's own back button and a real focus ring
+  // from the platform rather than from this file.
+  //
+  // The current view stays in the list and is marked `aria-current="page"`. Removing it would make
+  // the control jump about as you move between views, and a screen reader would lose the answer to
+  // "which one am I in".
+  const views = doc.createElement('nav');
+  views.className = 'hud-views';
+  const viewLinks: { kind: ViewKind; el: HTMLElement }[] = [];
+
+  if (deps.view) {
+    const here = deps.view;
+    for (const [kind, href] of VIEW_PAGES) {
+      // ⚠️ The 3D view does not exist yet. It is shown and disabled rather than hidden, because a
+      // control that appears later moves the other two, and because saying "not yet" is more
+      // useful than pretending there were only ever two.
+      const pending = href === null;
+      const el = doc.createElement(pending ? 'span' : 'a');
+      el.className = 'hud-view';
+      el.dataset.view = kind;
+      if (!pending) (el as HTMLAnchorElement).href = href;
+      if (kind === here) el.setAttribute('aria-current', 'page');
+      if (pending) el.setAttribute('aria-disabled', 'true');
+      views.appendChild(el);
+      viewLinks.push({ kind, el });
+    }
+    root.appendChild(views);
+  }
 
   // --- turn ------------------------------------------------------------------
   const turn = doc.createElement('p');
@@ -280,6 +326,18 @@ export function createHud(deps: HudDeps): Hud {
   }
 
   function refresh(): void {
+    for (const { kind, el } of viewLinks) {
+      el.textContent = i18n.t(`view.${kind === '2.5d' ? '25d' : kind}`);
+      const pending = el.tagName === 'SPAN';
+      el.setAttribute(
+        'aria-label',
+        pending
+          ? `${i18n.t(`view.${kind === '2.5d' ? '25d' : kind}`)}, ${i18n.t('view.soon')}`
+          : i18n.t('view.go', { name: i18n.t(`view.${kind === '2.5d' ? '25d' : kind}`) }),
+      );
+      if (pending) el.title = i18n.t('view.soon');
+    }
+
     const side = rules.turn();
     swatch.dataset.side = side;
     turnText.textContent = i18n.t(`turn.${side}`);

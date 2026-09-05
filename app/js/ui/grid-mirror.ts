@@ -85,12 +85,32 @@ export interface GridMirror {
   /** Swaps the board colours. Also nothing a screen reader hears. */
   setTheme(key: string): void;
   themeKey(): string;
+  /**
+   * Slides a piece from one square to another and resolves when it lands.
+   *
+   * ========================= WHY A FLAT BOARD ANIMATES AT ALL =========================
+   * The projected board animates because a piece crossing it is a thing moving through space. A
+   * flat board could simply redraw, and the first version did — but a redraw gives no answer to
+   * "what just happened", and the opponent's reply in particular arrives with nobody watching the
+   * square it came from. The travel IS the explanation, and it costs one element.
+   *
+   * Resolves immediately, with nothing drawn, under reduced motion — the same rule
+   * `render/animation.ts` states for the other board: reduced motion is NO animation, not a
+   * shorter one.
+   */
+  animate(from: Square, to: Square, options?: { reducedMotion?: boolean }): Promise<void>;
   destroy(): void;
 }
 
 const CELL_COUNT = FILES * RANKS;
 
 const FILE_NAMES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
+
+/**
+ * How long a piece takes to cross. The projected board uses 20 frames, which is a third of a
+ * second at 60 fps; this is the same duration said in the unit a Web Animation speaks.
+ */
+const FLIGHT_MS = 333;
 
 export function createGridMirror(deps: GridMirrorDeps): GridMirror {
   const { doc, i18n, rules, state } = deps;
@@ -199,7 +219,13 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
       if (!visible) continue;
       const piece = rules.pieceAt(square);
       const glyph = glyphs[i];
-      glyph.textContent = piece ? set.glyph[piece.side][piece.type] : '';
+      const drawn = piece ? set.glyph[piece.side][piece.type] : '';
+      glyph.textContent = drawn;
+      // The same character again, for the silhouette drawn behind it. A pseudo-element can only
+      // take its content from an attribute, and repeating it here is what lets the whole rim be
+      // CSS — no second element per cell, nothing to keep in step when a set changes.
+      if (drawn) glyph.dataset.glyph = drawn;
+      else delete glyph.dataset.glyph;
       // The side is a data attribute rather than a colour written here, so the stylesheet owns
       // the palette and the high-contrast variant can override it in one place. It is also what
       // carries the side for a coloured set, whose glyph cannot be tinted at all.
@@ -291,6 +317,53 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
     setTheme(key) {
       theme = boardTheme(key);
       applyTheme();
+    },
+
+    async animate(from, to, options = {}) {
+      const source = cells[squareIndex(from)];
+      const target = cells[squareIndex(to)];
+      const glyph = glyphs[squareIndex(to)];
+      // Nothing to fly, or nobody to see it fly.
+      if (!visible || !glyph || options.reducedMotion) return;
+
+      const a = source.getBoundingClientRect();
+      const b = target.getBoundingClientRect();
+      if (!a.width || !b.width) return;   // laid out yet? in a detached tree it is not
+
+      const flight = doc.createElement('span');
+      flight.className = 'cell-flight';
+      flight.setAttribute('aria-hidden', 'true');
+      flight.style.width = `${a.width}px`;
+      flight.style.height = `${a.height}px`;
+      flight.style.left = `${a.left}px`;
+      flight.style.top = `${a.top}px`;
+      // A copy of the destination glyph, which is where the piece already stands as far as the
+      // rules are concerned — the same arrangement the 3D board uses, for the same reason.
+      const copy = glyph.cloneNode(true) as HTMLElement;
+      copy.classList.remove('cell-piece');
+      copy.classList.add('cell-piece');
+      flight.appendChild(copy);
+      doc.body.appendChild(flight);
+
+      // The real piece waits at its destination until the copy gets there.
+      const wasHidden = glyph.style.visibility;
+      glyph.style.visibility = 'hidden';
+
+      const travel = flight.animate(
+        [
+          { transform: 'translate(0px, 0px)' },
+          { transform: `translate(${b.left - a.left}px, ${b.top - a.top}px)` },
+        ],
+        { duration: FLIGHT_MS, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' },
+      );
+
+      try {
+        await travel.finished;
+      } catch {
+        // Cancelled — the board moved on. Landing is still the right thing to do.
+      }
+      flight.remove();
+      glyph.style.visibility = wasHidden;
     },
 
     setPieceSet(key) {

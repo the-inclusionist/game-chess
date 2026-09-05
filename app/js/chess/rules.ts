@@ -85,6 +85,8 @@ export interface Rules {
   /** Does `side` cover this square? Becomes the contract's `hazard` role, and the sonar's warning. */
   isAttackedBy(square: Square, side: Side): boolean;
   fen(): string;
+  /** The position this game began from. Only interesting to whoever has to rebuild it. */
+  startFen(): string;
   history(): readonly MoveResult[];
   canUndo(): boolean;
   undo(): void;
@@ -101,6 +103,11 @@ export interface Rules {
    */
   canRedo(): boolean;
   redo(): boolean;
+  /**
+   * The moves that have been taken back, in PLAY order — oldest first, which is the order they
+   * would be put back in. Written down when a view changes, so "avançar" survives the navigation.
+   */
+  pending(): readonly MoveResult[];
 }
 
 const algebraic = (square: Square): AlgebraicSquare => toAlgebraic(square) as AlgebraicSquare;
@@ -116,6 +123,9 @@ const toPiece = (type: PieceSymbol, color: Color): Piece =>
 
 export function createRules(fen?: string): Rules {
   const game = fen ? new Chess(fen) : new Chess();
+  // Captured before a move is played, because chess.js will not tell us later and a saved game
+  // that always assumed the standard opening would rebuild the wrong game from any other.
+  const start = game.fen();
   const played: MoveResult[] = [];
   /** Moves taken back, newest last. Emptied by any new move. */
   const future: MoveResult[] = [];
@@ -214,6 +224,7 @@ export function createRules(fen?: string): Rules {
     isAttackedBy: (square, side) => game.isAttacked(algebraic(square), side as Color),
 
     fen: () => game.fen(),
+    startFen: () => start,
     history: () => played,
 
     canUndo: () => played.length > 0,
@@ -225,6 +236,10 @@ export function createRules(fen?: string): Rules {
     },
 
     canRedo: () => future.length > 0,
+
+    // `future` is newest-first, because `undo` pushes the move it just removed. Play order is
+    // therefore the reverse, and that is the order a caller means by "what is ahead".
+    pending: () => [...future].reverse(),
 
     redo() {
       const next = future[future.length - 1];

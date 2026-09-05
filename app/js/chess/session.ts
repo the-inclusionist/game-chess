@@ -1,0 +1,152 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// chess/session — the game, written down so it survives a change of view.
+//
+// ========================= WHY THIS EXISTS AT ALL =========================
+// The three views are three PAGES, because the measurement said so: a flat board is 110 KB and the
+// projected one 148, and one bundle carrying both would make every player download the one they
+// are not looking at. That decision has a bill, and this is it — a navigation throws away every
+// object in memory, so switching from 2D to 2.5D restarted the game.
+//
+// ========================= WHY MOVES AND NOT A FEN =========================
+// A FEN is the position and nothing else. It would restore the board and lose the score sheet, the
+// captured tally that is READ from that score sheet, and both directions of the take-back. What is
+// saved here is therefore the list of moves — and the list of moves that have been taken BACK, so
+// that "avançar" still has somewhere to go after a change of view.
+//
+// Restoring replays them. That costs a few hundred microseconds for a whole game and buys exact
+// agreement with a game that was never interrupted: same history, same captures, same redo stack,
+// same threefold-repetition state, because chess.js has computed all of it the same way it would
+// have anyway.
+//
+// ========================= WHY sessionStorage =========================
+// It survives a navigation within the tab, which is the whole requirement, and it is gone when the
+// tab closes. `localStorage` would resurrect a half-finished game days later on a shared school
+// machine, in front of whoever sat down next — a different feature, and one nobody asked for.
+//
+// Every access is wrapped: a private window, a browser configured to refuse site data, or a full
+// quota all throw, and none of them is a reason for a chess game to fail to start.
+
+import type { PieceType } from './types.ts';
+import { fromAlgebraic, toAlgebraic } from './types.ts';
+import { createRules, type Rules } from './rules.ts';
+
+const KEY = 'incl_chess_game';
+
+/** A move as four or five characters: `e2e4`, or `e7e8q` for a promotion. */
+export type MoveToken = string;
+
+export interface SavedGame {
+  /**
+   * The position the game began from. Absent means the standard opening — which is every game this
+   * app starts today, and exactly the assumption that would rebuild the WRONG game the first time
+   * one did not.
+   */
+  readonly start?: string;
+  /** In play order. */
+  readonly played: readonly MoveToken[];
+  /** Taken back, in PLAY order — so restoring can replay them and unplay them again. */
+  readonly future: readonly MoveToken[];
+}
+
+export interface SessionStore {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
+/** The tab's own storage, or nothing at all if the browser will not give it. */
+export function defaultStore(): SessionStore | null {
+  try {
+    const store = window.sessionStorage;
+    // Touch it: some browsers hand over an object that throws only on first use.
+    const probe = '__incl_probe';
+    store.setItem(probe, '1');
+    store.removeItem(probe);
+    return store;
+  } catch {
+    return null;
+  }
+}
+
+const token = (move: { from: { x: number; y: number }; to: { x: number; y: number };
+  promotion: PieceType | null }): MoveToken =>
+  toAlgebraic(move.from) + toAlgebraic(move.to) + (move.promotion ?? '');
+
+export function describe(rules: Rules): SavedGame {
+  const start = rules.startFen();
+  return {
+    ...(start === createRules().fen() ? {} : { start }),
+    played: rules.history().map(token),
+    future: rules.pending().map(token),
+  };
+}
+
+export function save(rules: Rules, store: SessionStore | null = defaultStore()): void {
+  if (!store) return;
+  try {
+    store.setItem(KEY, JSON.stringify(describe(rules)));
+  } catch {
+    // Out of quota, or a browser that refuses. The game continues; only its memory is lost.
+  }
+}
+
+export function clear(store: SessionStore | null = defaultStore()): void {
+  try { store?.removeItem(KEY); } catch { /* see above */ }
+}
+
+/** Reads what was saved, or null. Anything malformed is treated as nothing rather than trusted. */
+export function load(store: SessionStore | null = defaultStore()): SavedGame | null {
+  if (!store) return null;
+  let raw: string | null = null;
+  try { raw = store.getItem(KEY); } catch { return null; }
+  if (!raw) return null;
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const played = (parsed as SavedGame).played;
+    const future = (parsed as SavedGame).future;
+    if (!Array.isArray(played) || !Array.isArray(future)) return null;
+    if (!played.every(isToken) || !future.every(isToken)) return null;
+    const start = (parsed as SavedGame).start;
+    if (start !== undefined && typeof start !== 'string') return null;
+    return start === undefined ? { played, future } : { start, played, future };
+  } catch {
+    return null;
+  }
+}
+
+const isToken = (value: unknown): value is MoveToken =>
+  typeof value === 'string' && (value.length === 4 || value.length === 5)
+  && fromAlgebraic(value.slice(0, 2)) !== null && fromAlgebraic(value.slice(2, 4)) !== null;
+
+/**
+ * Rebuilds the rules from a saved game. Every token is replayed — the taken-back ones too — and
+ * then unplayed, which is what puts them back on the redo stack in the order `redo()` expects.
+ *
+ * ⚠️ A token that will not play STOPS the restore rather than being skipped. A saved game is only
+ * worth anything if it is the same game; half of one, with a move quietly missing, would be a
+ * position nobody ever reached.
+ */
+export function restore(saved: SavedGame): Rules {
+  const fresh = (): Rules => createRules(saved.start);
+  const rules = fresh();
+
+  for (const item of [...saved.played, ...saved.future]) {
+    const from = fromAlgebraic(item.slice(0, 2));
+    const to = fromAlgebraic(item.slice(2, 4));
+    const promotion = item.length === 5 ? (item[4] as PieceType) : undefined;
+    // ⚠️ A token that will not play STOPS the restore. It also has to start over rather than keep
+    // what played: half a game is a position nobody reached.
+    if (!from || !to || !rules.move(from, to, promotion)) return fresh();
+  }
+
+  for (let i = 0; i < saved.future.length; i++) rules.undo();
+  return rules;
+}
+
+/** The rules a page should start from: a saved game if there is a sound one, a new one otherwise. */
+export function resume(store: SessionStore | null = defaultStore()): Rules {
+  const saved = load(store);
+  return saved ? restore(saved) : createRules();
+}

@@ -61,6 +61,11 @@ export const pt: Catalog = {
     'set.pecita':   'Manuscrita',
     'set.off.licence': 'licença a confirmar',
     'hud.boardStandard': 'Cores do GNU Chess',
+    'view.2d':   '2D',
+    'view.25d':  '2,5D',
+    'view.3d':   '3D',
+    'view.go':   'Ver o tabuleiro em {name}',
+    'view.soon': 'ainda não disponível',
     'theme.wikipedia': 'Tabuleiro da Wikipédia',
     'theme.gnuchess':  'Tabuleiro do GNU Chess',
 

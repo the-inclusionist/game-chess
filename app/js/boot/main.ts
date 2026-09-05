@@ -20,7 +20,8 @@ import { createHud } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
 import { createEngineClient } from '../chess/engine/client.ts';
 import { DEFAULT_DIFFICULTY, DIFFICULTY_DEPTH, type Difficulty } from '../chess/engine/difficulty.ts';
-import { createRules, type MoveResult } from '../chess/rules.ts';
+import { type MoveResult } from '../chess/rules.ts';
+import { resume, save as saveGame } from '../chess/session.ts';
 import { createGameState, type Activation, type HistoryStep } from '../chess/state.ts';
 import { sameSquare, type Piece, type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale, type I18n } from '../i18n/index.ts';
@@ -74,7 +75,11 @@ export function boot(host: Document = document): void {
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   const reducedMotion = (): boolean => motionReduced;
 
-  const rules = createRules();
+  // ========================= THE GAME SURVIVES A CHANGE OF VIEW =========================
+  // The three views are three pages, so a navigation throws away every object in memory. The score
+  // sheet is written to the tab's own storage after anything that changes it and read back here,
+  // which is why switching from 2D to 2.5D continues the game rather than starting one.
+  const rules = resume();
   const game = createGameState({ rules, opponent: true });
   const opponent = createEngineClient();
   let difficulty: Difficulty = DEFAULT_DIFFICULTY;
@@ -176,6 +181,7 @@ export function boot(host: Document = document): void {
   // it, and honoured here by the board's camera offset rather than by hope.
   const hud = createHud({
     doc: host,
+    view: '2.5d',
     i18n,
     rules,
     state: game,
@@ -262,6 +268,9 @@ export function boot(host: Document = document): void {
     pieces.setPosition(placements);
     pieces.setTravelling(walking ? walking.piece : flying ? flying.piece : null);
     invalidate();
+    // Every path that changes the position comes through here — a move, a leg of a walk, the
+    // opponent's reply — which makes it the one place the score sheet has to be written down.
+    saveGame(rules);
   }
 
   function syncMarkers(): void {
