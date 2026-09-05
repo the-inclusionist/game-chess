@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// ui/player-strip — how each player is doing, at their own end of the board.
+// ui/player-strip — each player at their own end of the board, and the position between them.
 //
 // ========================= WHY IT IS NOT IN THE PANEL =========================
 // The panel already carries a score table, and it is the right place to STUDY the numbers: two
@@ -7,36 +7,28 @@
 // A player deciding on a move is looking at the board, and a number they have to look away to
 // read is a number they do not read.
 //
-// So the same facts appear again at the two top corners of the board, in the form every chess
-// program has settled on: whose pieces, how far ahead, what they have taken. This is a SECOND
-// VIEW of one state and not a second copy of it — everything here is computed from `rules` and
-// the reviewer on every refresh, so the two cannot disagree.
+// So the same facts appear again across the top of the board: what each player has taken, how
+// many mistakes they have made, and — between them, where neither player owns it — what the
+// engine makes of the position.
 //
-// ========================= THE RISK BAR =========================
-// The one number in this game that only goes up. It is the winning chance a player has given away
-// across the whole game, added up — not how they stand now. Someone can be winning comfortably
-// and have thrown away thirty points getting there, and that is the thing a learner needs shown:
-// the result flatters them and the bar does not.
+// This is a SECOND VIEW of one state and not a second copy of it. Everything here is computed
+// from `rules` and the reviewer on every refresh, so the two cannot disagree.
 //
-// ⚠️ It is a `meter` with a real `aria-valuenow`, and the figure is written out beside it. A bar
-// whose only content is its own width says nothing to a screen reader and nothing on a projector
-// with the contrast wound down (1.4.1).
+// ========================= WHY THE EVALUATION IS IN THE MIDDLE =========================
+// ⚠️ It was two numbers, one per player, and that was wrong twice over. It made an evaluation
+// look like a possession — a thing White has and Black has — when it is one fact about one
+// position with a sign on it. And putting it beside each player invites reading only your own,
+// which is the opposite of what an evaluation is for.
+//
+// One number, in the middle, positive for White and negative for Black. That is the convention
+// every engine and every broadcast uses, and it is the shortest possible way to say "this is
+// about the position, not about you".
 
 import { capturedGlyphs } from '../chess/captured.ts';
 import type { Rules } from '../chess/rules.ts';
 import type { Side } from '../chess/types.ts';
 import type { I18n } from '../i18n/index.ts';
 import { formatPawns } from './scoreboard.ts';
-import { leadFor, material } from '../chess/material.ts';
-
-/**
- * Points of winning chance at which the bar is full.
- *
- * ⚠️ A hundred would be the tidy answer and the useless one: a whole game's worth of mistakes is
- * a bar that never moves in a normal game. Sixty is about three outright blunders, which is a
- * scale on which an ordinary game's ordinary slips are actually visible.
- */
-export const RISK_FULL = 60;
 
 export interface PlayerStripDeps {
   readonly doc: Document;
@@ -44,8 +36,8 @@ export interface PlayerStripDeps {
   readonly rules: Rules;
   /** The engine's evaluation in centipawns FROM WHITE, or null while it has none. */
   evaluation(): number | null;
-  /** Winning chance given away by this side, in percentage points. */
-  risk(side: Side): number;
+  /** How many moves of this side's the engine has marked as a mistake or worse. */
+  mistakes(side: Side): number;
 }
 
 export interface PlayerStrips {
@@ -58,11 +50,11 @@ export function createPlayerStrips(deps: PlayerStripDeps): PlayerStrips {
 
   const root = doc.createElement('div');
   root.className = 'board-players';
-  // A picture of things said elsewhere in words: the panel's score table carries the same numbers
-  // with headers, and the move list carries the captures. Announcing them twice is noise.
+  // A picture of things said elsewhere in words: the panel's score table carries the evaluation
+  // and the mistake count with headers, and the move list carries the captures. Twice is noise.
   root.setAttribute('aria-hidden', 'true');
 
-  const sides = (['w', 'b'] as const).map((side) => {
+  const make = (side: Side) => {
     const box = doc.createElement('div');
     box.className = 'player-strip';
     box.dataset.side = side;
@@ -70,67 +62,53 @@ export function createPlayerStrips(deps: PlayerStripDeps): PlayerStrips {
     const name = doc.createElement('p');
     name.className = 'player-name';
 
-    const score = doc.createElement('p');
-    score.className = 'player-score';
-    const lead = doc.createElement('b');
-    const engine = doc.createElement('span');
-    engine.className = 'player-engine';
-    score.append(lead, engine);
-
-    const riskRow = doc.createElement('p');
-    riskRow.className = 'player-risk';
-    const bar = doc.createElement('span');
-    bar.className = 'player-risk-bar';
-    bar.setAttribute('role', 'meter');
-    bar.setAttribute('aria-valuemin', '0');
-    bar.setAttribute('aria-valuemax', String(RISK_FULL));
-    const fill = doc.createElement('span');
-    fill.className = 'player-risk-fill';
-    bar.appendChild(fill);
-    const riskValue = doc.createElement('span');
-    riskValue.className = 'player-risk-value';
-    riskRow.append(bar, riskValue);
-
-    const taken = doc.createElement('p');
+    const row = doc.createElement('p');
+    row.className = 'player-row';
+    const count = doc.createElement('b');
+    count.className = 'player-mistakes';
+    const taken = doc.createElement('span');
     taken.className = 'player-taken';
+    // ⚠️ The counter goes on the OUTSIDE — left of the captures on the left, right of them on the
+    // right — so it stays put as the row of glyphs grows. Put it on the inside and a queen taken
+    // on move thirty pushes the number a centimetre across the board.
+    if (side === 'w') row.append(count, taken);
+    else row.append(taken, count);
 
-    box.append(name, score, riskRow, taken);
-    root.appendChild(box);
-    return { side, box, name, lead, engine, bar, fill, riskValue, taken };
-  });
+    box.append(name, row);
+    return { side, box, name, count, taken };
+  };
+
+  const white = make('w');
+  const black = make('b');
+
+  const evaluation = doc.createElement('p');
+  evaluation.className = 'board-eval';
+
+  root.append(white.box, evaluation, black.box);
 
   function refresh(): void {
-    const count = material(rules);
-    const evaluation = deps.evaluation();
-
-    for (const s of sides) {
+    for (const s of [white, black]) {
       s.name.textContent = i18n.t(`turn.${s.side}`);
 
-      // Material, which is the figure every chess program puts here, and which a player can check
-      // by looking at the board. The engine's opinion sits beside it, smaller, because it cannot.
-      const ahead = leadFor(count, s.side);
-      s.lead.textContent = ahead > 0 ? `+${ahead}` : ahead < 0 ? `−${Math.abs(ahead)}` : '·';
-      s.lead.dataset.lead = ahead > 0 ? 'ahead' : ahead < 0 ? 'behind' : 'level';
-      s.engine.textContent = evaluation === null
-        ? '—'
-        : formatPawns(s.side === 'w' ? evaluation : -evaluation);
-
-      const risk = deps.risk(s.side);
-      const share = Math.min(1, risk / RISK_FULL);
-      s.fill.style.width = `${(share * 100).toFixed(1)}%`;
-      // Bands rather than a gradient: three states a person can name — and can still tell apart
-      // when the colour is gone, because the bar's LENGTH is the same fact said twice.
-      s.fill.dataset.level = share >= 0.66 ? 'high' : share >= 0.33 ? 'mid' : 'low';
-      s.riskValue.textContent = String(Math.round(risk));
-      s.bar.setAttribute('aria-valuenow', String(Math.round(risk)));
-      s.bar.setAttribute('aria-label',
-        `${i18n.t('score.risk')}: ${i18n.t(`turn.${s.side}`)}`);
+      const mistakes = deps.mistakes(s.side);
+      s.count.textContent = String(mistakes);
+      // Bands rather than a scale: three states a person can name, and the number itself is
+      // always there beside them, so nothing here is carried by colour alone (1.4.1).
+      s.count.dataset.level = mistakes >= 5 ? 'high' : mistakes >= 2 ? 'mid' : 'low';
 
       // ⚠️ The pieces THIS player has taken, which are the OTHER side's. Getting this backwards
       // reads perfectly and is silently wrong — the classic version of this display shows a
       // player their own losses and nobody notices for a week.
       s.taken.textContent = capturedGlyphs(rules, s.side === 'w' ? 'b' : 'w');
     }
+
+    const score = deps.evaluation();
+    // A dash, not a nought: the engine has an opinion or it does not, and writing 0.0 while it is
+    // still thinking would be inventing one and then quietly replacing it a second later.
+    evaluation.textContent = score === null ? '—' : formatPawns(score);
+    evaluation.dataset.lead = score === null || Math.abs(score) < 5
+      ? 'level'
+      : score > 0 ? 'white' : 'black';
   }
 
   refresh();

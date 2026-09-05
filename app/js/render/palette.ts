@@ -243,17 +243,12 @@ export const DARK_OUTLINE_SCALE = 0.5;
  *
  * So the colour that dominates has to be the colour that identifies:
  *
- *   LIGHT side   amber #FFC93C filling, near-black #0B0B0B stroke
- *   DARK side    navy #16305E filling, pale blue #B3E8FF stroke
+ *   LIGHT side   yellow #FFFF00 filling, black #000000 stroke
+ *   DARK side    black #000000 filling, light blue #4DB3FF stroke
  *
- * ⚠️ Each stroke is chosen for the square its OWN piece is hard to see on. The amber fill carries
- * itself on the dark square (3.22:1) and the near-black stroke carries it on the light one
- * (16.81:1); the navy fill carries itself on the light square (11.08:1) and the pale blue stroke
- * carries it on the dark one (3.75:1). Every combination has a boundary, and no combination needs
- * both to have one — which is fortunate, because `palette.node.test.ts` proves that having both
- * AND squares at 3:1 is arithmetically impossible.
- *
- * The founding argument of this file survives: the sides are still told apart by LUMINANCE, which
+ * #4DB3FF is the blue that clears 3:1 against the DARK SQUARE, which in the projected view is
+ * the only edge a black piece has there — Zdog draws no silhouette, so the stroke is it. The piece
+ * still reads unmistakably as the blue side. The sides are still told apart by LUMINANCE, which
  * is what comes through every colour-vision deficiency and every one of the engine's filters.
  *
  * Measured, against squares re-solved for this pair:
@@ -300,22 +295,19 @@ export const DEFAULT_PALETTE: Palette = {
 };
 
 /**
- * ⚠️ THIS PALETTE WAS FAILING THE RULE IT EXISTS FOR. Its two greys, `#8F8F8F` and `#5A5A5A`,
- * measure **2.13:1** — the high-contrast mode was shipping a board whose own squares did not
- * reach the 3:1 it is the entire point of, while spending 21:1 on the pieces, which nothing asks
- * for and which is tiring to look at for a whole game.
- *
- * The two budgets are not interchangeable and the fix moves room from one to the other: the
- * squares are 4.23:1 now and the pieces 8.45:1. Every pair that has to hold holds, and the worst
- * figure in the palette is 3.97:1. See `ui/board-themes.ts` for the full table.
+ * ⚠️ SEARCHED, not chosen. The squares here are the pair that maximises the WORST row of the
+ * contrast table — see the long note in `ui/board-themes.ts`. Every row at 3:1 is impossible for
+ * anyone: three gaps of 3 need 27 and the whole range from white to black is worth 21, so
+ * 21^(1/3) = 2.759 is the ceiling, and this palette sits on it. The old squares left one row at
+ * **2.13**; these leave nothing below 2.69.
  */
 export const HIGH_CONTRAST_PALETTE: Palette = {
   // Flat fills: with no shading, the form comes from the stroke — which is also what names the
   // side, because it covers about two thirds of a Zdog piece at this scale.
-  lightPieces: { top: '#FFC93C', side: '#FFC93C', face: '#FFC93C', stroke: '#0B0B0B' },
-  darkPieces: { top: '#16305E', side: '#16305E', face: '#16305E', stroke: '#B3E8FF' },
-  squareLight: '#EDEDED',
-  squareDark: '#707070',
+  lightPieces: { top: '#FFFF00', side: '#FFFF00', face: '#FFFF00', stroke: '#000000' },
+  darkPieces: { top: '#000000', side: '#000000', face: '#000000', stroke: '#4DB3FF' },
+  squareLight: '#989898',
+  squareDark: '#525252',
 };
 
 export function createPalette(mode: PaletteMode): Palette {

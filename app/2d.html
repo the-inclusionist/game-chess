@@ -349,12 +349,12 @@
 
   /*
    * ========================= EACH PLAYER, AT THEIR OWN END OF THE BOARD =========================
-   * Confined to the BOARD's part of the region — `right: 27.5%` is where the panel begins — so the
-   * two blocks sit at the top corners of the board and not at the corners of the window. The board
-   * itself is 68.8% tall and vertically centred, which is what leaves the room they occupy.
+   * Confined to the BOARD's part of the region — `right: 27.5%` is where the panel begins — so
+   * the two blocks sit at the top corners of the board and not of the window. The board is 68.8%
+   * tall and vertically centred, which is what leaves the room they occupy.
    *
-   * `pointer-events: none` on the container and back on for nothing: none of this is interactive,
-   * and a strip that could swallow a click would make the top rank of the board unplayable.
+   * ⚠️ `pointer-events: none`, and never anything else: none of this is interactive, and a strip
+   * that could swallow a click would make the top rank of the board unplayable.
    */
   .board-players {
     position: absolute;
@@ -364,6 +364,7 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    gap: 0.5em;
     padding: calc(var(--ui-fs, 16px) * 0.25);
     pointer-events: none;
     font-size: calc(var(--ui-fs, 16px) * 0.72);
@@ -373,8 +374,8 @@
     display: flex;
     flex-direction: column;
     gap: 0.15em;
-    min-width: 6.5em;
-    max-width: 42%;
+    min-width: 0;
+    flex: 1 1 0;
     color: #c9d1d9;
   }
   /* The black player's block reads right to left, so both are anchored to their own board edge. */
@@ -385,50 +386,52 @@
     font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
     font-size: 0.85em; color: #8b98a5;
   }
-  .player-score { margin: 0; display: flex; align-items: baseline; gap: 0.35em; }
-  .player-strip[data-side="b"] .player-score { flex-direction: row-reverse; }
-  /* Tabular figures, so the number does not shuffle sideways as the game goes on. */
-  .player-score b { font-size: 1.35em; font-variant-numeric: tabular-nums; }
-  /* ⚠️ Reinforcement only: the sign is already in the text. */
-  .player-score b[data-lead="ahead"] { color: #7DD3A0; }
-  .player-score b[data-lead="behind"] { color: #E8A0A0; }
-  .player-score b[data-lead="level"] { color: #8b98a5; }
-  .player-engine { font-size: 0.85em; color: #8b98a5; font-variant-numeric: tabular-nums; }
+  .player-row { margin: 0; display: flex; align-items: baseline; gap: 0.4em; min-width: 0; }
 
   /*
-   * The risk bar. Length and number say the same thing twice, on purpose: a bar whose only content
-   * is its own width is invisible to a screen reader and to anyone the colour fails (1.4.1).
+   * How many mistakes. A count and not a bar: a bar has to be read against its own scale, and a
+   * number a child can say out loud. The colour only reinforces what the digit already says.
    */
-  .player-risk { margin: 0; display: flex; align-items: center; gap: 0.35em; }
-  .player-strip[data-side="b"] .player-risk { flex-direction: row-reverse; }
-  .player-risk-bar {
-    display: block;
-    width: 5.5em; height: 0.5em;
-    background: #1b2733;
-    border: 1px solid #2b3a4a;
-    border-radius: 1px;
-    overflow: hidden;
+  .player-mistakes {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+    color: #8b98a5;
   }
-  .player-strip[data-side="b"] .player-risk-bar { display: flex; justify-content: flex-end; }
-  .player-risk-fill { display: block; height: 100%; background: #7DD3A0; }
-  .player-risk-fill[data-level="mid"] { background: #E8C07D; }
-  .player-risk-fill[data-level="high"] { background: #FF8B7D; }
-  .player-risk-value { font-size: 0.85em; color: #8b98a5; font-variant-numeric: tabular-nums; }
+  .player-mistakes[data-level="mid"] { color: #E8C07D; }
+  .player-mistakes[data-level="high"] { color: #FF8B7D; }
 
   /*
-   * What this player has taken. Line height tightened and wrapping allowed, because sixteen pawns
-   * on one line would push the strip across the board.
+   * What this player has taken. Wrapping allowed and tracking tightened, because sixteen pawns on
+   * one line would push the strip across the board.
    */
   .player-taken {
-    margin: 0;
+    min-width: 0;
     font-size: 1.1em; line-height: 1;
     letter-spacing: -0.08em;
     word-break: break-all;
     color: #e6edf3;
   }
 
-  #game-region[data-contrast="high"] .player-strip { color: #FFFFFF; }
-  #game-region[data-contrast="high"] .player-risk-bar { border-color: #FFFFFF; background: #000000; }
+  /*
+   * ========================= THE POSITION, BETWEEN THE TWO PLAYERS =========================
+   * One number, in the middle, where neither player owns it: positive for White and negative for
+   * Black, which is what every engine and every broadcast means by an evaluation. It sat at each
+   * end once, and two copies of one fact made it look like a thing each player HAS.
+   */
+  .board-eval {
+    flex: 0 0 auto;
+    margin: 0;
+    align-self: center;
+    font-size: 1.6em; font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    color: #8b98a5;
+  }
+  .board-eval[data-lead="white"] { color: #F2F6FA; }
+  .board-eval[data-lead="black"] { color: #B79BE8; }
+
+  #game-region[data-contrast="high"] .player-strip,
+  #game-region[data-contrast="high"] .board-eval { color: #FFFFFF; }
 
   .hud-nav { display: flex; gap: 0.3em; }
   .hud-nav button {

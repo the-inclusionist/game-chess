@@ -73,13 +73,15 @@ export interface Reviewer {
   /** How many outright blunders this side has played in this game. */
   blunders(side: Side): number;
   /**
-   * How much winning chance this side has given away across the whole game, in percentage points.
+   * How many of this side's moves the engine has marked as a mistake or worse — `?` and `??`, not
+   * `?!`.
    *
-   * ⚠️ The sum of the LOSSES, not the current evaluation. A player can be winning comfortably and
-   * still have thrown away thirty points on the way — that is the thing worth showing a learner,
-   * and it is the one number in this game that only ever goes up.
+   * ⚠️ A COUNT, and it only ever goes up. A player can be winning comfortably and still have
+   * played four bad moves getting there; the result flatters them and this does not. Inaccuracies
+   * are left out on purpose: a counter that ticks on every slightly imprecise move is a counter
+   * nobody looks at twice.
    */
-  risk(side: Side): number;
+  mistakes(side: Side): number;
   destroy(): void;
 }
 
@@ -204,10 +206,12 @@ export function createReviewer(deps: ReviewerDeps): Reviewer {
       return turnOf(fens[fens.length - 1]) === 'w' ? current.score : -current.score;
     },
 
-    risk(side) {
-      let total = 0;
-      for (const entry of marks.values()) if (entry.side === side) total += entry.lost;
-      return total;
+    mistakes(side) {
+      let count = 0;
+      for (const entry of marks.values()) {
+        if (entry.side === side && (entry.mark === '?' || entry.mark === '??')) count++;
+      }
+      return count;
     },
 
     blunders(side) {

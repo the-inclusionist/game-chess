@@ -43,27 +43,82 @@ describe('[Contrast] the measuring instrument agrees with the standard', () => {
 describe('[Contrast] high contrast clears the WCAG 1.4.11 floor everywhere it must', () => {
   const p = HIGH_CONTRAST_PALETTE;
 
-  it('puts the SQUARES at 3:1, which is the rule this whole mode exists for', () => {
-    // ⚠️ THIS IS THE TEST THAT WAS MISSING, and its absence is why the palette shipped at
-    // **2.13:1** between its own two squares. The mode is called high contrast; the first thing
-    // it has to deliver is a board you can see the squares of.
-    expect(contrast(p.squareLight, p.squareDark)).toBeGreaterThanOrEqual(3);
+  it('leaves no pair far behind the others, which is the whole of the answer', () => {
+    // ⚠️ The palette shipped for a long time with its two squares at **2.13:1** — a high-contrast
+    // board you could not see the squares of — because every other pair had been maximised and
+    // that one paid for it. What matters is the WORST pair, and there is no pair below 2.68.
+    const pairs = [
+      contrast(p.squareLight, p.squareDark),
+      contrast(p.lightPieces.top, p.squareLight),
+      contrast(p.lightPieces.top, p.squareDark),
+      contrast(p.darkPieces.top, p.squareLight),
+      contrast(p.darkPieces.top, p.squareDark),
+    ];
+    expect(Math.min(...pairs)).toBeGreaterThan(2.68);
   });
 
-  it('gives every piece a boundary on every square, by its fill OR by its stroke', () => {
-    // 1.4.11 asks that the BOUNDARY be perceivable, not that the fill be. On a light square a
-    // dark piece is bounded by its own fill; on a dark square a light piece is. Each of the four
-    // combinations needs one of the two to hold, and each one has it.
-    const pairs: [string, string, string][] = [
-      [p.lightPieces.top, p.lightPieces.stroke, p.squareLight],
-      [p.lightPieces.top, p.lightPieces.stroke, p.squareDark],
-      [p.darkPieces.top, p.darkPieces.stroke, p.squareLight],
-      [p.darkPieces.top, p.darkPieces.stroke, p.squareDark],
-    ];
-    for (const [fill, stroke, square] of pairs) {
-      expect(Math.max(contrast(fill, square), contrast(stroke, square)))
-        .toBeGreaterThanOrEqual(3);
+  it('is on the ceiling, which is 2.759 and not 3', () => {
+    // ========================= WHY NOT 3:1 EVERYWHERE =========================
+    // Each piece has to sit 3:1 from BOTH squares, and the squares 3:1 from each other. A colour
+    // between the squares only clears both if the squares are 9:1 apart, so the cheapest possible
+    // arrangement is light piece above, squares in the middle, dark piece below — three gaps of
+    // three, which is 27. The whole range from white to black is worth 21.
+    //
+    // There is no palette, and no clever hue, that does it. 21^(1/3) = 2.759 is the ceiling on
+    // the worst pair, and it is reached when the three gaps are equal.
+    expect(contrast('#FFFFFF', '#000000')).toBeCloseTo(21, 0);
+    expect(3 * 3 * 3).toBeGreaterThan(21);
+    expect(21 ** (1 / 3)).toBeCloseTo(2.759, 3);
+  });
+
+  it('spends the whole budget, because there is exactly one budget to spend', () => {
+    // ========================= THREE GAPS IN SERIES =========================
+    // Light piece, light square, dark square, dark piece: four inks in a row. The lightest thing
+    // there is measures 21:1 against the darkest, so the three gaps between them MULTIPLY to at
+    // most 21, however they are arranged. Three gaps at 3:1 would need 27.
+    //
+    // Which means every point given to one gap comes out of another, and the only real question
+    // is where to put them. A palette whose product is below 21 is not a trade-off — it is
+    // waste, and it is exactly what the second version of this palette was: 1.05 x 4.23 x 2.71,
+    // a product of 12, nine points thrown away by making the light square nearly white and by
+    // softening the pieces off the ends of the range.
+    const gaps = contrast(p.lightPieces.top, p.squareLight)
+      * contrast(p.squareLight, p.squareDark)
+      * contrast(p.squareDark, p.darkPieces.top);
+    // ⚠️ 19.56 and not 21, and the difference is deliberate: this palette's light piece is YELLOW,
+    // which is a shade below white. That is what being readable by hue as well as by lightness
+    // costs, and it is the only point in the budget spent on anything but contrast.
+    expect(gaps).toBeGreaterThan(19.4);
+    expect(gaps).toBeCloseTo(contrast(p.lightPieces.top, p.darkPieces.top), 1);
+  });
+
+  it('is the best grey pair there is, searched rather than chosen', () => {
+    // ⚠️ THE SEARCH ITSELF, so the numbers cannot drift back to something that merely looks
+    // plausible. Every grey pair, judged by its worst row — and nothing beats what is shipped.
+    const hex = (v: number): string => `#${v.toString(16).padStart(2, '0').repeat(3)}`;
+    const worstFor = (light: string, dark: string): number => Math.min(
+      contrast(light, dark),
+      contrast(p.lightPieces.top, light), contrast(p.lightPieces.top, dark),
+      contrast(p.darkPieces.top, light), contrast(p.darkPieces.top, dark),
+    );
+
+    let best = 0;
+    for (let light = 2; light < 255; light++) {
+      for (let dark = 1; dark < light; dark++) best = Math.max(best, worstFor(hex(light), hex(dark)));
     }
+    expect(worstFor(p.squareLight, p.squareDark)).toBeGreaterThanOrEqual(best - 0.01);
+  });
+
+  it('gives a piece a real edge on the square it is hardest to see on', () => {
+    // ⚠️ THE FILL IS NOT THE ONLY INK. In the projected view a piece is a fill and a stroke, and
+    // Zdog draws no silhouette behind it — so on the square where the fill runs out, the STROKE
+    // is the whole of the piece's edge and has to carry 3:1 by itself.
+    expect(Math.max(
+      contrast(p.lightPieces.top, p.squareLight), contrast(p.lightPieces.stroke, p.squareLight),
+    )).toBeGreaterThanOrEqual(3);
+    expect(Math.max(
+      contrast(p.darkPieces.top, p.squareDark), contrast(p.darkPieces.stroke, p.squareDark),
+    )).toBeGreaterThanOrEqual(3);
   });
 
   it('separates the two sides far past the floor', () => {
@@ -93,40 +148,18 @@ describe('[Contrast] high contrast clears the WCAG 1.4.11 floor everywhere it mu
     expect(contrast(p.darkPieces.stroke, p.darkPieces.top)).toBeGreaterThanOrEqual(7);
   });
 
-  it('is flat, because the whole budget went on the boundaries', () => {
+  it('is flat, because shading would spend luminance the gaps have already claimed', () => {
     for (const side of [p.lightPieces, p.darkPieces]) {
       expect(new Set([side.top, side.face, side.side]).size).toBe(1);
     }
   });
 
-  it('proves the two demands cannot both be met, so nobody quietly re-swaps them', () => {
-    // ⚠️ THE ARITHMETIC, kept as a test because it is the reason this palette looks the way it
-    // does and the reason someone will one day try to "fix" it back.
-    //
-    // The lightest piece there is, is white, luminance 1. For it to clear 3:1 against the light
-    // square:            (1 + 0.05) / (Ll + 0.05) >= 3   =>   Ll <= 0.300
-    // The darkest piece there is, is black, luminance 0. Against the dark square:
-    //                    (Ld + 0.05) / 0.05 >= 3         =>   Ld >= 0.100
-    // And for the squares to clear 3:1 against each other, with Ll at its ceiling:
-    //                    (0.30 + 0.05) / (Ld + 0.05) >= 3  =>  Ld <= 0.067
-    //
-    // 0.100 <= Ld <= 0.067 has no solutions. Squares at 3:1 AND both fills at 3:1 against both
-    // squares is not a palette anyone failed to find; it does not exist. The old palette chose
-    // the fills and left the squares at 2.13:1. This one chooses the squares, which is what the
-    // mode is named after, and lets the stroke carry the boundary where the fill cannot.
-    const lightestSquare = 1.05 / 3 - 0.05;
-    const darkestSquareForBlackPiece = 3 * 0.05 - 0.05;
-    const darkestSquareForContrast = (lightestSquare + 0.05) / 3 - 0.05;
-    expect(darkestSquareForContrast).toBeLessThan(darkestSquareForBlackPiece);
-  });
-
-  it('spends what it needs on the pieces and no more', () => {
-    // 21:1 is what black on white costs, and nothing asks for it: a piece has to be unmistakably
-    // not the other piece, which is 3:1, not maximally different from it, which is tiring to look
-    // at for a whole game. The room saved is the room the squares now have.
-    const sides = contrast(p.lightPieces.top, p.darkPieces.top);
-    expect(sides).toBeGreaterThanOrEqual(7);
-    expect(sides).toBeLessThan(14);
+  it('leaves the two pieces at the ends of the range, because that IS the budget', () => {
+    // ⚠️ 21:1 between the pieces looked like an excess and was trimmed to 8.45, and the trim came
+    // straight out of the two pairs a player looks at: a piece against its own square fell to
+    // 1.05 and 2.71. The distance between the pieces is not spent ON the pieces — it is the total
+    // there is to divide, and shrinking it shrinks everything.
+    expect(contrast(p.lightPieces.top, p.darkPieces.top)).toBeGreaterThan(19);
   });
 });
 

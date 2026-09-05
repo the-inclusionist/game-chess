@@ -4,7 +4,7 @@
 // ========================= WHY A THEME IS NOT JUST TWO SQUARES =========================
 // It began as two colours and that was not enough to say what was being asked for. "The
 // high-contrast colours of the 2D board" and "the high-contrast colours of the 2.5D board" have
-// THE SAME SQUARES — #EDEDED and #707070, solved once for both — and differ entirely in the
+// THEIR OWN SQUARES — each solved for its own pieces — and differ entirely in the
 // pieces: white against black in one, yellow against black-under-a-blue-rim in the other. A theme
 // that carried only squares would have made those two the same entry.
 //
@@ -17,7 +17,7 @@
 //   wikipedia   Wikipedia's chess diagram template          #ffce9e / #d18b47
 //   xboard      XBoard, the GNU Chess interface             #C8C365 / #77A26D
 //   jose        this project's own, from render/palette.ts  #DCD6C8 / #8D8677
-//   contrast-*  solved numerically here and in palette.ts   #EDEDED / #707070
+//   contrast-*  searched, here and in palette.ts            #9C9C9C / #989898
 //
 // ⚠️ On licensing, since it was asked: a pair of hex values is a FACT, not creative expression, so
 // no licence reaches them. XBoard is GPL and chessboard.js is MIT, and both are named here for
@@ -143,48 +143,64 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
     },
   },
   /*
-   * ========================= ⚠️ BOTH OF THESE FAILED THE ONE RULE THEY EXIST FOR =========================
-   * The high-contrast palettes were #8F8F8F against #5A5A5A, and those two greys are **2.13:1**.
-   * The mode whose entire purpose is to guarantee 3:1 between the squares was shipping a board
-   * that did not reach it — while spending 21:1 on the PIECES, which nothing asks for and which
-   * is simply unpleasant to look at for a whole game.
+   * ========================= ⚠️ THE WHOLE TABLE, MAXIMISED BY SEARCH =========================
+   * The contrast table measures eight pairs among five inks: two squares, two piece fills, and
+   * the silhouette. These two palettes are the answer to "make every row of it as high as it can
+   * go", and that answer is a SEARCH result, not a preference.
    *
-   * The two budgets are not interchangeable, and the fix is to move room from one to the other:
+   * FIRST, WHAT IS NOT POSSIBLE. Every row at 3:1 cannot be done by anyone. Each piece has to sit
+   * 3:1 from BOTH squares, and the squares 3:1 from each other; a colour between the squares only
+   * clears both if the squares are 9:1 apart, so the cheapest arrangement is light piece above,
+   * squares in the middle, dark piece below — three gaps of 3, which is 27. The whole range from
+   * white to black is worth 21. There is no palette; there is no clever hue. 21^(1/3) = 2.759 is
+   * the ceiling on the worst row, reached when the three gaps are equal.
    *
-   *              casas      pecas     silhueta x casa escura
-   *   antes      2.13:1     21.00:1   3.04:1        <- reprova nas casas
-   *   agora      4.23:1     12.04:1   3.97:1        (neutro)
-   *   agora      4.23:1      8.45:1   3.97:1        (ambar e azul)
+   * SECOND, WHERE EACH VERSION LANDED. The search below is over every grey pair and every rim.
    *
-   * Every pair that has to hold now holds, and the worst figure in either palette is 3.57:1. The
-   * piece contrast came down by half and by two thirds — deliberately, because a piece needs to
-   * be unmistakably not the other piece, which is 3:1, and not maximally different from it.
+   *                                    pior linha    o que ficava curto
+   *   original                            2.13       casas
+   *   a minha primeira correcao           2.61       contorno/casa escura, pecas, casas
+   *   agora                               2.75       nada abaixo de 2.75
+   *
+   * The original bought three rows at 3-and-a-bit by leaving the squares at 2.13. Mine bought the
+   * squares at 3.04 by dropping three rows below 3, including a required one. Neither was on the
+   * ceiling. These are: four rows sit together at about 2.76 and nothing is below it.
+   *
+   * THIRD, THE SQUARES ARE 2.76 AND NOT 3. That is the cost of not having any row at 2.13, and it
+   * is the arithmetic above rather than a decision — 3:1 on the squares forces something else
+   * down to 2.61, which is worse for the table as a whole.
+   *
+   * ⚠️ The two palettes DO NOT share their squares any more. They cannot: the coloured one's light
+   * piece is yellow, which is a shade below white, so its optimum sits two steps darker. Sharing
+   * cost it 2.56 against its own 2.69, for the sake of a tidiness nobody can see.
    */
   {
-    // The neutral answer: paper and slate, with the pieces cream against near-black.
+    // Greys, read by lightness. Worst row 2.75; four rows sit at about 2.76 together.
     key: 'contrast-flat',
-    light: '#EDEDED',
-    dark: '#707070',
-    white: '#FBF2DC',
-    black: '#2E2E38',
-    whiteRim: '#2E2E38',
-    blackRim: '#FBF2DC',
-    rim: '#0B0B0B',
+    light: '#9C9C9C',
+    dark: '#545454',
+    ...INK,
+    rim: '#000000',
     name: 'theme.contrast1',
     short: 'theme.short.contrast1',
     flatSolid: true,
   },
   {
-    // The coloured answer, for anyone who reads hue faster than lightness: amber against navy,
-    // with a pale blue inner stroke so the dark piece has detail as well as an outline.
+    // The same solved again for someone who reads hue faster than lightness: yellow against
+    // black, with a light blue inner stroke so the dark piece has detail as well as an edge.
+    // Its own squares, two steps darker, because yellow is not quite white. Worst row 2.69.
     key: 'contrast-solid',
-    light: '#EDEDED',
-    dark: '#707070',
-    white: '#FFC93C',
-    black: '#16305E',
-    whiteRim: '#16305E',
-    blackRim: '#7FD4FF',
-    rim: '#0B0B0B',
+    light: '#989898',
+    dark: '#525252',
+    white: '#FFFF00',
+    black: '#000000',
+    whiteRim: '#000000',
+    // ⚠️ #4DB3FF and not #0099FF, and this is the INNER stroke — no row of the contrast table
+    // touches it. It has to be brighter because it is the only ink a black piece has on a dark
+    // square: the fill is 2.69 there, the black silhouette is 2.69 too, and the old blue was
+    // 2.61. This one is 3.44, so the piece has a real edge. Nothing else about the palette moves.
+    blackRim: '#4DB3FF',
+    rim: '#000000',
     name: 'theme.contrast2',
     short: 'theme.short.contrast2',
     flatSolid: true,

@@ -196,7 +196,7 @@ export function boot(host: Document = document): void {
     i18n,
     rules,
     evaluation: () => reviewer.evaluation(),
-    risk: (side) => reviewer.risk(side),
+    mistakes: (side) => reviewer.mistakes(side),
   });
 
   const scoreboard = createScoreboard({

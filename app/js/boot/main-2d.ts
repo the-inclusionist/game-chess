@@ -339,7 +339,7 @@ export function boot2d(host: Document = document): void {
     i18n,
     rules,
     evaluation: () => reviewer.evaluation(),
-    risk: (side) => reviewer.risk(side),
+    mistakes: (side) => reviewer.mistakes(side),
   });
 
   const scoreboard = createScoreboard({
@@ -678,6 +678,14 @@ export function boot2d(host: Document = document): void {
     askOpponent();
   }
 
+  // ⚠️ ONCE, BEFORE ANYTHING HAPPENS. `redraw` was only ever reached from an event handler, so on
+  // a board that had not been touched yet — which is every restored game, and every switch
+  // between the 2D and 2.5D views — the reviewer was never told to look. The advantage readout
+  // sat at a dash and the score sheet carried no marks until the player happened to move.
+  //
+  // The projected root has always done this through its own `syncPieces()` at boot; this is the
+  // same call, and the asymmetry is exactly why only one of the two views was wrong.
+  redraw();
   askOpponent();
 
   if (engine.problems.length) console.warn('[chess] engine problems:', engine.problems);

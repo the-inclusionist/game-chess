@@ -6,6 +6,7 @@ import { type Square } from '../app/js/chess/types.ts';
 import { createI18n } from '../app/js/i18n/index.ts';
 import { createGridMirror, type GridMirror } from '../app/js/ui/grid-mirror.ts';
 import { AVAILABLE_SETS, DEFAULT_SET, PIECE_SETS, pieceSet } from '../app/js/ui/piece-sets.ts';
+import { contrastRows } from '../app/js/ui/contrast-report.ts';
 import { BOARD_THEMES, DEFAULT_THEME, boardTheme } from '../app/js/ui/board-themes.ts';
 
 // ========================= WHAT THE 2D BOARD IS =========================
@@ -231,19 +232,14 @@ describe('[Themes] six named palettes, measured', () => {
     expect(DEFAULT_THEME).toBe('brown');
   });
 
-  it('gives the two high-contrast entries the same SQUARES and different PIECES', () => {
-    // Which is the whole reason a theme carries piece inks. Solved once, the pair serves both;
-    // what differs is whether the pieces are read by lightness or by hue.
+  it('gives each high-contrast entry its OWN squares, solved for its own pieces', () => {
+    // ⚠️ They used to share a pair, and sharing was costing the coloured one real contrast: its
+    // light piece is yellow, a shade below white, so its optimum sits two steps darker. The tidy
+    // invariant was worth 2.56 against its own 2.69, for a symmetry nobody can see.
     const flat = boardTheme('contrast-flat');
     const solid = boardTheme('contrast-solid');
-    expect(flat.light).toBe(solid.light);
-    expect(flat.dark).toBe(solid.dark);
+    expect(flat.light).not.toBe(solid.light);
     expect(flat.white).not.toBe(solid.white);
-    // ⚠️ AND THE SQUARES CLEAR 3:1, which is the rule the mode is named after and the rule it was
-    // breaking: the greys it used to ship, #8F8F8F and #5A5A5A, measure 2.13:1.
-    for (const theme of [flat, solid]) {
-      expect(contrast(theme.light, theme.dark)).toBeGreaterThanOrEqual(3);
-    }
   });
 
   it('keeps the Hartwig palette recognisable, and separated by luminance', () => {
@@ -267,31 +263,38 @@ describe('[Themes] six named palettes, measured', () => {
     expect(m.themeKey()).toBe(DEFAULT_THEME);
   });
 
-  it('gives EVERY theme a rim that is an edge on both of its squares', () => {
-    // This is what makes a piece have a boundary at all, and it is the pair WCAG 1.4.11 asks
-    // about. 5.42 is the worst of the six.
+  it('gives every traditional board a rim that is an edge on both of its squares', () => {
+    // ⚠️ NOT the high-contrast pair, and the exception is the interesting part. On those two the
+    // dark square is deliberately dark — that is what buys the squares their 3:1 — so a black
+    // silhouette behind a black piece is 2.65 against it and carries nothing. There the boundary
+    // is the piece's LIGHT INNER STROKE instead, which the test below checks per combination.
     for (const theme of BOARD_THEMES) {
+      if (theme.key.startsWith('contrast-')) continue;
       expect(contrast(theme.rim, theme.light)).toBeGreaterThanOrEqual(3);
       expect(contrast(theme.rim, theme.dark)).toBeGreaterThanOrEqual(3);
     }
   });
 
-  it('carries every boundary on the RIM, on every board without exception', () => {
-    // ⚠️ NO theme clears 3:1 on both fills against both squares any more, and the two that used
-    // to are the two that stopped: buying it cost them their own squares, which measured 2.13:1.
-    // The arithmetic in `palette.node.test.ts` shows the two cannot be had together at all.
-    //
-    // So the rule is the one the printed convention has always used and the one 1.4.11 actually
-    // states — the BOUNDARY must be perceivable, not the fill — and this is where it is checked
-    // for all seven boards at once.
+  it('gives every piece an edge on every square, by fill, inner stroke or silhouette', () => {
+    // ⚠️ The pair this catches is a black piece on the dark square of the coloured palette: its
+    // fill is 2.69 there and its black silhouette is 2.69 too, so the light blue INNER stroke is
+    // the only ink left. That is why it is #4DB3FF and not the older, darker #0099FF.
+    // ⚠️ THE RULE IS PER COMBINATION, not per ink, and the previous version of this test got that
+    // wrong in a way that only showed up when the high-contrast squares moved. A flat piece is
+    // drawn with three inks — its fill, the thin stroke inside it, and the heavy silhouette
+    // behind it — and 1.4.11 asks that the BOUNDARY be perceivable, not any particular one of
+    // them. On a light square a dark piece is carried by its own fill; on a dark square it is
+    // carried by its light inner stroke; the traditional boards are carried by the silhouette.
     for (const theme of BOARD_THEMES) {
-      expect(contrast(theme.rim, theme.light)).toBeGreaterThanOrEqual(3);
-      expect(contrast(theme.rim, theme.dark)).toBeGreaterThanOrEqual(3);
+      for (const square of [theme.light, theme.dark]) {
+        for (const [fill, inner] of [[theme.white, theme.whiteRim], [theme.black, theme.blackRim]]) {
+          const best = Math.max(
+            contrast(fill, square), contrast(inner, square), contrast(theme.rim, square),
+          );
+          expect(best).toBeGreaterThanOrEqual(3);
+        }
+      }
     }
-    const clears = (t: (typeof BOARD_THEMES)[number]): boolean =>
-      contrast(t.white, t.light) >= 3 && contrast(t.white, t.dark) >= 3
-      && contrast(t.black, t.light) >= 3 && contrast(t.black, t.dark) >= 3;
-    expect(BOARD_THEMES.filter(clears)).toHaveLength(0);
   });
 
   it('separates the two pieces past the floor on every board', () => {
@@ -300,15 +303,22 @@ describe('[Themes] six named palettes, measured', () => {
     }
   });
 
-  it('stops spending 21:1 on the pieces in the mode that needed the room elsewhere', () => {
-    // ⚠️ SCOPED TO THE HIGH-CONTRAST PAIR, deliberately. On a traditional board the white pieces
-    // are white and the black pieces are black, and that IS chess — 21:1 there is the convention,
-    // not an excess. It was an excess only where it was being paid for with the squares, which is
-    // where the mode's entire purpose lives.
+  it('maximises the WORST row of the table a player is shown, for both palettes', () => {
+    // ========================= THE ONE THAT MATTERS =========================
+    // ⚠️ Two wrong answers came before this one. The original maximised most rows and let the
+    // squares fall to 2.13. My first correction bought the squares 3.04 and pushed three rows
+    // below 3, one of them a required one. Neither was on the ceiling.
+    //
+    // Every row at 3:1 is impossible for anyone — three gaps of three need 27 and the whole
+    // range from white to black is worth 21 — so the honest target is the WORST row, whose
+    // ceiling is 21^(1/3) = 2.759. Both palettes sit on it.
     for (const key of ['contrast-flat', 'contrast-solid']) {
       const theme = boardTheme(key);
-      expect(contrast(theme.white, theme.black)).toBeLessThan(16);
-      expect(contrast(theme.light, theme.dark)).toBeGreaterThanOrEqual(3);
+      const rows = contrastRows(theme).map((row) => row.ratio);
+      expect(Math.min(...rows)).toBeGreaterThan(2.68);
+      // And nothing carried the improvement by quietly softening the pieces: they are still at
+      // the ends of the range, which is where the whole 21 comes from.
+      expect(contrast(theme.white, theme.black)).toBeGreaterThan(19);
     }
   });
 });
