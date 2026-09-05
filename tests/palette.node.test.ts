@@ -64,17 +64,25 @@ describe('[Contrast] high contrast clears the WCAG 1.4.11 floor everywhere it mu
     expect(contrast(p.lightPieces.top, p.darkPieces.top)).toBeGreaterThanOrEqual(7);
   });
 
-  it('keeps the sides in the game colours rather than in one ink', () => {
-    // The failure being guarded: white outlined in black beside black outlined in white reads as
-    // the same two inks twice. Each side must be identifiable by its FILL, not by its outline.
-    const light = p.lightPieces.top;
-    const dark = p.darkPieces.top;
-    expect(contrast(light, dark)).toBeGreaterThanOrEqual(7);
-    expect([light, dark]).not.toContain('#FFFFFF');
-    expect([light, dark]).not.toContain('#000000');
-    // And each outline must still be the strongest ink available against its own fill.
-    expect(contrast(p.lightPieces.stroke, light)).toBeGreaterThanOrEqual(7);
-    expect(contrast(p.darkPieces.stroke, dark)).toBeGreaterThanOrEqual(7);
+  it('names each side with the ink that COVERS it, which is the stroke', () => {
+    // Measured on a rendered board: about two thirds of a piece's pixels are stroke, because the
+    // stroke is 1.5 units and a bishop arm is 3.3. So the side a player sees is the side the
+    // STROKE says, and the two strokes have to be told apart before anything else.
+    expect(p.lightPieces.stroke).not.toBe(p.darkPieces.stroke);
+    expect(contrast(p.lightPieces.stroke, p.darkPieces.stroke)).toBeGreaterThanOrEqual(7);
+    // The specific failure that was reported: a dark piece drawn mostly in white ink.
+    expect(p.darkPieces.stroke).not.toBe('#FFFFFF');
+    const blue = p.darkPieces.stroke;
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(blue.slice(i, i + 2), 16));
+    expect(b).toBeGreaterThan(g);
+    expect(g).toBeGreaterThan(r);
+  });
+
+  it('still separates the two fills, and each stroke from the fill it outlines', () => {
+    expect(contrast(p.lightPieces.top, p.darkPieces.top)).toBeGreaterThanOrEqual(7);
+    // 7:1 is the AAA text ratio, quoted because it is the bar these two pairs were chosen against.
+    expect(contrast(p.lightPieces.stroke, p.lightPieces.top)).toBeGreaterThanOrEqual(7);
+    expect(contrast(p.darkPieces.stroke, p.darkPieces.top)).toBeGreaterThanOrEqual(7);
   });
 
   it('is flat by necessity, not by oversight', () => {
@@ -88,11 +96,21 @@ describe('[Contrast] high contrast clears the WCAG 1.4.11 floor everywhere it mu
   });
 
   it('accepts a square pair under the floor, and says how far under', () => {
-    // Not a pass — an acceptance, recorded so it cannot quietly get worse. Four tones cannot
+    // Not a pass — an acceptance, recorded so it cannot quietly get worse. Four inks cannot
     // satisfy all six pairs, and a square is identified by where it is.
     const squares = contrast(p.squareLight, p.squareDark);
     expect(squares).toBeLessThan(3);
-    expect(squares).toBeGreaterThan(1.8);
+    expect(squares).toBeGreaterThan(2.1);
+  });
+
+  it('accepts a blue rim that vanishes on a light square, because the filling does not', () => {
+    // The other stated cost. The rim is the outermost ink, so this is the pair a strict reading
+    // of 1.4.11 would want — and it cannot be had: for the rim to clear 3:1 on a light square the
+    // squares would have to fall below luminance 0.067, where the black filling then fails.
+    // What identifies the piece is the filling, and THAT is what must hold.
+    expect(contrast(p.darkPieces.stroke, p.squareLight)).toBeLessThan(3);
+    expect(contrast(p.darkPieces.top, p.squareLight)).toBeGreaterThanOrEqual(3);
+    expect(contrast(p.darkPieces.top, p.squareDark)).toBeGreaterThanOrEqual(3);
   });
 });
 

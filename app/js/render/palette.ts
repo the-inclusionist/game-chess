@@ -158,35 +158,58 @@ export const SQUARE_STROKE = STROKE;
  * a cube, in line.
  *
  * ========================= WHY THE PIECES ARE NOT WHITE AND BLACK =========================
- * They were, and it was reported as making things worse rather than better: a white piece outlined
- * in black and a black piece outlined in white are, at a glance, THE SAME TWO INKS. The one
- * distinction chess cannot afford to lose — whose piece is that — was being carried only by which
- * ink was inside and which was around, at a scale where the fill of a pawn is a few dozen pixels.
+ * They were, and it was reported as making things worse rather than better. The measurement says
+ * why, and it is not a matter of taste: counted on a rendered board, the dark side came to
+ * **4,439 white pixels against 2,527 of filling** — 1.76 to 1. The stroke is not a line around a
+ * piece at this scale, it IS most of the piece: 1.5 Zdog units of it against bodies six to eleven
+ * units across. Counted piece by piece, stroke against filling:
  *
- * So the mode keeps the game's own two hues and takes them to the ends of the luminance range:
- * yellow #FFFF00 and navy #001040. That preserves the founding argument of this file — the sides
- * are told apart by LUMINANCE, which survives every colour-vision deficiency and every one of the
- * engine's simulation filters — while giving each side back the colour a player already learned
- * on the default board.
+ *   pawn   2.24     rook   0.87     knight 2.15
+ *   bishop 4.94     queen  1.77     king   1.31
  *
- * The squares were re-solved for the new pair: the two tones with the largest separation from each
- * other that still keep all four piece-against-square pairs at or above 3:1.
+ * The bishop is the extreme — three thin boxes are almost all edge, which is exactly why it was
+ * the piece the white outline was noticed on. Only the rook, one compact 9-unit cube, has enough
+ * face to out-cover its own edges. So a dark piece outlined in white is a WHITE piece with dark
+ * filling, and the one distinction chess cannot lose — whose piece is that — was being carried by
+ * the minority ink.
  *
- *   yellow against light square   3.01      navy against light square   5.66
- *   yellow against dark square    5.59      navy against dark square    3.04
- *   yellow against navy          17.03      square against square       1.86
+ * So the colour that dominates has to be the colour that identifies:
  *
- * ========================= WHAT THIS COST, STATED =========================
- * Square against square falls from 2.31 to 1.86. That is a real loss and it is accepted for a
- * reason, not overlooked: four tones cannot satisfy all six pairs at once, and of the six, the one
- * that must never fail is piece against piece. A square is identified by WHERE it is — which is
- * why a chess diagram works in a single ink — and a piece is not.
+ *   LIGHT side   yellow #FFFF00 filling, black #000000 stroke
+ *   DARK side    black #000000 filling, light blue #0099FF stroke
  *
- * The bound is arithmetic, not taste. Squares have to sit below (L_yellow + 0.05)/3 − 0.05 and
- * above 3·(L_navy + 0.05) − 0.05; #FFFF00 is chosen because it is the brightest yellow there is
- * and therefore leaves that window as wide as it can be. Every ratio above is asserted in
- * `tests/palette.node.test.ts`, computed rather than copied, because the last time this file
- * carried a table of numbers it also carried one that had never been measured.
+ * #0099FF is the most saturated blue — no red at all — that reaches exactly 7.00:1 against the
+ * black it outlines, so the piece's own edges are legible at the AAA text ratio while the piece
+ * reads unmistakably as the blue side. The founding argument of this file survives: the sides are
+ * still told apart by LUMINANCE (the light side averages about 0.34 against the dark side's 0.19
+ * once each ink is weighted by the area it actually covers), which is what comes through every
+ * colour-vision deficiency and every one of the engine's simulation filters.
+ *
+ * Measured, against squares re-solved for this pair:
+ *
+ *   yellow against light square   3.01      black against light square   6.49
+ *   yellow against dark square    6.42      black against dark square    3.05
+ *   blue against black            7.00      yellow against black        19.56
+ *   square against square         2.13
+ *
+ * ========================= WHAT THIS COSTS, STATED =========================
+ * The blue stroke contrasts 1.08:1 with the light square, so on those squares the outer rim of a
+ * dark piece does not delineate it — the BLACK filling does, at 6.49:1, and that is what WCAG
+ * 1.4.11 is asking for. It is a real limit and it is arithmetic, not oversight: for the rim to
+ * clear 3:1 against a light square as well, the squares would have to drop below luminance 0.067,
+ * and the black filling would then fail against them. Four inks cannot satisfy six pairs.
+ *
+ * Square against square is 2.17, under the floor and accepted for the same reason it always was:
+ * a square is identified by WHERE it is, which is why a chess diagram works in a single ink, and
+ * a piece is not. It is better than the 1.86 of the navy-filled version, because putting the dark
+ * ink back at pure black widens the window the squares have to live in: they now run from the
+ * darkest grey that leaves black 3:1 to the brightest that leaves yellow 3:1, and both ends are
+ * hard against their bound.
+ *
+ * Every ratio above is asserted in `tests/palette.node.test.ts`, computed rather than copied, and
+ * the ink ratio that started this is asserted in `tests/pieces.browser.test.ts` by counting
+ * pixels — because the last time this file carried a table of numbers, it also carried one that
+ * had never been measured.
  */
 
 export interface Palette {
@@ -206,14 +229,15 @@ export const DEFAULT_PALETTE: Palette = {
 };
 
 export const HIGH_CONTRAST_PALETTE: Palette = {
-  // Flat, for the reason above. The stroke stays black-on-yellow and white-on-navy: its job here
-  // is to draw the edges, and each of those is the maximum contrast available against its fill.
+  // Flat fills, for the reason above: there is no luminance room left for shading once each side
+  // sits at an end of the range. The form comes from the stroke, and the stroke is also what
+  // names the side, because it covers about two thirds of the piece.
   lightPieces: { top: '#FFFF00', side: '#FFFF00', face: '#FFFF00', stroke: '#000000' },
-  darkPieces: { top: '#001040', side: '#001040', face: '#001040', stroke: '#FFFFFF' },
-  // Neutral greys now. The old pair was warm, chosen against white and black; against yellow and
-  // navy a tint would only push one of the four pairs around for no gain.
+  darkPieces: { top: '#000000', side: '#000000', face: '#000000', stroke: '#0099FF' },
+  // Neutral greys, and as far apart as the two fills allow: the light one is the brightest that
+  // still leaves yellow 3:1, the dark one the darkest that still leaves black 3:1.
   squareLight: '#8F8F8F',
-  squareDark: '#636363',
+  squareDark: '#5A5A5A',
 };
 
 export function createPalette(mode: PaletteMode): Palette {

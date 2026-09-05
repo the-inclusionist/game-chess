@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Piece, PieceType } from '../app/js/chess/types.ts';
-import { LIGHT_PIECES } from '../app/js/render/palette.ts';
+import { HIGH_CONTRAST_PALETTE, LIGHT_PIECES } from '../app/js/render/palette.ts';
 import { buildPiece, createPiecesLayer } from '../app/js/render/pieces/index.ts';
 import { PIECE_SPECS } from '../app/js/render/pieces/geometry.ts';
 import { CAMERA, createZdogStage, type ZdogStage } from '../app/js/render/zdog-stage.ts';
@@ -248,5 +248,91 @@ describe('[Queen] the ball holds up near and far, alone and in a crowd', () => {
     const desvio = Math.abs(near - far) / Math.max(near, far);
     expect(desvio, `near ${near} vs far ${far}`).toBeLessThan(0.2);
     expect(Math.min(near, far)).toBeGreaterThan(25);
+  });
+});
+
+
+// ========================= WHOSE PIECE IS THAT, COUNTED =========================
+// High contrast used to draw the dark side as black filling under a WHITE outline, and it was
+// reported as making things worse rather than better. Counting settled it: 4,439 white pixels
+// against 2,527 of filling, 1.76 to one. The stroke is 1.5 Zdog units and a bishop's arm is 3.3
+// wide, so the outline is not a line around the piece at this scale — it is most of the piece.
+//
+// Which means the rule is not "pick a nice outline colour". It is that the ink which COVERS a
+// piece has to be the ink that NAMES it, and the only way to know which one covers is to count.
+
+describe('[Ink] the colour that covers a piece is the colour that names it', () => {
+  const rgbOf = (hex: string): [number, number, number] => rgb(hex);
+
+  /** Counts pixels close to each of the named colours, over the whole rendered canvas. */
+  function inkCount(s: ZdogStage, colours: readonly string[]): number[] {
+    const d = pixels(s);
+    const targets = colours.map(rgbOf);
+    const counts = targets.map(() => 0);
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 128) continue;
+      targets.forEach(([r, g, b], k) => {
+        if (Math.abs(d[i] - r) < 18 && Math.abs(d[i + 1] - g) < 18 && Math.abs(d[i + 2] - b) < 18) {
+          counts[k]++;
+        }
+      });
+    }
+    return counts;
+  }
+
+  function render(type: PieceType, side: 'lightPieces' | 'darkPieces'): ZdogStage {
+    const s = createZdogStage();
+    const colours = HIGH_CONTRAST_PALETTE[side];
+    buildPiece(s.root, PIECE_SPECS[type], colours, { outline: colours.stroke });
+    s.render();
+    return s;
+  }
+
+  it('draws a dark bishop mostly in ITS OWN blue, not in a foreign ink', () => {
+    stage = render('b', 'darkPieces');
+    const dark = HIGH_CONTRAST_PALETTE.darkPieces;
+    const [blue, filling, white] = inkCount(stage, [dark.stroke, dark.top, '#FFFFFF']);
+    // The complaint, stated as an assertion: the bishop must not carry more of a light foreign
+    // ink than of its own colours.
+    expect(white).toBe(0);
+    // And the ink that covers it is the one that says which side it is.
+    expect(blue).toBeGreaterThan(filling);
+  });
+
+  it('covers the light side in its own black outline, which is the printed convention', () => {
+    stage = render('b', 'lightPieces');
+    const light = HIGH_CONTRAST_PALETTE.lightPieces;
+    const [stroke, filling] = inkCount(stage, [light.stroke, light.top]);
+    expect(stroke).toBeGreaterThan(0);
+    expect(filling).toBeGreaterThan(0);
+  });
+
+  it('measures the stroke against the filling, piece by piece', () => {
+    // Counted at the board's own scale, dark side, high contrast — stroke : filling.
+    //
+    //   pawn   222 :  99   2.24        bishop 469 :  95   4.94   <- the extreme
+    //   rook   297 : 340   0.87        queen  360 : 203   1.77
+    //   knight 310 : 144   2.15        king   475 : 362   1.31
+    //
+    // Five of the six are stroke first, and the ROOK is the exception — one 9-unit cube, the most
+    // compact body in the set, is the only shape with enough face to out-cover its own edges. The
+    // bishop is the extreme at nearly five to one, which is why it was the piece the outline
+    // colour was noticed on: three thin boxes are almost all edge.
+    const ratios = new Map<PieceType, number>();
+    for (const type of ALL) {
+      stage?.destroy();
+      stage = render(type, 'darkPieces');
+      const dark = HIGH_CONTRAST_PALETTE.darkPieces;
+      const [stroke, filling] = inkCount(stage, [dark.stroke, dark.top]);
+      ratios.set(type, stroke / filling);
+    }
+
+    const strokeFirst = [...ratios.values()].filter((r) => r > 1).length;
+    expect(strokeFirst).toBe(5);
+    expect(ratios.get('r')).toBeLessThan(1);
+    // The bishop is the worst case, and by a wide margin. If a change to STROKE or to the cross
+    // ever moves that, the reasoning in palette.ts needs re-reading rather than trusting.
+    expect(ratios.get('b')).toBeGreaterThan(3);
+    expect(Math.max(...ratios.values())).toBe(ratios.get('b'));
   });
 });
