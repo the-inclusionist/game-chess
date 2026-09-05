@@ -25,11 +25,14 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   const onHighContrast = vi.fn((on: boolean) => { highContrast = on; });
   let vision = 'normal';
   const onVision = vi.fn((key: string) => { vision = key; });
+  let motion = false;
+  const onReducedMotion = vi.fn((on: boolean) => { motion = on; });
   hud = createHud({
     doc: document, i18n: createI18n(locale), rules, state,
     difficulty: () => difficulty, onDifficulty,
     highContrast: () => highContrast, onHighContrast,
     vision: () => vision, onVision,
+    reducedMotion: () => motion, onReducedMotion,
   });
   document.body.appendChild(hud.root);
   const play = (from: string, to: string) => {
@@ -40,7 +43,7 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   };
   return { rules, state, hud, onDifficulty, onHighContrast, onVision, play,
            getDifficulty: () => difficulty, getContrast: () => highContrast,
-           getVision: () => vision };
+           getVision: () => vision, onReducedMotion, getMotion: () => motion };
 }
 
 const text = (selector: string): string =>
@@ -246,5 +249,23 @@ describe('[Colour vision] the corrections, and only the corrections', () => {
     select.dispatchEvent(new Event('change', { bubbles: true }));
     expect(onVision).toHaveBeenCalledWith('fix-deuter');
     expect(getVision()).toBe('fix-deuter');
+  });
+});
+
+describe('[Reduced motion] one switch, because one thing moves', () => {
+  it('offers a labelled checkbox', () => {
+    build();
+    const label = document.querySelector<HTMLLabelElement>('label[for="hud-motion"]')!;
+    expect(label.textContent).toBe('Movimento reduzido');
+    expect(label.htmlFor).toBe('hud-motion');
+  });
+
+  it('reports a change', () => {
+    const { onReducedMotion, getMotion } = build();
+    const box = document.querySelector<HTMLInputElement>('#hud-motion')!;
+    box.checked = true;
+    box.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onReducedMotion).toHaveBeenCalledWith(true);
+    expect(getMotion()).toBe(true);
   });
 });

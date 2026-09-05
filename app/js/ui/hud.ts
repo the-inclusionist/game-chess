@@ -39,6 +39,8 @@ export interface HudDeps {
   /** A key from the engine's VIZ_MODES, or 'normal'. */
   vision(): string;
   onVision(key: string): void;
+  reducedMotion(): boolean;
+  onReducedMotion(on: boolean): void;
 }
 
 export interface Hud {
@@ -129,7 +131,21 @@ export function createHud(deps: HudDeps): Hud {
   }
   visionBox.append(visionLabel, visionSelect);
 
-  root.append(turn, capturedBox, movesBox, difficultyBox, contrastBox, visionBox);
+  // --- reduced motion --------------------------------------------------------
+  // The engine exposes reduced motion PER ELEMENT — rm.parallax, rm.walk, rm.breath and so on —
+  // which is richer than a single switch and is the right shape for a platformer. None of those
+  // elements exist here: this game moves exactly one thing, a piece crossing the board. So the
+  // control is one switch, seeded from the system preference the person already expressed.
+  const motionBox = doc.createElement('p');
+  const motionInput = doc.createElement('input');
+  motionInput.type = 'checkbox';
+  motionInput.id = 'hud-motion';
+  const motionLabel = doc.createElement('label');
+  motionLabel.htmlFor = motionInput.id;
+  motionLabel.className = 'hud-check';
+  motionBox.append(motionInput, motionLabel);
+
+  root.append(turn, capturedBox, movesBox, difficultyBox, contrastBox, visionBox, motionBox);
 
   function onDifficultyChange(): void {
     deps.onDifficulty(difficultySelect.value as Difficulty);
@@ -141,6 +157,9 @@ export function createHud(deps: HudDeps): Hud {
 
   function onVisionChange(): void { deps.onVision(visionSelect.value); }
   visionSelect.addEventListener('change', onVisionChange);
+
+  function onMotionChange(): void { deps.onReducedMotion(motionInput.checked); }
+  motionInput.addEventListener('change', onMotionChange);
 
   function capturedFor(side: Side): string {
     // Reading the history rather than keeping a tally: one source of truth, and a taken-back move
@@ -208,6 +227,9 @@ export function createHud(deps: HudDeps): Hud {
     }
     visionSelect.value = deps.vision();
 
+    motionLabel.textContent = i18n.t('hud.reducedMotion');
+    motionInput.checked = deps.reducedMotion();
+
     const outcome = state.outcome();
     root.dataset.outcome = outcome ? outcome.kind : '';
   }
@@ -221,6 +243,7 @@ export function createHud(deps: HudDeps): Hud {
       difficultySelect.removeEventListener('change', onDifficultyChange);
       contrastInput.removeEventListener('change', onContrastChange);
       visionSelect.removeEventListener('change', onVisionChange);
+      motionInput.removeEventListener('change', onMotionChange);
       root.remove();
     },
   };

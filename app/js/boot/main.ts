@@ -63,10 +63,13 @@ export function boot(host: Document = document): void {
   const i18n = createI18n(preferredLocale(navigator.language));
   host.documentElement.lang = i18n.bcp47();
 
-  // Reduced motion straight from the platform. The engine exposes it per element through
-  // ui/settings-motion, which is richer and belongs to step 8; this is the honest floor until then.
-  const reducedMotion = (): boolean =>
+  // Seeded from the system preference, then the person's own switch wins. The engine's
+  // ui/settings-motion is per ELEMENT — parallax, walk, breath — which is the right shape for a
+  // platformer and has nothing to map onto here: this game moves exactly one thing, a piece
+  // crossing the board.
+  let motionReduced =
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  const reducedMotion = (): boolean => motionReduced;
 
   const rules = createRules();
   const game = createGameState({ rules, opponent: true });
@@ -131,6 +134,8 @@ export function boot(host: Document = document): void {
     rules,
     state: game,
     difficulty: () => difficulty,
+    reducedMotion,
+    onReducedMotion: (on) => { motionReduced = on; hud.refresh(); },
     vision: () => vision,
     onVision: (key) => {
       vision = key;
