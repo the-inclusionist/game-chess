@@ -227,6 +227,69 @@ and "simplified" is not a defence — a recognisable derivative is still a deriv
 thing that CAN be built is a generic medieval-romantic set, which is what the European medieval row
 above is, and it was accepted in place of it.
 
+## 6. A third view — Three.js — and the 465 KB it uncovered
+
+The proposal is three ways of seeing the same game: 2D glyphs, Zdog's pseudo-3D, and real lit 3D
+through Three.js. Three.js sounds expensive, so it was measured (`spike/three-weight/`) rather than
+assumed — a WebGLRenderer, a perspective camera, 64 board meshes, the four primitive geometries the
+piece specs already speak in, two lights and soft shadows, tree-shaken by the real bundler.
+
+| Build | raw | gzip |
+|---|---|---|
+| 2D only — DOM glyphs, no renderer | 104.17 KB | 36.70 KB |
+| **Zdog board and pieces, no compositor** | **137.07 KB** | **45.61 KB** |
+| Zdog + PixiJS — what ships today | 601.90 KB | 183.55 KB |
+| Three.js alone — no engine, no chess | 508.75 KB | 125.97 KB |
+| Three.js + engine + chess (arithmetic) | ~613 KB | ~163 KB |
+
+**Three.js costs about what we already ship.** 613 against 602. That was not the expected answer,
+and the reason is that PixiJS *is* a full WebGL renderer: we are already paying for one.
+
+### ⚠️ Which is the finding that matters, and it is not about Three.js
+
+**PixiJS costs 465 KB raw and 138 KB gzipped in this game, and its whole job is to draw one canvas
+into another canvas.** `render/pixi-surface.ts` uses exactly four things: an `Application`, a
+`Texture.from(zdogCanvas)`, a `Sprite`, and a `Container` for a HUD that has been DOM since step 8.
+The colour-vision correction everyone assumes is a Pixi filter is `region.style.filter` — a CSS
+filter on the whole region, applied in `boot/main.ts`. There is not one Pixi filter in the game.
+
+The measurement arrived at 465 KB independently of the engine's own 467 kB figure for PixiJS, from
+a different direction, which is about as good as this kind of confirmation gets.
+
+**So the Zdog view is 4.4× heavier than the picture it draws requires**, and removing the
+compositor is worth more than any of the three views is worth. It is also not free: `startLoop`
+takes a ticker, the engine's layer constants come from `core/layers`, and the plan's fallback —
+rasterising Zdog into `PIXI.Graphics` through a Canvas2D shim — was written on the assumption that
+Pixi stays. Those are real threads to pull, and they belong in their own change.
+
+### What Three.js actually buys, and what it actually costs
+
+**It buys the thing §5 says Zdog cannot give.** The outline budget — three stacked features, 3.7
+units minimum — is a Zdog artefact, not a chess one. Zdog outlines every solid because it has no
+depth buffer and no notion of a silhouette. Three.js has both: an inverted-hull pass or an edge
+post-process outlines the SILHOUETTE of a piece, not each of its parts. Every figurative set in §5
+becomes possible as a figure rather than as a silhouette.
+
+**And the specs already carry over.** `PIECE_SPECS` is pure data in boxes, cylinders, cones and
+spheres; Three.js has `BoxGeometry`, `CylinderGeometry`, `ConeGeometry`, `SphereGeometry`. The
+abstract sets — Hartwig and the three European patterns — would render in both views from one
+description, with the invariants already proved in the node project. That splits the catalogue
+cleanly: **specs render everywhere; meshes render only in Three.**
+
+**What it costs, stated:**
+
+1. ⚠️ **"Detailed" is the models, not the library.** 509 KB is Three.js with primitive geometry.
+   Authored meshes for the figurative sets are a separate weight — glTF, per set, per piece — and
+   they carry their own licence questions in a way primitives never can.
+2. ⚠️ **A lit scene fights high contrast.** `palette.ts` already records the arithmetic: for a
+   shaded face to clear 3:1 against a light square its luminance would have to exceed 0.93, which
+   is why high contrast is flat. A real-3D view must therefore be able to switch its own lighting
+   off, or high contrast is a mode it cannot honour.
+3. ⚠️ **Hardware.** WebGL2 with shadows on 32 pieces is not demanding, but it is a different
+   reliability profile from a 2D canvas on a government Chromebook, and it needs a stated fallback.
+4. It must be its own entry point, not a mode. 613 KB against the Zdog view's 137 is the same
+   argument §2 already settled for 2D, four times over.
+
 ## Open decisions
 
 1. ~~**Mode or game?**~~ **SETTLED by measurement**: one repository, two entry points. A 2D-only
@@ -236,4 +299,10 @@ above is, and it was accepted in place of it.
    is permitted if the licence is confirmed. Until it is, it belongs in the catalogue with the
    engine's own `off:` marker, which exists for exactly this state.
 3. **Which sets to build first.** Nine are catalogued in §5 and the budget in that section says
-   what each of them can be. Order is a scheduling question, not a design one.
+   what each of them can be in Zdog. Order is a scheduling question, not a design one.
+4. **Does the compositor go?** §6 measures PixiJS at 465 KB for drawing one canvas into another,
+   with no filter of its own in use. Removing it is worth more than any single view. It touches
+   `startLoop`, `core/layers` and the plan's own Canvas2D-shim fallback, so it is its own change.
+5. **Is the third view specs or meshes?** Three.js renders `PIECE_SPECS` for free and lifts the
+   outline budget; authored meshes are what "detailed" actually means, and they are a different
+   order of weight and of licensing.

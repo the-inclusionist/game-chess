@@ -9,3 +9,5 @@ test-results/
 .vitest-attachments/
 tests/__screenshots__/
 dist-2d-probe/
+dist-three-probe/
+dist-zdog-probe/
