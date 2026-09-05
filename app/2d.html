@@ -585,10 +585,15 @@
   .theme-report th[aria-current] { color: #FFD97D; }
   /* The column being chosen, so the eye lands on it without having to match a name to a heading. */
   .theme-report [data-current] { background: rgba(255, 217, 125, 0.14); }
-  /* Colour is the extra; the character in the cell is the signal. */
+  /*
+   * Colour is the extra; the character in the cell is the signal. Three states, and they are
+   * meant to be told apart at a glance — which is the point of a table nobody reads row by row:
+   * PASSED is quiet, ALLOWED BELOW THE FLOOR is amber, and BELOW THE FLOOR ON A BOUNDARY THAT
+   * ACTUALLY TOUCHES is the only loud one.
+   */
   .theme-report [data-state="pass"] { color: #9fe0a8; }
-  .theme-report [data-state="carried"] { color: #e6d08a; }
-  .theme-report [data-state="short"] { color: #f2a08e; }
+  .theme-report [data-state="carried"] { color: #E8C25A; }
+  .theme-report [data-state="short"] { color: #FF8B6B; font-weight: 700; }
   .theme-report-floor { margin: 0.5em 0 0; color: #8b949e; max-width: 32em; }
   #game-region[data-contrast="high"] .theme-report {
     background: #000000; color: #FFFFFF; border-color: #FFFFFF;
@@ -596,8 +601,20 @@
   #game-region[data-contrast="high"] .theme-report h2,
   #game-region[data-contrast="high"] .theme-report th[aria-current] { color: #FFFFFF; }
   #game-region[data-contrast="high"] .theme-report-floor,
-  #game-region[data-contrast="high"] .theme-report th[scope="row"],
-  #game-region[data-contrast="high"] .theme-report [data-state] { color: #FFFFFF; }
+  #game-region[data-contrast="high"] .theme-report th[scope="row"] { color: #FFFFFF; }
+  /*
+   * ⚠️ THE CELLS KEEP THEIR THREE TONES IN HIGH CONTRAST TOO. There was one rule here that painted
+   * every cell `#FFFFFF`, on the reasoning that white on black is the safest thing there is — and
+   * it turned the one table in this game whose whole job is to show you where to look into a wall
+   * of identical white numbers. Safety that removes the signal is not safety.
+   *
+   * These three all clear 3:1 against the black the report sits on by a wide margin (white 21,
+   * amber 13.7, salmon 8.9), so nothing is given up. And the character in each cell still carries
+   * the state on its own, for anyone the colour does not reach.
+   */
+  #game-region[data-contrast="high"] .theme-report [data-state="pass"] { color: #FFFFFF; }
+  #game-region[data-contrast="high"] .theme-report [data-state="carried"] { color: #FFD97D; }
+  #game-region[data-contrast="high"] .theme-report [data-state="short"] { color: #FF9E80; }
 
   /*
    * ========================= THE ENGINE'S THINKING, UNDER THE BOARD =========================

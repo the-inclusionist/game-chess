@@ -119,6 +119,8 @@ export const en: Catalog = {
     'contrast.whiteDark':  'light piece × dark square',
     'contrast.blackLight': 'dark piece × light square',
     'contrast.blackDark':  'dark piece × dark square',
+    'contrast.innerWhite': 'Light inner stroke × light piece',
+    'contrast.innerBlack': 'Dark inner stroke × dark piece',
     'contrast.squares':    'light square × dark square',
     'contrast.pair':       'pair',
     'contrast.floor':      'WCAG 1.4.11 floor: 3:1. ✓ clears · • below, carried by the rim · ✗ fails',

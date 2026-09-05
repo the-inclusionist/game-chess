@@ -295,19 +295,24 @@ export const DEFAULT_PALETTE: Palette = {
 };
 
 /**
- * ⚠️ SEARCHED, not chosen. The squares here are the pair that maximises the WORST row of the
- * contrast table — see the long note in `ui/board-themes.ts`. Every row at 3:1 is impossible for
- * anyone: three gaps of 3 need 27 and the whole range from white to black is worth 21, so
- * 21^(1/3) = 2.759 is the ceiling, and this palette sits on it. The old squares left one row at
- * **2.13**; these leave nothing below 2.69.
+ * ⚠️ EVERY PAIR THAT TOUCHES CLEARS 3:1, and that is the whole specification — see the long note
+ * in `ui/board-themes.ts`. Two colours that never meet have no boundary between them and no
+ * 1.4.11 to satisfy.
+ *
+ * The projected board has one fewer ink than the flat one: there is no silhouette, so the STROKE
+ * is what touches the square. That has a consequence worth stating, because it changed this
+ * palette: a light stroke cannot touch these squares at all — it would need luminance 1.32 and
+ * the maximum is 1 — so BOTH strokes are black, and the side a piece belongs to is carried by its
+ * FILL. The dark side's blue moved from the stroke, where it was 2.30 against the light square,
+ * into the fill, where it never meets a square and is free to be a real blue.
  */
 export const HIGH_CONTRAST_PALETTE: Palette = {
   // Flat fills: with no shading, the form comes from the stroke — which is also what names the
   // side, because it covers about two thirds of a Zdog piece at this scale.
   lightPieces: { top: '#FFFF00', side: '#FFFF00', face: '#FFFF00', stroke: '#000000' },
-  darkPieces: { top: '#000000', side: '#000000', face: '#000000', stroke: '#4DB3FF' },
-  squareLight: '#989898',
-  squareDark: '#525252',
+  darkPieces: { top: '#3557A8', side: '#3557A8', face: '#3557A8', stroke: '#000000' },
+  squareLight: '#ABABAB',
+  squareDark: '#5A5A5A',
 };
 
 export function createPalette(mode: PaletteMode): Palette {
@@ -374,6 +379,7 @@ function shade(fill: string): [string, string, string] {
 export function projectedPalette(theme: {
   light: string; dark: string; white: string; black: string;
   whiteRim: string; blackRim: string;
+  solidStroke?: { light: string; dark: string };
   solid?: { light: readonly [string, string, string]; dark: readonly [string, string, string] };
   flatSolid?: boolean;
 }): Palette {
@@ -387,8 +393,17 @@ export function projectedPalette(theme: {
   const [darkTop, darkFace, darkSide] = planes(theme.black, theme.solid?.dark);
 
   return {
-    lightPieces: { top: lightTop, face: lightFace, side: lightSide, stroke: theme.whiteRim },
-    darkPieces: { top: darkTop, face: darkFace, side: darkSide, stroke: theme.blackRim },
+    // ⚠️ `solidStroke` first. In Zdog the stroke is the OUTERMOST ink and touches the square; on
+    // the flat board the rims are drawn inside a piece and never do. A theme whose rim was chosen
+    // for the second job says so here rather than having it silently reused for the first.
+    lightPieces: {
+      top: lightTop, face: lightFace, side: lightSide,
+      stroke: theme.solidStroke?.light ?? theme.whiteRim,
+    },
+    darkPieces: {
+      top: darkTop, face: darkFace, side: darkSide,
+      stroke: theme.solidStroke?.dark ?? theme.blackRim,
+    },
     squareLight: theme.light,
     squareDark: theme.dark,
   };

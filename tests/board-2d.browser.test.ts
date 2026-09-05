@@ -232,13 +232,14 @@ describe('[Themes] six named palettes, measured', () => {
     expect(DEFAULT_THEME).toBe('brown');
   });
 
-  it('gives each high-contrast entry its OWN squares, solved for its own pieces', () => {
-    // ⚠️ They used to share a pair, and sharing was costing the coloured one real contrast: its
-    // light piece is yellow, a shade below white, so its optimum sits two steps darker. The tidy
-    // invariant was worth 2.56 against its own 2.69, for a symmetry nobody can see.
+  it('gives the two high-contrast entries the same SQUARES and different PIECES', () => {
+    // They share their squares because what CONSTRAINS the squares is shared: the silhouette,
+    // which is black on both, has to clear 3:1 against the dark square, and that fixes how dark
+    // it may be — which then fixes how light the light one has to be. The pieces are free.
     const flat = boardTheme('contrast-flat');
     const solid = boardTheme('contrast-solid');
-    expect(flat.light).not.toBe(solid.light);
+    expect(flat.light).toBe(solid.light);
+    expect(flat.dark).toBe(solid.dark);
     expect(flat.white).not.toBe(solid.white);
   });
 
@@ -303,22 +304,22 @@ describe('[Themes] six named palettes, measured', () => {
     }
   });
 
-  it('maximises the WORST row of the table a player is shown, for both palettes', () => {
-    // ========================= THE ONE THAT MATTERS =========================
-    // ⚠️ Two wrong answers came before this one. The original maximised most rows and let the
-    // squares fall to 2.13. My first correction bought the squares 3.04 and pushed three rows
-    // below 3, one of them a required one. Neither was on the ceiling.
+  it('clears 3:1 on every pair that TOUCHES, for both high-contrast palettes', () => {
+    // ========================= ⚠️ THE ONLY RULE THAT MATTERS =========================
+    // Three wrong answers came before this one, and all three optimised the wrong set. 1.4.11 is
+    // about a BOUNDARY being perceivable, and two colours that never meet have no boundary.
     //
-    // Every row at 3:1 is impossible for anyone — three gaps of three need 27 and the whole
-    // range from white to black is worth 21 — so the honest target is the WORST row, whose
-    // ceiling is 21^(1/3) = 2.759. Both palettes sit on it.
+    // The SQUARES touch, along the whole length of every edge — they are the largest boundary on
+    // the board and the one a low-vision player feels first, and every version of these palettes
+    // until now had them at 2.13, 2.76 or 2.71. A piece's FILL never touches a square, because
+    // the silhouette is drawn between them; buying that pair 3:1 is what cost the squares theirs.
     for (const key of ['contrast-flat', 'contrast-solid']) {
       const theme = boardTheme(key);
-      const rows = contrastRows(theme).map((row) => row.ratio);
-      expect(Math.min(...rows)).toBeGreaterThan(2.68);
-      // And nothing carried the improvement by quietly softening the pieces: they are still at
-      // the ends of the range, which is where the whole 21 comes from.
-      expect(contrast(theme.white, theme.black)).toBeGreaterThan(19);
+      for (const row of contrastRows(theme)) {
+        if (row.optional) continue;
+        expect(`${key} ${row.label} ${row.ratio.toFixed(2)}`)
+          .toBe(`${key} ${row.label} ${Math.max(3, row.ratio).toFixed(2)}`);
+      }
     }
   });
 });

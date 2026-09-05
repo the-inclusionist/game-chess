@@ -120,6 +120,8 @@ export const es: Catalog = {
     'contrast.whiteDark':  'pieza clara × casilla oscura',
     'contrast.blackLight': 'pieza oscura × casilla clara',
     'contrast.blackDark':  'pieza oscura × casilla oscura',
+    'contrast.innerWhite': 'Trazo interno claro × pieza clara',
+    'contrast.innerBlack': 'Trazo interno oscuro × pieza oscura',
     'contrast.squares':    'casilla clara × casilla oscura',
     'contrast.pair':       'par',
     'contrast.floor':      'Mínimo WCAG 1.4.11: 3:1. ✓ pasa · • por debajo, lo sostiene el contorno · ✗ falla',

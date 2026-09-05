@@ -4,7 +4,7 @@
 // ========================= WHY A THEME IS NOT JUST TWO SQUARES =========================
 // It began as two colours and that was not enough to say what was being asked for. "The
 // high-contrast colours of the 2D board" and "the high-contrast colours of the 2.5D board" have
-// THEIR OWN SQUARES — each solved for its own pieces — and differ entirely in the
+// THE SAME SQUARES — #ABABAB and #5A5A5A, solved once for both — and differ entirely in the
 // pieces: white against black in one, yellow against black-under-a-blue-rim in the other. A theme
 // that carried only squares would have made those two the same entry.
 //
@@ -17,7 +17,7 @@
 //   wikipedia   Wikipedia's chess diagram template          #ffce9e / #d18b47
 //   xboard      XBoard, the GNU Chess interface             #C8C365 / #77A26D
 //   jose        this project's own, from render/palette.ts  #DCD6C8 / #8D8677
-//   contrast-*  searched, here and in palette.ts            #9C9C9C / #989898
+//   contrast-*  searched, here and in palette.ts            #ABABAB / #5A5A5A
 //
 // ⚠️ On licensing, since it was asked: a pair of hex values is a FACT, not creative expression, so
 // no licence reaches them. XBoard is GPL and chessboard.js is MIT, and both are named here for
@@ -76,6 +76,18 @@ export interface BoardTheme {
     readonly light: readonly [top: string, face: string, side: string];
     readonly dark: readonly [top: string, face: string, side: string];
   };
+  /**
+   * ⚠️ THE STROKE THE PROJECTED BOARD OUTLINES A PIECE WITH, when it must differ from the inner
+   * rim. On the flat board `whiteRim` and `blackRim` are drawn INSIDE a piece, with the silhouette
+   * between them and the square; in Zdog there is no silhouette, so the stroke is the outermost
+   * ink and it is the one that touches the square.
+   *
+   * That is not a detail: on the high-contrast boards a LIGHT stroke cannot touch these squares at
+   * all — it would need luminance 1.32 and the maximum is 1 — so both strokes have to be black,
+   * and the side a piece belongs to moves into the fill. Without this field the projected board
+   * would inherit `blackRim`, which is a pale blue chosen for a job it does not do there.
+   */
+  readonly solidStroke?: { readonly light: string; readonly dark: string };
   /** No shading at all: a high-contrast palette has no luminance room for it. See palette.ts. */
   readonly flatSolid?: boolean;
 }
@@ -94,7 +106,7 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
     // The Hartwig palette, flat. Yellow against indigo separates by LUMINANCE at 8.91, which is
     // the argument `render/palette.ts` is built on and the reason it survives a CVD filter.
     key: 'jose',
-    light: '#DCD6C8',
+    light: '#F2EBDC',
     dark: '#8D8677',
     white: '#FFE08A',
     black: '#3F2B78',
@@ -128,7 +140,7 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
     // condemned it at full width, and that argument has not been withdrawn. This is the
     // experiment, on the board, where it can be looked at rather than described.
     key: 'jose2',
-    light: '#DCD6C8',
+    light: '#F2EBDC',
     dark: '#8D8677',
     white: '#FFE08A',
     black: '#3F2B78',
@@ -143,64 +155,68 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
     },
   },
   /*
-   * ========================= ⚠️ THE WHOLE TABLE, MAXIMISED BY SEARCH =========================
-   * The contrast table measures eight pairs among five inks: two squares, two piece fills, and
-   * the silhouette. These two palettes are the answer to "make every row of it as high as it can
-   * go", and that answer is a SEARCH result, not a preference.
+   * ========================= ⚠️ ONLY WHAT TOUCHES HAS TO CLEAR 3:1 =========================
+   * Three wrong answers came before this one, and all three came from optimising the wrong set.
+   * WCAG 1.4.11 is about a BOUNDARY being perceivable, and two colours that never meet have no
+   * boundary between them. On this board:
    *
-   * FIRST, WHAT IS NOT POSSIBLE. Every row at 3:1 cannot be done by anyone. Each piece has to sit
-   * 3:1 from BOTH squares, and the squares 3:1 from each other; a colour between the squares only
-   * clears both if the squares are 9:1 apart, so the cheapest arrangement is light piece above,
-   * squares in the middle, dark piece below — three gaps of 3, which is 27. The whole range from
-   * white to black is worth 21. There is no palette; there is no clever hue. 21^(1/3) = 2.759 is
-   * the ceiling on the worst row, reached when the three gaps are equal.
+   *   TOUCHING          the two squares, along every edge of every square
+   *                     the silhouette against each square — it is the outermost ink of a piece
+   *                     the fill against the silhouette, and the inner stroke against the fill
+   *   NOT TOUCHING      a piece's FILL against a square. The silhouette is always between them.
    *
-   * SECOND, WHERE EACH VERSION LANDED. The search below is over every grey pair and every rim.
+   * The two squares touching is the one that matters most and the one every palette here was
+   * failing. It is also the one a person with low vision feels first: a board whose squares run
+   * together is not a board.
    *
-   *                                    pior linha    o que ficava curto
-   *   original                            2.13       casas
-   *   a minha primeira correcao           2.61       contorno/casa escura, pecas, casas
-   *   agora                               2.75       nada abaixo de 2.75
+   *   #8F8F8F / #5A5A5A   2.13   <- what shipped for months
+   *   #9C9C9C / #545454   2.76   <- maximising the worst row, which was the wrong objective
+   *   #ABABAB / #5A5A5A   3.00   <- every touching pair at 3:1 or better
    *
-   * The original bought three rows at 3-and-a-bit by leaving the squares at 2.13. Mine bought the
-   * squares at 3.04 by dropping three rows below 3, including a required one. Neither was on the
-   * ceiling. These are: four rows sit together at about 2.76 and nothing is below it.
+   * ⚠️ The DARK square is the original one. Only the light square moved, and that is the whole of
+   * the fix: the earlier attempts kept darkening the dark square to buy square contrast, which
+   * costs the silhouette its own 3:1 against it — the silhouette is black, so it has nowhere to
+   * go. Lightening the light square costs only the light piece's fill against it, which is a pair
+   * that never meets.
    *
-   * THIRD, THE SQUARES ARE 2.76 AND NOT 3. That is the cost of not having any row at 2.13, and it
-   * is the arithmetic above rather than a decision — 3:1 on the squares forces something else
-   * down to 2.61, which is worse for the table as a whole.
-   *
-   * ⚠️ The two palettes DO NOT share their squares any more. They cannot: the coloured one's light
-   * piece is yellow, which is a shade below white, so its optimum sits two steps darker. Sharing
-   * cost it 2.56 against its own 2.69, for the sake of a tidiness nobody can see.
+   * What is left below 3:1 is exactly that: 2.30 between a light piece and the light square, and
+   * 2.14 on the coloured palette. Neither is a boundary anybody looks at, because the silhouette
+   * is drawn between them at 9.14:1.
    */
   {
-    // Greys, read by lightness. Worst row 2.75; four rows sit at about 2.76 together.
+    // Read by lightness. Squares 3.00, silhouette 9.14 and 3.04, pieces 21.
     key: 'contrast-flat',
-    light: '#9C9C9C',
-    dark: '#545454',
+    light: '#ABABAB',
+    dark: '#5A5A5A',
     ...INK,
     rim: '#000000',
+    // Projected: a solid black piece against a white one. No internal form, and none needed —
+    // a silhouette is the most legible thing a high-contrast mode can draw.
+    solidStroke: { light: '#000000', dark: '#000000' },
     name: 'theme.contrast1',
     short: 'theme.short.contrast1',
     flatSolid: true,
   },
   {
-    // The same solved again for someone who reads hue faster than lightness: yellow against
-    // black, with a light blue inner stroke so the dark piece has detail as well as an edge.
-    // Its own squares, two steps darker, because yellow is not quite white. Worst row 2.69.
+    // The same board for someone who reads hue faster than lightness: yellow against black, with
+    // a light blue inner stroke so the dark piece has detail as well as an edge. The squares are
+    // shared, because what constrains them — the silhouette, which is black in both — is shared.
     key: 'contrast-solid',
-    light: '#989898',
-    dark: '#525252',
+    light: '#ABABAB',
+    dark: '#5A5A5A',
     white: '#FFFF00',
     black: '#000000',
     whiteRim: '#000000',
-    // ⚠️ #4DB3FF and not #0099FF, and this is the INNER stroke — no row of the contrast table
-    // touches it. It has to be brighter because it is the only ink a black piece has on a dark
-    // square: the fill is 2.69 there, the black silhouette is 2.69 too, and the old blue was
-    // 2.61. This one is 3.44, so the piece has a real edge. Nothing else about the palette moves.
-    blackRim: '#4DB3FF',
+    blackRim: '#0099FF',
     rim: '#000000',
+    // Projected: both strokes black, because the stroke is what touches the square there. The
+    // blue moves into the FILL, which never meets a square and is free to be a real blue — and
+    // still clears 3.08 against its own black stroke, so the piece keeps its form.
+    solidStroke: { light: '#000000', dark: '#000000' },
+    solid: {
+      light: ['#FFFF00', '#FFFF00', '#FFFF00'],
+      dark: ['#3557A8', '#3557A8', '#3557A8'],
+    },
     name: 'theme.contrast2',
     short: 'theme.short.contrast2',
     flatSolid: true,

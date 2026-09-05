@@ -124,6 +124,8 @@ export const pt: Catalog = {
     'contrast.whiteDark':  'peça clara × casa escura',
     'contrast.blackLight': 'peça escura × casa clara',
     'contrast.blackDark':  'peça escura × casa escura',
+    'contrast.innerWhite': 'Traço interno claro × peça clara',
+    'contrast.innerBlack': 'Traço interno escuro × peça escura',
     'contrast.squares':    'casa clara × casa escura',
     'contrast.pair':       'par',
     'contrast.floor':      'Piso da WCAG 1.4.11: 3:1. ✓ passa · • abaixo, carregado pelo contorno · ✗ falha',

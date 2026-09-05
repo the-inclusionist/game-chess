@@ -26,8 +26,16 @@ export interface ContrastRow {
   readonly ratio: number;
   readonly passes: boolean;
   /**
-   * True for the pairs a palette is ALLOWED to fail: a piece's fill, which the printed convention
-   * lets the rim carry, and the two squares, which are told apart by position on the board.
+   * ⚠️ TRUE FOR PAIRS THAT NEVER TOUCH, and that is the whole of what this flag means now. It
+   * used to mean "allowed to fail", and it counted the two SQUARES among them — on the reasoning
+   * that squares are told apart by position. They are not: they share an edge along their whole
+   * length, they are the largest boundary on the board, and a board whose squares run together is
+   * not a board. That misclassification is why every palette here shipped with its squares below
+   * the floor and nothing complained.
+   *
+   * A piece's fill against a square, by contrast, genuinely never meets it: the silhouette is
+   * drawn between them. 1.4.11 asks that a BOUNDARY be perceivable, and there is no boundary
+   * between two colours that do not share an edge.
    */
   readonly optional: boolean;
 }
@@ -54,16 +62,25 @@ export function contrastRows(theme: BoardTheme): ContrastRow[] {
   };
 
   return [
-    // First, because it is the one that must never fail: whose piece is that.
+    // Identity first: whose piece is that. Not a boundary, but the question a board exists to
+    // answer, so it is held to the same floor.
     row('contrast.pieces', theme.white, theme.black),
-    // Then the rim, which is what actually delineates a piece on four of the six boards.
+
+    // ---- pairs that TOUCH -----------------------------------------------------
+    // The largest boundary on the board, and the one every palette here used to fail.
+    row('contrast.squares', theme.light, theme.dark),
+    // The silhouette is the outermost ink of a piece: it is what a square actually meets.
     row('contrast.rimLight', theme.rim, theme.light),
     row('contrast.rimDark', theme.rim, theme.dark),
+    // And inside a piece: the thin stroke that separates a crown from a collar.
+    row('contrast.innerWhite', theme.whiteRim, theme.white),
+    row('contrast.innerBlack', theme.blackRim, theme.black),
+
+    // ---- pairs that never meet, because the silhouette is between them ---------
     row('contrast.whiteLight', theme.white, theme.light, true),
     row('contrast.whiteDark', theme.white, theme.dark, true),
     row('contrast.blackLight', theme.black, theme.light, true),
     row('contrast.blackDark', theme.black, theme.dark, true),
-    row('contrast.squares', theme.light, theme.dark, true),
   ];
 }
 

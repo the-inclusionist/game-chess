@@ -384,10 +384,16 @@ describe('[Outline] the two sides are not given the same weight', () => {
       return n;
     };
 
-    // Same piece, same size, on one board: the light one is mostly its black line, the dark one
-    // is mostly its filling. That difference IS the change.
+    // Same piece, same size, on one board: the dark side spends proportionally LESS of itself on
+    // line than the light side does. That difference IS `DARK_OUTLINE_SCALE`.
+    //
+    // ⚠️ It used to be written as "the dark one is mostly its filling", an absolute claim that
+    // held only while the dark piece's stroke was a pale blue against a black fill. Both strokes
+    // are black now — a light stroke cannot touch these squares at 3:1, so the side moved into
+    // the fill — and the absolute figure moved with it. The RULE did not.
     expect(count(light.stroke) / count(light.top)).toBeGreaterThan(2);
-    expect(count(dark.stroke) / count(dark.top)).toBeLessThan(1);
+    expect(count(dark.stroke) / count(dark.top))
+      .toBeLessThan(count(light.stroke) / count(light.top));
   });
 
   it('inverts which ink dominates a dark piece, by about six', () => {

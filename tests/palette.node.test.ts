@@ -40,126 +40,58 @@ describe('[Contrast] the measuring instrument agrees with the standard', () => {
   });
 });
 
-describe('[Contrast] high contrast clears the WCAG 1.4.11 floor everywhere it must', () => {
+describe('[Contrast] high contrast: every pair that TOUCHES clears the floor', () => {
   const p = HIGH_CONTRAST_PALETTE;
 
-  it('leaves no pair far behind the others, which is the whole of the answer', () => {
-    // ⚠️ The palette shipped for a long time with its two squares at **2.13:1** — a high-contrast
-    // board you could not see the squares of — because every other pair had been maximised and
-    // that one paid for it. What matters is the WORST pair, and there is no pair below 2.68.
-    const pairs = [
-      contrast(p.squareLight, p.squareDark),
-      contrast(p.lightPieces.top, p.squareLight),
-      contrast(p.lightPieces.top, p.squareDark),
-      contrast(p.darkPieces.top, p.squareLight),
-      contrast(p.darkPieces.top, p.squareDark),
-    ];
-    expect(Math.min(...pairs)).toBeGreaterThan(2.68);
+  /*
+   * ========================= ⚠️ WHAT TOUCHES WHAT =========================
+   * Three wrong answers came before this one and all three optimised the wrong set. 1.4.11 is
+   * about a BOUNDARY being perceivable, and two colours that never meet have no boundary.
+   *
+   * In the projected view a piece is two inks: a fill and a stroke, and Zdog draws the stroke
+   * OUTSIDE the fill. So the stroke is what a square meets. The fill never does.
+   */
+  const touching: [string, string, string][] = [
+    ['as duas casas', p.squareLight, p.squareDark],
+    ['contorno claro x casa clara', p.lightPieces.stroke, p.squareLight],
+    ['contorno claro x casa escura', p.lightPieces.stroke, p.squareDark],
+    ['contorno escuro x casa clara', p.darkPieces.stroke, p.squareLight],
+    ['contorno escuro x casa escura', p.darkPieces.stroke, p.squareDark],
+    ['preenchimento claro x seu contorno', p.lightPieces.top, p.lightPieces.stroke],
+    ['preenchimento escuro x seu contorno', p.darkPieces.top, p.darkPieces.stroke],
+  ];
+
+  it('clears 3:1 on every pair that shares an edge', () => {
+    for (const [, a, b] of touching) expect(contrast(a, b)).toBeGreaterThanOrEqual(3);
   });
 
-  it('is on the ceiling, which is 2.759 and not 3', () => {
-    // ========================= WHY NOT 3:1 EVERYWHERE =========================
-    // Each piece has to sit 3:1 from BOTH squares, and the squares 3:1 from each other. A colour
-    // between the squares only clears both if the squares are 9:1 apart, so the cheapest possible
-    // arrangement is light piece above, squares in the middle, dark piece below — three gaps of
-    // three, which is 27. The whole range from white to black is worth 21.
-    //
-    // There is no palette, and no clever hue, that does it. 21^(1/3) = 2.759 is the ceiling on
-    // the worst pair, and it is reached when the three gaps are equal.
-    expect(contrast('#FFFFFF', '#000000')).toBeCloseTo(21, 0);
-    expect(3 * 3 * 3).toBeGreaterThan(21);
-    expect(21 ** (1 / 3)).toBeCloseTo(2.759, 3);
+  it('puts the SQUARES at 3:1, which is the pair a low-vision player feels first', () => {
+    // ⚠️ THE ONE THAT WAS WRONG FOR MONTHS, at 2.13:1. The squares share an edge along their
+    // whole length and are the largest boundary on the board; a board whose squares run together
+    // is not a board. Every other attempt at this palette bought something else with it.
+    expect(contrast(p.squareLight, p.squareDark)).toBeGreaterThanOrEqual(3);
   });
 
-  it('spends the whole budget, because there is exactly one budget to spend', () => {
-    // ========================= THREE GAPS IN SERIES =========================
-    // Light piece, light square, dark square, dark piece: four inks in a row. The lightest thing
-    // there is measures 21:1 against the darkest, so the three gaps between them MULTIPLY to at
-    // most 21, however they are arranged. Three gaps at 3:1 would need 27.
-    //
-    // Which means every point given to one gap comes out of another, and the only real question
-    // is where to put them. A palette whose product is below 21 is not a trade-off — it is
-    // waste, and it is exactly what the second version of this palette was: 1.05 x 4.23 x 2.71,
-    // a product of 12, nine points thrown away by making the light square nearly white and by
-    // softening the pieces off the ends of the range.
-    const gaps = contrast(p.lightPieces.top, p.squareLight)
-      * contrast(p.squareLight, p.squareDark)
-      * contrast(p.squareDark, p.darkPieces.top);
-    // ⚠️ 19.56 and not 21, and the difference is deliberate: this palette's light piece is YELLOW,
-    // which is a shade below white. That is what being readable by hue as well as by lightness
-    // costs, and it is the only point in the budget spent on anything but contrast.
-    expect(gaps).toBeGreaterThan(19.4);
-    expect(gaps).toBeCloseTo(contrast(p.lightPieces.top, p.darkPieces.top), 1);
+  it('tells the two sides apart by their FILLS, because both strokes have to be dark', () => {
+    // A light stroke cannot touch these squares at all: it would need luminance 1.32 and the
+    // maximum is 1. So the side a piece belongs to moved out of the stroke and into the fill.
+    const needed = 3 * (luminance(p.squareLight) + 0.05) - 0.05;
+    expect(needed).toBeGreaterThan(1);
+    expect(contrast(p.lightPieces.stroke, p.darkPieces.stroke)).toBeLessThan(1.1);
+    expect(contrast(p.lightPieces.top, p.darkPieces.top)).toBeGreaterThanOrEqual(3);
   });
 
-  it('is the best grey pair there is, searched rather than chosen', () => {
-    // ⚠️ THE SEARCH ITSELF, so the numbers cannot drift back to something that merely looks
-    // plausible. Every grey pair, judged by its worst row — and nothing beats what is shipped.
-    const hex = (v: number): string => `#${v.toString(16).padStart(2, '0').repeat(3)}`;
-    const worstFor = (light: string, dark: string): number => Math.min(
-      contrast(light, dark),
-      contrast(p.lightPieces.top, light), contrast(p.lightPieces.top, dark),
-      contrast(p.darkPieces.top, light), contrast(p.darkPieces.top, dark),
-    );
-
-    let best = 0;
-    for (let light = 2; light < 255; light++) {
-      for (let dark = 1; dark < light; dark++) best = Math.max(best, worstFor(hex(light), hex(dark)));
-    }
-    expect(worstFor(p.squareLight, p.squareDark)).toBeGreaterThanOrEqual(best - 0.01);
+  it('lets the fills fall below the floor against the squares, on purpose', () => {
+    // ⚠️ NOT A DEFECT and not something to "fix" back. The stroke is between them, so these two
+    // colours never share an edge — and buying them 3:1 is exactly what cost the squares theirs
+    // in every earlier version of this palette.
+    expect(contrast(p.lightPieces.top, p.squareLight)).toBeLessThan(3);
   });
 
-  it('gives a piece a real edge on the square it is hardest to see on', () => {
-    // ⚠️ THE FILL IS NOT THE ONLY INK. In the projected view a piece is a fill and a stroke, and
-    // Zdog draws no silhouette behind it — so on the square where the fill runs out, the STROKE
-    // is the whole of the piece's edge and has to carry 3:1 by itself.
-    expect(Math.max(
-      contrast(p.lightPieces.top, p.squareLight), contrast(p.lightPieces.stroke, p.squareLight),
-    )).toBeGreaterThanOrEqual(3);
-    expect(Math.max(
-      contrast(p.darkPieces.top, p.squareDark), contrast(p.darkPieces.stroke, p.squareDark),
-    )).toBeGreaterThanOrEqual(3);
-  });
-
-  it('separates the two sides far past the floor', () => {
-    // The reason the mode exists at all: whose piece is that. 7:1 is the AAA text floor, quoted
-    // here because it is the threshold this pair was checked against when it was chosen.
-    expect(contrast(p.lightPieces.top, p.darkPieces.top)).toBeGreaterThanOrEqual(7);
-  });
-
-  it('names each side with the ink that COVERS it, which is the stroke', () => {
-    // Measured on a rendered board: about two thirds of a piece's pixels are stroke, because the
-    // stroke is 1.5 units and a bishop arm is 3.3. So the side a player sees is the side the
-    // STROKE says, and the two strokes have to be told apart before anything else.
-    expect(p.lightPieces.stroke).not.toBe(p.darkPieces.stroke);
-    expect(contrast(p.lightPieces.stroke, p.darkPieces.stroke)).toBeGreaterThanOrEqual(7);
-    // The specific failure that was reported: a dark piece drawn mostly in white ink.
-    expect(p.darkPieces.stroke).not.toBe('#FFFFFF');
-    const blue = p.darkPieces.stroke;
-    const [r, g, b] = [1, 3, 5].map((i) => parseInt(blue.slice(i, i + 2), 16));
-    expect(b).toBeGreaterThan(g);
-    expect(g).toBeGreaterThan(r);
-  });
-
-  it('still separates the two fills, and each stroke from the fill it outlines', () => {
-    expect(contrast(p.lightPieces.top, p.darkPieces.top)).toBeGreaterThanOrEqual(7);
-    // 7:1 is the AAA text ratio, quoted because it is the bar these two pairs were chosen against.
-    expect(contrast(p.lightPieces.stroke, p.lightPieces.top)).toBeGreaterThanOrEqual(7);
-    expect(contrast(p.darkPieces.stroke, p.darkPieces.top)).toBeGreaterThanOrEqual(7);
-  });
-
-  it('is flat, because shading would spend luminance the gaps have already claimed', () => {
+  it('is flat, because a stroke that must be black leaves nothing to shade with', () => {
     for (const side of [p.lightPieces, p.darkPieces]) {
       expect(new Set([side.top, side.face, side.side]).size).toBe(1);
     }
-  });
-
-  it('leaves the two pieces at the ends of the range, because that IS the budget', () => {
-    // ⚠️ 21:1 between the pieces looked like an excess and was trimmed to 8.45, and the trim came
-    // straight out of the two pairs a player looks at: a piece against its own square fell to
-    // 1.05 and 2.71. The distance between the pieces is not spent ON the pieces — it is the total
-    // there is to divide, and shrinking it shrinks everything.
-    expect(contrast(p.lightPieces.top, p.darkPieces.top)).toBeGreaterThan(19);
   });
 });
 
