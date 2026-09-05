@@ -16,6 +16,7 @@ import { VIZ_FILTER } from '@the-inclusionist/engine/render/viz-modes.js';
 import { createChessDeclaration } from '../declaration/chess-declaration.ts';
 import { createCoordinates } from '../ui/coordinates.ts';
 import { createGridMirror } from '../ui/grid-mirror.ts';
+import { createSplash } from '../ui/splash.ts';
 import { createHud, type GameMode } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
 import { createStockfishClient } from '../chess/engine/stockfish-client.ts';
@@ -101,6 +102,7 @@ export function boot(host: Document = document): void {
   const thinking = createThinkingPanel({ doc: host, i18n });
 
 
+
   const declaration = createChessDeclaration({ rules, state: game, i18n, cursor: () => cursor });
 
   const engine = createGame({
@@ -147,6 +149,31 @@ export function boot(host: Document = document): void {
     onThought: (thought) => thinking.update(thought),
   });
   opponent.setStrength(elo);
+
+  /**
+   * ========================= THE WAIT IS SHOWN, NOT HIDDEN =========================
+   * The opponent is a 6.98 MB WebAssembly download now that there is only one engine. `ready()`
+   * is what starts it — asking early means the download runs while the title is on screen rather
+   * than when the first move is played.
+   *
+   * The fonts are in the race because the pieces ARE the fonts on the flat board: a board that
+   * paints with fallback glyphs and reflows a second later is a board that looked wrong first.
+   * `allSettled`, so a font that never arrives delays the button rather than replacing it with an
+   * error about the wrong thing.
+   */
+  createSplash({
+    doc: host,
+    i18n,
+    region,
+    ready: Promise.allSettled([
+      opponent.ready(),
+      host.fonts?.ready ?? Promise.resolve(),
+    ]).then((results) => {
+      // The ENGINE is what START promises. A rejected font is a cosmetic problem; a rejected
+      // engine means the button should say so rather than open onto a board with no opponent.
+      if (results[0].status === 'rejected') throw results[0].reason;
+    }),
+  });
   const systemContrast = window.matchMedia?.('(prefers-contrast: more)').matches ?? false;
   let themeKey = remembered.theme ?? (systemContrast ? CONTRAST_HERE : DEFAULT_THEME);
   let vision = 'normal';

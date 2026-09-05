@@ -30,6 +30,84 @@
   }
 
   /* The region the engine listens to. Keyboard is bound HERE, never on window. */
+
+  /*
+   * ========================= THE TITLE SCREEN =========================
+   * Over everything, including the page's own chrome, because until START there is nothing behind
+   * it worth reaching. `#game-region` carries `inert` for the same reason: a board that cannot be
+   * played should not be reachable by Tab either.
+   *
+   * The type is `clamp`ed rather than fixed so the name is large on a projector and still fits a
+   * phone held sideways — and it is the one place in this game where something is large for the
+   * sake of being large, which is what a title is for.
+   */
+  #splash {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35em;
+    background: #0d1117;
+    color: #e6edf3;
+    text-align: center;
+    padding: 5vmin;
+  }
+  #splash-title {
+    margin: 0;
+    font-size: clamp(3rem, 17vmin, 11rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 0.95;
+    color: #F2E9FF;
+    /* The one flourish. Two tones of the hint violet, which is the only colour in this game that
+       belongs to nothing on the board — so the title borrows nothing it would have to give back. */
+    background: linear-gradient(160deg, #F2E9FF 0%, #B79BE8 55%, #7A4FBF 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  /* ⚠️ The gradient is a decoration and must never be the text. If `background-clip: text` is not
+     supported the fill above would render nothing at all, so the plain colour is restored here for
+     anything that cannot do it — a blank title screen is not a graceful degradation. */
+  @supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+    #splash-title { background: none; -webkit-text-fill-color: #F2E9FF; }
+  }
+  #splash-by {
+    margin: 0;
+    font-size: clamp(0.95rem, 3.2vmin, 1.6rem);
+    font-weight: 500;
+    color: #b9c4d0;
+  }
+  #splash-status {
+    margin: 1.6em 0 0;
+    min-height: 1.4em;
+    font-size: clamp(0.85rem, 2.4vmin, 1.05rem);
+    color: #8b98a5;
+  }
+  /*
+   * Bigger than the 44 px floor, because it is the only control on the screen and the first thing
+   * a child touches. Nothing here depends on hover: the focus ring is the platform's own, widened.
+   */
+  #splash-start {
+    margin-top: 0.4em;
+    min-height: 3.2em;
+    min-width: 11em;
+    font: inherit;
+    font-size: clamp(1rem, 3vmin, 1.4rem);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: #14202b;
+    background: #B79BE8;
+    border: 2px solid #F2E9FF;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  #splash-start:hover { background: #CDBAF0; }
+  #splash-start:focus-visible { outline: 4px solid #FFD97D; outline-offset: 3px; }
+
   #game-region {
     position: relative;
     outline-offset: 4px;
@@ -671,6 +749,22 @@
 </style>
 </head>
 <body>
+
+<!-- ========================= THE TITLE SCREEN =========================
+     ⚠️ WRITTEN HERE, not built by the bundle, and that is the entire point of it. This screen
+     exists because the opponent is a 6.98 MB WebAssembly download and a board that looks ready
+     and will not answer is worse than a wait. A splash that had to boot in order to say
+     "loading" would show the board first — the very lie it is here to prevent — so it is in the
+     document, painting on the first frame, and the script only takes it away.
+
+     START is absent until there is something to play. There is no percentage, because nothing in
+     the load reports one; the button appearing IS the indicator. -->
+<div id="splash" role="dialog" aria-modal="true" aria-labelledby="splash-title">
+  <h1 id="splash-title">WebChess</h1>
+  <p id="splash-by">by prof. Jos&eacute; Rocha</p>
+  <p id="splash-status" role="status" aria-live="polite"></p>
+  <button id="splash-start" type="button" hidden>START</button>
+</div>
 
 <!-- MARCACAO EXIGIDA by createGame: #game-region, #sr-status, #sr-alert.
      Anything missing does not throw — it becomes an entry in engine.problems. -->

@@ -35,6 +35,7 @@ import { createGameState, type Activation } from '../chess/state.ts';
 import { type Side, type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale, type I18n } from '../i18n/index.ts';
 import { createGridMirror } from '../ui/grid-mirror.ts';
+import { createSplash } from '../ui/splash.ts';
 import { createHud, type GameMode } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
 import { BOARD_THEMES, CONTRAST_THEME, DEFAULT_THEME } from '../ui/board-themes.ts';
@@ -218,6 +219,31 @@ export function boot2d(host: Document = document): void {
     onThought: (thought) => thinking.update(thought),
   });
   opponent.setStrength(elo);
+
+  /**
+   * ========================= THE WAIT IS SHOWN, NOT HIDDEN =========================
+   * The opponent is a 6.98 MB WebAssembly download now that there is only one engine. `ready()`
+   * is what starts it — asking early means the download runs while the title is on screen rather
+   * than when the first move is played.
+   *
+   * The fonts are in the race because the pieces ARE the fonts on the flat board: a board that
+   * paints with fallback glyphs and reflows a second later is a board that looked wrong first.
+   * `allSettled`, so a font that never arrives delays the button rather than replacing it with an
+   * error about the wrong thing.
+   */
+  createSplash({
+    doc: host,
+    i18n,
+    region,
+    ready: Promise.allSettled([
+      opponent.ready(),
+      host.fonts?.ready ?? Promise.resolve(),
+    ]).then((results) => {
+      // The ENGINE is what START promises. A rejected font is a cosmetic problem; a rejected
+      // engine means the button should say so rather than open onto a board with no opponent.
+      if (results[0].status === 'rejected') throw results[0].reason;
+    }),
+  });
 
   const declaration = createChessDeclaration({ rules, state: game, i18n, cursor: () => cursor });
   const engine = createGame({
