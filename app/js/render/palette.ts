@@ -12,16 +12,34 @@
 // WCAG 1.4.11, on the single most important visual distinction in chess: whose piece is that.
 // Darkening to #3F2B78 takes it to 8.46:1.
 //
+// ========================= AND THE SHADING HAD TO SEPARATE =========================
+// The pieces read as MASS rather than as solids: top against front face measured 1.18 on the light
+// side and 1.20 on the dark. Two neighbouring planes need roughly 1.5-2.0 before the eye reads them
+// as distinct planes; below that they fuse, and the only thing giving a piece its form was the
+// outline around each face.
+//
+// Widened to 1.72 and 1.64. Which pair mattered was itself a measurement: counting pixels by face
+// at this camera pitch gives TOP 935, FRONT 532, SIDE under 251 — you are looking down at roughly
+// 57 degrees, so the sides are nearly invisible and only top-against-front does any work. A first
+// attempt widened top-against-SIDE and changed nothing anyone could see.
+//
+// The cost, stated rather than buried: dark piece on a dark square falls from 3.18 to 2.09, under
+// the 3:1 floor. It is still carried by its outline at 5.42, and the high-contrast mode is the
+// answer for anyone who needs the fills themselves to carry it.
+//
 // Measured ratios (sRGB relative luminance), after the change:
 //
 //                        light square   dark square
-//   light top                  1.07          2.66   ← carried by its outline
-//   light side                 1.45          1.72   ← carried by its outline
+//   light top                  1.12          2.80   ← carried by its outline
+//   light front                1.53          1.63   ← carried by its outline
+//   light side                 2.52          1.01   ← barely visible at this pitch
 //   light outline              9.50          3.81
-//   dark top                   7.93          3.18
-//   dark side                 11.38          4.56
+//   dark top                   5.22          2.09
+//   dark front                 8.57          3.43
+//   dark side                 11.99          4.80
 //   dark outline              13.52          5.42
-//   light against dark (top faces): 8.46
+//   light against dark (top faces): 5.86
+//   top against front: 1.72 light, 1.64 dark
 //
 // The light side's FILLS have almost no contrast against a light square — 1.07:1 is nothing. What
 // makes a light piece legible there is its OUTLINE at 9.50:1, and WCAG 1.4.11 judges the boundary,
@@ -41,16 +59,16 @@ export interface SidePalette {
 }
 
 export const LIGHT_PIECES: SidePalette = {
-  top: '#FFD97D',
-  side: '#E8A72E',
-  face: '#F7C55A',
+  top: '#FFE08A',
+  side: '#B8781F',
+  face: '#E0A33A',
   stroke: '#3B2A12',
 };
 
 export const DARK_PIECES: SidePalette = {
-  top: '#3F2B78',
-  side: '#241547',
-  face: '#332063',
+  top: '#5B44A0',
+  side: '#1E1140',
+  face: '#3A2670',
   stroke: '#0E0722',
 };
 
