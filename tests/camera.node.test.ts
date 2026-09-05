@@ -70,13 +70,27 @@ describe('[Drag] the two axes stay separate', () => {
     expect(after.pitch).not.toBeCloseTo(before.pitch, 6);
   });
 
-  it('dragging down flattens the view and dragging up steepens it', () => {
+  it('dragging DOWN tips the near edge down, showing more of the top', () => {
+    // ⚠️ Both drag axes were inverted, and the reason is which mental model the gesture belongs
+    // to: dragging can move the VIEWER around a fixed board or move the BOARD under a fixed
+    // viewer. Those are opposites, and only the second is what a hand on a physical board does.
+    //
+    // Pulling down tips the near edge towards you, so more of the top surface comes into view —
+    // a STEEPER pitch, which is a more negative number here.
     const down = createCamera();
     down.drag(0, 40);
     const up = createCamera();
     up.drag(0, -40);
-    expect(down.snapshot().pitch).toBeGreaterThan(PITCH_DEFAULT);
-    expect(up.snapshot().pitch).toBeLessThan(PITCH_DEFAULT);
+    expect(down.snapshot().pitch).toBeLessThan(PITCH_DEFAULT);
+    expect(up.snapshot().pitch).toBeGreaterThan(PITCH_DEFAULT);
+  });
+
+  it('dragging RIGHT turns the board the way a hand on its near edge would', () => {
+    const right = createCamera();
+    right.drag(40, 0);
+    const left = createCamera();
+    left.drag(-40, 0);
+    expect(right.snapshot().yaw).toBeLessThan(left.snapshot().yaw);
   });
 
   it('cannot be dragged out of range however hard it is pushed', () => {
@@ -98,18 +112,33 @@ describe('[Drag] the two axes stay separate', () => {
 describe('[Keyboard] no action requires a drag', () => {
   // WCAG 2.5.7 and the engine's own rule: everything reachable by pointer must be reachable
   // without one. The camera is the only thing here that would otherwise be drag-only.
-  it('nudges in all four directions', () => {
+  it('nudges in all four directions, the SAME way the drag does', () => {
+    // ⚠️ The keyboard follows the pointer because they are one control reached two ways. A player
+    // who learns the board turns this way with a hand must not find it turns the other way with a
+    // key — so both were flipped together, and this test is what stops one of them drifting back.
     const left = createCamera();
     left.nudge('left');
     const right = createCamera();
     right.nudge('right');
-    expect(left.snapshot().yaw).toBeLessThan(right.snapshot().yaw);
+    expect(right.snapshot().yaw).toBeLessThan(left.snapshot().yaw);
 
     const up = createCamera();
     up.nudge('up');
     const down = createCamera();
     down.nudge('down');
-    expect(up.snapshot().pitch).toBeLessThan(down.snapshot().pitch);
+    expect(down.snapshot().pitch).toBeLessThan(up.snapshot().pitch);
+  });
+
+  it('agrees with the drag on every axis', () => {
+    const dragged = createCamera();
+    dragged.drag(10, 10);
+    const nudged = createCamera();
+    nudged.nudge('right');
+    nudged.nudge('down');
+    // Same sign on both axes: the two controls describe the same movement.
+    expect(Math.sign(dragged.snapshot().yaw)).toBe(Math.sign(nudged.snapshot().yaw));
+    expect(dragged.snapshot().pitch).toBeLessThan(PITCH_DEFAULT);
+    expect(nudged.snapshot().pitch).toBeLessThan(PITCH_DEFAULT);
   });
 
   it('respects the same clamp as dragging', () => {

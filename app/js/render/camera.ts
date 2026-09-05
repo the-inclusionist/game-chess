@@ -37,6 +37,22 @@ export const NUDGE_PITCH = Math.PI / 36;
 /** Radians per canvas pixel: dragging the full 320 px width turns half a circle. */
 export const DRAG_SENSITIVITY = Math.PI / 320;
 
+/**
+ * ========================= HOW LONG A PRESS HAS TO BE BEFORE IT TURNS =========================
+ * Two seconds, and the number is not about the mechanism. A board that starts turning on the first
+ * pixel of movement turns while a teacher is pointing at a square in front of a class — the
+ * gesture for "look here" and the gesture for "spin the board" were the same one, and only one of
+ * them was ever wanted mid-lesson.
+ *
+ * So turning is a DELIBERATE act now: hold, and then drag. A press shorter than this is a click on
+ * a square, whatever it did in between.
+ *
+ * ⚠️ The keyboard is untouched and stays immediate. `nudge` requires no press and no hold, which is
+ * both WCAG 2.5.7 — nothing may require a drag — and the reason a delay is affordable here: the
+ * player who cannot wait two seconds on a button already has the faster path.
+ */
+export const ROTATE_HOLD_MS = 2000;
+
 export interface CameraState {
   readonly pitch: number;
   readonly yaw: number;
@@ -76,18 +92,34 @@ export function createCamera(initial: CameraState = { pitch: PITCH_DEFAULT, yaw:
   return {
     snapshot,
 
+    /**
+     * ========================= THE HAND MOVES THE BOARD, NOT THE CAMERA =========================
+     * Both signs are negative, and both were positive. The difference is which of two mental
+     * models the gesture belongs to: dragging can move the VIEWER around a fixed board, or move
+     * the BOARD under a fixed viewer. They are opposites, and only one of them is what a hand on a
+     * physical board does.
+     *
+     * Dragging right turns the board anticlockwise, the way a hand pushing the near edge to the
+     * right would. Dragging down tips the near edge DOWN and the far edge up, so more of the top
+     * surface comes into view — the way you tilt a board towards yourself to see the squares.
+     */
     drag(dx, dy) {
-      yaw = wrapYaw(yaw + dx * DRAG_SENSITIVITY);
-      // Dragging DOWN flattens the view, which is what pulling the near edge towards you does.
-      pitch = clampPitch(pitch + dy * DRAG_SENSITIVITY);
+      yaw = wrapYaw(yaw - dx * DRAG_SENSITIVITY);
+      pitch = clampPitch(pitch - dy * DRAG_SENSITIVITY);
       return snapshot();
     },
 
+    /**
+     * ⚠️ The keyboard follows the pointer, because they are one control in two ways of reaching it.
+     * Left and right were flipped with the drag: a player who learns the board turns THIS way with
+     * a hand must not find it turns the other way with a key. `up` and `down` name the direction
+     * the near edge moves, which is the same thing the drag now does.
+     */
     nudge(direction) {
-      if (direction === 'left') yaw = wrapYaw(yaw - NUDGE_YAW);
-      else if (direction === 'right') yaw = wrapYaw(yaw + NUDGE_YAW);
-      else if (direction === 'up') pitch = clampPitch(pitch - NUDGE_PITCH);
-      else pitch = clampPitch(pitch + NUDGE_PITCH);
+      if (direction === 'left') yaw = wrapYaw(yaw + NUDGE_YAW);
+      else if (direction === 'right') yaw = wrapYaw(yaw - NUDGE_YAW);
+      else if (direction === 'up') pitch = clampPitch(pitch + NUDGE_PITCH);
+      else pitch = clampPitch(pitch - NUDGE_PITCH);
       return snapshot();
     },
 

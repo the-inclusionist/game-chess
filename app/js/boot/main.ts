@@ -29,7 +29,7 @@ import { createI18n, preferredLocale, type I18n } from '../i18n/index.ts';
 import { createMoveAnimation, type MoveAnimation } from '../render/animation.ts';
 import { createBoard, type Marker } from '../render/board.ts';
 import { squareFromIndex, squareIndex } from '../render/board-geometry.ts';
-import { createCamera } from '../render/camera.ts';
+import { createCamera, ROTATE_HOLD_MS } from '../render/camera.ts';
 import { buildPiece, createPiecesLayer } from '../render/pieces/index.ts';
 import { PIECE_SPECS } from '../render/pieces/geometry.ts';
 import { DARK_PIECES, LIGHT_PIECES } from '../render/palette.ts';
@@ -552,12 +552,52 @@ export function boot(host: Document = document): void {
   let dragging: number | null = null;
   let last = { x: 0, y: 0 };
   let travelled = 0;
+  /** Set when the press has been held long enough that moving now turns the board. */
+  let turning = false;
+  let holdTimer: number | null = null;
+
+  const cancelHold = (): void => {
+    if (holdTimer !== null) window.clearTimeout(holdTimer);
+    holdTimer = null;
+  };
 
   canvas.addEventListener('pointerdown', (e) => {
     dragging = e.pointerId;
     last = { x: e.clientX, y: e.clientY };
     travelled = 0;
-    canvas.setPointerCapture(e.pointerId);
+    turning = false;
+
+    // ⚠️ Capture is attempted and its failure is survivable, in that order. `setPointerCapture`
+    // THROWS for a pointer the browser does not currently have — a synthetic event, a pointer
+    // already released, a device that vanished mid-press — and it used to be the last statement
+    // before the hold was armed, so a throw here silently left the board unable to turn for the
+    // rest of that press. The timer is set first, and the capture is allowed to fail.
+    // ========================= TURNING IS A DELIBERATE ACT =========================
+    // The board used to start turning on the first pixel of movement, which meant it turned while
+    // a teacher was pointing at a square in front of a class: the gesture for "look here" and the
+    // gesture for "spin the board" were the same one.
+    //
+    // ⚠️ Movement does NOT cancel the hold, and that is deliberate. A hand resting on a trackpad
+    // is never perfectly still, and cancelling on the first tremor would make the board turnable
+    // only by the steady-handed. What movement does is move the ORIGIN: when the hold finally
+    // fires it starts from wherever the pointer is, so nothing jumps.
+    holdTimer = window.setTimeout(() => {
+      holdTimer = null;
+      if (dragging === null) return;
+      turning = true;
+      canvas.dataset.turning = 'true';
+    }, ROTATE_HOLD_MS);
+
+    // ⚠️ Capture is attempted AFTER the timer, and its failure is survivable.
+    // `setPointerCapture` THROWS for a pointer the browser does not currently have — a synthetic
+    // event, a pointer already released, a device that vanished mid-press — and it used to be the
+    // last statement before the hold was armed, so a throw here silently left the board unable to
+    // turn for the rest of that press.
+    try {
+      canvas.setPointerCapture(e.pointerId);
+    } catch {
+      // No capture: a pointer leaving the canvas mid-turn will simply stop turning it.
+    }
   });
 
   canvas.addEventListener('pointermove', (e) => {
@@ -567,6 +607,8 @@ export function boot(host: Document = document): void {
     const dy = (e.clientY - last.y) / k;
     travelled += Math.abs(dx) + Math.abs(dy);
     last = { x: e.clientX, y: e.clientY };
+    // Before the hold fires this loop does nothing but keep the origin current.
+    if (!turning) return;
     camera.drag(dx, dy);
     invalidate();
   });
@@ -574,7 +616,20 @@ export function boot(host: Document = document): void {
   canvas.addEventListener('pointerup', (e) => {
     if (dragging !== e.pointerId) return;
     dragging = null;
-    canvas.releasePointerCapture(e.pointerId);
+    cancelHold();
+    try {
+      canvas.releasePointerCapture(e.pointerId);
+    } catch {
+      // Never captured, or already gone. Releasing is not what this handler is FOR — the click
+      // below is — and letting a throw here swallow that was the same fault twice.
+    }
+
+    // A press that became a turn is not a click, however little it moved in the end.
+    if (turning) {
+      turning = false;
+      delete canvas.dataset.turning;
+      return;
+    }
     // A drag that barely moved was a click. Three canvas pixels of slop is about a finger's worth
     // of tremor at k=2, and well under one square.
     if (travelled >= 3) return;
@@ -681,6 +736,8 @@ export function boot(host: Document = document): void {
       game,
       rules,
       camera,
+      /** Whether a press has been held long enough to turn the board. */
+      turning: () => turning,
       /** Client coordinates of a square's centre, for driving the board from the console. */
       screenOf(square: Square): { x: number; y: number } | null {
         stage.update();
