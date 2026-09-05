@@ -42,9 +42,24 @@
 //  · Only the two high-contrast themes clear 3:1 on the FILLS. The other four are carried by the
 //    rim, which is how the printed convention has always worked and what WCAG 1.4.11 actually
 //    asks — that the boundary be perceivable, not the fill.
-//  · ⚠️ AND THE SQUARES OF A HIGH-CONTRAST THEME CLEAR 3:1 AGAINST EACH OTHER, which is the rule
-//    that mode exists for and the rule it was breaking: the two greys it used were 2.13:1. See
-//    the note above those two entries for what moved, and what it moved from.
+//  · ⚠️ AND EVERY BOARD'S TWO SQUARES CLEAR 3:1 AGAINST EACH OTHER. They share an edge along
+//    their whole length — the largest boundary on the board — and every palette here was failing
+//    it: chessboard.js 2.29, Wikipedia 1.94, XBoard 1.60, José 2.50, high contrast 2.13. A board
+//    whose squares run together is not a board, and it is the first thing a person with low
+//    vision feels.
+//
+//    ⚠️ THE THREE NAMED BOARDS ARE THEREFORE NO LONGER EXACT CITATIONS, and that is a real cost,
+//    decided rather than overlooked. Their DARK square was deepened until the pair reached 3:1;
+//    the light square, which is what makes a board recognisable, is untouched, and the hue of the
+//    dark one is unchanged — only its lightness. The originals, for anyone who needs them back:
+//
+//      chessboard.js / lichess brown   #b58863  ->  #9C7555   (2.29 -> 3.01)
+//      Wikipedia                       #d18b47  ->  #A36C37   (1.94 -> 3.06)
+//      XBoard                          #77A26D  ->  #52704B   (1.60 -> 3.03)
+//      José and José-2                 #8D8677  ->  #7D776A   (2.50 -> 3.07)
+//
+//    Lightening the light square instead was measured and rejected: chessboard.js would have
+//    needed luminance 0.949, which is very nearly white and is a different board altogether.
 
 export interface BoardTheme {
   readonly key: string;
@@ -99,23 +114,34 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
   // chessboard.js's default are the same #f0d9b5 / #b58863 — confirmed against
   // `niklasf/web-boardimage`'s `lichess-brown.json`, not remembered. It is very probably the board
   // a learner has already met, since it is what lichess shows before anyone changes anything.
-  { key: 'brown', light: '#f0d9b5', dark: '#b58863', ...INK, rim: '#17110a', name: 'theme.brown', short: 'theme.short.brown' },
-  { key: 'wikipedia', light: '#ffce9e', dark: '#d18b47', ...INK, rim: '#17110a', name: 'theme.wikipedia', short: 'theme.short.wikipedia' },
-  { key: 'xboard', light: '#C8C365', dark: '#77A26D', ...INK, rim: '#17110a', name: 'theme.xboard', short: 'theme.short.xboard' },
+  { key: 'brown', light: '#f0d9b5', dark: '#9C7555', ...INK, rim: '#17110a', name: 'theme.brown', short: 'theme.short.brown' },
+  { key: 'wikipedia', light: '#ffce9e', dark: '#A36C37', ...INK, rim: '#17110a', name: 'theme.wikipedia', short: 'theme.short.wikipedia' },
+  { key: 'xboard', light: '#C8C365', dark: '#52704B', ...INK, rim: '#17110a', name: 'theme.xboard', short: 'theme.short.xboard' },
   {
     // The Hartwig palette, flat. Yellow against indigo separates by LUMINANCE at 8.91, which is
     // the argument `render/palette.ts` is built on and the reason it survives a CVD filter.
     key: 'jose',
-    light: '#F2EBDC',
-    dark: '#8D8677',
+    light: '#DCD6C8',
+    dark: '#7D776A',
     white: '#FFE08A',
     black: '#3F2B78',
     whiteRim: '#3B2A12',
-    // ⚠️ NOT a light rim. `render/palette.ts` gives the dark side `stroke: '#0E0722'` — the piece
-    // is outlined in something darker than itself, not brighter. Putting the light side's yellow
-    // here reversed that and the dark pieces came out ringed in gold, which is not this palette.
-    // The rule the file states is the one that governs: the ink that covers a piece names it.
-    blackRim: '#0E0722',
+    /*
+     * ⚠️ #8C80AE, and it was #0E0722. The inner stroke is drawn ON the piece, so it and the fill
+     * share an edge — and near-black against this violet measures **1.71**, which is not a line,
+     * it is the same colour twice. The dark pieces had no internal drawing at all: no crown, no
+     * collar, only a silhouette.
+     *
+     * A LAVENDER and not the gold of José-2, and only 40% toward white, because that is the least
+     * that clears 3:1 (3.18) — enough to draw the piece, not enough to turn this palette into the
+     * other one, which sits 2.80 away and in a different hue.
+     *
+     * The earlier note here said a dark piece must be outlined in something darker than itself.
+     * That rule is about the SILHOUETTE, which is still #0E0722 and still the outermost ink; it
+     * was never about the stroke drawn inside the piece, and applying it there left the piece
+     * blank.
+     */
+    blackRim: '#8C80AE',
     rim: '#0E0722',
     name: 'theme.jose',
     short: 'theme.short.jose',
@@ -140,8 +166,8 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
     // condemned it at full width, and that argument has not been withdrawn. This is the
     // experiment, on the board, where it can be looked at rather than described.
     key: 'jose2',
-    light: '#F2EBDC',
-    dark: '#8D8677',
+    light: '#DCD6C8',
+    dark: '#7D776A',
     white: '#FFE08A',
     black: '#3F2B78',
     whiteRim: '#3B2A12',

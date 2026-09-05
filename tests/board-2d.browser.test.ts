@@ -217,19 +217,58 @@ describe('[Themes] six named palettes, measured', () => {
     return (hi + 0.05) / (lo + 0.05);
   };
 
-  it('carries each source at its real values', () => {
+  it('keeps every source LIGHT square exactly, which is what makes a board recognisable', () => {
     expect(boardTheme('wikipedia').light).toBe('#ffce9e');
-    expect(boardTheme('wikipedia').dark).toBe('#d18b47');
     // chessboard.js (MIT), which is also lichess's default board.
     expect(boardTheme('brown').light).toBe('#f0d9b5');
-    expect(boardTheme('brown').dark).toBe('#b58863');
     // ⚠️ XBoard is the GUI; GNU Chess is the engine behind it. The colours are XBoard's.
     expect(boardTheme('xboard').light).toBe('#C8C365');
-    expect(boardTheme('xboard').dark).toBe('#77A26D');
-    // ⚠️ The default is lichess's board, which is byte-for-byte chessboard.js's — confirmed
-    // against niklasf/web-boardimage's lichess-brown.json rather than remembered. It is the board
-    // a learner has most likely already met, because it is what lichess shows by default.
+    // ⚠️ The default is lichess's board, confirmed against niklasf/web-boardimage's
+    // lichess-brown.json rather than remembered. It is the board a learner has most likely
+    // already met, because it is what lichess shows by default.
     expect(DEFAULT_THEME).toBe('brown');
+  });
+
+  it('deepens every source DARK square as far as 3:1 needs, and no further', () => {
+    // ⚠️ THESE ARE NO LONGER EXACT CITATIONS, and that is a decision rather than an oversight.
+    // Every one of these boards had its two squares below the floor, and two squares share an
+    // edge along their whole length — the largest boundary there is. The HUE is untouched, only
+    // the lightness, and the amount is the least that reaches 3:1, so each board is still
+    // recognisably the board it names.
+    //
+    //   chessboard.js  #b58863 -> #9C7555     Wikipedia  #d18b47 -> #A36C37
+    //   XBoard         #77A26D -> #52704B     José       #8D8677 -> #7D776A
+    //
+    // Lightening the light square instead was measured and rejected: chessboard.js would have
+    // needed luminance 0.949, which is very nearly white and a different board altogether.
+    for (const key of ['brown', 'wikipedia', 'xboard', 'jose', 'jose2']) {
+      const ratio = contrast(boardTheme(key).light, boardTheme(key).dark);
+      expect(ratio).toBeGreaterThanOrEqual(3);
+      expect(ratio).toBeLessThan(3.2);
+    }
+  });
+
+  it('clears 3:1 between the two squares on EVERY board, without exception', () => {
+    // The largest boundary on the board, and the first thing a person with low vision feels.
+    for (const theme of BOARD_THEMES) {
+      const ratio = contrast(theme.light, theme.dark);
+      expect(`${theme.key} ${ratio.toFixed(2)}`)
+        .toBe(`${theme.key} ${Math.max(3, ratio).toFixed(2)}`);
+    }
+  });
+
+  it('draws a line INSIDE every piece that can actually be seen against it', () => {
+    // ⚠️ José had `blackRim: '#0E0722'` against a `#3F2B78` fill — **1.71**, which is not a line,
+    // it is the same colour twice. The dark pieces had no crown, no collar, no internal drawing
+    // at all. The rule that put it there is about the SILHOUETTE, the outermost ink, and was
+    // never about the stroke drawn inside a piece.
+    for (const theme of BOARD_THEMES) {
+      for (const [inner, fill] of [[theme.whiteRim, theme.white], [theme.blackRim, theme.black]]) {
+        const ratio = contrast(inner, fill);
+        expect(`${theme.key} ${ratio.toFixed(2)}`)
+          .toBe(`${theme.key} ${Math.max(3, ratio).toFixed(2)}`);
+      }
+    }
   });
 
   it('gives the two high-contrast entries the same SQUARES and different PIECES', () => {
@@ -325,16 +364,21 @@ describe('[Themes] six named palettes, measured', () => {
 });
 
 describe('[Themes] José-2 keeps the experiment on the board', () => {
-  it('is José with the dark side outlined in the LIGHT side’s ink', () => {
+  it('is José with the dark side outlined in the LIGHT side ink', () => {
     const one = boardTheme('jose');
     const two = boardTheme('jose2');
+    // Everything but the one ink the experiment is about.
     expect(two.light).toBe(one.light);
     expect(two.dark).toBe(one.dark);
     expect(two.white).toBe(one.white);
     expect(two.black).toBe(one.black);
-    // The single difference, and the whole point of the entry.
-    expect(one.blackRim).toBe('#0E0722');
+    expect(two.rim).toBe(one.rim);
+    // ⚠️ And THAT ink is the difference: gold on the dark piece against José's lavender. Both
+    // clear 3:1 against the fill now — José's near-black #0E0722 measured 1.71 and drew nothing —
+    // so the two palettes are a choice between two visible answers rather than between one that
+    // works and one that does not.
     expect(two.blackRim).toBe('#FFE08A');
+    expect(one.blackRim).toBe('#8C80AE');
   });
 
   it('is a separate entry rather than a replacement', () => {

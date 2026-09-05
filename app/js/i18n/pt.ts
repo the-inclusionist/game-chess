@@ -47,7 +47,7 @@ export const pt: Catalog = {
     'hud.highContrast': 'Alto contraste',
     'hud.reducedMotion': 'Movimento reduzido',
     'hud.outline':    'Contorno das peças',
-    'viz.trichromatic': 'Visão tricromática',
+    'viz.trichromatic': 'Visão padrão',
     'hud.vision':     'Visão de cores',
     'hud.takeBack':   'Voltar lance',
     'hud.replay':     'Avançar lance',

@@ -147,14 +147,16 @@ describe('[i18n] the panel follows the interface language', () => {
 // palette at boot, which is the part that was never about the control.
 
 describe('[Colour vision] the corrections, and only the corrections', () => {
-  it('offers trichromatic vision plus the three corrections', () => {
+  it('offers standard vision plus the three corrections', () => {
     build();
     const options = [...document.querySelectorAll('#hud-vision option')];
     expect(options.map((o) => (o as HTMLOptionElement).value))
       .toEqual(['normal', 'fix-protan', 'fix-deuter', 'fix-tritan']);
-    // ⚠️ Named here rather than by the engine: "visão normal" makes every other entry in the same
-    // list an abnormality, in a menu a child opens BECAUSE of how they see.
-    expect(options[0].textContent).toBe('Visão tricromática');
+    // ⚠️ Named here rather than by the engine, which calls it "visão normal" — a word that makes
+    // every other entry in the same list an abnormality, in a menu a child opens BECAUSE of how
+    // they see. "Tricromática" was the first replacement and was accurate but clinical; "padrão"
+    // says the same thing without asking anyone to know what it means.
+    expect(options[0].textContent).toBe('Visão padrão');
     expect(options[1].textContent).toBe('Correção protanopia');
   });
 
