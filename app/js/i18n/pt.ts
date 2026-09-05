@@ -41,6 +41,7 @@ export const pt: Catalog = {
     'turn.w': 'Brancas',
     'turn.b': 'Pretas',
 
+    'hud.turn':       'Vez',
     'hud.captured':   'Capturadas',
     'hud.moves':      'Lances',
     'hud.difficulty': 'Dificuldade',

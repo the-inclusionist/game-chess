@@ -51,6 +51,46 @@
   }
   #board-canvas:active { cursor: grabbing; }
 
+  /*
+   * The panel sits over the column the board leaves clear: 88 of the 320 logical pixels, which
+   * is 27.5% however the region is scaled. Sizes come from the engine's own --ui-fs and --tap,
+   * so the HUD grows with the board instead of drifting away from it.
+   */
+  .hud {
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: 27.5%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--ui-fs, 16px) * 0.35);
+    padding: calc(var(--ui-fs, 16px) * 0.3);
+    font-size: var(--ui-fs, 16px);
+    line-height: 1.25;
+    color: #c9d1d9;
+    background: #111a24;
+    border-left: 1px solid #2b3a4a;
+    overflow: hidden;
+  }
+  .hud h2 {
+    margin: 0; font-size: 0.75em; font-weight: 600;
+    color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .hud p { margin: 0; }
+  .hud-turn { display: flex; align-items: center; gap: 0.4em; font-weight: 600; }
+  .hud-swatch { flex: 0 0 auto; width: 0.8em; height: 0.8em; border: 1px solid #0b0f14; }
+  .hud-swatch[data-side="w"] { background: #FFD97D; }
+  .hud-swatch[data-side="b"] { background: #3F2B78; }
+  .hud-captured { min-height: 1.2em; font-size: 1.05em; letter-spacing: -0.04em; }
+  .hud-moves {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto;
+    margin: 0; padding-left: 1.7em; font-size: 0.9em;
+    font-variant-numeric: tabular-nums;
+  }
+  .hud label { display: block; font-size: 0.75em; color: #8b949e; }
+  /* --tap is 22*k, which is 44px at the k=2 floor: the WCAG 2.5.5 target size, inherited. */
+  .hud select { width: 100%; min-height: var(--tap, 44px); font: inherit; }
+
   .sr-only {
     position: absolute; width: 1px; height: 1px;
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;

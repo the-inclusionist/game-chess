@@ -36,6 +36,7 @@ export const en: Catalog = {
     'turn.w': 'White',
     'turn.b': 'Black',
 
+    'hud.turn':       'Turn',
     'hud.captured':   'Captured',
     'hud.moves':      'Moves',
     'hud.difficulty': 'Difficulty',

@@ -14,6 +14,7 @@ import { srAlert, srSay } from '@pm-monte/inclusionist-engine/core/a11y-sr.ts';
 import { startLoop } from '@pm-monte/inclusionist-engine/core/loop.ts';
 import { createChessDeclaration } from '../declaration/chess-declaration.ts';
 import { createGridMirror } from '../ui/grid-mirror.ts';
+import { createHud } from '../ui/hud.ts';
 import { initLayout, layout } from '@pm-monte/inclusionist-engine/ui/layout.ts';
 import { createEngineClient } from '../chess/engine/client.ts';
 import { DEFAULT_DIFFICULTY, DIFFICULTY_DEPTH, type Difficulty } from '../chess/engine/difficulty.ts';
@@ -113,6 +114,24 @@ export function boot(host: Document = document): void {
     onCursor: (square) => { cursor = square; syncMarkers(); },
   });
   region.insertBefore(mirror.root, surface.view);
+
+  // The panel lives in the 88x180 column the board leaves clear — measured in spike 0 by drawing
+  // it, and honoured here by the board's camera offset rather than by hope.
+  const hud = createHud({
+    doc: host,
+    i18n,
+    rules,
+    state: game,
+    difficulty: () => difficulty,
+    onDifficulty: (level) => {
+      difficulty = level;
+      hud.refresh();
+      // A change mid-search would otherwise be answered by the OLD depth: cancel, then ask again
+      // at the new one. The client drops the stale reply either way, but this makes it prompt.
+      if (game.phase() === 'thinking') { opponent.cancel(); thinking = false; askOpponent(); }
+    },
+  });
+  region.appendChild(hud.root);
 
   initLayout({ numJogadores: () => 1 });
   layout();
@@ -221,6 +240,7 @@ export function boot(host: Document = document): void {
         if (!move) return;
         beginMove(move);
         mirror.refresh();
+        hud.refresh();
         srSay(moveSentence(i18n, move));
         if (!move.checkmate && move.check) srAlert(i18n.t('status.check'));
       })
@@ -239,6 +259,7 @@ export function boot(host: Document = document): void {
     if (result.kind === 'moved') beginMove(result.move);
     syncMarkers();
     mirror.refresh();
+    hud.refresh();
     announce(result);
   }
 
@@ -333,6 +354,7 @@ export function boot(host: Document = document): void {
         syncPieces();
         syncMarkers();
         mirror.refresh();
+        hud.refresh();
         announceOutcome();
         askOpponent();
       }
@@ -388,6 +410,7 @@ export function boot(host: Document = document): void {
       setDifficulty(level: Difficulty) { difficulty = level; },
       askOpponent,
       mirror,
+      hud,
       engine,
       declaration,
       /** Advances the loop by hand — see `frame`. */

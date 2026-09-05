@@ -37,6 +37,7 @@ export const es: Catalog = {
     'turn.w': 'Blancas',
     'turn.b': 'Negras',
 
+    'hud.turn':       'Turno',
     'hud.captured':   'Capturadas',
     'hud.moves':      'Jugadas',
     'hud.difficulty': 'Dificultad',
