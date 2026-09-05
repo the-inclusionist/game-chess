@@ -123,6 +123,10 @@ export function boot(host: Document = document): void {
     state: game,
     onActivate: (square) => onActivate(square),
     onCursor: (square) => { cursor = square; syncMarkers(); },
+    // Intent, not keycode — the engine's own rule (ADR-0033). The default solo scheme already
+    // carries the arrows AND WASD, and a player who remaps them in the engine's settings gets
+    // the board walked with the keys they can actually reach.
+    resolveAction: (code) => engine.keyboard.actionOf(code, 0),
   });
   region.insertBefore(mirror.root, surface.view);
 
@@ -347,11 +351,14 @@ export function boot(host: Document = document): void {
   // Listened on #game-region, never on window — the engine's rule, and what keeps the camera from
   // swallowing keys meant for a dialog. Plain arrows are reserved for the grid cursor at step 7.
   region.addEventListener('keydown', (e) => {
-    // The sonar. It pans a tone towards the nearest target and SPEAKS its name — both of which
-    // come out of the seven fields, with no audio written in this repository. Bound to a bare
-    // key here; routing it through the engine's remappable intent layer belongs with the
-    // settings panel at step 8, and is noted rather than pretended.
-    if (e.key === 's' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    // The sonar, on the `especial` intent rather than on a key.
+    //
+    // A bare `s` was the first attempt and it was wrong: `KeyS` is `down` in the engine's default
+    // scheme, so it fought the board navigation — precisely the collision the intent layer exists
+    // to prevent, created by taking a shortcut past it. The engine's vocabulary is eight fixed
+    // actions and `especial` is the open slot: the engine reports that the player pressed it, and
+    // THIS GAME decides it means sonar. That is the whole idea, and it makes the key remappable.
+    if (engine.keyboard.actionOf(e.code, 0) === 'especial') {
       engine.sonar.sonar({ i: 0, x: cursor.x, y: cursor.y, viz: 'normal' });
       e.preventDefault();
       return;

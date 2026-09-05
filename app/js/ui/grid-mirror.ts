@@ -45,6 +45,14 @@ export interface GridMirrorDeps {
   onActivate(square: Square): void;
   /** Called when the keyboard cursor moves, so the board can draw it. */
   onCursor?(square: Square): void;
+  /**
+   * Turns a key CODE into an intent, so the board can be walked with whatever keys the player
+   * can reach. The engine's KeyboardRuntime is the real one and it is remappable and saved;
+   * without it this falls back to the arrows alone.
+   *
+   * Injected rather than imported so the grid can be tested without booting an engine.
+   */
+  resolveAction?(code: string): string | null;
 }
 
 export interface GridMirror {
@@ -132,13 +140,19 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
 
   const clamp = (n: number, hi: number): number => Math.min(hi, Math.max(0, n));
 
+  /** Arrows only. The fallback for when no engine is wired — a test, or a bare page. */
+  const FALLBACK: Record<string, string> = {
+    ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
+  };
+
   function onKeyDown(event: KeyboardEvent): void {
     // Clamped at the edges rather than wrapped. A board has corners, and a player who runs into
     // one should feel the edge instead of being teleported to the far file.
-    const moves: Record<string, [number, number]> = {
-      ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
+    const DELTA: Record<string, [number, number]> = {
+      left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1],
     };
-    const delta = moves[event.key];
+    const action = deps.resolveAction?.(event.code) ?? FALLBACK[event.key] ?? null;
+    const delta = action ? DELTA[action] : undefined;
     if (delta) {
       setCursor(
         { x: clamp(cursor.x + delta[0], FILES - 1), y: clamp(cursor.y + delta[1], RANKS - 1) },
