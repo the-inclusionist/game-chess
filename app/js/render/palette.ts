@@ -380,7 +380,10 @@ export function projectedPalette(theme: {
   light: string; dark: string; white: string; black: string;
   whiteRim: string; blackRim: string;
   solidStroke?: { light: string; dark: string };
-  solid?: { light: readonly [string, string, string]; dark: readonly [string, string, string] };
+  solid?: {
+    light?: readonly [string, string, string];
+    dark?: readonly [string, string, string];
+  };
   flatSolid?: boolean;
 }): Palette {
   const planes = (fill: string, authored?: readonly [string, string, string]): [string, string, string] => {

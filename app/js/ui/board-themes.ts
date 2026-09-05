@@ -88,8 +88,8 @@ export interface BoardTheme {
    * palettes — carry their answers here rather than being re-derived and quietly changed.
    */
   readonly solid?: {
-    readonly light: readonly [top: string, face: string, side: string];
-    readonly dark: readonly [top: string, face: string, side: string];
+    readonly light?: readonly [top: string, face: string, side: string];
+    readonly dark?: readonly [top: string, face: string, side: string];
   };
   /**
    * ⚠️ THE STROKE THE PROJECTED BOARD OUTLINES A PIECE WITH, when it must differ from the inner
@@ -114,9 +114,60 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
   // chessboard.js's default are the same #f0d9b5 / #b58863 — confirmed against
   // `niklasf/web-boardimage`'s `lichess-brown.json`, not remembered. It is very probably the board
   // a learner has already met, since it is what lichess shows before anyone changes anything.
-  { key: 'brown', light: '#f0d9b5', dark: '#9C7555', ...INK, rim: '#17110a', name: 'theme.brown', short: 'theme.short.brown' },
-  { key: 'wikipedia', light: '#ffce9e', dark: '#A36C37', ...INK, rim: '#17110a', name: 'theme.wikipedia', short: 'theme.short.wikipedia' },
-  { key: 'xboard', light: '#C8C365', dark: '#52704B', ...INK, rim: '#17110a', name: 'theme.xboard', short: 'theme.short.xboard' },
+  { key: 'brown', light: '#f0d9b5', dark: '#9C7555', ...INK, rim: '#17110a',     /*
+     * ========================= ⚠️ THE PROJECTED BOARD CANNOT OUTLINE IN WHITE =========================
+     * On the flat board the dark piece is black with a white line inside it, and the SILHOUETTE —
+     * a third ink, outside both — is what meets the square. Zdog draws no silhouette: there the
+     * stroke is the outermost ink, so the stroke is what has to clear 3:1 against both squares.
+     *
+     * White cannot. Measured on this board it is 1.37 against the light square, and no grey can do
+     * it either: a stroke escaping BOTH squares needs luminance below 0.035 or above 2.24, and above 1
+     * does not exist while below 0.035 collides with the 3:1 it owes the black filling underneath.
+     *
+     * So the stroke went black — which clears both squares easily — and the FILLING moved instead.
+     * `#5A5A5A` is the darkest grey that still keeps 3:1 from that black stroke (3.04) and from
+     * the white piece (6.90). The dark piece is therefore dark grey here and black on the flat
+     * board, and that is a real difference between the two views, accepted rather than overlooked.
+     */
+    solidStroke: { light: '#000000', dark: '#000000' },
+    solid: { dark: ['#5A5A5A', '#5A5A5A', '#5A5A5A'] },
+    name: 'theme.brown', short: 'theme.short.brown' },
+  { key: 'wikipedia', light: '#ffce9e', dark: '#A36C37', ...INK, rim: '#17110a',     /*
+     * ========================= ⚠️ THE PROJECTED BOARD CANNOT OUTLINE IN WHITE =========================
+     * On the flat board the dark piece is black with a white line inside it, and the SILHOUETTE —
+     * a third ink, outside both — is what meets the square. Zdog draws no silhouette: there the
+     * stroke is the outermost ink, so the stroke is what has to clear 3:1 against both squares.
+     *
+     * White cannot. Measured on this board it is 1.44 against the light square, and no grey can do
+     * it either: a stroke escaping BOTH squares needs luminance below 0.029 or above 2.14, and above 1
+     * does not exist while below 0.029 collides with the 3:1 it owes the black filling underneath.
+     *
+     * So the stroke went black — which clears both squares easily — and the FILLING moved instead.
+     * `#5A5A5A` is the darkest grey that still keeps 3:1 from that black stroke (3.04) and from
+     * the white piece (6.90). The dark piece is therefore dark grey here and black on the flat
+     * board, and that is a real difference between the two views, accepted rather than overlooked.
+     */
+    solidStroke: { light: '#000000', dark: '#000000' },
+    solid: { dark: ['#5A5A5A', '#5A5A5A', '#5A5A5A'] },
+    name: 'theme.wikipedia', short: 'theme.short.wikipedia' },
+  { key: 'xboard', light: '#C8C365', dark: '#52704B', ...INK, rim: '#17110a',     /*
+     * ========================= ⚠️ THE PROJECTED BOARD CANNOT OUTLINE IN WHITE =========================
+     * On the flat board the dark piece is black with a white line inside it, and the SILHOUETTE —
+     * a third ink, outside both — is what meets the square. Zdog draws no silhouette: there the
+     * stroke is the outermost ink, so the stroke is what has to clear 3:1 against both squares.
+     *
+     * White cannot. Measured on this board it is 1.83 against the light square, and no grey can do
+     * it either: a stroke escaping BOTH squares needs luminance below 0.013 or above 1.67, and above 1
+     * does not exist while below 0.013 collides with the 3:1 it owes the black filling underneath.
+     *
+     * So the stroke went black — which clears both squares easily — and the FILLING moved instead.
+     * `#5A5A5A` is the darkest grey that still keeps 3:1 from that black stroke (3.04) and from
+     * the white piece (6.90). The dark piece is therefore dark grey here and black on the flat
+     * board, and that is a real difference between the two views, accepted rather than overlooked.
+     */
+    solidStroke: { light: '#000000', dark: '#000000' },
+    solid: { dark: ['#5A5A5A', '#5A5A5A', '#5A5A5A'] },
+    name: 'theme.xboard', short: 'theme.short.xboard' },
   {
     // The Hartwig palette, flat. Yellow against indigo separates by LUMINANCE at 8.91, which is
     // the argument `render/palette.ts` is built on and the reason it survives a CVD filter.
@@ -216,9 +267,23 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
     dark: '#5A5A5A',
     ...INK,
     rim: '#000000',
-    // Projected: a solid black piece against a white one. No internal form, and none needed —
-    // a silhouette is the most legible thing a high-contrast mode can draw.
+    /*
+     * ========================= ⚠️ THE PROJECTED BOARD CANNOT OUTLINE IN WHITE =========================
+     * On the flat board the dark piece is black with a white line inside it, and the SILHOUETTE —
+     * a third ink, outside both — is what meets the square. Zdog draws no silhouette: there the
+     * stroke is the outermost ink, so the stroke is what has to clear 3:1 against both squares.
+     *
+     * White cannot. Measured on this board it is 2.30 against the light square, and no grey can do
+     * it either: a stroke escaping BOTH squares needs luminance below 0.0007 or above 1.32, and above 1
+     * does not exist while below 0.0007 collides with the 3:1 it owes the black filling underneath.
+     *
+     * So the stroke went black — which clears both squares easily — and the FILLING moved instead.
+     * `#5A5A5A` is the darkest grey that still keeps 3:1 from that black stroke (3.04) and from
+     * the white piece (6.90). The dark piece is therefore dark grey here and black on the flat
+     * board, and that is a real difference between the two views, accepted rather than overlooked.
+     */
     solidStroke: { light: '#000000', dark: '#000000' },
+    solid: { dark: ['#5A5A5A', '#5A5A5A', '#5A5A5A'] },
     name: 'theme.contrast1',
     short: 'theme.short.contrast1',
     flatSolid: true,
