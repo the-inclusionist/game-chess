@@ -179,7 +179,7 @@ describe('[PieceSets] the drawing is a choice with no semantic surface', () => {
 // on three faces and looked wrong flat. Two-dimensional chess has a convention older than any of
 // this, and a learner has already met it everywhere else.
 
-describe('[Themes] the two standards, by name and by value', () => {
+describe('[Themes] six named palettes, measured', () => {
   const luminance = (hex: string): number => {
     const channel = (offset: number): number => {
       const c = parseInt(hex.slice(offset, offset + 2), 16) / 255;
@@ -192,40 +192,76 @@ describe('[Themes] the two standards, by name and by value', () => {
     return (hi + 0.05) / (lo + 0.05);
   };
 
-  it('carries Wikipedia and XBoard at their real values', () => {
+  it('carries each source at its real values', () => {
     expect(boardTheme('wikipedia').light).toBe('#ffce9e');
     expect(boardTheme('wikipedia').dark).toBe('#d18b47');
-    expect(boardTheme('gnuchess').light).toBe('#C8C365');
-    expect(boardTheme('gnuchess').dark).toBe('#77A26D');
+    // chessboard.js (MIT), which is also lichess's default board.
+    expect(boardTheme('brown').light).toBe('#f0d9b5');
+    expect(boardTheme('brown').dark).toBe('#b58863');
+    // ⚠️ XBoard is the GUI; GNU Chess is the engine behind it. The colours are XBoard's.
+    expect(boardTheme('xboard').light).toBe('#C8C365');
+    expect(boardTheme('xboard').dark).toBe('#77A26D');
     expect(DEFAULT_THEME).toBe('wikipedia');
   });
 
-  it('paints the squares through custom properties, so one write does 64 cells', () => {
+  it('gives the two high-contrast entries the same SQUARES and different PIECES', () => {
+    // Which is the whole reason a theme carries piece inks. Solved once, the grey pair serves
+    // both; what differs is whether the pieces are white-against-black or yellow-against-black.
+    const flat = boardTheme('contrast-flat');
+    const solid = boardTheme('contrast-solid');
+    expect(flat.light).toBe(solid.light);
+    expect(flat.dark).toBe(solid.dark);
+    expect(flat.white).not.toBe(solid.white);
+    expect(solid.white).toBe('#FFFF00');
+    expect(solid.blackRim).toBe('#0099FF');
+  });
+
+  it('keeps the Hartwig palette recognisable, and separated by luminance', () => {
+    const jose = boardTheme('jose');
+    expect(jose.white).toBe('#FFE08A');
+    expect(jose.black).toBe('#3F2B78');
+    // 8.91 — below black-against-white's 21, far above the 3:1 floor, and it is a LUMINANCE gap,
+    // which is what makes it survive a colour-vision filter.
+    expect(contrast(jose.white, jose.black)).toBeGreaterThan(8);
+  });
+
+  it('publishes every ink as a custom property, so one write reaches 64 cells', () => {
     const { mirror: m } = build();
     expect(m.root.dataset.theme).toBe('wikipedia');
     expect(m.root.style.getPropertyValue('--square-light')).toBe('#ffce9e');
 
-    m.setTheme('gnuchess');
-    expect(m.root.dataset.theme).toBe('gnuchess');
-    expect(m.root.style.getPropertyValue('--square-dark')).toBe('#77A26D');
+    m.setTheme('jose');
+    expect(m.root.style.getPropertyValue('--piece-white')).toBe('#FFE08A');
+    expect(m.root.style.getPropertyValue('--piece-halo')).toBe('#0E0722');
     m.setTheme('nonsense');
     expect(m.themeKey()).toBe(DEFAULT_THEME);
   });
 
-  it('records the awkward half of the convention rather than pretending it away', () => {
-    // ⚠️ A white piece's FILL clears 3:1 against NEITHER square, in EITHER standard. That is how
-    // the convention works: what identifies it is the black outline. WCAG 1.4.11 asks that the
-    // boundary be perceivable, not the fill — the same position render/palette.ts already takes
-    // for the 3D default, with high contrast as the way out for anyone who needs more.
+  it('gives EVERY theme a rim that is an edge on both of its squares', () => {
+    // This is what makes a piece have a boundary at all, and it is the pair WCAG 1.4.11 asks
+    // about. 5.42 is the worst of the six.
     for (const theme of BOARD_THEMES) {
-      expect(contrast('#FFFFFF', theme.light)).toBeLessThan(3);
-      expect(contrast('#FFFFFF', theme.dark)).toBeLessThan(3);
-      // And the outline that carries it, which is why the stroke is a rim and not a hairline.
-      expect(contrast('#000000', theme.light)).toBeGreaterThan(10);
-      expect(contrast('#000000', theme.dark)).toBeGreaterThan(7);
-      // The black piece's own fill needs no help.
-      expect(contrast('#000000', theme.light)).toBeGreaterThanOrEqual(3);
-      expect(contrast('#000000', theme.dark)).toBeGreaterThanOrEqual(3);
+      expect(contrast(theme.rim, theme.light)).toBeGreaterThanOrEqual(3);
+      expect(contrast(theme.rim, theme.dark)).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('records which themes carry the FILLS and which lean on the rim', () => {
+    // Only the two high-contrast palettes clear 3:1 on both fills against both squares. The four
+    // traditional boards do not, and are not defective for it — that is how the printed
+    // convention works. ⚠️ chessboard.js's brown is the near miss worth naming: its white fill
+    // clears 3.15 against the DARK square and 1.37 against the light one.
+    const clears = (t: (typeof BOARD_THEMES)[number]): boolean =>
+      contrast(t.white, t.light) >= 3 && contrast(t.white, t.dark) >= 3
+      && contrast(t.black, t.light) >= 3 && contrast(t.black, t.dark) >= 3;
+    expect(BOARD_THEMES.filter(clears).map((t) => t.key)).toEqual(['contrast-flat', 'contrast-solid']);
+    expect(contrast('#FFFFFF', boardTheme('brown').dark)).toBeGreaterThan(3);
+    expect(contrast('#FFFFFF', boardTheme('brown').light)).toBeLessThan(3);
+  });
+
+  it('always separates the two pieces well past the floor', () => {
+    for (const theme of BOARD_THEMES) {
+      expect(contrast(theme.white, theme.black)).toBeGreaterThan(8);
     }
   });
 });

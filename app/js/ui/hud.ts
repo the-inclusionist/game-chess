@@ -46,15 +46,21 @@ export interface HudDeps {
   onVision(key: string): void;
   reducedMotion(): boolean;
   onReducedMotion(on: boolean): void;
-  outline(): boolean;
-  onOutline(on: boolean): void;
   /**
-   * i18n key for that switch's label. It defaults to the piece outline, which is what it is in the
-   * projected view — but the flat board has no outline to switch and uses the slot to choose which
-   * 2D standard it is painted in. A control whose label lied about its question would be worse
-   * than a second control.
+   * The piece-outline switch. OPTIONAL: the projected board has an outline to turn off and the
+   * flat board has none, and a control that had to be repurposed to stay on both pages ended up
+   * with a label that lied about its own question.
    */
-  outlineLabel?: string;
+  outline?(): boolean;
+  onOutline?(on: boolean): void;
+  /**
+   * The named board palettes, when the view has any. Six of them do not fit a checkbox, and the
+   * two high-contrast entries are not variants of each other — they differ in their PIECES — so
+   * this is a list and not a toggle.
+   */
+  themes?: readonly { readonly key: string; readonly name: string }[];
+  theme?(): string;
+  onTheme?(key: string): void;
   coordinates(): boolean;
   onCoordinates(on: boolean): void;
   /** Whether the score sheet can be walked back or forward from where it stands. */
@@ -241,6 +247,22 @@ export function createHud(deps: HudDeps): Hud {
   motionLabel.className = 'hud-check';
   motionBox.append(motionInput, motionLabel);
 
+  // --- board colours ---------------------------------------------------------
+  const themeBox = doc.createElement('p');
+  const themeLabel = doc.createElement('label');
+  const themeSelect = doc.createElement('select');
+  themeSelect.id = 'hud-theme';
+  themeLabel.htmlFor = themeSelect.id;
+  if (deps.themes) {
+    for (const item of deps.themes) {
+      const option = doc.createElement('option');
+      option.value = item.key;
+      option.dataset.name = item.name;
+      themeSelect.appendChild(option);
+    }
+    themeBox.append(themeLabel, themeSelect);
+  }
+
   // --- piece outline ---------------------------------------------------------
   // On by default: it is what gives a piece its form in high contrast, where every face is the
   // same colour. Switchable because it is also a strong visual opinion, and because a flat look
@@ -267,8 +289,11 @@ export function createHud(deps: HudDeps): Hud {
   coordsLabel.className = 'hud-check';
   coordsBox.append(coordsInput, coordsLabel);
 
-  root.append(turn, capturedBox, movesBox, difficultyBox,
-              contrastBox, visionBox, motionBox, outlineBox, coordsBox);
+  root.append(turn, capturedBox, movesBox, difficultyBox, contrastBox);
+  if (deps.themes) root.appendChild(themeBox);
+  root.append(visionBox, motionBox);
+  if (deps.onOutline) root.appendChild(outlineBox);
+  root.appendChild(coordsBox);
 
   function onDifficultyChange(): void {
     deps.onDifficulty(difficultySelect.value as Difficulty);
@@ -284,8 +309,11 @@ export function createHud(deps: HudDeps): Hud {
   function onMotionChange(): void { deps.onReducedMotion(motionInput.checked); }
   motionInput.addEventListener('change', onMotionChange);
 
-  function onOutlineChange(): void { deps.onOutline(outlineInput.checked); }
+  function onOutlineChange(): void { deps.onOutline?.(outlineInput.checked); }
   outlineInput.addEventListener('change', onOutlineChange);
+
+  function onThemeChange(): void { deps.onTheme?.(themeSelect.value); }
+  themeSelect.addEventListener('change', onThemeChange);
 
   function onCoordsChange(): void { deps.onCoordinates(coordsInput.checked); }
   coordsInput.addEventListener('change', onCoordsChange);
@@ -384,8 +412,14 @@ export function createHud(deps: HudDeps): Hud {
     motionLabel.textContent = i18n.t('hud.reducedMotion');
     motionInput.checked = deps.reducedMotion();
 
-    outlineLabel.textContent = i18n.t(deps.outlineLabel ?? 'hud.outline');
-    outlineInput.checked = deps.outline();
+    if (deps.themes) {
+      themeLabel.textContent = i18n.t('hud.boardTheme');
+      for (const option of themeSelect.options) option.textContent = i18n.t(option.dataset.name ?? '');
+      themeSelect.value = deps.theme?.() ?? '';
+    }
+
+    outlineLabel.textContent = i18n.t('hud.outline');
+    outlineInput.checked = deps.outline?.() ?? false;
 
     coordsLabel.textContent = i18n.t('hud.coordinates');
     coordsInput.checked = deps.coordinates();
@@ -405,6 +439,7 @@ export function createHud(deps: HudDeps): Hud {
       visionSelect.removeEventListener('change', onVisionChange);
       motionInput.removeEventListener('change', onMotionChange);
       outlineInput.removeEventListener('change', onOutlineChange);
+      themeSelect.removeEventListener('change', onThemeChange);
       coordsInput.removeEventListener('change', onCoordsChange);
       backButton.removeEventListener('click', onBackClick);
       forwardButton.removeEventListener('click', onForwardClick);

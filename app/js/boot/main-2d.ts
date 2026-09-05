@@ -34,7 +34,7 @@ import { createI18n, preferredLocale, type I18n } from '../i18n/index.ts';
 import { createGridMirror } from '../ui/grid-mirror.ts';
 import { createHud } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
-import { BOARD_THEMES, DEFAULT_THEME } from '../ui/board-themes.ts';
+import { BOARD_THEMES, CONTRAST_THEME, DEFAULT_THEME } from '../ui/board-themes.ts';
 import { DEFAULT_SET } from '../ui/piece-sets.ts';
 
 /** What the move sounds like. Shared word for word with the 3D root, and worth keeping in step. */
@@ -75,6 +75,8 @@ export function boot2d(host: Document = document): void {
   const opponent = createEngineClient();
   let difficulty: Difficulty = DEFAULT_DIFFICULTY;
   let thinking = false;
+  /** A walk is in flight: the board must not accept a move played on top of it. */
+  let walking = false;
   let cursor: Square = { x: 4, y: 6 };
 
   // There is no animation to reduce — a flat board places a piece where the rules put it — but the
@@ -85,7 +87,14 @@ export function boot2d(host: Document = document): void {
   let vision = 'normal';
   let showCoordinates = true;
   let setKey = DEFAULT_SET;
-  let themeKey = DEFAULT_THEME;
+  let themeKey = paletteHigh ? CONTRAST_THEME : DEFAULT_THEME;
+  /** What to go back to when high contrast is switched off again. */
+  let previousTheme = DEFAULT_THEME;
+
+  const applyTheme = (key: string): void => {
+    themeKey = key;
+    board.setTheme(key);
+  };
 
   const declaration = createChessDeclaration({ rules, state: game, i18n, cursor: () => cursor });
   const engine = createGame({
@@ -108,6 +117,7 @@ export function boot2d(host: Document = document): void {
     resolveAction: (code) => engine.keyboard.actionOf(code, 0),
   });
   region.appendChild(board.root);
+  board.setTheme(themeKey);
 
   const hud = createHud({
     doc: host,
@@ -125,6 +135,30 @@ export function boot2d(host: Document = document): void {
     onHighContrast: (on) => {
       paletteHigh = on;
       region.dataset.contrast = on ? 'high' : '';
+      // ONE state, two doors. High contrast picks the high-contrast palette and remembers what was
+      // there before, so turning it off returns the board a player had chosen rather than the
+      // factory one. Picking a palette by hand is the other door, below.
+      if (on) {
+        if (themeKey !== CONTRAST_THEME) previousTheme = themeKey;
+        applyTheme(CONTRAST_THEME);
+      } else {
+        applyTheme(previousTheme);
+      }
+      hud.refresh();
+    },
+
+    themes: BOARD_THEMES.map((t) => ({ key: t.key, name: t.name })),
+    theme: () => themeKey,
+    onTheme: (key) => {
+      applyTheme(key);
+      // Choosing a palette by hand is a statement about the board, and leaving the panel in a
+      // high-contrast skin while the board is not would be a lie the checkbox told.
+      const contrast = key.startsWith('contrast-');
+      if (paletteHigh !== contrast) {
+        paletteHigh = contrast;
+        region.dataset.contrast = contrast ? 'high' : '';
+      }
+      if (!contrast) previousTheme = key;
       hud.refresh();
     },
     vision: () => vision,
@@ -135,26 +169,16 @@ export function boot2d(host: Document = document): void {
     },
     reducedMotion: () => motionReduced,
     onReducedMotion: (on) => { motionReduced = on; hud.refresh(); },
-    // ⚠️ A glyph has no outline to switch, so this slot asks the flat board's own version of the
-    // same question: which standard is it painted in. Off is Wikipedia's diagram, on is XBoard's —
-    // the GNU Chess interface — and the label says so.
-    outlineLabel: 'hud.boardStandard',
-    outline: () => themeKey !== DEFAULT_THEME,
-    onOutline: (on) => {
-      themeKey = on ? BOARD_THEMES[1].key : DEFAULT_THEME;
-      board.setTheme(themeKey);
-      hud.refresh();
-    },
     coordinates: () => showCoordinates,
     onCoordinates: (on) => {
       showCoordinates = on;
       region.dataset.coords = on ? 'on' : '';
       hud.refresh();
     },
-    canTakeBack: () => game.canTakeBack(),
-    canReplay: () => game.canReplay(),
-    onTakeBack: () => walkHistory('back'),
-    onReplay: () => walkHistory('forward'),
+    canTakeBack: () => !walking && game.canTakeBack(),
+    canReplay: () => !walking && game.canReplay(),
+    onTakeBack: () => { void walkHistory('back'); },
+    onReplay: () => { void walkHistory('forward'); },
   });
   region.appendChild(hud.root);
   region.dataset.contrast = paletteHigh ? 'high' : '';
@@ -235,6 +259,7 @@ export function boot2d(host: Document = document): void {
   }
 
   function onActivate(square: Square): void {
+    if (walking) return;
     cursor = square;
     const result = game.activate(square);
     if (result.kind !== 'moved') {
@@ -255,16 +280,47 @@ export function boot2d(host: Document = document): void {
       .then(() => askOpponent());
   }
 
-  function walkHistory(direction: 'back' | 'forward'): void {
+  /**
+   * ========================= ONE PLY PER LEG HERE TOO =========================
+   * The same shape as the projected board's walk, and for the same reason: applying both plies
+   * before drawing either puts the second piece on its destination from the moment the button is
+   * pressed, so it teleports and then travels. `takeBackStep` and `replayStep` exist precisely so
+   * a caller can hold the clock.
+   *
+   * Travelling BACKWARDS is the move run in reverse — from where it landed to where it began —
+   * which is the only difference between the two directions.
+   */
+  async function walkHistory(direction: 'back' | 'forward'): Promise<void> {
+    if (walking) return;
     opponent.cancel();
     thinking = false;
-    const moved = direction === 'back' ? game.takeBack() : game.replay();
-    if (!moved) {
+
+    let step = direction === 'back' ? game.takeBackStep() : game.replayStep();
+    if (!step) {
       srSay(i18n.t(direction === 'back' ? 'a11y.nothingToTakeBack' : 'a11y.nothingToReplay'));
       hud.refresh();
       return;
     }
+
+    walking = true;
+    try {
+      while (step) {
+        redraw();
+        const { from, to } = step.move;
+        await board.animate(
+          direction === 'back' ? to : from,
+          direction === 'back' ? from : to,
+          { reducedMotion: motionReduced },
+        );
+        if (!step.more) break;
+        step = direction === 'back' ? game.takeBackStep() : game.replayStep();
+      }
+    } finally {
+      walking = false;
+    }
+
     redraw();
+    // Said at the end, because mid-walk the board belongs to whoever has just been rewound past.
     srSay(i18n.t(direction === 'back' ? 'a11y.tookBack' : 'a11y.replayed', {
       side: i18n.t(`turn.${rules.turn()}`),
     }));

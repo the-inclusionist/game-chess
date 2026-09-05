@@ -231,7 +231,7 @@
     max-width: 68%;
     aspect-ratio: 1;
     margin: calc(var(--ui-fs, 16px) * 0.8);
-    border: 2px solid #3a2a14;
+    border: 2px solid var(--piece-halo, #3a2a14);
     box-sizing: border-box;
   }
   .board-2d [role="row"] { display: grid; grid-template-columns: repeat(8, 1fr); }
@@ -353,10 +353,14 @@
    * which is why the stroke here is a real rim and not a hairline.
    */
   .board-2d:not([data-coloured="true"]) .cell-piece[data-side="w"] {
-    color: #FFFFFF; -webkit-text-stroke: 1px #000000; paint-order: stroke fill;
+    color: var(--piece-white, #FFFFFF);
+    -webkit-text-stroke: 1px var(--piece-white-rim, #000000);
+    paint-order: stroke fill;
   }
   .board-2d:not([data-coloured="true"]) .cell-piece[data-side="b"] {
-    color: #000000; -webkit-text-stroke: 1px #FFFFFF; paint-order: stroke fill;
+    color: var(--piece-black, #000000);
+    -webkit-text-stroke: 1px var(--piece-black-rim, #FFFFFF);
+    paint-order: stroke fill;
   }
 
   /* ⚠️ A coloured set paints its own pixels and cannot be tinted, so the SIDE moves to a disc
@@ -367,8 +371,12 @@
     border-radius: 50%;
     box-sizing: border-box;
   }
-  .board-2d[data-coloured="true"] .cell-piece[data-side="w"] { background: #FFFFFF; border: 2px solid #000000; }
-  .board-2d[data-coloured="true"] .cell-piece[data-side="b"] { background: #000000; border: 2px solid #FFFFFF; }
+  .board-2d[data-coloured="true"] .cell-piece[data-side="w"] {
+    background: var(--piece-white, #FFFFFF); border: 2px solid var(--piece-white-rim, #000000);
+  }
+  .board-2d[data-coloured="true"] .cell-piece[data-side="b"] {
+    background: var(--piece-black, #000000); border: 2px solid var(--piece-black-rim, #FFFFFF);
+  }
 
   /*
    * The coordinates. On a flat board they need no projection at all: the file letter belongs in
@@ -396,9 +404,9 @@
     position: absolute;
     font-size: calc(var(--ui-fs, 16px) * 0.5);
     font-weight: 700;
-    /* Dark on both standards' squares: 14.57 and 11.45 against the light ones, 7.50 and 7.17
-       against the dark. One ink reads on all four. */
-    color: #3a2a14;
+    /* The theme's own rim ink, which is already the one tone measured to read on both of its
+       squares — 5.42 at worst across all six themes. */
+    color: var(--piece-halo, #3a2a14);
     pointer-events: none;
   }
   .board-2d [role="gridcell"] .cell-coord[data-kind="file"] { right: 3%; bottom: 1%; }
@@ -410,27 +418,13 @@
   #game-region[data-contrast="high"] .board-2d [role="gridcell"][data-shade="light"] { background: #8F8F8F; }
   #game-region[data-contrast="high"] .board-2d [role="gridcell"][data-shade="dark"]  { background: #5A5A5A; }
   /*
-   * ⚠️ THE PIECES DO NOT CHANGE HERE, and that is the finding rather than an omission. These rules
-   * used to import the 3D high-contrast palette — yellow #FFFF00 and black under a #0099FF rim —
-   * which was solved for SOLIDS whose faces catch light, and which had no business on a glyph.
-   *
-   * A flat board's default already uses the two extreme inks, so high contrast has nothing left to
-   * do to the pieces; the whole of its work is the BOARD. Measured on the grey pair below:
-   *
-   *              vs light   vs dark          against the tan default it replaces
-   *   white        3.23       6.90           white on light was 1.44
-   *   black        6.49       3.04           black on light was 14.57
-   *   piece against piece  21.00             square against square  2.13
-   *
-   * All four pairs clear 3:1 — which the default board cannot do and does not claim to, because
-   * there the white piece is carried by its outline. Stated explicitly rather than left to
-   * inheritance, so that changing the default cannot silently change this.
+   * ⚠️ NO PIECE COLOURS HERE ANY MORE. High contrast on the flat board is a THEME —
+   * `contrast-flat` in `ui/board-themes.ts` — because the two high-contrast palettes differ in
+   * their pieces and not in their squares, and a stylesheet rule per mode is how this board went
+   * on wearing the projected board's yellow long after that stopped making sense. The switch
+   * selects a theme; the theme decides every ink.
    */
-  #game-region[data-contrast="high"] .cell-piece[data-side="w"] { color: #FFFFFF; -webkit-text-stroke: 1px #000000; }
-  #game-region[data-contrast="high"] .cell-piece[data-side="b"] { color: #000000; -webkit-text-stroke: 1px #FFFFFF; }
   #game-region[data-contrast="high"] .cell-coord { color: #FFFFFF; }
-  /* 3.04 against the darker grey and 6.49 against the lighter — an edge on both. */
-  #game-region[data-contrast="high"] .board-2d { --piece-halo: #000000; }
 </style>
 </head>
 <body>

@@ -129,11 +129,21 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
   const cells: HTMLButtonElement[] = [];
   const glyphs: HTMLElement[] = [];
 
-  /** Paints the squares from the chosen standard. Custom properties, so one write does 64 cells. */
+  /**
+   * Publishes the whole palette as custom properties. One write reaches 64 cells and every glyph,
+   * and it is the only place a colour is decided — the stylesheet then has no per-theme rules to
+   * keep in step, which is what let the high-contrast board go on wearing the projected board's
+   * yellow long after that stopped making sense.
+   */
   function applyTheme(): void {
     root.dataset.theme = theme.key;
     root.style.setProperty('--square-light', theme.light);
     root.style.setProperty('--square-dark', theme.dark);
+    root.style.setProperty('--piece-white', theme.white);
+    root.style.setProperty('--piece-black', theme.black);
+    root.style.setProperty('--piece-white-rim', theme.whiteRim);
+    root.style.setProperty('--piece-black-rim', theme.blackRim);
+    root.style.setProperty('--piece-halo', theme.rim);
   }
 
   /** A corner mark on a cell. Hidden from the reader: the cell's own label already says "e4". */
