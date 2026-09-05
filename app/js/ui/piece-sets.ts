@@ -22,17 +22,19 @@
 // control with no semantic surface, which is what makes it worth having several.
 //
 // ========================= WHERE THE FONTS COME FROM =========================
-// The stacks below name the family and then fall back through what a machine is likely to have.
-// ⚠️ THE WOFF2 SUBSETS ARE NOT VENDORED YET, and until they are, these sets render in whatever the
-// system supplies — Segoe UI Symbol on Windows, DejaVu on most Linux, Apple Symbols on macOS. That
-// degrades to a usable board everywhere and to an IDENTICAL board nowhere, which is a real gap and
-// is recorded rather than hidden.
+// All three are VENDORED now, cut to the twelve codepoints a board needs and served from this
+// origin. The note that used to be here said the subsets "should be a few KB each"; measured, they
+// are 2,684, 3,176 and 2,748 bytes — **8,608 for all three**, against 3.6 MB of originals.
 //
-// When they are vendored it must be the engine's way: downloaded at build time and served from
-// this origin, never fetched from a CDN at runtime. That is not a preference — the engine's
-// `app/public/vendor/fonts/` holds 36 files and 928 KB for eighteen families with no request to
-// googleapis anywhere, because the destination is a school (offline) and the user is a child
-// (LGPD). A board needs twelve codepoints, so the subsets should be a few KB each.
+// Served from here and never fetched from a CDN, which is the engine's existing practice and not a
+// preference: the destination is a school, so the board has to work with no network, and the user
+// is a child, so nobody's IP address should reach a third party to draw a rook.
+//
+// Each stack still ends in a generic family. The vendored face is declared with a `unicode-range`
+// covering only the chess block, so anything else falls straight through — and if a file ever
+// fails to arrive, a system symbol font still draws a playable board.
+//
+// `app/public/vendor/fonts/NOTICE.md` records the source, the size and the licence of each.
 
 import type { PieceType, Side } from '../chess/types.ts';
 
@@ -84,6 +86,11 @@ export interface PieceSet {
 
 const SYMBOL_STACK = "'Noto Sans Symbols 2', 'Segoe UI Symbol', 'Apple Symbols', 'DejaVu Sans', serif";
 const MATH_STACK = "'STIX Two Math', 'STIX Two Text', 'Cambria Math', 'Latin Modern Math', serif";
+// ⚠️ `HandwrittenChess` IS Pecita — see the NOTICE and the @font-face comment for why it cannot be
+// called that. `Pecita` stays in the stack behind it so a machine with the full font installed
+// uses that instead, which is the one case where the whole face is available rather than twelve
+// glyphs of it.
+const HAND_STACK = "'HandwrittenChess', 'Pecita', cursive";
 
 export const PIECE_SETS: readonly PieceSet[] = [
   {
@@ -99,26 +106,15 @@ export const PIECE_SETS: readonly PieceSet[] = [
     glyph: CHESS_BLOCK,
   },
   {
-    // ⚠️ THE LICENCE IS SETTLED AND THE SET IS STILL OFF, which is a different reason from the one
-    // that used to be here. Pecita is SIL OFL 1.1, © Philippe Cochy, with the Reserved Font Name
-    // "Pecita" — checked, not assumed — and the author's own documentation lists Chess Symbols
-    // among its coverage, so the block this needs is there. OFL permits bundling and
-    // redistribution outright.
-    //
-    // What is missing is the FILE. The stack below is `'Pecita', cursive`, and Pecita is on no
-    // system by default: without the font vendored the browser falls through `cursive` — which on
-    // most machines has no chess glyphs — and then falls through again, glyph by glyph, to the
-    // same symbol font the default set already uses. A player would choose "handwritten" and get
-    // exactly the board they already had. A set that lies is worse than a set that is absent.
-    //
-    // ⚠️ And one clause of the OFL will bite when it is vendored: a SUBSET is a modified version,
-    // and the Reserved Font Name may not be used for one. The @font-face will have to declare a
-    // different family name, with the unmodified `Pecita.otf` and the licence text beside it.
+    // ⚠️ Shipped as `HandwrittenChess`, and that is the OFL working rather than a workaround.
+    // Pecita is SIL OFL 1.1, © Philippe Cochy, with the Reserved Font Name "Pecita" — a subset is
+    // a Modified Version and may not carry a reserved name, so the FONT is renamed while the SET
+    // keeps the designer's name, because that names the design a player is choosing rather than
+    // the font software. Saying where a typeface came from is what the licence asks for.
     key: 'pecita',
     label: 'Pecita',
-    family: "'Pecita', cursive",
+    family: HAND_STACK,
     glyph: CHESS_BLOCK,
-    off: 'set.off.notVendored',
   },
 ];
 

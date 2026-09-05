@@ -265,6 +265,46 @@
   p.hint { color: #6e7681; margin: 0; padding: 10px; text-align: center; font-size: 12px; flex: 0 0 auto; }
 
   /*
+   * ========================= THE CHESS GLYPHS, SERVED FROM HERE =========================
+   * Three faces, each cut to the TWELVE codepoints a board needs — U+2654 to U+265F — and nothing
+   * else from any of them. 8,608 bytes for all three, against 3.6 MB of originals: smaller than
+   * one screenshot of the board they draw. `app/public/vendor/fonts/NOTICE.md` records what was
+   * done to each and carries the three OFL texts.
+   *
+   * Downloaded at BUILD time and served from this origin, never fetched from a CDN — which is the
+   * engine's existing practice and not a preference. The destination is a school, so the board has
+   * to work with no network; the user is a child, so nobody's IP address should reach a third
+   * party to draw a rook.
+   *
+   * `unicode-range` keeps each file to the block it was cut for: a browser will not even fetch one
+   * until a chess character needs it, and any other character falls straight through to the rest
+   * of the stack.
+   *
+   * ⚠️ `HandwrittenChess` is Pecita, and is not called Pecita here. "Pecita" is a Reserved Font
+   * Name under the OFL and a subset is a Modified Version, which may not carry it. The panel still
+   * offers the set under the designer's name, because that names the DESIGN a player is choosing
+   * rather than the font software.
+   */
+  @font-face {
+    font-family: 'Noto Sans Symbols 2';
+    src: url('/vendor/fonts/symbols2-chess.woff2') format('woff2');
+    unicode-range: U+2654-265F;
+    font-display: block;
+  }
+  @font-face {
+    font-family: 'STIX Two Math';
+    src: url('/vendor/fonts/stixmath-chess.woff2') format('woff2');
+    unicode-range: U+2654-265F;
+    font-display: block;
+  }
+  @font-face {
+    font-family: 'HandwrittenChess';
+    src: url('/vendor/fonts/pecita-chess.woff2') format('woff2');
+    unicode-range: U+2654-265F;
+    font-display: block;
+  }
+
+  /*
    * ========================= THE 2D BOARD =========================
    * The grid mirror with its `sr-only` taken off. Eight rows of eight real buttons, so everything
    * that made it work for a screen reader — roving tabindex, aria-selected, arrows clamped at the

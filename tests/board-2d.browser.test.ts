@@ -167,21 +167,35 @@ describe('[PieceSets] the drawing is a choice with no semantic surface', () => {
       .toEqual(['Noto Sans Symbols 2', 'STIX Two Math', 'Pecita']);
   });
 
-  it('falls back rather than breaking on an unavailable or unknown set', () => {
+  it('falls back rather than breaking on an unknown set', () => {
     // A stale setting must not leave a player with an empty board.
-    expect(pieceSet('pecita').key).toBe(DEFAULT_SET);
     expect(pieceSet('nonsense').key).toBe(DEFAULT_SET);
     expect(AVAILABLE_SETS.every((set) => !set.off)).toBe(true);
-    expect(AVAILABLE_SETS.length).toBeLessThan(PIECE_SETS.length);
   });
 
-  it('names a font stack that always ends somewhere a machine actually has', () => {
-    // ⚠️ The woff2 subsets are not vendored yet, so today every set falls back to a system face.
-    // The stack must therefore END in a generic family, or a board can come out blank.
+  it('offers all three faces, now that all three are vendored', () => {
+    // Pecita was held back for a licence question that turned out to be settled — SIL OFL 1.1 —
+    // and then for the real reason, which was that the file was not here. It is now: 2,748 bytes
+    // of it, being the twelve codepoints a board needs.
+    expect(AVAILABLE_SETS).toHaveLength(PIECE_SETS.length);
+    expect(AVAILABLE_SETS.map((set) => set.key)).toEqual(['symbols', 'math', 'pecita']);
+  });
+
+  it('ships Pecita under a name that is not Pecita, because the OFL says so', () => {
+    // ⚠️ "Pecita" is a Reserved Font Name and a subset is a Modified Version, which may not carry
+    // one. The FONT is renamed; the SET keeps the designer's name, because that names the design a
+    // player is choosing rather than the font software.
+    const hand = pieceSet('pecita');
+    expect(hand.label).toBe('Pecita');
+    expect(hand.family.startsWith("'HandwrittenChess'")).toBe(true);
+  });
+
+  it('ends every stack in a generic family, so a missing file still draws a board', () => {
     for (const set of PIECE_SETS) {
       expect(/(serif|sans-serif|cursive|monospace)\s*$/.test(set.family)).toBe(true);
     }
   });
+
 });
 
 // ========================= THE FLAT BOARD USES THE FLAT CONVENTION =========================
