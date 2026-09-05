@@ -21,7 +21,7 @@ import { createEngineClient } from '../chess/engine/client.ts';
 import { DEFAULT_DIFFICULTY, DIFFICULTY_DEPTH, type Difficulty } from '../chess/engine/difficulty.ts';
 import { createRules, type MoveResult } from '../chess/rules.ts';
 import { createGameState, type Activation } from '../chess/state.ts';
-import { sameSquare, type Square, toAlgebraic } from '../chess/types.ts';
+import { sameSquare, type Piece, type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale, type I18n } from '../i18n/index.ts';
 import { createMoveAnimation, type MoveAnimation } from '../render/animation.ts';
 import { createBoard, type Marker } from '../render/board.ts';
@@ -133,6 +133,31 @@ export function boot(host: Document = document): void {
   });
   region.insertBefore(mirror.root, surface.view);
 
+  /**
+   * One leg of a walk through the score sheet, in SCREEN terms rather than chess terms: which
+   * piece travels, between which two squares, and which squares must stay empty while it does.
+   *
+   * `hide` is a list rather than a square because taking a capture back restores TWO pieces at
+   * once — the one coming home and the one it had taken. Both are already on the board as far as
+   * the rules are concerned, so both have to be held back until the traveller lands, or the
+   * captured piece would appear underneath the piece that is still flying away from it.
+   */
+  interface Walk {
+    readonly piece: Piece;
+    readonly from: Square;
+    readonly to: Square;
+    readonly hide: readonly Square[];
+  }
+
+  let walkQueue: Walk[] = [];
+  let walking: Walk | null = null;
+
+  // ⚠️ Both declared ABOVE `createHud` on purpose. `createHud` calls its own `refresh()` while it
+  // is still being built, `refresh` asks `canTakeBack`, and that reads `walking` — a `let` below
+  // this point would be in its temporal dead zone at exactly that moment. The boot throws, in the
+  // bundle only, under a minified name, with every test still green, because no test builds the
+  // composition root. It cost a browser reload to find and would have cost a release.
+
   // The panel lives in the 88x180 column the board leaves clear — measured in spike 0 by drawing
   // it, and honoured here by the board's camera offset rather than by hope.
   const hud = createHud({
@@ -143,8 +168,8 @@ export function boot(host: Document = document): void {
     difficulty: () => difficulty,
     reducedMotion,
     onReducedMotion: (on) => { motionReduced = on; hud.refresh(); },
-    canTakeBack: () => game.canTakeBack(),
-    canReplay: () => game.canReplay(),
+    canTakeBack: () => !walking && game.canTakeBack(),
+    canReplay: () => !walking && game.canReplay(),
     onTakeBack: () => walkHistory('back'),
     onReplay: () => walkHistory('forward'),
     outline: () => outlined,
@@ -188,12 +213,14 @@ export function boot(host: Document = document): void {
 
   function syncPieces(): void {
     const flying = game.animating();
-    // The rules have ALREADY applied the move, so the travelling piece is standing on its
-    // destination. It is left out of the static set and drawn separately, in flight.
+    // The rules have ALREADY applied the move — forwards or backwards — so the travelling piece is
+    // standing on the square it is flying TO. It is left out of the static set and drawn
+    // separately, in flight.
+    const hidden: readonly Square[] = walking ? walking.hide : flying ? [flying.to] : [];
     const placements = rules.placements()
-      .filter((p) => !(flying && sameSquare(p.square, flying.to)));
+      .filter((p) => !hidden.some((square) => sameSquare(p.square, square)));
     pieces.setPosition(placements);
-    pieces.setTravelling(flying ? flying.piece : null);
+    pieces.setTravelling(walking ? walking.piece : flying ? flying.piece : null);
     invalidate();
   }
 
@@ -313,29 +340,75 @@ export function boot(host: Document = document): void {
    * mean animating a piece backwards along a path it never took.
    */
   function walkHistory(direction: 'back' | 'forward'): void {
+    // One walk at a time, and never on top of a move already in flight.
+    if (walking || animation) return;
     opponent.cancel();
     thinking = false;
 
+    // The state machine does not report WHICH plies it moved, and it should not have to: the
+    // difference between the score sheet before and after says it exactly, and reading it here
+    // keeps the rules and the renderer from having to agree on a second vocabulary.
+    const before = rules.history().slice();
     const moved = direction === 'back' ? game.takeBack() : game.replay();
     if (!moved) {
       srSay(i18n.t(direction === 'back' ? 'a11y.nothingToTakeBack' : 'a11y.nothingToReplay'));
       hud.refresh();
       return;
     }
+    const after = rules.history();
 
-    animation = null;
-    syncPieces();
-    syncMarkers();
+    walkQueue = direction === 'back'
+      // Newest first: the reply is unwound before the move it answered, which is the order the
+      // two pieces actually left the board in, run backwards.
+      ? before.slice(after.length).reverse().map((move) => ({
+        piece: move.piece,
+        from: move.to,
+        to: move.from,
+        // Where the mover now stands, and where a piece it captured has just come back to. En
+        // passant is the one case in which those are not the move's own two squares.
+        hide: move.captured
+          ? [move.from, move.enPassant ? { x: move.to.x, y: move.from.y } : move.to]
+          : [move.from],
+      }))
+      : after.slice(before.length).map((move) => ({
+        piece: move.piece, from: move.from, to: move.to, hide: [move.to],
+      }));
+
     mirror.refresh();
     hud.refresh();
+    // Said now rather than when the pieces land: the answer to a button press should not wait for
+    // an animation, and a screen reader user is not watching the animation at all.
     srSay(i18n.t(direction === 'back' ? 'a11y.tookBack' : 'a11y.replayed', {
       side: i18n.t(`turn.${rules.turn()}`),
     }));
-    // Advancing your own move alone leaves the opponent to answer, and nothing else would ask.
-    askOpponent();
+    startNextWalk();
+  }
+
+  /** Starts the next leg of a walk, or finishes the walk if there is none left. */
+  function startNextWalk(): void {
+    const step = walkQueue.shift();
+    if (!step) {
+      walking = null;
+      animation = null;
+      syncPieces();
+      syncMarkers();
+      mirror.refresh();
+      hud.refresh();
+      // Advancing your own move alone leaves the opponent to answer, and nothing else would ask.
+      askOpponent();
+      return;
+    }
+    walking = step;
+    animation = createMoveAnimation(step.from, step.to, { reducedMotion: reducedMotion() });
+    syncPieces();
+    syncMarkers();
   }
 
   function onActivate(square: Square): void {
+    // The state machine has already settled while a walk is in flight — its phase is `idle` — so
+    // it would accept a move played on top of pieces that are still travelling. This is the only
+    // guard against that.
+    if (walking) return;
     cursor = square;
     const result = game.activate(square);
     if (result.kind === 'moved') beginMove(result.move);
@@ -434,14 +507,21 @@ export function boot(host: Document = document): void {
       pieces.moveTravelling(at.x, at.lift, at.z);
       dirty = true;
       if (!running) {
-        animation = null;
-        game.animationDone();
-        syncPieces();
-        syncMarkers();
-        mirror.refresh();
-        hud.refresh();
-        announceOutcome();
-        askOpponent();
+        // A walk through the score sheet has its own ending: the next leg, or the settling that
+        // `startNextWalk` does when there is none. The state machine settled before the first leg
+        // began, so telling it the animation is done a second time would be a lie.
+        if (walking) {
+          startNextWalk();
+        } else {
+          animation = null;
+          game.animationDone();
+          syncPieces();
+          syncMarkers();
+          mirror.refresh();
+          hud.refresh();
+          announceOutcome();
+          askOpponent();
+        }
       }
     }
 
