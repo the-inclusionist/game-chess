@@ -82,6 +82,13 @@ docs/                  design decisions and spike findings
 spike/                 throwaway probes, kept for their evidence
 ```
 
+## What is being considered next
+
+A second way of drawing the same game — an 8×8 board of glyphs in the DOM, with the piece drawing
+becoming a choice (Hartwig silhouettes, Unicode symbols, emoji) — plus switchable board
+coordinates and a second 3D set that does not have to wait for a calendar. Written down, with the
+measurements behind it, in [`docs/design-2d-board-and-piece-sets.md`](docs/design-2d-board-and-piece-sets.md).
+
 ## Credits and licences
 
 AGPL-3.0-or-later. Economic ownership belongs to the Município — see
