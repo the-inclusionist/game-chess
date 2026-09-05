@@ -27,7 +27,7 @@
 // `pixelRatio = 1` and call `setSize(LOGICAL_W, LOGICAL_H)` explicitly.
 // Measured in docs/spike-0-legibility.md; guarded by tests/canvas.browser.test.ts.
 
-import { LOGICAL_W as ENGINE_W } from '@pm-monte/inclusionist-engine/core/constants.ts';
+import { LOGICAL_W as ENGINE_W } from '@the-inclusionist/engine/core/constants.js';
 
 /** How many times the engine's own base this game draws at. */
 export const SOURCE_MULTIPLE = 2;
@@ -36,7 +36,7 @@ export const LOGICAL_W = ENGINE_W * SOURCE_MULTIPLE;          // 640
 export const LOGICAL_H = (ENGINE_W * 9 / 16) * SOURCE_MULTIPLE; // 360
 
 /** Re-exported unchanged: the world unit of a square is the engine's tile, and stays 16. */
-export { TILE } from '@pm-monte/inclusionist-engine/core/constants.ts';
+export { TILE } from '@the-inclusionist/engine/core/constants.js';
 
 /**
  * Width of the HUD column on the right: turn indicator, captured pieces, move list.

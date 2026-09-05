@@ -1,5 +1,5 @@
 {
-  "name": "@pm-monte/inclusionist-chess",
+  "name": "@the-inclusionist/game-chess",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -18,7 +18,7 @@
     "validate": "npm run typecheck && vitest run && vite build"
   },
   "dependencies": {
-    "@pm-monte/inclusionist-engine": "file:../SP-the-inclusionist-tracer",
+    "@the-inclusionist/engine": "file:../SP-the-inclusionist-tracer",
     "chess.js": "^1.4.0",
     "pixi.js": "7.4.2",
     "zdog": "^1.1.3"

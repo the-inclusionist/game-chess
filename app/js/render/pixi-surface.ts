@@ -24,7 +24,7 @@
 // 1920×1080 the arithmetic would invert and the shim would win. Low resolution is what makes the
 // simple answer the right one here.
 
-import { Z } from '@pm-monte/inclusionist-engine/core/layers.ts';
+import { Z } from '@the-inclusionist/engine/core/layers.js';
 import * as PIXI from 'pixi.js';
 import { LOGICAL_H, LOGICAL_W } from './resolution.ts';
 

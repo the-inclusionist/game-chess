@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { conformanceProblems, distance, speakableProblems } from '@pm-monte/inclusionist-engine/core/contract.ts';
+import { conformanceProblems, distance, speakableProblems } from '@the-inclusionist/engine/core/contract.js';
 import { describe, expect, it } from 'vitest';
 import { createRules } from '../app/js/chess/rules.ts';
 import { createGameState } from '../app/js/chess/state.ts';

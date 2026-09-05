@@ -18,9 +18,20 @@ whoever wrote the code.
 ## Ownership
 
 ⚠️ **Economic ownership belongs to the MUNICÍPIO, not to the developer.** Software produced in
-the exercise of one's duties belongs to the employer (Lei nº 9.609/1998, art. 4º). That is why
-the package scope is `@pm-monte` rather than the author's, and why AGPL publication is a
-petition to the executive branch rather than a developer's call.
+the exercise of one's duties belongs to the employer (Lei nº 9.609/1998, art. 4º), which is why
+AGPL publication is a petition to the executive branch rather than a developer's call.
+
+**That fact is stated HERE, and deliberately not in the package name.** The scope was
+`@pm-monte` when this repository was scaffolded, and the engine's ADR-0071 (2026-09-05) retired
+it: a scope has to be the hosting organisation — GitHub Packages requires it and does not accept
+dots — and, more to the point, ADR-0066 §2 had already decided that an ownership claim belongs
+inside a repository rather than in a name, *because a name is read by strangers who will not open
+the repository*. A scope named for the Prefeitura, published to a registry by a servidor before
+the ato, is a public claim on an institution's name.
+
+The cost is worth stating: whoever reads only the dependency line now learns nothing about the
+Município. That is the same price the engine accepted, and this file is where the fact lives
+instead.
 
 This mirrors the engine's own `docs/LICENSES.md`. Nothing here changes that arrangement; this
 repository is a consumer of the engine and inherits its position.
@@ -29,7 +40,7 @@ repository is a consumer of the engine and inherits its position.
 
 | | Licence | Note |
 |---|---|---|
-| `@pm-monte/inclusionist-engine` | AGPL-3.0-or-later | Same owner. Linked with `file:`; this repo is its first external consumer. |
+| `@the-inclusionist/engine` | AGPL-3.0-or-later | Same owner. Linked with `file:`; this repo is its first external consumer. |
 | `zdog` 1.1.3 | MIT | © 2020 Metafizzy. Pseudo-3D geometry, projection and depth sort. |
 | `pixi.js` 7.4.2 | MIT | Pinned to the engine's exact version — a second PixiJS in one page is a bug, not a fallback. |
 | `chess.js` | BSD-2-Clause | Rules, legality, FEN, algebraic notation. |

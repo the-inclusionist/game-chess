@@ -31,7 +31,7 @@ That claim was tested before anything was built: `docs/spike-0-legibility.md`.
 
 ## Accessibility
 
-Everything below the game comes from `@pm-monte/inclusionist-engine` through a single `createGame()`
+Everything below the game comes from `@the-inclusionist/engine` through a single `createGame()`
 call: screen reader, colour-vision filters, remappable input as intent, dialog stack, menu
 navigation, typography, text-to-speech, and blind-navigation sonar.
 

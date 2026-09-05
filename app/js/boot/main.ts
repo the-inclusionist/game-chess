@@ -9,10 +9,10 @@
 // everything the game says goes through `announce()`. Keeping those two funnels narrow is what will
 // let the grid mirror behave identically to a click when it arrives.
 
-import { createGame } from '@pm-monte/inclusionist-engine';
-import { srAlert, srSay } from '@pm-monte/inclusionist-engine/core/a11y-sr.ts';
-import { startLoop } from '@pm-monte/inclusionist-engine/core/loop.ts';
-import { VIZ_FILTER } from '@pm-monte/inclusionist-engine/render/viz-modes.ts';
+import { createGame } from '@the-inclusionist/engine';
+import { srAlert, srSay } from '@the-inclusionist/engine/core/a11y-sr.js';
+import { startLoop } from '@the-inclusionist/engine/core/loop.js';
+import { VIZ_FILTER } from '@the-inclusionist/engine/render/viz-modes.js';
 import { createChessDeclaration } from '../declaration/chess-declaration.ts';
 import { createGridMirror } from '../ui/grid-mirror.ts';
 import { createHud } from '../ui/hud.ts';

@@ -15,7 +15,7 @@ export default defineConfig({
   root: 'app',
   build: { outDir: '../dist', emptyOutDir: true, target: 'es2022' },
   optimizeDeps: {
-    exclude: ['@pm-monte/inclusionist-engine'],
+    exclude: ['@the-inclusionist/engine'],
     // Zdog is CommonJS, so it must be pre-bundled. Naming it here stops Vitest's browser mode
     // from discovering it mid-run and reloading the page under a suite that is already going.
     include: ['zdog', 'pixi.js'],

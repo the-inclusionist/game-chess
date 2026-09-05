@@ -18,8 +18,8 @@
 // PixiJS still earns its keep: it composites the Zdog frame, it owns the layer order, and the
 // post-processing applies to the BOARD. Only the text argument was mistaken.
 
-import { t as engineT } from '@pm-monte/inclusionist-engine/core/i18n.ts';
-import { VIZ_CORRECTIONS } from '@pm-monte/inclusionist-engine/render/viz-modes.ts';
+import { t as engineT } from '@the-inclusionist/engine/core/i18n.js';
+import { VIZ_CORRECTIONS } from '@the-inclusionist/engine/render/viz-modes.js';
 import type { Difficulty } from '../chess/engine/difficulty.ts';
 import { DIFFICULTIES } from '../chess/engine/difficulty.ts';
 import type { Rules } from '../chess/rules.ts';

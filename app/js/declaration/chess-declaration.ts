@@ -26,7 +26,7 @@
 
 import type {
   Focus, GameDeclaration, Objective, Role, Speakable, Spot,
-} from '@pm-monte/inclusionist-engine/core/contract.ts';
+} from '@the-inclusionist/engine/core/contract.js';
 import type { Rules } from '../chess/rules.ts';
 import type { GameState } from '../chess/state.ts';
 import type { Square } from '../chess/types.ts';
