@@ -225,3 +225,84 @@ describe('[Enumeration] every legal move, for the search to walk', () => {
     expect(createRules().allMoves().every((m) => m.promotion === null)).toBe(true);
   });
 });
+
+// ========================= WHY REDO LIVES HERE AND NOT IN THE HUD =========================
+// chess.js can take a move back and cannot put one back: `undo()` returns the move it removed and
+// then forgets it. A redo stack therefore has to be held by somebody, and the only honest place is
+// the module that already owns the position — anywhere else and two objects would each believe
+// they knew the history, which is how the move list and the board drift apart.
+//
+// The rule that matters is the one every editor has: playing a NEW move discards the future. A
+// take-back followed by a different move is a different game, and offering to "advance" into the
+// one that was abandoned would put a move on the board that nobody played.
+
+describe('[History] taking a move back and putting it forward again', () => {
+  const e4 = () => { const r = createRules(); r.move(sq('e2'), sq('e4')); return r; };
+
+  it('has nothing to take back or advance at the start', () => {
+    const rules = createRules();
+    expect(rules.canUndo()).toBe(false);
+    expect(rules.canRedo()).toBe(false);
+  });
+
+  it('takes the last move off the board and off the score sheet', () => {
+    const rules = e4();
+    expect(rules.canUndo()).toBe(true);
+    rules.undo();
+    expect(rules.pieceAt(sq('e4'))).toBeNull();
+    expect(rules.pieceAt(sq('e2'))).toEqual({ type: 'p', side: 'w' });
+    expect(rules.history()).toHaveLength(0);
+    expect(rules.turn()).toBe('w');
+  });
+
+  it('puts it back exactly where it was, notation included', () => {
+    const rules = e4();
+    const before = rules.fen();
+    rules.undo();
+    expect(rules.canRedo()).toBe(true);
+    expect(rules.redo()).toBe(true);
+    expect(rules.fen()).toBe(before);
+    expect(rules.history().map((m) => m.san)).toEqual(['e4']);
+    expect(rules.canRedo()).toBe(false);
+  });
+
+  it('restores a captured piece on the way back and takes it again on the way forward', () => {
+    const rules = createRules();
+    rules.move(sq('e2'), sq('e4'));
+    rules.move(sq('d7'), sq('d5'));
+    rules.move(sq('e4'), sq('d5'));
+    expect(rules.history().at(-1)?.captured).toEqual({ type: 'p', side: 'b' });
+
+    rules.undo();
+    expect(rules.pieceAt(sq('d5'))).toEqual({ type: 'p', side: 'b' });
+    rules.redo();
+    expect(rules.pieceAt(sq('d5'))).toEqual({ type: 'p', side: 'w' });
+    // Read back from the history, which is where the HUD counts captures from.
+    expect(rules.history().at(-1)?.captured).toEqual({ type: 'p', side: 'b' });
+  });
+
+  it('unwinds the whole game and rewinds it', () => {
+    const rules = createRules();
+    for (const [from, to] of [['e2', 'e4'], ['e7', 'e5'], ['g1', 'f3'], ['b8', 'c6']]) {
+      rules.move(sq(from), sq(to));
+    }
+    const end = rules.fen();
+    while (rules.canUndo()) rules.undo();
+    expect(rules.fen()).toBe(createRules().fen());
+    while (rules.canRedo()) rules.redo();
+    expect(rules.fen()).toBe(end);
+    expect(rules.history()).toHaveLength(4);
+  });
+
+  it('DISCARDS the future when a different move is played', () => {
+    const rules = e4();
+    rules.undo();
+    rules.move(sq('d2'), sq('d4'));
+    expect(rules.canRedo()).toBe(false);
+    expect(rules.history().map((m) => m.san)).toEqual(['d4']);
+  });
+
+  it('refuses to advance when there is nothing ahead', () => {
+    expect(createRules().redo()).toBe(false);
+  });
+});

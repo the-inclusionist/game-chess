@@ -203,3 +203,121 @@ describe('[Check] a check is surfaced on the move that gives it', () => {
     expect(solo().kingInCheck()).toBeNull();
   });
 });
+
+// ========================= WHY A TAKE-BACK IS TWO PLIES =========================
+// Undoing one ply against an opponent hands the position back with the OPPONENT to move — so the
+// engine would immediately play again, and from the player's chair the button would look like it
+// did nothing but change the computer's mind. Against an opponent the unit of a take-back is the
+// pair: your move and the reply to it, leaving you to move again. In a hot seat there is no reply
+// to undo, so the unit is one ply.
+//
+// Both directions are refused mid-animation. A piece in flight is drawn from a move the rules have
+// already applied; pulling that move out from under the animation would leave the renderer holding
+// a destination that no longer exists.
+
+describe('[History] take back and advance', () => {
+  const played = (game: ReturnType<typeof versus>, from: string, to: string) => {
+    game.activate(sq(from));
+    game.activate(sq(to));
+    game.animationDone();
+  };
+
+  it('offers nothing to take back or advance at the start', () => {
+    const game = versus();
+    expect(game.canTakeBack()).toBe(false);
+    expect(game.canReplay()).toBe(false);
+    expect(game.takeBack()).toBe(false);
+    expect(game.replay()).toBe(false);
+  });
+
+  it('takes back your move AND the reply, leaving you to move', () => {
+    const game = versus();
+    played(game, 'e2', 'e4');
+    // The opponent answers; against a real client this arrives from the worker.
+    game.applyOpponentMove(sq('e7'), sq('e5'));
+    game.animationDone();
+    expect(game.rules.history()).toHaveLength(2);
+
+    expect(game.takeBack()).toBe(true);
+    expect(game.rules.history()).toHaveLength(0);
+    expect(game.rules.turn()).toBe('w');
+    expect(game.phase()).toBe('idle');
+    expect(game.selection()).toBeNull();
+  });
+
+  it('advances the same pair back onto the board', () => {
+    const game = versus();
+    played(game, 'e2', 'e4');
+    game.applyOpponentMove(sq('e7'), sq('e5'));
+    game.animationDone();
+    const fen = game.rules.fen();
+
+    game.takeBack();
+    expect(game.canReplay()).toBe(true);
+    expect(game.replay()).toBe(true);
+    expect(game.rules.fen()).toBe(fen);
+    expect(game.phase()).toBe('idle');
+  });
+
+  it('advancing your move alone leaves the opponent to think', () => {
+    // Your move was taken back before the reply existed: putting it forward puts the position
+    // back on the opponent, and the phase has to say so or nobody will ask them to move.
+    const game = versus();
+    played(game, 'e2', 'e4');
+    expect(game.takeBack()).toBe(true);
+    expect(game.replay()).toBe(true);
+    expect(game.rules.history()).toHaveLength(1);
+    expect(game.phase()).toBe('thinking');
+  });
+
+  it('takes back exactly one ply in a hot seat', () => {
+    const game = solo();
+    game.activate(sq('e2'));
+    game.activate(sq('e4'));
+    game.animationDone();
+    game.activate(sq('e7'));
+    game.activate(sq('e5'));
+    game.animationDone();
+
+    expect(game.takeBack()).toBe(true);
+    expect(game.rules.history()).toHaveLength(1);
+    expect(game.rules.turn()).toBe('b');
+  });
+
+  it('refuses while a piece is in flight', () => {
+    const game = versus();
+    game.activate(sq('e2'));
+    game.activate(sq('e4'));
+    expect(game.phase()).toBe('animating');
+    expect(game.canTakeBack()).toBe(false);
+    expect(game.takeBack()).toBe(false);
+    expect(game.rules.history()).toHaveLength(1);
+  });
+
+  it('takes a checkmate back, and the game is on again', () => {
+    // Fool's mate, one move short — a hot seat so both sides are played from this board.
+    const game = solo('rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR b KQkq - 0 2');
+    game.activate(sq('d8'));
+    game.activate(sq('h4'));
+    game.animationDone();
+    expect(game.phase()).toBe('over');
+    expect(game.outcome()).toEqual({ kind: 'checkmate', winner: 'b' });
+
+    expect(game.canTakeBack()).toBe(true);
+    expect(game.takeBack()).toBe(true);
+    expect(game.phase()).toBe('idle');
+    expect(game.outcome()).toBeNull();
+  });
+
+  it('clears a selection when the position moves under it', () => {
+    const game = versus();
+    played(game, 'e2', 'e4');
+    game.applyOpponentMove(sq('e7'), sq('e5'));
+    game.animationDone();
+    game.activate(sq('d2'));
+    expect(game.selection()).not.toBeNull();
+    game.takeBack();
+    expect(game.selection()).toBeNull();
+    expect(game.legalTargets()).toEqual([]);
+  });
+});

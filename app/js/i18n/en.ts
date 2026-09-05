@@ -44,6 +44,11 @@ export const en: Catalog = {
     'hud.reducedMotion': 'Reduced motion',
     'hud.outline':    'Piece outline',
     'hud.vision':     'Colour vision',
+    'hud.takeBack':   'Take back',
+    'hud.replay':     'Play forward',
+    'hud.takeBackShort': 'Back',
+    'hud.replayShort':   'Forward',
+    'hud.movesRegion': 'Move list, scrollable',
 
     'difficulty.easy':   'Easy',
     'difficulty.medium': 'Medium',
@@ -66,5 +71,9 @@ export const en: Catalog = {
     'a11y.cellCapture': 'capture available',
     'a11y.cellCheck': 'in check',
     'a11y.gridHint': 'Arrows navigate, Enter selects',
+    'a11y.tookBack': 'Move taken back. {side} to play',
+    'a11y.replayed': 'Move played forward. {side} to play',
+    'a11y.nothingToTakeBack': 'Nothing to take back',
+    'a11y.nothingToReplay': 'Nothing to play forward',
   },
 };

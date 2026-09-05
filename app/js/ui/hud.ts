@@ -43,6 +43,11 @@ export interface HudDeps {
   onReducedMotion(on: boolean): void;
   outline(): boolean;
   onOutline(on: boolean): void;
+  /** Whether the score sheet can be walked back or forward from where it stands. */
+  canTakeBack(): boolean;
+  canReplay(): boolean;
+  onTakeBack(): void;
+  onReplay(): void;
 }
 
 export interface Hud {
@@ -90,7 +95,41 @@ export function createHud(deps: HudDeps): Hud {
   movesList.className = 'hud-moves';
   // NOT a live region. Every move is already announced through srSay the moment it is played;
   // a live list would say each one twice, which is worse than saying it once.
-  movesBox.append(movesTitle, movesList);
+
+  // ========================= WHY THE LIST IS FOCUSABLE =========================
+  // It scrolls, and it holds no focusable content — an `<ol>` of text. A scroll container like
+  // that is unreachable by keyboard unless it can take focus itself (WCAG 2.1.1), so a person
+  // who cannot use a pointer would have no way to read past the visible moves.
+  movesList.tabIndex = 0;
+
+  // ========================= TAKE BACK AND PLAY FORWARD =========================
+  // Under the score sheet because that is what they move through. Two real buttons, so they are
+  // in the tab order and speak their own names; the arrows are decoration and are hidden from the
+  // reader, which is why each button also carries visible text.
+  //
+  // The visible word is the short one and the accessible name is the full phrase — "Voltar" seen,
+  // "Voltar lance" spoken. Two buttons side by side in an 88-logical-pixel column cannot show
+  // "Avançar lance" without ellipsis, and an ellipsis is a label nobody can read. WCAG 2.5.3 is
+  // satisfied because the full name CONTAINS the visible one, so a voice-control user who says
+  // what they see is still understood.
+  const navBox = doc.createElement('p');
+  navBox.className = 'hud-nav';
+  const backButton = doc.createElement('button');
+  const forwardButton = doc.createElement('button');
+  for (const [button, glyph] of [[backButton, '◀'], [forwardButton, '▶']] as const) {
+    button.type = 'button';
+    const arrow = doc.createElement('span');
+    arrow.setAttribute('aria-hidden', 'true');
+    arrow.textContent = glyph;
+    const text = doc.createElement('span');
+    text.className = 'hud-nav-text';
+    button.append(...(glyph === '◀' ? [arrow, text] : [text, arrow]));
+    navBox.appendChild(button);
+  }
+  const backText = backButton.querySelector('.hud-nav-text') as HTMLElement;
+  const forwardText = forwardButton.querySelector('.hud-nav-text') as HTMLElement;
+
+  movesBox.append(movesTitle, movesList, navBox);
 
   // --- difficulty ------------------------------------------------------------
   const difficultyBox = doc.createElement('p');
@@ -180,6 +219,11 @@ export function createHud(deps: HudDeps): Hud {
   function onOutlineChange(): void { deps.onOutline(outlineInput.checked); }
   outlineInput.addEventListener('change', onOutlineChange);
 
+  function onBackClick(): void { deps.onTakeBack(); }
+  function onForwardClick(): void { deps.onReplay(); }
+  backButton.addEventListener('click', onBackClick);
+  forwardButton.addEventListener('click', onForwardClick);
+
   function capturedFor(side: Side): string {
     // Reading the history rather than keeping a tally: one source of truth, and a taken-back move
     // corrects the list for free instead of needing its own undo path.
@@ -226,7 +270,15 @@ export function createHud(deps: HudDeps): Hud {
       `${i18n.t('turn.b')}: ${describeCaptured('w')}`);
 
     movesTitle.textContent = i18n.t('hud.moves');
+    movesList.setAttribute('aria-label', i18n.t('hud.movesRegion'));
     fillMoves();
+
+    backText.textContent = i18n.t('hud.takeBackShort');
+    forwardText.textContent = i18n.t('hud.replayShort');
+    backButton.setAttribute('aria-label', i18n.t('hud.takeBack'));
+    forwardButton.setAttribute('aria-label', i18n.t('hud.replay'));
+    backButton.disabled = !deps.canTakeBack();
+    forwardButton.disabled = !deps.canReplay();
 
     difficultyLabel.textContent = i18n.t('hud.difficulty');
     for (const option of difficultySelect.options) {
@@ -267,6 +319,8 @@ export function createHud(deps: HudDeps): Hud {
       visionSelect.removeEventListener('change', onVisionChange);
       motionInput.removeEventListener('change', onMotionChange);
       outlineInput.removeEventListener('change', onOutlineChange);
+      backButton.removeEventListener('click', onBackClick);
+      forwardButton.removeEventListener('click', onForwardClick);
       root.remove();
     },
   };

@@ -45,6 +45,11 @@ export const es: Catalog = {
     'hud.reducedMotion': 'Movimiento reducido',
     'hud.outline':    'Contorno de piezas',
     'hud.vision':     'Visión de color',
+    'hud.takeBack':   'Deshacer jugada',
+    'hud.replay':     'Rehacer jugada',
+    'hud.takeBackShort': 'Deshacer',
+    'hud.replayShort':   'Rehacer',
+    'hud.movesRegion': 'Lista de jugadas, desplazable',
 
     'difficulty.easy':   'Fácil',
     'difficulty.medium': 'Medio',
@@ -67,5 +72,9 @@ export const es: Catalog = {
     'a11y.cellCapture': 'captura posible',
     'a11y.cellCheck': 'en jaque',
     'a11y.gridHint': 'Flechas navegan, Enter selecciona',
+    'a11y.tookBack': 'Jugada deshecha. Turno de {side}',
+    'a11y.replayed': 'Jugada rehecha. Turno de {side}',
+    'a11y.nothingToTakeBack': 'Nada que deshacer',
+    'a11y.nothingToReplay': 'Nada que rehacer',
   },
 };

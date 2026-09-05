@@ -29,6 +29,9 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   const onReducedMotion = vi.fn((on: boolean) => { motion = on; });
   let outline = true;
   const onOutline = vi.fn((on: boolean) => { outline = on; });
+  // The composition root cancels the search and redraws around these; the panel only asks.
+  const onTakeBack = vi.fn(() => { state.takeBack(); hud!.refresh(); });
+  const onReplay = vi.fn(() => { state.replay(); hud!.refresh(); });
   hud = createHud({
     doc: document, i18n: createI18n(locale), rules, state,
     difficulty: () => difficulty, onDifficulty,
@@ -36,6 +39,8 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
     vision: () => vision, onVision,
     reducedMotion: () => motion, onReducedMotion,
     outline: () => outline, onOutline,
+    canTakeBack: () => state.canTakeBack(), canReplay: () => state.canReplay(),
+    onTakeBack, onReplay,
   });
   document.body.appendChild(hud.root);
   const play = (from: string, to: string) => {
@@ -47,7 +52,7 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   return { rules, state, hud, onDifficulty, onHighContrast, onVision, play,
            getDifficulty: () => difficulty, getContrast: () => highContrast,
            getVision: () => vision, onReducedMotion, getMotion: () => motion,
-           onOutline, getOutline: () => outline };
+           onOutline, getOutline: () => outline, onTakeBack, onReplay };
 }
 
 const text = (selector: string): string =>
@@ -293,5 +298,104 @@ describe('[Outline] on by default, and switchable', () => {
     box.dispatchEvent(new Event('change', { bubbles: true }));
     expect(onOutline).toHaveBeenCalledWith(false);
     expect(getOutline()).toBe(false);
+  });
+});
+
+// ========================= THE PANEL MUST NOT RUN OUT OF ROOM =========================
+// The report was concrete: as moves accumulated the menus below the score sheet went out of
+// reach. Two independent causes, so two independent guards — the list is bounded, and the panel
+// itself scrolls. Losing the difficulty control because you played twenty moves is a bug.
+
+describe('[Panel] the controls stay reachable however long the game runs', () => {
+  const nav = (): HTMLButtonElement[] =>
+    [...document.querySelectorAll<HTMLButtonElement>('.hud-nav button')];
+
+  it('keeps every control in the document after a long game', () => {
+    const { play } = build();
+    // Twenty plies — enough score sheet to have pushed the panel over. Pawns rather than a
+    // knight shuffle: a shuffle draws by threefold repetition and the state machine, quite
+    // correctly, stops accepting moves half way through.
+    for (const file of 'abcdefgh') {
+      play(`${file}2`, `${file}3`);
+      play(`${file}7`, `${file}6`);
+    }
+    // Every third-rank square is a pawn by now, so the knights go to the second rank.
+    play('g1', 'e2'); play('g8', 'e7'); play('b1', 'd2'); play('b8', 'd7');
+    expect(document.querySelectorAll('.hud-moves li').length).toBe(10);
+    for (const id of ['#hud-difficulty', '#hud-contrast', '#hud-vision', '#hud-motion', '#hud-outline']) {
+      expect(document.querySelector(id)).not.toBeNull();
+    }
+    expect(nav()).toHaveLength(2);
+  });
+
+  it('leaves the score sheet reachable by keyboard', () => {
+    build();
+    const list = document.querySelector<HTMLElement>('.hud-moves');
+    // It scrolls and holds nothing focusable, so it must take focus itself (WCAG 2.1.1).
+    expect(list?.tabIndex).toBe(0);
+    expect(list?.getAttribute('aria-label')).toBe('Lista de lances, rolável');
+  });
+});
+
+describe('[Panel] walking the game backwards and forwards', () => {
+  const nav = (): HTMLButtonElement[] =>
+    [...document.querySelectorAll<HTMLButtonElement>('.hud-nav button')];
+
+  it('offers two named buttons, both dead on an empty board', () => {
+    build();
+    const [back, forward] = nav();
+    // Seen short, spoken in full — and the full name contains the visible word (WCAG 2.5.3).
+    expect(back.textContent).toContain('Voltar');
+    expect(forward.textContent).toContain('Avançar');
+    expect(back.getAttribute('aria-label')).toBe('Voltar lance');
+    expect(forward.getAttribute('aria-label')).toBe('Avançar lance');
+    const seen = back.querySelector('.hud-nav-text')?.textContent ?? '';
+    expect(back.getAttribute('aria-label')).toContain(seen);
+    expect(back.disabled).toBe(true);
+    expect(forward.disabled).toBe(true);
+  });
+
+  it('wakes the back button as soon as there is a move to take back', () => {
+    const { play } = build();
+    play('e2', 'e4');
+    expect(nav()[0].disabled).toBe(false);
+    expect(nav()[1].disabled).toBe(true);
+  });
+
+  it('takes the move off the score sheet and offers it forward again', () => {
+    const { play, onTakeBack, onReplay } = build();
+    play('e2', 'e4');
+    expect(document.querySelectorAll('.hud-moves li')).toHaveLength(1);
+
+    nav()[0].click();
+    expect(onTakeBack).toHaveBeenCalled();
+    expect(document.querySelectorAll('.hud-moves li')).toHaveLength(0);
+    expect(nav()[0].disabled).toBe(true);
+    expect(nav()[1].disabled).toBe(false);
+
+    nav()[1].click();
+    expect(onReplay).toHaveBeenCalled();
+    expect(document.querySelectorAll('.hud-moves li')).toHaveLength(1);
+  });
+
+  it('puts a captured piece back in the tally on the way out', () => {
+    // The capture list is read from the history, so a take-back corrects it with no undo path
+    // of its own — the claim the HUD comment makes, now actually exercised.
+    const { play } = build();
+    play('e2', 'e4'); play('d7', 'd5'); play('e4', 'd5');
+    expect(text('.hud-captured')).toContain('♟');
+    nav()[0].click();
+    expect(text('.hud-captured')).toBe('—');
+  });
+
+  it('names the buttons in every language', () => {
+    build('en');
+    expect(nav()[0].textContent).toContain('Back');
+    expect(nav()[0].getAttribute('aria-label')).toBe('Take back');
+    hud?.destroy();
+    document.body.replaceChildren();
+    build('es');
+    expect(nav()[0].textContent).toContain('Deshacer');
+    expect(nav()[0].getAttribute('aria-label')).toBe('Deshacer jugada');
   });
 });

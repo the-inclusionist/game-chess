@@ -49,6 +49,11 @@ export const pt: Catalog = {
     'hud.reducedMotion': 'Movimento reduzido',
     'hud.outline':    'Contorno das peças',
     'hud.vision':     'Visão de cores',
+    'hud.takeBack':   'Voltar lance',
+    'hud.replay':     'Avançar lance',
+    'hud.takeBackShort': 'Voltar',
+    'hud.replayShort':   'Avançar',
+    'hud.movesRegion': 'Lista de lances, rolável',
 
     'difficulty.easy':   'Fácil',
     'difficulty.medium': 'Médio',
@@ -71,5 +76,9 @@ export const pt: Catalog = {
     'a11y.cellCapture': 'captura possível',
     'a11y.cellCheck': 'em xeque',
     'a11y.gridHint': 'Setas navegam, Enter seleciona',
+    'a11y.tookBack': 'Lance desfeito. Vez de {side}',
+    'a11y.replayed': 'Lance refeito. Vez de {side}',
+    'a11y.nothingToTakeBack': 'Nada a desfazer',
+    'a11y.nothingToReplay': 'Nada a refazer',
   },
 };

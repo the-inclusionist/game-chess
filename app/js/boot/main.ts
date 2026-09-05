@@ -143,6 +143,10 @@ export function boot(host: Document = document): void {
     difficulty: () => difficulty,
     reducedMotion,
     onReducedMotion: (on) => { motionReduced = on; hud.refresh(); },
+    canTakeBack: () => game.canTakeBack(),
+    canReplay: () => game.canReplay(),
+    onTakeBack: () => walkHistory('back'),
+    onReplay: () => walkHistory('forward'),
     outline: () => outlined,
     onOutline: (on) => { outlined = on; pieces.setOutline(on); hud.refresh(); invalidate(); },
     vision: () => vision,
@@ -292,6 +296,43 @@ export function boot(host: Document = document): void {
         srAlert(i18n.t('status.engineFailed'));
         console.error('[chess] engine failed', error);
       });
+  }
+
+  /**
+   * ========================= WALKING THE SCORE SHEET =========================
+   * Both buttons come through here because both need the same four things afterwards: the pieces
+   * put back where the rules now say they stand, the markers redrawn, the DOM mirror relabelled,
+   * and the panel told what it may now offer.
+   *
+   * The search is cancelled first. A take-back during `thinking` is exactly when a player wants
+   * one — they have seen their blunder and the computer has not answered yet — and letting the
+   * worker finish would answer a position that no longer exists. The client is id-matched and
+   * would drop the reply anyway; cancelling makes it prompt instead of merely harmless.
+   *
+   * There is no animation. A take-back is not a move being played, and pretending otherwise would
+   * mean animating a piece backwards along a path it never took.
+   */
+  function walkHistory(direction: 'back' | 'forward'): void {
+    opponent.cancel();
+    thinking = false;
+
+    const moved = direction === 'back' ? game.takeBack() : game.replay();
+    if (!moved) {
+      srSay(i18n.t(direction === 'back' ? 'a11y.nothingToTakeBack' : 'a11y.nothingToReplay'));
+      hud.refresh();
+      return;
+    }
+
+    animation = null;
+    syncPieces();
+    syncMarkers();
+    mirror.refresh();
+    hud.refresh();
+    srSay(i18n.t(direction === 'back' ? 'a11y.tookBack' : 'a11y.replayed', {
+      side: i18n.t(`turn.${rules.turn()}`),
+    }));
+    // Advancing your own move alone leaves the opponent to answer, and nothing else would ask.
+    askOpponent();
   }
 
   function onActivate(square: Square): void {
@@ -450,6 +491,8 @@ export function boot(host: Document = document): void {
         };
       },
       activate: onActivate,
+      takeBack: () => walkHistory('back'),
+      replay: () => walkHistory('forward'),
       opponent,
       setDifficulty(level: Difficulty) { difficulty = level; },
       askOpponent,

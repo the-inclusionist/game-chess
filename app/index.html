@@ -70,7 +70,16 @@
     color: #c9d1d9;
     background: #111a24;
     border-left: 1px solid #2b3a4a;
-    overflow: hidden;
+
+    /* ========================= THE PANEL SCROLLS =========================
+       It used to be `overflow: hidden`, on the assumption that the move list was the only thing
+       that could grow and that giving IT a scrollbar was enough. Both halves were wrong: the
+       controls below the list are taller than the column at the k=2 floor whatever the list does,
+       so the outline switch was already clipped on an empty board — and once the list started
+       filling, it pushed the difficulty select out of reach as well. Losing a menu because you
+       played twenty moves is a bug, not a layout. */
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
   .hud h2 {
     margin: 0; font-size: 0.75em; font-weight: 600;
@@ -82,11 +91,31 @@
   .hud-swatch[data-side="w"] { background: #FFD97D; }
   .hud-swatch[data-side="b"] { background: #3F2B78; }
   .hud-captured { min-height: 1.2em; font-size: 1.05em; letter-spacing: -0.04em; }
+  /* Bounded rather than greedy: `flex: 1 1 auto` let the score sheet claim the column and press
+     everything under it against the bottom edge. A fixed window of about eight lines keeps the
+     recent moves in view and leaves the controls where the player last saw them; the rest of the
+     game is one scroll away, inside the list. */
   .hud-moves {
-    flex: 1 1 auto; min-height: 0; overflow-y: auto;
+    flex: 0 0 auto; max-height: 8.5em; overflow-y: auto; overscroll-behavior: contain;
     margin: 0; padding-left: 1.7em; font-size: 0.9em;
     font-variant-numeric: tabular-nums;
   }
+  .hud-moves:focus-visible { outline: 2px solid #FFD97D; outline-offset: 1px; }
+
+  /* Two targets side by side in an 88-logical-pixel column: --tap keeps each at 44 CSS px tall
+     (WCAG 2.5.5) and they split the width, which is the one dimension there is none of. */
+  .hud-nav { display: flex; gap: 0.3em; }
+  .hud-nav button {
+    flex: 1 1 0; min-width: 0; min-height: var(--tap, 44px);
+    display: flex; align-items: center; justify-content: center; gap: 0.2em;
+    font: inherit; font-size: 0.75em;
+    color: #c9d1d9; background: #1b2733;
+    border: 1px solid #2b3a4a; border-radius: 2px;
+    cursor: pointer;
+  }
+  .hud-nav button:hover:not(:disabled) { background: #24344a; }
+  .hud-nav button:disabled { opacity: 0.45; cursor: default; }
+  .hud-nav-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hud label { display: block; font-size: 0.75em; color: #8b949e; }
   /* --tap is 22*k, which is 44px at the k=2 floor: the WCAG 2.5.5 target size, inherited. */
   /* --tap is 22*k, which is 44px at the k=2 floor: the WCAG 2.5.5 target size, inherited.
@@ -110,6 +139,9 @@
   }
   #game-region[data-contrast="high"] .hud h2,
   #game-region[data-contrast="high"] .hud label { color: #FFFFFF; }
+  #game-region[data-contrast="high"] .hud-nav button {
+    color: #FFFFFF; background: #000000; border-color: #FFFFFF;
+  }
   #game-region[data-contrast="high"] .hud-swatch[data-side="w"] { background: #FFFFFF; }
   #game-region[data-contrast="high"] .hud-swatch[data-side="b"] { background: #000000; border-color: #FFFFFF; }
 

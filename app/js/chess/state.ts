@@ -61,6 +61,25 @@ export interface GameState {
   animationDone(): void;
   /** The opponent's chosen move. Only accepted while thinking; never throws. */
   applyOpponentMove(from: Square, to: Square, promotion?: MoveResult['promotion']): MoveResult | null;
+
+  /**
+   * ========================= WHY A TAKE-BACK IS TWO PLIES =========================
+   * Undoing ONE ply against an opponent hands the position back with the opponent to move, so the
+   * engine immediately plays again — from the player's chair the button would look like it did
+   * nothing except change the computer's mind. Against an opponent the unit is the pair: your move
+   * and the reply to it, leaving you to move again. In a hot seat there is no reply, so it is one.
+   *
+   * Both directions are refused mid-animation. A piece in flight is drawn from a move the rules
+   * have already applied; pulling that move out from under it would leave the renderer holding a
+   * destination that no longer exists. `thinking` is NOT refused — a player who has changed their
+   * mind should not have to wait for the search, and cancelling it belongs to whoever owns the
+   * worker, not here.
+   */
+  canTakeBack(): boolean;
+  canReplay(): boolean;
+  /** Returns whether anything moved, so the caller knows whether to redraw and speak. */
+  takeBack(): boolean;
+  replay(): boolean;
 }
 
 export function createGameState(options: GameStateOptions): GameState {
@@ -158,6 +177,32 @@ export function createGameState(options: GameStateOptions): GameState {
 
     animationDone() {
       settle();
+    },
+
+    canTakeBack: () => phase !== 'animating' && rules.canUndo(),
+    canReplay: () => phase !== 'animating' && rules.canRedo(),
+
+    takeBack() {
+      if (phase === 'animating' || !rules.canUndo()) return false;
+      rules.undo();
+      // Keep going until the board is the player's again — the reply, then the move it answered.
+      if (hasOpponent) {
+        while (rules.canUndo() && rules.turn() !== playerSide) rules.undo();
+      }
+      settle();
+      return true;
+    },
+
+    replay() {
+      if (phase === 'animating' || !rules.canRedo()) return false;
+      rules.redo();
+      if (hasOpponent) {
+        while (rules.canRedo() && rules.turn() !== playerSide) rules.redo();
+      }
+      // If the redo stack ran out on the opponent's turn, `settle` says `thinking` and the
+      // composition root asks them to move. That is the right answer, not an edge case.
+      settle();
+      return true;
     },
 
     applyOpponentMove(from, to, promotion) {

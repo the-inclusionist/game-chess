@@ -86,7 +86,21 @@ export interface Rules {
   isAttackedBy(square: Square, side: Side): boolean;
   fen(): string;
   history(): readonly MoveResult[];
+  canUndo(): boolean;
   undo(): void;
+  /**
+   * ========================= WHY THE REDO STACK IS OWNED HERE =========================
+   * chess.js can take a move back and cannot put one back: `undo()` hands over the move it
+   * removed and then forgets it. Somebody has to hold the discarded future, and the only honest
+   * holder is the module that already owns the position — two objects each believing they knew
+   * the history is exactly how a move list and a board drift apart.
+   *
+   * The rule is the one every editor has: playing a NEW move discards the future. A take-back
+   * followed by a different move is a different game, and advancing into the abandoned one would
+   * put a move on the board that nobody played.
+   */
+  canRedo(): boolean;
+  redo(): boolean;
 }
 
 const algebraic = (square: Square): AlgebraicSquare => toAlgebraic(square) as AlgebraicSquare;
@@ -103,6 +117,8 @@ const toPiece = (type: PieceSymbol, color: Color): Piece =>
 export function createRules(fen?: string): Rules {
   const game = fen ? new Chess(fen) : new Chess();
   const played: MoveResult[] = [];
+  /** Moves taken back, newest last. Emptied by any new move. */
+  const future: MoveResult[] = [];
 
   function describe(move: {
     from: string; to: string; piece: PieceSymbol; color: Color; san: string;
@@ -126,6 +142,22 @@ export function createRules(fen?: string): Rules {
       check: game.isCheck(),
       checkmate: game.isCheckmate(),
     };
+  }
+
+  /** Plays and records, without touching the redo stack. The one place a move is made. */
+  function push(from: Square, to: Square, promotion: PieceType): MoveResult | null {
+    try {
+      const result = describe(game.move({
+        from: algebraic(from),
+        to: algebraic(to),
+        promotion,
+      }));
+      played.push(result);
+      return result;
+    } catch {
+      // Illegal. Not exceptional — a player clicked a square they cannot reach.
+      return null;
+    }
   }
 
   return {
@@ -167,19 +199,10 @@ export function createRules(fen?: string): Rules {
     searchUndo() { game.undo(); },
 
     move(from, to, promotion = 'q') {
-      try {
-        const made = game.move({
-          from: algebraic(from),
-          to: algebraic(to),
-          promotion,
-        });
-        const result = describe(made);
-        played.push(result);
-        return result;
-      } catch {
-        // Illegal. Not exceptional — a player clicked a square they cannot reach.
-        return null;
-      }
+      const result = push(from, to, promotion);
+      // A new move is a new game from here on: whatever was taken back is not coming back.
+      if (result) future.length = 0;
+      return result;
     },
 
     isCheck: () => game.isCheck(),
@@ -193,8 +216,26 @@ export function createRules(fen?: string): Rules {
     fen: () => game.fen(),
     history: () => played,
 
+    canUndo: () => played.length > 0,
+
     undo() {
-      if (game.undo()) played.pop();
+      if (!game.undo()) return;
+      const last = played.pop();
+      if (last) future.push(last);
+    },
+
+    canRedo: () => future.length > 0,
+
+    redo() {
+      const next = future[future.length - 1];
+      if (!next) return false;
+      // Replayed rather than restored. `check` and `checkmate` are properties of the position the
+      // move ARRIVES at, and the stored copy was describing a position that no longer exists —
+      // after a take-back and a different line, replaying is the only way to get them right.
+      const again = push(next.from, next.to, next.promotion ?? 'q');
+      if (!again) return false;
+      future.pop();
+      return true;
     },
   };
 }
