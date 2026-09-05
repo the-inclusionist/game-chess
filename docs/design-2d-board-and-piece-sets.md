@@ -1,5 +1,11 @@
 # The 2D board, the piece sets, and which of the two modes is actually the cheap one
 
+> ⚠️ **This note is a record of the reasoning, not a description of the code.** Everything in §1
+> to §3 has since been BUILT — the flat board, the piece sets, the coordinates, the two entry
+> points — and §6's central finding has been acted on: the compositor is gone. Where this file
+> speaks in the future tense about them, read it as the argument that led there, and read the
+> README for what exists. §4 and §5 are still ahead.
+
 Status: **specification agreed; the two measurements it waited on are done.** The 2D weight is
 settled (§2) and the outline budget is settled (§5). No piece set is built yet.
 

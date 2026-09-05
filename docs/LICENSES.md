@@ -84,5 +84,6 @@ destined for public schools.
 
 `juliangarnier/3D-Hartwig-chess-set` (MIT) is the **inspiration and the reference for feature
 parity**. No code is copied from it: that project renders with CSS 3D transforms on DOM nodes,
-and this one renders with Zdog geometry rasterised through PixiJS. Credit is due and given in
-the README regardless.
+and this one renders with Zdog geometry straight into a canvas — through PixiJS until the
+compositor was measured at 465 KB for drawing one canvas into another, and removed. Credit is due
+and given in the README regardless.
