@@ -77,13 +77,24 @@ circle on the queen's top".
 ## Palette
 
 Light `#FFD97D` / `#E8A72E` / `#F7C55A`, stroke `#3B2A12`.
-Dark `#9179DA` / `#4E3499` / `#6F52C4`, stroke `#241640`.
+Dark `#3F2B78` / `#241547` / `#332063`, stroke `#0E0722`.
 Squares `#DCD6C8` and `#8D8677`.
 
-Yellow against purple was chosen for the **luminance** gap, not the hue gap.
-Hue-based pairs fail under one or another colour-vision deficiency; a large
-luminance separation survives all of them, and it also survives the engine's
-CVD simulation filters.
+Chosen for the **luminance** gap, not the hue gap: hue pairs fail under one or
+another colour-vision deficiency, while a luminance separation survives all of
+them and survives the engine's CVD simulation filters.
+
+⚠️ **Correction (2026-09-05).** That reasoning was right and the original colours
+did not satisfy it. The first dark side (`#9179DA`) measured **2.60:1** against the
+light side — below WCAG 1.4.11's 3:1 floor, on the most important distinction in
+the game: whose piece is that. It was asserted, never computed. Darkened to
+`#3F2B78`, which measures **8.46:1**.
+
+The full measured table lives in `app/js/render/palette.ts`. One thing it shows and
+this note should not bury: the LIGHT side's fills contrast at **1.07:1** against a
+light square. Legibility there rests entirely on the outline (9.50:1), which WCAG
+accepts because it judges the boundary — but the fills themselves belong in step 8's
+high-contrast pass.
 
 ## Carried forward
 
