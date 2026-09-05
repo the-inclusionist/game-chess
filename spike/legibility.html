@@ -1,0 +1,255 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Spike 0 - Hartwig legibility at 320x180</title>
+<style>
+  body { margin:0; background:#0d1117; color:#c9d1d9;
+         font:13px/1.5 ui-monospace,Consolas,monospace; padding:16px; }
+  h1 { font-size:14px; font-weight:600; margin:0 0 4px; color:#e6edf3; }
+  p  { margin:0 0 12px; color:#8b949e; }
+  canvas { image-rendering: pixelated; display:block; background:#16202b;
+           border:1px solid #30363d; }
+  #board  { width:960px; height:540px; }
+  #strip  { width:960px; height:270px; }
+  #native { width:320px; height:180px; }
+  #double { width:640px; height:360px; }
+  .row { display:flex; gap:16px; align-items:flex-start; margin-bottom:12px; }
+  label { display:inline-block; margin-right:14px; }
+  b { color:#e6edf3; }
+  small { color:#6e7681; }
+</style>
+
+<h1>Spike 0 &mdash; silhueta de Hartwig a 320&times;180</h1>
+<p>Arraste o tabuleiro para girar. Canvas real = 320&times;180 sempre; s&oacute; muda a
+   amplia&ccedil;&atilde;o em CSS com <code>image-rendering: pixelated</code>.</p>
+
+<div class="row">
+  <label>tra&ccedil;o <input id="sw" type="range" min="0" max="2.5" step="0.1" value="0.9"> <span id="swv">0.9</span></label>
+  <label>zoom <input id="zm" type="range" min="0.7" max="1.6" step="0.05" value="1.15"> <span id="zmv">1.15</span></label>
+  <label>inclina&ccedil;&atilde;o <input id="tx" type="range" min="-1.35" max="-0.4" step="0.02" value="-1"> <span id="txv">-1.00</span></label>
+  <label><input id="hud" type="checkbox" checked> caixa do HUD</label>
+</div>
+
+<div class="row">
+  <div>
+    <canvas id="board" width="320" height="180"></canvas>
+    <small>3&times;</small>
+  </div>
+  <div>
+    <canvas id="double" width="320" height="180"></canvas>
+    <small>2&times; &mdash; o piso <code>k</code> da engine, num Chromebook</small>
+    <canvas id="native" width="320" height="180" style="margin-top:12px"></canvas>
+    <small>1:1 &mdash; o tamanho real em que o motor desenha</small>
+  </div>
+</div>
+
+<p><b>Tira de silhuetas</b> &mdash; mesma escala do tabuleiro, os dois lados.</p>
+<canvas id="strip" width="320" height="90"></canvas>
+
+<script src="zdog.min.js"></script>
+<script>
+const TAU = Zdog.TAU;
+
+// Paleta "Zdog assumido": amarelo contra roxo.
+// Grande distancia de LUMINANCIA, que e a rede de seguranca real para daltonismo.
+const LIGHT = { top:'#FFD97D', side:'#E8A72E', face:'#F7C55A', stroke:'#3B2A12' };
+const DARK  = { top:'#9179DA', side:'#4E3499', face:'#6F52C4', stroke:'#241640' };
+const SQ_L  = '#DCD6C8', SQ_D = '#8D8677';
+
+const S = 16;        // lado da casa, em unidades Zdog (== TILE da engine)
+let   STROKE = 0.9;  // espessura do traco, ajustavel ao vivo
+
+function boxOf(anchor, c, w, h, d, t, r) {
+  return new Zdog.Box({
+    addTo: anchor, width:w, height:h, depth:d,
+    translate: t || {}, rotate: r || {},
+    stroke: STROKE, color: c.stroke,
+    topFace: c.top, bottomFace: c.side,
+    leftFace: c.side, rightFace: c.side,
+    frontFace: c.face, rearFace: c.face,
+  });
+}
+
+// Geometria segundo a explicacao do proprio Hartwig (1924).
+// Eixo Y do Zdog aponta para BAIXO: "para cima" e y negativo.
+// Toda peca cabe na casa de 16: a maior extensao horizontal e o bispo,
+// com laminas de 10 giradas 45 graus => 10*raiz(2) = 14.1 < 16.
+const PIECES = {
+  // "Peao e torre movem em angulo reto com a borda: expresso pelo cubo."
+  p: (a,c) => { boxOf(a, c, 6.5, 6.5, 6.5, {y:-3.25}); },
+  r: (a,c) => { boxOf(a, c, 8.5, 8.5, 8.5, {y:-4.25}); },
+
+  // "O cavalo move em angulo reto, em forma de gancho, sobre quatro casas:
+  //  quatro cubos combinados em angulo reto."
+  n: (a,c) => {
+    const u = 4.4, h = u/2;
+    boxOf(a, c, u,u,u, {x:-h, y:-h});
+    boxOf(a, c, u,u,u, {x:+h, y:-h});
+    boxOf(a, c, u,u,u, {x:-h, y:-h-u});
+    boxOf(a, c, u,u,u, {x:-h, y:-h-u*2});
+  },
+
+  // "O bispo move na diagonal: uma cruz recortada do cubo."
+  b: (a,c) => {
+    boxOf(a, c, 10, 11, 3.4, {y:-5.5}, {y: TAU/8});
+    boxOf(a, c, 10, 11, 3.4, {y:-5.5}, {y:-TAU/8});
+  },
+
+  // "Um circulo no topo da dama, pelo seu movimento versatil."
+  // Zdog: uma Shape de um ponto so, com stroke grande, e um disco cheio.
+  q: (a,c) => {
+    boxOf(a, c, 8, 8, 8, {y:-4});
+    new Zdog.Shape({ addTo:a, stroke:7, color:c.top, translate:{y:-10.5} });
+  },
+
+  // "O rei move em angulo reto e na diagonal: um cubo menor atravessado
+  //  sobre o vertice de um maior."  (uber Eck = virado 45 graus)
+  k: (a,c) => {
+    boxOf(a, c, 8.5, 8.5, 8.5, {y:-4.25});
+    boxOf(a, c, 6.5, 6.5, 6.5, {y:-11.75}, {y: TAU/8});
+  },
+};
+
+const ORDER = ['r','n','b','q','k','b','n','r'];
+const BOARD_OFFSET_X = -42;   // empurra o tabuleiro para a esquerda: o HUD fica a direita
+
+function buildBoard(illo) {
+  const board = new Zdog.Anchor({ addTo: illo, translate: { x: BOARD_OFFSET_X } });
+
+  for (let f = 0; f < 8; f++) {
+    for (let k = 0; k < 8; k++) {
+      new Zdog.Rect({
+        addTo: board, width:S, height:S,
+        translate: { x:(f-3.5)*S, z:(k-3.5)*S },
+        rotate: { x: TAU/4 },
+        stroke: STROKE*0.5, color: ((f+k) % 2 === 1) ? SQ_L : SQ_D,
+        fill: true, backface: true,
+      });
+    }
+  }
+
+  const place = (type, side, file, rank) => {
+    const a = new Zdog.Anchor({
+      addTo: board,
+      translate: { x:(file-3.5)*S, z:(rank-3.5)*S },
+    });
+    PIECES[type](a, side === 'w' ? LIGHT : DARK);
+  };
+  for (let f = 0; f < 8; f++) {
+    place(ORDER[f], 'b', f, 0);
+    place('p',      'b', f, 1);
+    place('p',      'w', f, 6);
+    place(ORDER[f], 'w', f, 7);
+  }
+  return board;
+}
+
+function buildStrip(illo) {
+  const root = new Zdog.Anchor({ addTo: illo });
+  ['p','r','n','b','q','k'].forEach((t, i) => {
+    const x = (i - 2.5) * 19;
+    PIECES[t](new Zdog.Anchor({ addTo: root, translate:{ x, z:-13 } }), LIGHT);
+    PIECES[t](new Zdog.Anchor({ addTo: root, translate:{ x, z: 13 } }), DARK);
+  });
+  return root;
+}
+
+// Caixa do HUD: nao e desenho final, e ORCAMENTO DE ESPACO.
+// Prova que sobram 88x180 para turno, capturadas e lista de lances.
+function drawHud(canvas) {
+  if (!document.getElementById('hud').checked) return;
+  const ctx = canvas.getContext('2d');
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+  ctx.fillStyle = '#111a24';
+  ctx.fillRect(232, 0, 88, 180);
+  ctx.fillStyle = '#2b3a4a';
+  ctx.fillRect(232, 0, 1, 180);
+
+  // indicador de turno
+  ctx.fillStyle = LIGHT.top;  ctx.fillRect(238, 8, 9, 9);
+  ctx.fillStyle = '#3B2A12';  ctx.fillRect(238, 8, 9, 1);
+  ctx.fillStyle = '#8b949e';  ctx.font = '8px monospace';
+  ctx.fillText('BRANCAS', 252, 16);
+
+  // capturadas: duas fileiras de blocos de 5px
+  ctx.fillStyle = DARK.top;
+  for (let i = 0; i < 8; i++) ctx.fillRect(238 + i*6, 26, 5, 5);
+  ctx.fillStyle = LIGHT.top;
+  for (let i = 0; i < 5; i++) ctx.fillRect(238 + i*6, 34, 5, 5);
+
+  // lista de lances
+  ctx.fillStyle = '#6e7681';
+  for (let i = 0; i < 11; i++) {
+    ctx.fillText((i+1) + '.', 238, 54 + i*11);
+    ctx.fillStyle = '#c9d1d9';
+    ctx.fillText('e4', 254, 54 + i*11);
+    ctx.fillText('e5', 278, 54 + i*11);
+    ctx.fillStyle = '#6e7681';
+  }
+  ctx.restore();
+}
+
+function makeIllo(sel, w, h, opts) {
+  const illo = new Zdog.Illustration(
+    Object.assign({ element: sel, zoom: 1, resize: false }, opts || {}));
+  illo.pixelRatio = 1;
+  illo.setSize(w, h);
+  return illo;
+}
+
+const boardIllo  = makeIllo('#board',  320, 180, { dragRotate: true });
+const dblIllo    = makeIllo('#double', 320, 180);
+const nativeIllo = makeIllo('#native', 320, 180);
+const stripIllo  = makeIllo('#strip',  320,  90);
+
+stripIllo.rotate.x = -0.62;
+stripIllo.zoom = 1.5;
+
+const MIRRORS = [dblIllo, nativeIllo];
+
+function rebuild() {
+  [boardIllo, dblIllo, nativeIllo, stripIllo].forEach(i => { i.children.length = 0; });
+  buildBoard(boardIllo);
+  buildBoard(dblIllo);
+  buildBoard(nativeIllo);
+  buildStrip(stripIllo);
+}
+
+const sw = document.getElementById('sw'), zm = document.getElementById('zm'),
+      tx = document.getElementById('tx');
+
+function sync() {
+  STROKE = parseFloat(sw.value);
+  document.getElementById('swv').textContent = STROKE.toFixed(1);
+  const z = parseFloat(zm.value);
+  document.getElementById('zmv').textContent = z.toFixed(2);
+  const t = parseFloat(tx.value);
+  document.getElementById('txv').textContent = t.toFixed(2);
+  boardIllo.zoom = z;
+  boardIllo.rotate.x = t;
+  rebuild();
+}
+[sw, zm, tx].forEach(el => el.addEventListener('input', sync));
+document.getElementById('hud').addEventListener('change', () => {});
+
+boardIllo.rotate.x = -1;
+boardIllo.zoom = 1.15;
+rebuild();
+
+(function animate() {
+  MIRRORS.forEach(m => {
+    m.rotate.x = boardIllo.rotate.x;
+    m.rotate.y = boardIllo.rotate.y;
+    m.rotate.z = boardIllo.rotate.z;
+    m.zoom = boardIllo.zoom;
+  });
+  boardIllo.updateRenderGraph();  drawHud(boardIllo.element);
+  dblIllo.updateRenderGraph();    drawHud(dblIllo.element);
+  nativeIllo.updateRenderGraph(); drawHud(nativeIllo.element);
+  stripIllo.updateRenderGraph();
+  requestAnimationFrame(animate);
+})();
+
+window.__spike = { boardIllo, nativeIllo, stripIllo, PIECES };
+</script>
