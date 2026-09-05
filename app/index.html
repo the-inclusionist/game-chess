@@ -91,6 +91,21 @@
   /* --tap is 22*k, which is 44px at the k=2 floor: the WCAG 2.5.5 target size, inherited. */
   .hud select { width: 100%; min-height: var(--tap, 44px); font: inherit; }
 
+  .hud-check { display: inline; font-size: 0.8em; color: #c9d1d9; margin-left: 0.4em; }
+  .hud input[type="checkbox"] {
+    width: calc(var(--tap, 44px) * 0.4); height: calc(var(--tap, 44px) * 0.4);
+    vertical-align: middle; accent-color: #FFD97D;
+  }
+
+  /* The panel switches with the board: same surface, same eye. */
+  #game-region[data-contrast="high"] .hud {
+    background: #000000; color: #FFFFFF; border-left-color: #FFFFFF;
+  }
+  #game-region[data-contrast="high"] .hud h2,
+  #game-region[data-contrast="high"] .hud label { color: #FFFFFF; }
+  #game-region[data-contrast="high"] .hud-swatch[data-side="w"] { background: #FFFFFF; }
+  #game-region[data-contrast="high"] .hud-swatch[data-side="b"] { background: #000000; border-color: #FFFFFF; }
+
   .sr-only {
     position: absolute; width: 1px; height: 1px;
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;

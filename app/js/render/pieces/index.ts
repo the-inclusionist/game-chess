@@ -14,7 +14,7 @@
 import Zdog, { type Anchor } from 'zdog';
 import type { Piece, Square } from '../../chess/types.ts';
 import { squareCenter } from '../board-geometry.ts';
-import { DARK_PIECES, LIGHT_PIECES, STROKE, type SidePalette } from '../palette.ts';
+import { DEFAULT_PALETTE, type Palette, type SidePalette, STROKE } from '../palette.ts';
 import { TILE } from '../resolution.ts';
 import { PIECE_SPECS, type PieceSpec } from './geometry.ts';
 
@@ -37,10 +37,12 @@ export interface PiecesLayer {
   moveTravelling(x: number, y: number, z: number): void;
   /** How many pieces are currently on the board, the traveller excluded. */
   count(): number;
+  /** Recolours by rebuilding, because the colours are baked into the Zdog nodes. */
+  setPalette(palette: Palette): void;
 }
 
-export function paletteFor(piece: Piece): SidePalette {
-  return piece.side === 'w' ? LIGHT_PIECES : DARK_PIECES;
+export function sideColours(piece: Piece, palette: Palette = DEFAULT_PALETTE): SidePalette {
+  return piece.side === 'w' ? palette.lightPieces : palette.darkPieces;
 }
 
 /** Builds one piece under `parent`, standing on the board plane at the origin. */
@@ -91,10 +93,15 @@ export function buildPiece(parent: Anchor, spec: PieceSpec, colours: SidePalette
   return anchor;
 }
 
-export function createPiecesLayer(parent: Anchor): PiecesLayer {
+export function createPiecesLayer(
+  parent: Anchor,
+  initial: Palette = DEFAULT_PALETTE,
+): PiecesLayer {
   const layer = new Zdog.Anchor({ addTo: parent });
   const travelling = new Zdog.Anchor({ addTo: parent });
+  let palette = initial;
   let placed = 0;
+  let current: readonly PiecePlacement[] = [];
 
   return {
     anchor: layer,
@@ -103,7 +110,7 @@ export function createPiecesLayer(parent: Anchor): PiecesLayer {
     setTravelling(piece) {
       for (const child of [...travelling.children]) child.remove();
       travelling.translate.set({ x: 0, y: 0, z: 0 });
-      if (piece) buildPiece(travelling, PIECE_SPECS[piece.type], paletteFor(piece));
+      if (piece) buildPiece(travelling, PIECE_SPECS[piece.type], sideColours(piece, palette));
     },
 
     moveTravelling(x, y, z) {
@@ -116,10 +123,16 @@ export function createPiecesLayer(parent: Anchor): PiecesLayer {
       for (const { piece, square } of placements) {
         const { x, z } = squareCenter(square, TILE);
         const holder = new Zdog.Anchor({ addTo: layer, translate: { x, z } });
-        buildPiece(holder, PIECE_SPECS[piece.type], paletteFor(piece));
+        buildPiece(holder, PIECE_SPECS[piece.type], sideColours(piece, palette));
       }
 
+      current = placements;
       placed = placements.length;
+    },
+
+    setPalette(next) {
+      palette = next;
+      this.setPosition(current);
     },
   };
 }

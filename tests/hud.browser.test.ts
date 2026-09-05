@@ -20,10 +20,13 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   const rules = createRules(fen);
   const state = createGameState({ rules, opponent: false });
   let difficulty: Difficulty = 'medium';
+  let highContrast = false;
   const onDifficulty = vi.fn((level: Difficulty) => { difficulty = level; });
+  const onHighContrast = vi.fn((on: boolean) => { highContrast = on; });
   hud = createHud({
     doc: document, i18n: createI18n(locale), rules, state,
     difficulty: () => difficulty, onDifficulty,
+    highContrast: () => highContrast, onHighContrast,
   });
   document.body.appendChild(hud.root);
   const play = (from: string, to: string) => {
@@ -32,7 +35,8 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
     state.animationDone();
     hud!.refresh();
   };
-  return { rules, state, hud, onDifficulty, play, getDifficulty: () => difficulty };
+  return { rules, state, hud, onDifficulty, onHighContrast, play,
+           getDifficulty: () => difficulty, getContrast: () => highContrast };
 }
 
 const text = (selector: string): string =>
@@ -172,5 +176,30 @@ describe('[i18n] the panel follows the interface language', () => {
     build('es');
     expect(text('.hud-turn')).toContain('Blancas');
     expect(document.querySelector('label')?.textContent).toBe('Dificultad');
+  });
+});
+
+describe('[High contrast] a switch the system may have already thrown', () => {
+  it('offers a labelled checkbox', () => {
+    build();
+    const box = document.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    const label = document.querySelector<HTMLLabelElement>('label[for="hud-contrast"]')!;
+    expect(label.textContent).toBe('Alto contraste');
+    expect(label.htmlFor).toBe(box.id);
+  });
+
+  it('starts off, and reports being switched on', () => {
+    const { onHighContrast, getContrast } = build();
+    const box = document.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    expect(box.checked).toBe(false);
+    box.checked = true;
+    box.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onHighContrast).toHaveBeenCalledWith(true);
+    expect(getContrast()).toBe(true);
+  });
+
+  it('follows the interface language', () => {
+    build('en');
+    expect(document.querySelector('label[for="hud-contrast"]')?.textContent).toBe('High contrast');
   });
 });

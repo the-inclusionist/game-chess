@@ -40,6 +40,7 @@ export const en: Catalog = {
     'hud.captured':   'Captured',
     'hud.moves':      'Moves',
     'hud.difficulty': 'Difficulty',
+    'hud.highContrast': 'High contrast',
 
     'difficulty.easy':   'Easy',
     'difficulty.medium': 'Medium',

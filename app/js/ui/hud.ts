@@ -32,6 +32,8 @@ export interface HudDeps {
   readonly state: GameState;
   difficulty(): Difficulty;
   onDifficulty(level: Difficulty): void;
+  highContrast(): boolean;
+  onHighContrast(on: boolean): void;
 }
 
 export interface Hud {
@@ -94,12 +96,25 @@ export function createHud(deps: HudDeps): Hud {
   }
   difficultyBox.append(difficultyLabel, difficultySelect);
 
-  root.append(turn, capturedBox, movesBox, difficultyBox);
+  // --- high contrast ---------------------------------------------------------
+  const contrastBox = doc.createElement('p');
+  const contrastInput = doc.createElement('input');
+  contrastInput.type = 'checkbox';
+  contrastInput.id = 'hud-contrast';
+  const contrastLabel = doc.createElement('label');
+  contrastLabel.htmlFor = contrastInput.id;
+  contrastLabel.className = 'hud-check';
+  contrastBox.append(contrastInput, contrastLabel);
+
+  root.append(turn, capturedBox, movesBox, difficultyBox, contrastBox);
 
   function onDifficultyChange(): void {
     deps.onDifficulty(difficultySelect.value as Difficulty);
   }
   difficultySelect.addEventListener('change', onDifficultyChange);
+
+  function onContrastChange(): void { deps.onHighContrast(contrastInput.checked); }
+  contrastInput.addEventListener('change', onContrastChange);
 
   function capturedFor(side: Side): string {
     // Reading the history rather than keeping a tally: one source of truth, and a taken-back move
@@ -155,6 +170,9 @@ export function createHud(deps: HudDeps): Hud {
     }
     difficultySelect.value = deps.difficulty();
 
+    contrastLabel.textContent = i18n.t('hud.highContrast');
+    contrastInput.checked = deps.highContrast();
+
     const outcome = state.outcome();
     root.dataset.outcome = outcome ? outcome.kind : '';
   }
@@ -166,6 +184,7 @@ export function createHud(deps: HudDeps): Hud {
     refresh,
     destroy() {
       difficultySelect.removeEventListener('change', onDifficultyChange);
+      contrastInput.removeEventListener('change', onContrastChange);
       root.remove();
     },
   };

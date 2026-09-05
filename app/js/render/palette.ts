@@ -74,3 +74,60 @@ export const STROKE = 0.9;
 /** Squares carry a lighter outline than pieces: they are ground, and 64 of them at full weight
  * would out-shout the 32 figures standing on them. */
 export const SQUARE_STROKE = STROKE * 0.5;
+
+
+/* ============================ THE HIGH-CONTRAST MODE ============================ */
+
+/**
+ * ========================= WHY THE SHADING DISAPPEARS =========================
+ * The default palette leans on outlines: its light fills contrast 1.07:1 with a light square,
+ * which WCAG accepts only because 1.4.11 judges the BOUNDARY. This mode does not lean.
+ *
+ * Making it work forces a conclusion worth stating. For a shaded SIDE face — darker than the top
+ * by design — to reach 3:1 against the light square, its luminance would have to exceed 0.97:
+ * essentially white. So in high contrast the shading has to go. The light side becomes uniformly
+ * white and the dark side uniformly black, and the FORM comes entirely from the outline.
+ *
+ * That is not a loss, it is what high contrast means — and it works here because Zdog draws every
+ * face of a Box with its own outline, so the edges between faces stay drawn and a cube still
+ * reads as a cube, in line.
+ *
+ * The square pair was solved numerically: these are the two tones with the LARGEST separation
+ * from each other that still keep all four piece-against-square pairs at or above 3:1.
+ *
+ *   white against light square   3.00      black against light square   6.99
+ *   white against dark square    6.95      black against dark square    3.02
+ *   light side against dark     21.00      square against square        2.31
+ *
+ * The squares themselves land at 2.31, under the floor — and that is a deliberate acceptance
+ * rather than an oversight. Four tones cannot satisfy all six pairs at once, and a square is not
+ * identified by its colour alone: it is identified by WHERE it is on the board, which is why a
+ * chess diagram works in one ink.
+ */
+
+export interface Palette {
+  readonly lightPieces: SidePalette;
+  readonly darkPieces: SidePalette;
+  readonly squareLight: string;
+  readonly squareDark: string;
+}
+
+export type PaletteMode = 'default' | 'high-contrast';
+
+export const DEFAULT_PALETTE: Palette = {
+  lightPieces: LIGHT_PIECES,
+  darkPieces: DARK_PIECES,
+  squareLight: SQUARE_LIGHT,
+  squareDark: SQUARE_DARK,
+};
+
+export const HIGH_CONTRAST_PALETTE: Palette = {
+  lightPieces: { top: '#FFFFFF', side: '#FFFFFF', face: '#FFFFFF', stroke: '#000000' },
+  darkPieces: { top: '#000000', side: '#000000', face: '#000000', stroke: '#FFFFFF' },
+  squareLight: '#9A948C',
+  squareDark: '#5E5951',
+};
+
+export function createPalette(mode: PaletteMode): Palette {
+  return mode === 'high-contrast' ? HIGH_CONTRAST_PALETTE : DEFAULT_PALETTE;
+}

@@ -41,6 +41,7 @@ export const es: Catalog = {
     'hud.captured':   'Capturadas',
     'hud.moves':      'Jugadas',
     'hud.difficulty': 'Dificultad',
+    'hud.highContrast': 'Alto contraste',
 
     'difficulty.easy':   'Fácil',
     'difficulty.medium': 'Medio',

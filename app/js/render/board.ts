@@ -9,8 +9,8 @@ import Zdog, { type Anchor, type Rect, type Shape } from 'zdog';
 import type { Square } from '../chess/types.ts';
 import { isLightSquare, squareCenter, squareFromIndex, squareIndex } from './board-geometry.ts';
 import {
-  MARKER_CAPTURE, MARKER_CHECK, MARKER_CURSOR, MARKER_MOVE, MARKER_SELECTED,
-  SQUARE_DARK, SQUARE_LIGHT, SQUARE_STROKE,
+  DEFAULT_PALETTE, MARKER_CAPTURE, MARKER_CHECK, MARKER_CURSOR, MARKER_MOVE, MARKER_SELECTED,
+  type Palette, SQUARE_STROKE,
 } from './palette.ts';
 import type { Quad } from './picking.ts';
 import { TILE } from './resolution.ts';
@@ -54,6 +54,8 @@ export interface BoardView {
   /** Replaces every marker at once. Absent squares are cleared. */
   setMarkers(markers: ReadonlyMap<number, Marker>): void;
   clearMarkers(): void;
+  /** Recolours the 64 squares in place. Cheaper than rebuilding, and keeps the markers. */
+  setPalette(palette: Palette): void;
 }
 
 const OUTLINE_COLOUR: Record<Marker, string> = {
@@ -64,8 +66,9 @@ const OUTLINE_COLOUR: Record<Marker, string> = {
   check: MARKER_CHECK,
 };
 
-export function createBoard(parent: Anchor): BoardView {
+export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE): BoardView {
   const anchor = new Zdog.Anchor({ addTo: parent });
+  let palette = initial;
 
   const squares: Rect[] = [];
   const dots: Shape[] = [];
@@ -84,7 +87,7 @@ export function createBoard(parent: Anchor): BoardView {
       // into the XZ plane the board occupies.
       rotate: { x: Zdog.TAU / 4 },
       stroke: SQUARE_STROKE,
-      color: isLightSquare(square) ? SQUARE_LIGHT : SQUARE_DARK,
+      color: isLightSquare(square) ? palette.squareLight : palette.squareDark,
       fill: true,
       // Without this the far half of the board vanishes: the squares face one way, and half of
       // them present their back to the camera at any useful pitch.
@@ -146,6 +149,15 @@ export function createBoard(parent: Anchor): BoardView {
         dots[index].color = kind === 'selected' ? MARKER_SELECTED : MARKER_MOVE;
         outlines[index].visible = showOutline;
         outlines[index].color = OUTLINE_COLOUR[kind];
+      }
+    },
+
+    setPalette(next) {
+      palette = next;
+      for (let i = 0; i < SQUARE_COUNT; i++) {
+        squares[i].color = isLightSquare(squareFromIndex(i))
+          ? palette.squareLight
+          : palette.squareDark;
       }
     },
 

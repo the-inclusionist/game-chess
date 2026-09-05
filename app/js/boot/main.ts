@@ -28,6 +28,7 @@ import { squareFromIndex, squareIndex } from '../render/board-geometry.ts';
 import { createCamera } from '../render/camera.ts';
 import { createPiecesLayer } from '../render/pieces/index.ts';
 import { pickTopmost, toIllustrationSpace } from '../render/picking.ts';
+import { createPalette, type PaletteMode } from '../render/palette.ts';
 import { createPixiSurface } from '../render/pixi-surface.ts';
 import { LOGICAL_W } from '../render/resolution.ts';
 import { createZdogStage } from '../render/zdog-stage.ts';
@@ -91,9 +92,14 @@ export function boot(host: Document = document): void {
 
   /* ---------- render ---------- */
 
+  // The system asks first. `prefers-contrast: more` is a real preference a person has already
+  // expressed to their OS; making them find a checkbox to repeat it would be the wrong default.
+  let paletteMode: PaletteMode =
+    window.matchMedia?.('(prefers-contrast: more)').matches ? 'high-contrast' : 'default';
+
   const stage = createZdogStage();
-  const boardView = createBoard(stage.root);
-  const pieces = createPiecesLayer(stage.root);
+  const boardView = createBoard(stage.root, createPalette(paletteMode));
+  const pieces = createPiecesLayer(stage.root, createPalette(paletteMode));
   const surface = createPixiSurface(stage.canvas);
   const camera = createCamera();
 
@@ -123,6 +129,16 @@ export function boot(host: Document = document): void {
     rules,
     state: game,
     difficulty: () => difficulty,
+    highContrast: () => paletteMode === 'high-contrast',
+    onHighContrast: (on) => {
+      paletteMode = on ? 'high-contrast' : 'default';
+      const palette = createPalette(paletteMode);
+      boardView.setPalette(palette);
+      pieces.setPalette(palette);
+      // The DOM panel follows the same switch: it is over the same board and read by the same eye.
+      region.dataset.contrast = on ? 'high' : '';
+      invalidate();
+    },
     onDifficulty: (level) => {
       difficulty = level;
       hud.refresh();
@@ -132,6 +148,7 @@ export function boot(host: Document = document): void {
     },
   });
   region.appendChild(hud.root);
+  region.dataset.contrast = paletteMode === 'high-contrast' ? 'high' : '';
 
   initLayout({ numJogadores: () => 1 });
   layout();
