@@ -2,7 +2,7 @@
 // boot/main — the composition root. The only module that knows PixiJS and the DOM concretely.
 //
 // Wired: the engine's accessibility stack, real chess rules, the state machine, the Zdog board and
-// pieces, the PixiJS surface, the camera, picking, and move animation.
+// pieces, the frame clock, the camera, picking, and move animation.
 // Not yet, by plan: the opponent (step 6), the DOM grid mirror (step 7), the HUD (step 8).
 //
 // Everything a player does goes through `game.activate(square)` — pointer and keyboard alike — and
@@ -33,7 +33,7 @@ import { PIECE_SPECS } from '../render/pieces/geometry.ts';
 import { DARK_PIECES, LIGHT_PIECES } from '../render/palette.ts';
 import { pickTopmost, toIllustrationSpace } from '../render/picking.ts';
 import { createPalette, type PaletteMode } from '../render/palette.ts';
-import { createPixiSurface } from '../render/pixi-surface.ts';
+import { createFrameTicker } from '../render/frame-ticker.ts';
 import { LOGICAL_W } from '../render/resolution.ts';
 import { createZdogStage } from '../render/zdog-stage.ts';
 
@@ -114,14 +114,20 @@ export function boot(host: Document = document): void {
   const stage = createZdogStage();
   const boardView = createBoard(stage.root, createPalette(paletteMode));
   const pieces = createPiecesLayer(stage.root, createPalette(paletteMode), outlined);
-  const surface = createPixiSurface(stage.canvas);
   const camera = createCamera();
 
-  surface.view.id = 'board-canvas';
+  // ========================= NO COMPOSITOR =========================
+  // Zdog's canvas goes straight into the document. It used to be uploaded to a PixiJS texture and
+  // drawn as a sprite, which cost 465 KB raw and 138 KB gzipped — measured — to draw one canvas
+  // into another. See `render/frame-ticker.ts` for the whole reckoning.
+  const canvas = stage.canvas;
+  const ticker = createFrameTicker();
+
+  canvas.id = 'board-canvas';
   // Hidden from the screen reader ON PURPOSE — the same pillar the engine applies to its own
   // canvas: the game speaks through the DOM. The grid mirror at step 7 carries the board.
-  surface.view.setAttribute('aria-hidden', 'true');
-  region.appendChild(surface.view);
+  canvas.setAttribute('aria-hidden', 'true');
+  region.appendChild(canvas);
 
   // The board as the screen reader sees it. Inside #game-region so the engine's keyboard rules
   // and focus styling apply, and BEFORE the canvas in the DOM so it is what a reader meets first.
@@ -137,7 +143,7 @@ export function boot(host: Document = document): void {
     // the board walked with the keys they can actually reach.
     resolveAction: (code) => engine.keyboard.actionOf(code, 0),
   });
-  region.insertBefore(mirror.root, surface.view);
+  region.insertBefore(mirror.root, canvas);
 
   /**
    * One leg of a walk through the score sheet, in SCREEN terms rather than chess terms: which
@@ -472,20 +478,20 @@ export function boot(host: Document = document): void {
 
   /** CSS pixels per canvas pixel. The engine scales the region by a whole number. */
   const upscale = (): number =>
-    Math.max(1, surface.view.getBoundingClientRect().width / LOGICAL_W);
+    Math.max(1, canvas.getBoundingClientRect().width / LOGICAL_W);
 
   let dragging: number | null = null;
   let last = { x: 0, y: 0 };
   let travelled = 0;
 
-  surface.view.addEventListener('pointerdown', (e) => {
+  canvas.addEventListener('pointerdown', (e) => {
     dragging = e.pointerId;
     last = { x: e.clientX, y: e.clientY };
     travelled = 0;
-    surface.view.setPointerCapture(e.pointerId);
+    canvas.setPointerCapture(e.pointerId);
   });
 
-  surface.view.addEventListener('pointermove', (e) => {
+  canvas.addEventListener('pointermove', (e) => {
     if (dragging !== e.pointerId) return;
     const k = upscale();
     const dx = (e.clientX - last.x) / k;
@@ -496,15 +502,15 @@ export function boot(host: Document = document): void {
     invalidate();
   });
 
-  surface.view.addEventListener('pointerup', (e) => {
+  canvas.addEventListener('pointerup', (e) => {
     if (dragging !== e.pointerId) return;
     dragging = null;
-    surface.view.releasePointerCapture(e.pointerId);
+    canvas.releasePointerCapture(e.pointerId);
     // A drag that barely moved was a click. Three canvas pixels of slop is about a finger's worth
     // of tremor at k=2, and well under one square.
     if (travelled >= 3) return;
 
-    const rect = surface.view.getBoundingClientRect();
+    const rect = canvas.getBoundingClientRect();
     const k = upscale();
     const point = toIllustrationSpace(
       { x: (e.clientX - rect.left) / k, y: (e.clientY - rect.top) / k },
@@ -583,11 +589,9 @@ export function boot(host: Document = document): void {
     // After the render, because the projected corners the labels extrapolate from are only valid
     // once the graph has been updated — the same precondition `quads()` carries for picking.
     coordinates.place(boardView.quads(), stage.viewport(), cssPerPixel);
-    surface.present();
-    surface.render();
   }
 
-  startLoop(surface.ticker, frame, 2, {
+  startLoop(ticker, frame, 2, {
     // The engine ships this and its own game never wires it: the loop stops on error and NOTHING
     // announces it. A blind child cannot see a frozen screen.
     aoFalhar: (erro: unknown) => {
@@ -616,7 +620,7 @@ export function boot(host: Document = document): void {
         const cx = (quad.corners[0].x + quad.corners[1].x + quad.corners[2].x + quad.corners[3].x) / 4;
         const cy = (quad.corners[0].y + quad.corners[1].y + quad.corners[2].y + quad.corners[3].y) / 4;
         const view = stage.viewport();
-        const rect = surface.view.getBoundingClientRect();
+        const rect = canvas.getBoundingClientRect();
         const k = upscale();
         return {
           x: rect.left + (cx * view.zoom + view.width / 2) * k,

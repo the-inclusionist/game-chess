@@ -42,7 +42,6 @@ repository is a consumer of the engine and inherits its position.
 |---|---|---|
 | `@the-inclusionist/engine` | AGPL-3.0-or-later | Same owner. Linked with `file:`; this repo is its first external consumer. |
 | `zdog` 1.1.3 | MIT | © 2020 Metafizzy. Pseudo-3D geometry, projection and depth sort. |
-| `pixi.js` 7.4.2 | MIT | Pinned to the engine's exact version — a second PixiJS in one page is a bug, not a fallback. |
 | `chess.js` | BSD-2-Clause | Rules, legality, FEN, algebraic notation. |
 | `vite`, `vitest`, `typescript`, `playwright` | MIT / Apache-2.0 | Build and test only; not shipped. |
 

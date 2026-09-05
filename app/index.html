@@ -45,6 +45,9 @@
     display: block;
     width: 100%;
     height: 100%;
+    /* PixiJS used to paint this as the Application's backgroundColor. Zdog CLEARS its canvas to
+       transparent, so without this the board would float on whatever is behind it. */
+    background: #05070f;
     image-rendering: pixelated;
     touch-action: none;   /* the camera owns the drag */
     cursor: grab;
