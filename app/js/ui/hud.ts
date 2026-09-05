@@ -22,7 +22,6 @@ import { t as engineT } from '@the-inclusionist/engine/core/i18n.js';
 import { VIZ_CORRECTIONS } from '@the-inclusionist/engine/render/viz-modes.js';
 import type { Rules } from '../chess/rules.ts';
 import type { GameState } from '../chess/state.ts';
-import type { PieceType, Side } from '../chess/types.ts';
 
 /** One person as white, one as black, or two people sharing the board. */
 export type GameMode = 'w' | 'b' | 'two';
@@ -142,20 +141,12 @@ export interface Hud {
   destroy(): void;
 }
 
-/** Figurine letters. Not the piece NAME — that is the screen reader's job, and it is spoken. */
-const GLYPH: Readonly<Record<PieceType, string>> = {
-  p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚',
-};
-
 /** The three views and the page each one lives on. `null` is a view that is not built yet. */
 const VIEW_PAGES: readonly (readonly [ViewKind, string | null])[] = [
   ['2d', '2d.html'],
   ['2.5d', 'index.html'],
   ['3d', null],
 ];
-
-/** Heaviest first, so a captured queen is not buried behind six pawns. */
-const ORDER: readonly PieceType[] = ['q', 'r', 'b', 'n', 'p'];
 
 export function createHud(deps: HudDeps): Hud {
   const { doc, i18n, rules, state } = deps;
@@ -207,7 +198,17 @@ export function createHud(deps: HudDeps): Hud {
       const el = doc.createElement(pending ? 'span' : 'a');
       el.className = 'hud-view';
       el.dataset.view = kind;
-      if (!pending) (el as HTMLAnchorElement).href = href;
+      if (!pending) {
+        (el as HTMLAnchorElement).href = href;
+        // ⚠️ Says WHY the next page is loading. Each view is its own page — 110 KB against 148,
+        // measured — so changing view is a navigation, and a navigation runs the title screen
+        // again. A title screen is for loading the GAME; meeting it every time you look at the
+        // same position from a different angle is being asked to start something you are already
+        // in the middle of. `ui/splash.ts` reads this and steps aside.
+        el.addEventListener('click', () => {
+          try { sessionStorage.setItem('incl_chess_switching', '1'); } catch { /* private mode */ }
+        });
+      }
       if (kind === here) el.setAttribute('aria-current', 'page');
       if (pending) el.setAttribute('aria-disabled', 'true');
       views.appendChild(el);
@@ -260,14 +261,14 @@ export function createHud(deps: HudDeps): Hud {
   };
 
 
-  // --- captured --------------------------------------------------------------
-  const capturedBox = doc.createElement('section');
-  const capturedTitle = doc.createElement('h2');
-  const capturedByPlayer = doc.createElement('p');
-  const capturedByOpponent = doc.createElement('p');
-  capturedByPlayer.className = 'hud-captured';
-  capturedByOpponent.className = 'hud-captured';
-  capturedBox.append(capturedTitle, capturedByPlayer, capturedByOpponent);
+  // ========================= THE CAPTURES MOVED TO THE BOARD =========================
+  // They used to be here, and here is where they were least useful: a player deciding on a move
+  // is looking at the board, and a row of glyphs they have to look away to read is a row of
+  // glyphs they do not read. `ui/player-strip.ts` puts them at each player's own end of the
+  // board, which is where every chess program has settled on putting them.
+  //
+  // Not duplicated — MOVED. Two copies of one tally is two things to keep in step, and it was
+  // already being rebuilt from `rules.history()` on every refresh, so the move cost nothing.
 
   // --- move list -------------------------------------------------------------
   const movesBox = doc.createElement('section');
@@ -467,7 +468,7 @@ export function createHud(deps: HudDeps): Hud {
   hintButton.className = 'hud-hint';
   hintBox.appendChild(hintButton);
 
-  root.append(turn, capturedBox, movesBox);
+  root.append(turn, movesBox);
   if (deps.onHint) root.appendChild(hintBox);
   if (deps.onMode) root.appendChild(modeGroup.box);
   if (deps.scoreboard) root.appendChild(deps.scoreboard);
@@ -583,22 +584,6 @@ export function createHud(deps: HudDeps): Hud {
   backButton.addEventListener('click', onBackClick);
   forwardButton.addEventListener('click', onForwardClick);
 
-  function capturedFor(side: Side): string {
-    // Reading the history rather than keeping a tally: one source of truth, and a taken-back move
-    // corrects the list for free instead of needing its own undo path.
-    const taken: PieceType[] = [];
-    for (const move of rules.history()) {
-      if (move.captured && move.captured.side === side) taken.push(move.captured.type);
-    }
-    taken.sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
-    return taken.map((t) => GLYPH[t]).join('');
-  }
-
-  function describeCaptured(side: Side): string {
-    const glyphs = capturedFor(side);
-    return glyphs || '—';
-  }
-
   /**
    * "1. e4 e5" per line, which is how a scoresheet reads — with the engine's mark where it has
    * one, which is how an annotated one reads.
@@ -650,14 +635,6 @@ export function createHud(deps: HudDeps): Hud {
     turnText.textContent = i18n.t(`turn.${side}`);
     // The heading says what the colour block means, so the block is decoration and not the signal.
     turn.setAttribute('aria-label', `${i18n.t('hud.turn')}: ${i18n.t(`turn.${side}`)}`);
-
-    capturedTitle.textContent = i18n.t('hud.captured');
-    capturedByPlayer.textContent = describeCaptured('b');
-    capturedByPlayer.setAttribute('aria-label',
-      `${i18n.t('turn.w')}: ${describeCaptured('b')}`);
-    capturedByOpponent.textContent = describeCaptured('w');
-    capturedByOpponent.setAttribute('aria-label',
-      `${i18n.t('turn.b')}: ${describeCaptured('w')}`);
 
     movesTitle.textContent = i18n.t('hud.moves');
     movesList.setAttribute('aria-label', i18n.t('hud.movesRegion'));

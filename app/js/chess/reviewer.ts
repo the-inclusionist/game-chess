@@ -72,6 +72,14 @@ export interface Reviewer {
   evaluation(): number | null;
   /** How many outright blunders this side has played in this game. */
   blunders(side: Side): number;
+  /**
+   * How much winning chance this side has given away across the whole game, in percentage points.
+   *
+   * ⚠️ The sum of the LOSSES, not the current evaluation. A player can be winning comfortably and
+   * still have thrown away thirty points on the way — that is the thing worth showing a learner,
+   * and it is the one number in this game that only ever goes up.
+   */
+  risk(side: Side): number;
   destroy(): void;
 }
 
@@ -194,6 +202,12 @@ export function createReviewer(deps: ReviewerDeps): Reviewer {
       if (!current) return null;
       // From WHITE, always, so the readout does not flip its own sign every half move.
       return turnOf(fens[fens.length - 1]) === 'w' ? current.score : -current.score;
+    },
+
+    risk(side) {
+      let total = 0;
+      for (const entry of marks.values()) if (entry.side === side) total += entry.lost;
+      return total;
     },
 
     blunders(side) {

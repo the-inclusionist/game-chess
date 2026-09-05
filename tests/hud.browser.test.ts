@@ -83,42 +83,6 @@ describe('[Turn] whose move it is, said in words', () => {
   });
 });
 
-describe('[Captured] read off the history, never tallied', () => {
-  it('shows nothing at the start', () => {
-    build();
-    const rows = document.querySelectorAll('.hud-captured');
-    expect(rows).toHaveLength(2);
-    for (const row of rows) expect(row.textContent).toBe('—');
-  });
-
-  it('shows a captured piece', () => {
-    const { play } = build();
-    play('e2', 'e4');
-    play('d7', 'd5');
-    play('e4', 'd5');
-    expect(text('.hud-captured')).toContain('♟');
-  });
-
-  it('sorts the heaviest first, so a queen is not buried behind pawns', () => {
-    const { play } = build('pt', '4k3/8/8/3q4/4P3/8/8/4K3 w - - 0 1');
-    play('e4', 'd5');
-    expect(text('.hud-captured').startsWith('♛')).toBe(true);
-  });
-
-  it('corrects itself when a move is taken back', () => {
-    // Reading the history rather than keeping a running tally is what makes this free: undo
-    // needs no path of its own.
-    const { rules, play, hud: h } = build();
-    play('e2', 'e4');
-    play('d7', 'd5');
-    play('e4', 'd5');
-    expect(text('.hud-captured')).toContain('♟');
-    rules.undo();
-    h.refresh();
-    expect(text('.hud-captured')).toBe('—');
-  });
-});
-
 describe('[Moves] a scoresheet, one line per pair', () => {
   it('is empty before anything is played', () => {
     build();
@@ -340,16 +304,6 @@ describe('[Panel] walking the game backwards and forwards', () => {
     nav()[1].click();
     expect(onReplay).toHaveBeenCalled();
     expect(document.querySelectorAll('.hud-moves li')).toHaveLength(1);
-  });
-
-  it('puts a captured piece back in the tally on the way out', () => {
-    // The capture list is read from the history, so a take-back corrects it with no undo path
-    // of its own — the claim the HUD comment makes, now actually exercised.
-    const { play } = build();
-    play('e2', 'e4'); play('d7', 'd5'); play('e4', 'd5');
-    expect(text('.hud-captured')).toContain('♟');
-    nav()[0].click();
-    expect(text('.hud-captured')).toBe('—');
   });
 
   it('names the buttons in every language', () => {

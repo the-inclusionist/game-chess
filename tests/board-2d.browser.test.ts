@@ -232,15 +232,18 @@ describe('[Themes] six named palettes, measured', () => {
   });
 
   it('gives the two high-contrast entries the same SQUARES and different PIECES', () => {
-    // Which is the whole reason a theme carries piece inks. Solved once, the grey pair serves
-    // both; what differs is whether the pieces are white-against-black or yellow-against-black.
+    // Which is the whole reason a theme carries piece inks. Solved once, the pair serves both;
+    // what differs is whether the pieces are read by lightness or by hue.
     const flat = boardTheme('contrast-flat');
     const solid = boardTheme('contrast-solid');
     expect(flat.light).toBe(solid.light);
     expect(flat.dark).toBe(solid.dark);
     expect(flat.white).not.toBe(solid.white);
-    expect(solid.white).toBe('#FFFF00');
-    expect(solid.blackRim).toBe('#0099FF');
+    // ⚠️ AND THE SQUARES CLEAR 3:1, which is the rule the mode is named after and the rule it was
+    // breaking: the greys it used to ship, #8F8F8F and #5A5A5A, measure 2.13:1.
+    for (const theme of [flat, solid]) {
+      expect(contrast(theme.light, theme.dark)).toBeGreaterThanOrEqual(3);
+    }
   });
 
   it('keeps the Hartwig palette recognisable, and separated by luminance', () => {
@@ -273,22 +276,39 @@ describe('[Themes] six named palettes, measured', () => {
     }
   });
 
-  it('records which themes carry the FILLS and which lean on the rim', () => {
-    // Only the two high-contrast palettes clear 3:1 on both fills against both squares. The four
-    // traditional boards do not, and are not defective for it — that is how the printed
-    // convention works. ⚠️ chessboard.js's brown is the near miss worth naming: its white fill
-    // clears 3.15 against the DARK square and 1.37 against the light one.
+  it('carries every boundary on the RIM, on every board without exception', () => {
+    // ⚠️ NO theme clears 3:1 on both fills against both squares any more, and the two that used
+    // to are the two that stopped: buying it cost them their own squares, which measured 2.13:1.
+    // The arithmetic in `palette.node.test.ts` shows the two cannot be had together at all.
+    //
+    // So the rule is the one the printed convention has always used and the one 1.4.11 actually
+    // states — the BOUNDARY must be perceivable, not the fill — and this is where it is checked
+    // for all seven boards at once.
+    for (const theme of BOARD_THEMES) {
+      expect(contrast(theme.rim, theme.light)).toBeGreaterThanOrEqual(3);
+      expect(contrast(theme.rim, theme.dark)).toBeGreaterThanOrEqual(3);
+    }
     const clears = (t: (typeof BOARD_THEMES)[number]): boolean =>
       contrast(t.white, t.light) >= 3 && contrast(t.white, t.dark) >= 3
       && contrast(t.black, t.light) >= 3 && contrast(t.black, t.dark) >= 3;
-    expect(BOARD_THEMES.filter(clears).map((t) => t.key)).toEqual(['contrast-flat', 'contrast-solid']);
-    expect(contrast('#FFFFFF', boardTheme('brown').dark)).toBeGreaterThan(3);
-    expect(contrast('#FFFFFF', boardTheme('brown').light)).toBeLessThan(3);
+    expect(BOARD_THEMES.filter(clears)).toHaveLength(0);
   });
 
-  it('always separates the two pieces well past the floor', () => {
+  it('separates the two pieces past the floor on every board', () => {
     for (const theme of BOARD_THEMES) {
       expect(contrast(theme.white, theme.black)).toBeGreaterThan(8);
+    }
+  });
+
+  it('stops spending 21:1 on the pieces in the mode that needed the room elsewhere', () => {
+    // ⚠️ SCOPED TO THE HIGH-CONTRAST PAIR, deliberately. On a traditional board the white pieces
+    // are white and the black pieces are black, and that IS chess — 21:1 there is the convention,
+    // not an excess. It was an excess only where it was being paid for with the squares, which is
+    // where the mode's entire purpose lives.
+    for (const key of ['contrast-flat', 'contrast-solid']) {
+      const theme = boardTheme(key);
+      expect(contrast(theme.white, theme.black)).toBeLessThan(16);
+      expect(contrast(theme.light, theme.dark)).toBeGreaterThanOrEqual(3);
     }
   });
 });

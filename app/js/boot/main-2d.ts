@@ -41,6 +41,7 @@ import { createScoreboard } from '../ui/scoreboard.ts';
 import { STUMBLES_BEFORE_HELP } from '../chess/protection.ts';
 import { createBlunderBar } from '../ui/blunder-bar.ts';
 import type { Suggestion } from '../chess/engine/client.ts';
+import { createPlayerStrips } from '../ui/player-strip.ts';
 import { createSplash } from '../ui/splash.ts';
 import { createHud, type GameMode } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
@@ -319,12 +320,26 @@ export function boot2d(host: Document = document): void {
     engine: opponent,
     onChange: () => {
       scoreboard.refresh();
+      players.refresh();
       hud.refresh();
       // The reviewer is also a clock: protected mode holds the opponent until a verdict lands,
       // and this is the tick that lets it go again.
       askOpponent();
     },
     onVerdict: (entry) => { onVerdict(entry); },
+  });
+
+  /**
+   * The same facts as the panel's score table, at the two top corners of the board — because the
+   * panel is where you study them and the board is where you glance at them. See
+   * `ui/player-strip.ts`; nothing is stored twice.
+   */
+  const players = createPlayerStrips({
+    doc: host,
+    i18n,
+    rules,
+    evaluation: () => reviewer.evaluation(),
+    risk: (side) => reviewer.risk(side),
   });
 
   const scoreboard = createScoreboard({
@@ -482,6 +497,7 @@ export function boot2d(host: Document = document): void {
     onTakeBack: () => { void walkHistory('back'); },
     onReplay: () => { void walkHistory('forward'); },
   });
+  region.appendChild(players.root);
   region.appendChild(hud.root);
   // Outside the panel, over the board: see `.theme-report` in the stylesheet.
   region.appendChild(hud.report);
@@ -546,6 +562,7 @@ export function boot2d(host: Document = document): void {
     // longer throws it away. Selecting a piece does not change the position.
     // And the one place the engine is told the game has moved: one search per ply feeds the
     // readout, the marks on the score sheet and protected mode all three.
+    players.refresh();
     reviewer.observe();
     refreshHints();
   }

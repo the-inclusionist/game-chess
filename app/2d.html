@@ -306,6 +306,15 @@
      warning about a blunder nobody played. */
   .blunder-bar[hidden] { display: none; }
   .blunder-bar {
+    /*
+     * ⚠️ POSITIONED, and that is the whole reason for these two lines. The bar comes after the
+     * board in the document, so it ought to paint on top of it — but `.hud` is
+     * `position: absolute`, and a positioned element paints above every non-positioned one in the
+     * same stacking context whatever the source order says. The bar was being drawn UNDER the
+     * side panel: half of "carry on anyway" was simply not there to click.
+     */
+    position: relative;
+    z-index: 3;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -336,6 +345,90 @@
   @media (prefers-contrast: more) {
     .blunder-bar { background: #000000; border-color: #FFFFFF; color: #FFFFFF; }
   }
+
+
+  /*
+   * ========================= EACH PLAYER, AT THEIR OWN END OF THE BOARD =========================
+   * Confined to the BOARD's part of the region — `right: 27.5%` is where the panel begins — so the
+   * two blocks sit at the top corners of the board and not at the corners of the window. The board
+   * itself is 68.8% tall and vertically centred, which is what leaves the room they occupy.
+   *
+   * `pointer-events: none` on the container and back on for nothing: none of this is interactive,
+   * and a strip that could swallow a click would make the top rank of the board unplayable.
+   */
+  .board-players {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 27.5%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: calc(var(--ui-fs, 16px) * 0.25);
+    pointer-events: none;
+    font-size: calc(var(--ui-fs, 16px) * 0.72);
+    line-height: 1.2;
+  }
+  .player-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15em;
+    min-width: 6.5em;
+    max-width: 42%;
+    color: #c9d1d9;
+  }
+  /* The black player's block reads right to left, so both are anchored to their own board edge. */
+  .player-strip[data-side="b"] { align-items: flex-end; text-align: right; }
+
+  .player-name {
+    margin: 0;
+    font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    font-size: 0.85em; color: #8b98a5;
+  }
+  .player-score { margin: 0; display: flex; align-items: baseline; gap: 0.35em; }
+  .player-strip[data-side="b"] .player-score { flex-direction: row-reverse; }
+  /* Tabular figures, so the number does not shuffle sideways as the game goes on. */
+  .player-score b { font-size: 1.35em; font-variant-numeric: tabular-nums; }
+  /* ⚠️ Reinforcement only: the sign is already in the text. */
+  .player-score b[data-lead="ahead"] { color: #7DD3A0; }
+  .player-score b[data-lead="behind"] { color: #E8A0A0; }
+  .player-score b[data-lead="level"] { color: #8b98a5; }
+  .player-engine { font-size: 0.85em; color: #8b98a5; font-variant-numeric: tabular-nums; }
+
+  /*
+   * The risk bar. Length and number say the same thing twice, on purpose: a bar whose only content
+   * is its own width is invisible to a screen reader and to anyone the colour fails (1.4.1).
+   */
+  .player-risk { margin: 0; display: flex; align-items: center; gap: 0.35em; }
+  .player-strip[data-side="b"] .player-risk { flex-direction: row-reverse; }
+  .player-risk-bar {
+    display: block;
+    width: 5.5em; height: 0.5em;
+    background: #1b2733;
+    border: 1px solid #2b3a4a;
+    border-radius: 1px;
+    overflow: hidden;
+  }
+  .player-strip[data-side="b"] .player-risk-bar { display: flex; justify-content: flex-end; }
+  .player-risk-fill { display: block; height: 100%; background: #7DD3A0; }
+  .player-risk-fill[data-level="mid"] { background: #E8C07D; }
+  .player-risk-fill[data-level="high"] { background: #FF8B7D; }
+  .player-risk-value { font-size: 0.85em; color: #8b98a5; font-variant-numeric: tabular-nums; }
+
+  /*
+   * What this player has taken. Line height tightened and wrapping allowed, because sixteen pawns
+   * on one line would push the strip across the board.
+   */
+  .player-taken {
+    margin: 0;
+    font-size: 1.1em; line-height: 1;
+    letter-spacing: -0.08em;
+    word-break: break-all;
+    color: #e6edf3;
+  }
+
+  #game-region[data-contrast="high"] .player-strip { color: #FFFFFF; }
+  #game-region[data-contrast="high"] .player-risk-bar { border-color: #FFFFFF; background: #000000; }
 
   .hud-nav { display: flex; gap: 0.3em; }
   .hud-nav button {
@@ -820,10 +913,17 @@
   .board-2d [role="gridcell"] .cell-coord[data-kind="rank"] { left: 4%; top: 1%; }
   #game-region:not([data-coords="on"]) .cell-coord { display: none; }
 
-  /* High contrast: the same numeric solution the 3D board uses, applied to a flat one. */
+  /*
+   * ⚠️ THE SQUARES ARE NOT WRITTEN HERE ANY MORE, and the two lines that used to write them are
+   * the reason a measured palette change did nothing at all on screen. They hardcoded #8F8F8F and
+   * #5A5A5A — a THIRD copy of a pair that also lives in `ui/board-themes.ts` and
+   * `render/palette.ts` — and being a stylesheet rule they simply won, so the board went on
+   * showing 2.13:1 while every test and every comment said 4.23.
+   *
+   * `prefers-contrast: more` already selects the `contrast-flat` THEME, and a theme decides every
+   * ink through custom properties. One source, and the switch chooses which source.
+   */
   #game-region[data-contrast="high"] .board-2d { border-color: #FFFFFF; }
-  #game-region[data-contrast="high"] .board-2d [role="gridcell"][data-shade="light"] { background: #8F8F8F; }
-  #game-region[data-contrast="high"] .board-2d [role="gridcell"][data-shade="dark"]  { background: #5A5A5A; }
   /*
    * ⚠️ NO PIECE COLOURS HERE ANY MORE. High contrast on the flat board is a THEME —
    * `contrast-flat` in `ui/board-themes.ts` — because the two high-contrast palettes differ in

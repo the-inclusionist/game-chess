@@ -72,6 +72,7 @@ export const pt: Catalog = {
     'elo.2400': 'mestre internacional',
     'elo.2500': 'grande mestre',
     'elo.3000': 'força total',
+    'score.risk': 'Risco',
     'score.title': 'Pontuação',
     'score.material': 'Material',
     'score.engine': 'Engine',

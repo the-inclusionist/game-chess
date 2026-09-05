@@ -4,7 +4,7 @@
 // ========================= WHY A THEME IS NOT JUST TWO SQUARES =========================
 // It began as two colours and that was not enough to say what was being asked for. "The
 // high-contrast colours of the 2D board" and "the high-contrast colours of the 2.5D board" have
-// THE SAME SQUARES — #8F8F8F and #5A5A5A, solved once for both — and differ entirely in the
+// THE SAME SQUARES — #EDEDED and #707070, solved once for both — and differ entirely in the
 // pieces: white against black in one, yellow against black-under-a-blue-rim in the other. A theme
 // that carried only squares would have made those two the same entry.
 //
@@ -17,7 +17,7 @@
 //   wikipedia   Wikipedia's chess diagram template          #ffce9e / #d18b47
 //   xboard      XBoard, the GNU Chess interface             #C8C365 / #77A26D
 //   jose        this project's own, from render/palette.ts  #DCD6C8 / #8D8677
-//   contrast-*  solved numerically here and in palette.ts   #8F8F8F / #5A5A5A
+//   contrast-*  solved numerically here and in palette.ts   #EDEDED / #707070
 //
 // ⚠️ On licensing, since it was asked: a pair of hex values is a FACT, not creative expression, so
 // no licence reaches them. XBoard is GPL and chessboard.js is MIT, and both are named here for
@@ -42,6 +42,9 @@
 //  · Only the two high-contrast themes clear 3:1 on the FILLS. The other four are carried by the
 //    rim, which is how the printed convention has always worked and what WCAG 1.4.11 actually
 //    asks — that the boundary be perceivable, not the fill.
+//  · ⚠️ AND THE SQUARES OF A HIGH-CONTRAST THEME CLEAR 3:1 AGAINST EACH OTHER, which is the rule
+//    that mode exists for and the rule it was breaking: the two greys it used were 2.13:1. See
+//    the note above those two entries for what moved, and what it moved from.
 
 export interface BoardTheme {
   readonly key: string;
@@ -139,29 +142,49 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
       dark: ['#5B44A0', '#3A2670', '#1E1140'],
     },
   },
+  /*
+   * ========================= ⚠️ BOTH OF THESE FAILED THE ONE RULE THEY EXIST FOR =========================
+   * The high-contrast palettes were #8F8F8F against #5A5A5A, and those two greys are **2.13:1**.
+   * The mode whose entire purpose is to guarantee 3:1 between the squares was shipping a board
+   * that did not reach it — while spending 21:1 on the PIECES, which nothing asks for and which
+   * is simply unpleasant to look at for a whole game.
+   *
+   * The two budgets are not interchangeable, and the fix is to move room from one to the other:
+   *
+   *              casas      pecas     silhueta x casa escura
+   *   antes      2.13:1     21.00:1   3.04:1        <- reprova nas casas
+   *   agora      4.23:1     12.04:1   3.97:1        (neutro)
+   *   agora      4.23:1      8.45:1   3.97:1        (ambar e azul)
+   *
+   * Every pair that has to hold now holds, and the worst figure in either palette is 3.57:1. The
+   * piece contrast came down by half and by two thirds — deliberately, because a piece needs to
+   * be unmistakably not the other piece, which is 3:1, and not maximally different from it.
+   */
   {
-    // High contrast as the FLAT board solves it: the default already uses the extreme inks, so all
-    // that is left to fix is the board.
+    // The neutral answer: paper and slate, with the pieces cream against near-black.
     key: 'contrast-flat',
-    light: '#8F8F8F',
-    dark: '#5A5A5A',
-    ...INK,
-    rim: '#000000',
+    light: '#EDEDED',
+    dark: '#707070',
+    white: '#FBF2DC',
+    black: '#2E2E38',
+    whiteRim: '#2E2E38',
+    blackRim: '#FBF2DC',
+    rim: '#0B0B0B',
     name: 'theme.contrast1',
     short: 'theme.short.contrast1',
     flatSolid: true,
   },
   {
-    // High contrast as the PROJECTED board solves it, brought over unchanged: yellow filling and a
-    // #0099FF rim on black, because there the ink that COVERS a piece is its stroke.
+    // The coloured answer, for anyone who reads hue faster than lightness: amber against navy,
+    // with a pale blue inner stroke so the dark piece has detail as well as an outline.
     key: 'contrast-solid',
-    light: '#8F8F8F',
-    dark: '#5A5A5A',
-    white: '#FFFF00',
-    black: '#000000',
-    whiteRim: '#000000',
-    blackRim: '#0099FF',
-    rim: '#000000',
+    light: '#EDEDED',
+    dark: '#707070',
+    white: '#FFC93C',
+    black: '#16305E',
+    whiteRim: '#16305E',
+    blackRim: '#7FD4FF',
+    rim: '#0B0B0B',
     name: 'theme.contrast2',
     short: 'theme.short.contrast2',
     flatSolid: true,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_PALETTE, HIGH_CONTRAST_PALETTE, type Palette,
+  DEFAULT_PALETTE, HIGH_CONTRAST_PALETTE,
 } from '../app/js/render/palette.ts';
 
 // ========================= WHY THIS TEST EXISTS =========================
@@ -28,17 +28,6 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/** Every fill a piece presents against every square it can stand on. */
-function pieceAgainstSquare(palette: Palette): number[] {
-  const fills = [
-    palette.lightPieces.top, palette.lightPieces.face, palette.lightPieces.side,
-    palette.darkPieces.top, palette.darkPieces.face, palette.darkPieces.side,
-  ];
-  return fills.flatMap((fill) => [
-    contrast(fill, palette.squareLight),
-    contrast(fill, palette.squareDark),
-  ]);
-}
 
 describe('[Contrast] the measuring instrument agrees with the standard', () => {
   it('gives the two ratios everyone knows', () => {
@@ -54,8 +43,27 @@ describe('[Contrast] the measuring instrument agrees with the standard', () => {
 describe('[Contrast] high contrast clears the WCAG 1.4.11 floor everywhere it must', () => {
   const p = HIGH_CONTRAST_PALETTE;
 
-  it('puts every piece fill at 3:1 or better against BOTH squares', () => {
-    for (const ratio of pieceAgainstSquare(p)) expect(ratio).toBeGreaterThanOrEqual(3);
+  it('puts the SQUARES at 3:1, which is the rule this whole mode exists for', () => {
+    // ⚠️ THIS IS THE TEST THAT WAS MISSING, and its absence is why the palette shipped at
+    // **2.13:1** between its own two squares. The mode is called high contrast; the first thing
+    // it has to deliver is a board you can see the squares of.
+    expect(contrast(p.squareLight, p.squareDark)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('gives every piece a boundary on every square, by its fill OR by its stroke', () => {
+    // 1.4.11 asks that the BOUNDARY be perceivable, not that the fill be. On a light square a
+    // dark piece is bounded by its own fill; on a dark square a light piece is. Each of the four
+    // combinations needs one of the two to hold, and each one has it.
+    const pairs: [string, string, string][] = [
+      [p.lightPieces.top, p.lightPieces.stroke, p.squareLight],
+      [p.lightPieces.top, p.lightPieces.stroke, p.squareDark],
+      [p.darkPieces.top, p.darkPieces.stroke, p.squareLight],
+      [p.darkPieces.top, p.darkPieces.stroke, p.squareDark],
+    ];
+    for (const [fill, stroke, square] of pairs) {
+      expect(Math.max(contrast(fill, square), contrast(stroke, square)))
+        .toBeGreaterThanOrEqual(3);
+    }
   });
 
   it('separates the two sides far past the floor', () => {
@@ -85,32 +93,40 @@ describe('[Contrast] high contrast clears the WCAG 1.4.11 floor everywhere it mu
     expect(contrast(p.darkPieces.stroke, p.darkPieces.top)).toBeGreaterThanOrEqual(7);
   });
 
-  it('is flat by necessity, not by oversight', () => {
-    // Recorded as arithmetic in palette.ts: a shaded face cannot clear 3:1 against the light
-    // square once the top does, because the top is already at the ceiling the square imposes.
+  it('is flat, because the whole budget went on the boundaries', () => {
     for (const side of [p.lightPieces, p.darkPieces]) {
       expect(new Set([side.top, side.face, side.side]).size).toBe(1);
     }
-    const ceiling = (luminance(p.lightPieces.top) + 0.05) / 3 - 0.05;
-    expect(luminance(p.squareLight)).toBeLessThanOrEqual(ceiling);
   });
 
-  it('accepts a square pair under the floor, and says how far under', () => {
-    // Not a pass — an acceptance, recorded so it cannot quietly get worse. Four inks cannot
-    // satisfy all six pairs, and a square is identified by where it is.
-    const squares = contrast(p.squareLight, p.squareDark);
-    expect(squares).toBeLessThan(3);
-    expect(squares).toBeGreaterThan(2.1);
+  it('proves the two demands cannot both be met, so nobody quietly re-swaps them', () => {
+    // ⚠️ THE ARITHMETIC, kept as a test because it is the reason this palette looks the way it
+    // does and the reason someone will one day try to "fix" it back.
+    //
+    // The lightest piece there is, is white, luminance 1. For it to clear 3:1 against the light
+    // square:            (1 + 0.05) / (Ll + 0.05) >= 3   =>   Ll <= 0.300
+    // The darkest piece there is, is black, luminance 0. Against the dark square:
+    //                    (Ld + 0.05) / 0.05 >= 3         =>   Ld >= 0.100
+    // And for the squares to clear 3:1 against each other, with Ll at its ceiling:
+    //                    (0.30 + 0.05) / (Ld + 0.05) >= 3  =>  Ld <= 0.067
+    //
+    // 0.100 <= Ld <= 0.067 has no solutions. Squares at 3:1 AND both fills at 3:1 against both
+    // squares is not a palette anyone failed to find; it does not exist. The old palette chose
+    // the fills and left the squares at 2.13:1. This one chooses the squares, which is what the
+    // mode is named after, and lets the stroke carry the boundary where the fill cannot.
+    const lightestSquare = 1.05 / 3 - 0.05;
+    const darkestSquareForBlackPiece = 3 * 0.05 - 0.05;
+    const darkestSquareForContrast = (lightestSquare + 0.05) / 3 - 0.05;
+    expect(darkestSquareForContrast).toBeLessThan(darkestSquareForBlackPiece);
   });
 
-  it('accepts a blue rim that vanishes on a light square, because the filling does not', () => {
-    // The other stated cost. The rim is the outermost ink, so this is the pair a strict reading
-    // of 1.4.11 would want — and it cannot be had: for the rim to clear 3:1 on a light square the
-    // squares would have to fall below luminance 0.067, where the black filling then fails.
-    // What identifies the piece is the filling, and THAT is what must hold.
-    expect(contrast(p.darkPieces.stroke, p.squareLight)).toBeLessThan(3);
-    expect(contrast(p.darkPieces.top, p.squareLight)).toBeGreaterThanOrEqual(3);
-    expect(contrast(p.darkPieces.top, p.squareDark)).toBeGreaterThanOrEqual(3);
+  it('spends what it needs on the pieces and no more', () => {
+    // 21:1 is what black on white costs, and nothing asks for it: a piece has to be unmistakably
+    // not the other piece, which is 3:1, not maximally different from it, which is tiring to look
+    // at for a whole game. The room saved is the room the squares now have.
+    const sides = contrast(p.lightPieces.top, p.darkPieces.top);
+    expect(sides).toBeGreaterThanOrEqual(7);
+    expect(sides).toBeLessThan(14);
   });
 });
 

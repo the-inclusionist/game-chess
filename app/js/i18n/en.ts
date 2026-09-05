@@ -67,6 +67,7 @@ export const en: Catalog = {
     'elo.2400': 'International Master',
     'elo.2500': 'Grandmaster',
     'elo.3000': 'full strength',
+    'score.risk': 'Risk',
     'score.title': 'Score',
     'score.material': 'Material',
     'score.engine': 'Engine',

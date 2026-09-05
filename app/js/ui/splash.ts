@@ -57,6 +57,26 @@ export function createSplash(deps: SplashDeps): Splash {
     return { done: Promise.resolve() };
   }
 
+  // ========================= NOT ON THE WAY BETWEEN VIEWS =========================
+  // ⚠️ Each view is its own page, so changing view is a navigation and a navigation runs this
+  // again. But this screen is for loading the GAME, and a player who has already pressed START is
+  // not loading anything — the engine is warm, the fonts are cached, and the position they were
+  // just looking at is waiting behind the title. Being asked to start something you are in the
+  // middle of is the kind of small nonsense that makes a program feel like it is not listening.
+  //
+  // Read AND cleared: the flag survives exactly one navigation, so a reload later in the session
+  // — which really can be a cold start — gets the title screen it is for.
+  let switching = false;
+  try {
+    switching = sessionStorage.getItem('incl_chess_switching') === '1';
+    sessionStorage.removeItem('incl_chess_switching');
+  } catch { /* private mode, or storage disabled: show the splash, which is the safe answer */ }
+
+  if (switching) {
+    root.remove();
+    return { done: Promise.resolve() };
+  }
+
   root.setAttribute('aria-label', i18n.t('splash.title'));
   status.textContent = i18n.t('splash.loading');
   start.textContent = i18n.t('splash.start');
