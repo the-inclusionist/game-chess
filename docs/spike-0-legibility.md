@@ -30,10 +30,18 @@ hedge against per-frame cost. At 1.44 ms per frame that hedge buys nothing and
 costs a dirty-tracking mechanism across camera, animation and selection. Render
 every frame. *(This retires risk #1 of the plan and simplifies §Arquitetura.)*
 
-**3. Piece geometry had to shrink ~25 %.** The first pass overflowed the square:
-bishop slabs of 13 units turned 45° span 13·√2 ≈ 18.4 in a 16-unit square. The
-locked sizes below keep every piece inside its square — the widest footprint is
-the bishop at 10·√2 ≈ 14.1.
+**3. Piece geometry had to shrink ~25 %.** The first pass overflowed the square and
+neighbouring pieces on the back rank ran into each other.
+
+⚠️ **Correction (2026-09-05).** This section originally blamed the bishop, claiming
+slabs of 13 units turned 45° span 13·√2 ≈ 18.4. **The arithmetic is backwards.**
+Turning a THIN slab by 45° makes it *narrower* on the axis, not wider: the extent is
+`w·cos θ + d·sin θ`, which is less than `w` when `d` is small. What gains extent by
+turning is a roughly CUBIC box, whose diagonal reaches `s·√2` — the king's finial.
+
+The diagnosis was right and the explanation was wrong: every piece was simply too
+big. Both directions are now pinned by tests in `tests/piece-geometry.node.test.ts`,
+and `pieceFootprint` measures the rotated bounding box rather than guessing.
 
 **4. The HUD budget closes.** With the board pushed left (`x = -42`) at
 `zoom 1.15` and `rotate.x = -1.0 rad`, the board occupies the left ~232 px and
@@ -48,12 +56,15 @@ except the queen's finial.
 
 | Piece | Geometry | Height |
 |---|---|---|
-| Pawn | cube 6.5 | 6.5 |
-| Rook | cube 8.5 | 8.5 |
-| Knight | 4 × cube 4.4 in an L: two side by side, two stacked on the left | 13.2 |
-| Bishop | 2 slabs 10×11×3.4, rotated `y = ±TAU/8` | 11 |
-| Queen | cube 8 + `Zdog.Shape` dot, stroke 7, at `y = -10.5` | 14 |
-| King | cube 8.5 + cube 6.5 rotated `y = TAU/8` at `y = -11.75` | 15 |
+| Pawn | cube 6 | 6 |
+| Rook | cube 9 | 9 |
+| Knight | 4 × cube 4.6 in an L: two side by side, two stacked on the left | 13.8 |
+| Bishop | 2 slabs 10×11.5×3.4, rotated `y = ±π/4` | 11.5 |
+| Queen | cube 8.5 + `Zdog.Shape` dot, stroke 7.5, at `y = -11.5` | 15.25 |
+| King | cube 10 + cube 7.5 rotated `y = π/4` at `y = -13.75` | 17.5 |
+
+Final values, after the pawn/rook ratio was widened to 1.5×. The authority is
+`app/js/render/pieces/geometry.ts`; this table is a summary.
 
 Camera defaults: `rotate.x = -1.0`, `zoom = 1.15`, board offset `x = -42`.
 Stroke 0.9 — thick enough to read as Zdog, thin enough not to swallow a 4 px face.
@@ -76,11 +87,10 @@ CVD simulation filters.
 
 ## Carried forward
 
-- **Pawn and rook are both plain cubes**, differing only in size — at 6.5 vs 8.5
-  the ratio is 1.31×, which is ~4 px vs ~6 px on screen. This is faithful to
-  Hartwig, who gave both pieces the cube because both move at right angles to
-  the edge. Widen to 1.5× (6.0 vs 9.0) during piece implementation and re-check.
-  The DOM mirror and screen reader carry the accessibility case regardless.
+- ~~**Pawn and rook are both plain cubes**, at 1.31×.~~ **DONE (2026-09-05):**
+  widened to exactly 1.5× (6 vs 9) and asserted in the geometry tests. Faithful to
+  Hartwig, who gave both pieces the cube because both move at right angles to the
+  edge; the DOM mirror and screen reader carry the accessibility case regardless.
 - Zdog `Illustration` must have `pixelRatio` forced to 1 and `setSize(320, 180)`
   called explicitly; the constructor's element measurement uses CSS size, which
   is the upscaled size and would produce a 4× backing store.
