@@ -11,10 +11,9 @@
 
 import { createGame } from '@pm-monte/inclusionist-engine';
 import { srAlert, srSay } from '@pm-monte/inclusionist-engine/core/a11y-sr.ts';
-import type {
-  Focus, GameDeclaration, Objective, Role, Speakable, Spot,
-} from '@pm-monte/inclusionist-engine/core/contract.ts';
 import { startLoop } from '@pm-monte/inclusionist-engine/core/loop.ts';
+import { createChessDeclaration } from '../declaration/chess-declaration.ts';
+import { createGridMirror } from '../ui/grid-mirror.ts';
 import { initLayout, layout } from '@pm-monte/inclusionist-engine/ui/layout.ts';
 import { createEngineClient } from '../chess/engine/client.ts';
 import { DEFAULT_DIFFICULTY, DIFFICULTY_DEPTH, type Difficulty } from '../chess/engine/difficulty.ts';
@@ -72,50 +71,12 @@ export function boot(host: Document = document): void {
   let difficulty: Difficulty = DEFAULT_DIFFICULTY;
   let thinking = false;
 
+  // The keyboard cursor. It lives here rather than inside the grid mirror because the DECLARATION
+  // needs it (field 4, focus) and the mirror needs the declaration's game — a cycle broken by
+  // keeping the value in the composition root, where cycles are allowed to be resolved.
   let cursor: Square = { x: 4, y: 6 };
 
-  /* ---------- the seven fields, in chess semantics ---------- */
-
-  const declaration: GameDeclaration = {
-    topology: { kind: 'grid', cols: 8, rows: 8 },
-    tick: 'player',
-
-    roleAt(s: Spot): Role {
-      const square = s as Square;
-      const piece = rules.pieceAt(square);
-      const mine = rules.turn();
-      if (!piece) {
-        // A square the opponent covers is a HAZARD — and that one line is the whole reason the
-        // engine's blind-navigation sonar warns about threats without a word of audio code here.
-        return rules.isAttackedBy(square, mine === 'w' ? 'b' : 'w') ? 'hazard' : 'free';
-      }
-      if (piece.side === mine) return 'structure';
-      if (piece.type === 'k') return 'goal';
-      return 'key';
-    },
-
-    nameAt(s: Spot): Speakable | null {
-      const piece = rules.pieceAt(s as Square);
-      return piece ? i18n.describePiece(piece) : null;
-    },
-
-    focusOf(playerIndex: number): Focus | null {
-      if (playerIndex !== 0) return null;
-      return { id: 'cursor', at: game.selection() ?? cursor, heading: 'n' };
-    },
-
-    objectiveOf(): Objective {
-      return {
-        name: { text: i18n.t('objective.checkmate'), gender: 'm', plural: false },
-        have: game.outcome()?.kind === 'checkmate' ? 1 : 0,
-        need: 1,
-      };
-    },
-
-    targetsOf(playerIndex: number): readonly Spot[] {
-      return playerIndex === 0 ? game.legalTargets() : [];
-    },
-  };
+  const declaration = createChessDeclaration({ rules, state: game, i18n, cursor: () => cursor });
 
   const engine = createGame({
     declaration,
@@ -136,6 +97,18 @@ export function boot(host: Document = document): void {
   // canvas: the game speaks through the DOM. The grid mirror at step 7 carries the board.
   surface.view.setAttribute('aria-hidden', 'true');
   region.appendChild(surface.view);
+
+  // The board as the screen reader sees it. Inside #game-region so the engine's keyboard rules
+  // and focus styling apply, and BEFORE the canvas in the DOM so it is what a reader meets first.
+  const mirror = createGridMirror({
+    doc: host,
+    i18n,
+    rules,
+    state: game,
+    onActivate: (square) => onActivate(square),
+    onCursor: (square) => { cursor = square; syncMarkers(); },
+  });
+  region.insertBefore(mirror.root, surface.view);
 
   initLayout({ numJogadores: () => 1 });
   layout();
@@ -168,6 +141,10 @@ export function boot(host: Document = document): void {
     }
     const check = game.kingInCheck();
     if (check) markers.set(squareIndex(check), 'check');
+    // The keyboard cursor last, and only where nothing else already speaks for the square:
+    // a selection or a legal-move marker is more informative than "you are looking here".
+    const at = squareIndex(cursor);
+    if (!markers.has(at)) markers.set(at, 'cursor');
     boardView.setMarkers(markers);
     invalidate();
   }
@@ -239,6 +216,7 @@ export function boot(host: Document = document): void {
         );
         if (!move) return;
         beginMove(move);
+        mirror.refresh();
         srSay(moveSentence(i18n, move));
         if (!move.checkmate && move.check) srAlert(i18n.t('status.check'));
       })
@@ -256,6 +234,7 @@ export function boot(host: Document = document): void {
     const result = game.activate(square);
     if (result.kind === 'moved') beginMove(result.move);
     syncMarkers();
+    mirror.refresh();
     announce(result);
   }
 
@@ -339,6 +318,7 @@ export function boot(host: Document = document): void {
         game.animationDone();
         syncPieces();
         syncMarkers();
+        mirror.refresh();
         announceOutcome();
         askOpponent();
       }
@@ -393,6 +373,7 @@ export function boot(host: Document = document): void {
       opponent,
       setDifficulty(level: Difficulty) { difficulty = level; },
       askOpponent,
+      mirror,
       /** Advances the loop by hand — see `frame`. */
       step: frame,
     };

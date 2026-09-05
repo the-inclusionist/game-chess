@@ -58,5 +58,9 @@ export const es: Catalog = {
     'a11y.selected':    'Selección: {piece} en {square}',
     'a11y.noSelection': 'Ninguna pieza seleccionada',
     'a11y.legalMoves':  '{count} jugadas legales',
+    'a11y.cellMove': 'jugada posible',
+    'a11y.cellCapture': 'captura posible',
+    'a11y.cellCheck': 'en jaque',
+    'a11y.gridHint': 'Flechas navegan, Enter selecciona',
   },
 };

@@ -62,5 +62,9 @@ export const pt: Catalog = {
     'a11y.selected':    'Seleção: {piece} em {square}',
     'a11y.noSelection': 'Nenhuma peça selecionada',
     'a11y.legalMoves':  '{count} lances legais',
+    'a11y.cellMove': 'lance possível',
+    'a11y.cellCapture': 'captura possível',
+    'a11y.cellCheck': 'em xeque',
+    'a11y.gridHint': 'Setas navegam, Enter seleciona',
   },
 };

@@ -62,6 +62,8 @@ export const MARKER_MOVE = '#2E7D5B';
 export const MARKER_CAPTURE = '#B3341F';
 export const MARKER_SELECTED = '#1B4F8A';
 export const MARKER_CHECK = '#B3341F';
+/** Where the keyboard is. Distinct from selection: the cursor is looking, the selection is held. */
+export const MARKER_CURSOR = '#0E7C86';
 
 /**
  * Stroke width in Zdog units. Thick enough to read as Zdog at this resolution, thin enough not to

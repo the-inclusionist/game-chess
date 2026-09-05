@@ -9,7 +9,7 @@ import Zdog, { type Anchor, type Rect, type Shape } from 'zdog';
 import type { Square } from '../chess/types.ts';
 import { isLightSquare, squareCenter, squareFromIndex, squareIndex } from './board-geometry.ts';
 import {
-  MARKER_CAPTURE, MARKER_CHECK, MARKER_MOVE, MARKER_SELECTED,
+  MARKER_CAPTURE, MARKER_CHECK, MARKER_CURSOR, MARKER_MOVE, MARKER_SELECTED,
   SQUARE_DARK, SQUARE_LIGHT, SQUARE_STROKE,
 } from './palette.ts';
 import type { Quad } from './picking.ts';
@@ -35,8 +35,12 @@ const MARKER_LIFT = -0.5;
  * `check` is the exception, and it is an honest one: it is an outline like `capture`, on a square
  * that is never simultaneously a capture target for the side in check. Its primary channel is not
  * visual at all — it goes out through `srAlert`, assertively.
+ *
+ * `cursor` is where the KEYBOARD is. The DOM grid that carries the board for a screen reader is
+ * visually hidden, so a sighted person navigating by keyboard would otherwise have focus sitting
+ * somewhere invisible. This marker is that focus, drawn on the board.
  */
-export type Marker = 'selected' | 'move' | 'capture' | 'check';
+export type Marker = 'cursor' | 'selected' | 'move' | 'capture' | 'check';
 
 export interface BoardView {
   /** The subtree to add to the scene. */
@@ -53,6 +57,7 @@ export interface BoardView {
 }
 
 const OUTLINE_COLOUR: Record<Marker, string> = {
+  cursor: MARKER_CURSOR,
   move: MARKER_MOVE,
   capture: MARKER_CAPTURE,
   selected: MARKER_SELECTED,
