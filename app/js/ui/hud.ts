@@ -73,6 +73,22 @@ export interface HudDeps {
   onMode?(mode: GameMode): void;
 
   /**
+   * Which engine plays. Changing it starts a new game for the same reason changing sides does: the
+   * moves already on the board were chosen by the one being replaced.
+   */
+  engines?: readonly { readonly key: string; readonly label: string }[];
+  engine?(): string;
+  onEngine?(key: string): void;
+
+  /**
+   * The opponent's rating, from `STRENGTH_LADDER`. Absent for an engine that cannot honour one —
+   * a control that pretended to set a strength nothing acted on would be worse than none.
+   */
+  strengths?: readonly { readonly elo: number; readonly name: string }[];
+  strength?(): number;
+  onStrength?(elo: number): void;
+
+  /**
    * Asks the engine what it would play. Absent on a board with no engine, which is the two-player
    * mode: there is nobody to ask.
    */
@@ -327,6 +343,37 @@ export function createHud(deps: HudDeps): Hud {
 
   const modeGroup = groupOf('hud-mode', ['w', 'b', 'two'], (v) => `hud-mode-${v}`);
 
+  // --- which engine, and how strong ------------------------------------------
+  const engineBox = doc.createElement('p');
+  const engineLabel = doc.createElement('label');
+  const engineSelect = doc.createElement('select');
+  engineSelect.id = 'hud-engine';
+  engineLabel.htmlFor = engineSelect.id;
+  if (deps.engines) {
+    for (const item of deps.engines) {
+      const option = doc.createElement('option');
+      option.value = item.key;
+      option.textContent = item.label;   // engine names are proper nouns, like typefaces
+      engineSelect.appendChild(option);
+    }
+    engineBox.append(engineLabel, engineSelect);
+  }
+
+  const strengthBox = doc.createElement('p');
+  const strengthLabel = doc.createElement('label');
+  const strengthSelect = doc.createElement('select');
+  strengthSelect.id = 'hud-strength';
+  strengthLabel.htmlFor = strengthSelect.id;
+  if (deps.strengths) {
+    for (const rung of deps.strengths) {
+      const option = doc.createElement('option');
+      option.value = String(rung.elo);
+      option.dataset.name = rung.name;
+      strengthSelect.appendChild(option);
+    }
+    strengthBox.append(strengthLabel, strengthSelect);
+  }
+
   // --- which drawing the pieces use ------------------------------------------
   const setBox = doc.createElement('p');
   const setLabel = doc.createElement('label');
@@ -401,7 +448,11 @@ export function createHud(deps: HudDeps): Hud {
   root.append(turn, capturedBox, movesBox);
   if (deps.onHint) root.appendChild(hintBox);
   if (deps.onMode) root.appendChild(modeGroup.box);
-  root.appendChild(difficulty.box);
+  if (deps.engines) root.appendChild(engineBox);
+  // ⚠️ One of the two, never both. A rating IS the difficulty when the engine can honour one, and
+  // showing "medium" beside "1600" would be two dials for one thing that disagree by design.
+  if (deps.strengths) root.appendChild(strengthBox);
+  else root.appendChild(difficulty.box);
   if (deps.pieceSets) root.appendChild(setBox);
   if (deps.themes) root.appendChild(themeBox);
   root.append(visionBox, motionBox);
@@ -417,6 +468,12 @@ export function createHud(deps: HudDeps): Hud {
     deps.onMode?.((event.target as HTMLInputElement).value as GameMode);
   }
   for (const { input } of modeGroup.options) input.addEventListener('change', onModeInput);
+
+  function onEngineChange(): void { deps.onEngine?.(engineSelect.value); }
+  engineSelect.addEventListener('change', onEngineChange);
+
+  function onStrengthChange(): void { deps.onStrength?.(Number(strengthSelect.value)); }
+  strengthSelect.addEventListener('change', onStrengthChange);
 
   function onHintClick(): void { deps.onHint?.(); }
   hintButton.addEventListener('click', onHintClick);
@@ -600,6 +657,20 @@ export function createHud(deps: HudDeps): Hud {
     motionLabel.textContent = i18n.t('hud.reducedMotion');
     motionInput.checked = deps.reducedMotion();
 
+    if (deps.engines) {
+      engineLabel.textContent = i18n.t('hud.engine');
+      engineSelect.value = deps.engine?.() ?? '';
+    }
+
+    if (deps.strengths) {
+      strengthLabel.textContent = i18n.t('hud.strength');
+      for (const option of strengthSelect.options) {
+        // "1600 · Class B" — the number is the dial and the name is what it means.
+        option.textContent = `${option.value} · ${i18n.t(option.dataset.name ?? '')}`;
+      }
+      strengthSelect.value = String(deps.strength?.() ?? '');
+    }
+
     if (deps.onHint) {
       hintButton.textContent = i18n.t('hud.hint');
       hintButton.disabled = deps.hintBusy?.() ?? false;
@@ -649,6 +720,8 @@ export function createHud(deps: HudDeps): Hud {
       for (const { input } of difficulty.options) input.removeEventListener('change', onDifficultyChange);
       for (const { input } of modeGroup.options) input.removeEventListener('change', onModeInput);
       hintButton.removeEventListener('click', onHintClick);
+      engineSelect.removeEventListener('change', onEngineChange);
+      strengthSelect.removeEventListener('change', onStrengthChange);
       visionSelect.removeEventListener('change', onVisionChange);
       motionInput.removeEventListener('change', onMotionChange);
       outlineInput.removeEventListener('change', onOutlineChange);

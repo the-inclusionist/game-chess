@@ -24,11 +24,16 @@ import { createGame } from '@the-inclusionist/engine';
 import { srAlert, srSay } from '@the-inclusionist/engine/core/a11y-sr.js';
 import { VIZ_FILTER } from '@the-inclusionist/engine/render/viz-modes.js';
 import { createChessDeclaration } from '../declaration/chess-declaration.ts';
+import type { EngineClient } from '../chess/engine/client.ts';
 import { createEngineClient } from '../chess/engine/client.ts';
+import { createStockfishClient } from '../chess/engine/stockfish-client.ts';
+import { DEFAULT_ELO, STRENGTH_LADDER } from '../chess/engine/strength.ts';
+import { createThinkingPanel } from '../ui/thinking.ts';
 import { DEFAULT_DIFFICULTY, DIFFICULTY_DEPTH, type Difficulty } from '../chess/engine/difficulty.ts';
 import { type MoveResult } from '../chess/rules.ts';
-import { clear as clearGame, loadSettings, resume, save as saveGame, saveSettings }
-  from '../chess/session.ts';
+import {
+  clear as clearGame, type EngineKind, loadSettings, resume, save as saveGame, saveSettings,
+} from '../chess/session.ts';
 import { createGameState, type Activation } from '../chess/state.ts';
 import { type Side, type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale, type I18n } from '../i18n/index.ts';
@@ -78,9 +83,8 @@ export function boot2d(host: Document = document): void {
   const mode: GameMode = loadSettings().mode ?? 'w';
   const playerSide: Side = mode === 'b' ? 'b' : 'w';
   const game = createGameState({ rules, playerSide, opponent: mode !== 'two' });
-  const opponent = createEngineClient();
   let difficulty: Difficulty = DEFAULT_DIFFICULTY;
-  let thinking = false;
+  let searching = false;
   /** A walk is in flight: the board must not accept a move played on top of it. */
   let walking = false;
   /** A hint is in flight: the button says so and a second press is refused. */
@@ -131,6 +135,7 @@ export function boot2d(host: Document = document): void {
   async function askHint(): Promise<void> {
     if (hinting || game.phase() !== 'idle') return;
     hinting = true;
+    thinking.setBusy(true);
     hud.refresh();
     srSay(i18n.t('a11y.hintAsked'));
     try {
@@ -141,6 +146,7 @@ export function boot2d(host: Document = document): void {
       srSay(i18n.t('status.engineFailed'));
     } finally {
       hinting = false;
+      thinking.setBusy(false);
       hud.refresh();
     }
   }
@@ -153,7 +159,7 @@ export function boot2d(host: Document = document): void {
   }
 
   const currentSettings = () => ({
-    theme: themeKey, set: setKey, coordinates: showCoordinates, mode,
+    theme: themeKey, set: setKey, coordinates: showCoordinates, mode, engine: engineKind, elo,
   });
 
   const applyTheme = (key: string): void => {
@@ -161,6 +167,32 @@ export function boot2d(host: Document = document): void {
     board.setTheme(key);
     saveSettings({ ...currentSettings(), theme: key });
   };
+
+  // Under the board, because that is what it is about — and outside the panel, which has no room
+  // for four numbers that change several times a second.
+  const thinking = createThinkingPanel({ doc: host, i18n });
+
+  /**
+   * ========================= WHICH ENGINE, AND HOW STRONG =========================
+   * Ours is two kilobytes and has one dial: depth. Stockfish is 6.98 MB, fetched only when chosen,
+   * and can be told a rating — which is the whole reason it is here, since "1400" means something
+   * to a child who has a rating and "medium" does not.
+   *
+   * ⚠️ The strength list is offered ONLY for an engine that can honour it. A rating control over
+   * our negamax would be a dial connected to nothing.
+   */
+  const engineKind: EngineKind = loadSettings().engine ?? 'own';
+  let elo = loadSettings().elo ?? DEFAULT_ELO;
+
+  const opponent: EngineClient = engineKind === 'stockfish'
+    ? createStockfishClient({
+      onThought: (thought) => thinking.update(thought),
+    })
+    : createEngineClient();
+
+  if (engineKind === 'stockfish') {
+    (opponent as ReturnType<typeof createStockfishClient>).setStrength(elo);
+  }
 
   const declaration = createChessDeclaration({ rules, state: game, i18n, cursor: () => cursor });
   const engine = createGame({
@@ -199,7 +231,12 @@ export function boot2d(host: Document = document): void {
     onDifficulty: (level) => {
       difficulty = level;
       hud.refresh();
-      if (game.phase() === 'thinking') { opponent.cancel(); thinking = false; askOpponent(); }
+      if (game.phase() === 'thinking') {
+        opponent.cancel();
+        searching = false;
+        thinking.setBusy(false);
+        askOpponent();
+      }
     },
 
     themes: BOARD_THEMES.map((t) => ({ key: t.key, name: t.name })),
@@ -233,6 +270,30 @@ export function boot2d(host: Document = document): void {
     mode: () => mode,
     onMode: chooseMode,
 
+    engines: [
+      { key: 'own', label: i18n.t('engine.own') },
+      // A proper noun, like a typeface: shown as it is, in every language.
+      { key: 'stockfish', label: 'Stockfish 18 lite' },
+    ],
+    engine: () => engineKind,
+    onEngine: (key) => {
+      if (key === engineKind) return;
+      saveSettings({ ...currentSettings(), engine: key as EngineKind });
+      clearGame();
+      window.location.reload();
+    },
+
+    ...(engineKind === 'stockfish' ? {
+      strengths: STRENGTH_LADDER.map((rung) => ({ elo: rung.elo, name: rung.name })),
+      strength: () => elo,
+      onStrength: (next) => {
+        elo = next;
+        (opponent as ReturnType<typeof createStockfishClient>).setStrength(next);
+        saveSettings({ ...currentSettings(), elo: next });
+        hud.refresh();
+      },
+    } : {}),
+
     // No engine in a two-player game, so nobody to ask.
     ...(mode === 'two' ? {} : { onHint: () => { void askHint(); }, hintBusy: () => hinting }),
 
@@ -254,6 +315,11 @@ export function boot2d(host: Document = document): void {
   region.appendChild(hud.root);
   // Outside the panel, over the board: see `.theme-report` in the stylesheet.
   region.appendChild(hud.report);
+  // ⚠️ After `#stage-wrap`, not inside it. That element is a centring FLEX ROW, so a child lands
+  // beside the board and squeezes it — which is exactly what happened. The panel belongs under the
+  // board, and under the board is the next sibling.
+  const wrap = host.getElementById('stage-wrap');
+  wrap?.parentElement?.insertBefore(thinking.root, wrap.nextSibling);
   paletteHigh = themeKey.startsWith('contrast-');
   region.dataset.contrast = paletteHigh ? 'high' : '';
   region.dataset.coords = showCoordinates ? 'on' : '';
@@ -309,13 +375,15 @@ export function boot2d(host: Document = document): void {
   }
 
   function askOpponent(): void {
-    if (game.phase() !== 'thinking' || thinking) return;
-    thinking = true;
+    if (game.phase() !== 'thinking' || searching) return;
+    searching = true;
+    thinking.setBusy(true);
     srSay(i18n.t('status.thinking'));
 
     opponent.requestMove(rules.fen(), DIFFICULTY_DEPTH[difficulty])
       .then((reply) => {
-        thinking = false;
+        searching = false;
+        thinking.setBusy(false);
         if (!reply || game.phase() !== 'thinking') return;
         const move = game.applyOpponentMove(reply.move.from, reply.move.to, reply.move.promotion);
         if (!move) return;
@@ -329,7 +397,8 @@ export function boot2d(host: Document = document): void {
         void board.animate(move.from, move.to, { reducedMotion: motionReduced });
       })
       .catch((error: unknown) => {
-        thinking = false;
+        searching = false;
+        thinking.setBusy(false);
         srAlert(i18n.t('status.engineFailed'));
         console.error('[chess] engine failed', error);
       });
@@ -370,7 +439,8 @@ export function boot2d(host: Document = document): void {
   async function walkHistory(direction: 'back' | 'forward'): Promise<void> {
     if (walking) return;
     opponent.cancel();
-    thinking = false;
+    searching = false;
+    thinking.setBusy(false);
 
     let step = direction === 'back' ? game.takeBackStep() : game.replayStep();
     if (!step) {

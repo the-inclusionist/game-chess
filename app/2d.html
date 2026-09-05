@@ -320,6 +320,39 @@
   #game-region[data-contrast="high"] .theme-report th[scope="row"],
   #game-region[data-contrast="high"] .theme-report [data-state] { color: #FFFFFF; }
 
+  /*
+   * ========================= THE ENGINE'S THINKING, UNDER THE BOARD =========================
+   * Outside `#game-region`, because the panel inside it is 88 logical pixels wide and this is four
+   * numbers that change several times a second. Under the board because that is what it is about.
+   *
+   * `role="status"` with `aria-live="off"`: readable on demand, silent by default. A UCI engine
+   * sends `info` many times a second, and announcing that would drown the move announcements that
+   * actually matter.
+   */
+  .thinking {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 1.2em;
+    max-width: 100%;
+    margin: 0.4em auto 0;
+    padding: 0 0.6em;
+    font-size: 0.78rem;
+    color: #8b949e;
+    font-variant-numeric: tabular-nums;
+  }
+  .thinking h2 {
+    margin: 0; font-size: 1em; font-weight: 700; color: #c9d1d9;
+    text-transform: none; letter-spacing: 0;
+  }
+  .thinking-state { color: #8b949e; }
+  .thinking-state[data-busy="true"] { color: #FFD97D; }
+  .thinking dl { display: flex; flex-wrap: wrap; gap: 0 1em; margin: 0; }
+  .thinking dt { color: #6f7b87; }
+  .thinking dt::after { content: ' '; }
+  .thinking dd { margin: 0 0 0 0.35em; color: #e6e1d6; }
+  .thinking dt, .thinking dd { display: inline; }
+
   .sr-only {
     position: absolute; width: 1px; height: 1px;
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;

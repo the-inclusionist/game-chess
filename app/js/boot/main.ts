@@ -18,11 +18,16 @@ import { createCoordinates } from '../ui/coordinates.ts';
 import { createGridMirror } from '../ui/grid-mirror.ts';
 import { createHud, type GameMode } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
+import type { EngineClient } from '../chess/engine/client.ts';
 import { createEngineClient } from '../chess/engine/client.ts';
+import { createStockfishClient } from '../chess/engine/stockfish-client.ts';
+import { DEFAULT_ELO, STRENGTH_LADDER } from '../chess/engine/strength.ts';
+import { createThinkingPanel } from '../ui/thinking.ts';
 import { DEFAULT_DIFFICULTY, DIFFICULTY_DEPTH, type Difficulty } from '../chess/engine/difficulty.ts';
 import { type MoveResult } from '../chess/rules.ts';
-import { clear as clearGame, loadSettings, resume, save as saveGame, saveSettings }
-  from '../chess/session.ts';
+import {
+  clear as clearGame, type EngineKind, loadSettings, resume, save as saveGame, saveSettings,
+} from '../chess/session.ts';
 import { createGameState, type Activation, type HistoryStep } from '../chess/state.ts';
 import { sameSquare, type Piece, type Side, type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale, type I18n } from '../i18n/index.ts';
@@ -87,14 +92,39 @@ export function boot(host: Document = document): void {
   const mode: GameMode = loadSettings().mode ?? 'w';
   const playerSide: Side = mode === 'b' ? 'b' : 'w';
   const game = createGameState({ rules, playerSide, opponent: mode !== 'two' });
-  const opponent = createEngineClient();
   let difficulty: Difficulty = DEFAULT_DIFFICULTY;
-  let thinking = false;
+  let searching = false;
 
   // The keyboard cursor. It lives here rather than inside the grid mirror because the DECLARATION
   // needs it (field 4, focus) and the mirror needs the declaration's game — a cycle broken by
   // keeping the value in the composition root, where cycles are allowed to be resolved.
   let cursor: Square = { x: 4, y: 6 };
+
+  // Under the board, because that is what it is about — and outside the panel, which has no room
+  // for four numbers that change several times a second.
+  const thinking = createThinkingPanel({ doc: host, i18n });
+
+  /**
+   * ========================= WHICH ENGINE, AND HOW STRONG =========================
+   * Ours is two kilobytes and has one dial: depth. Stockfish is 6.98 MB, fetched only when chosen,
+   * and can be told a rating — which is the whole reason it is here, since "1400" means something
+   * to a child who has a rating and "medium" does not.
+   *
+   * ⚠️ The strength list is offered ONLY for an engine that can honour it. A rating control over
+   * our negamax would be a dial connected to nothing.
+   */
+  const engineKind: EngineKind = loadSettings().engine ?? 'own';
+  let elo = loadSettings().elo ?? DEFAULT_ELO;
+
+  const opponent: EngineClient = engineKind === 'stockfish'
+    ? createStockfishClient({
+      onThought: (thought) => thinking.update(thought),
+    })
+    : createEngineClient();
+
+  if (engineKind === 'stockfish') {
+    (opponent as ReturnType<typeof createStockfishClient>).setStrength(elo);
+  }
 
   const declaration = createChessDeclaration({ rules, state: game, i18n, cursor: () => cursor });
 
@@ -215,6 +245,30 @@ export function boot(host: Document = document): void {
     onReducedMotion: (on) => { motionReduced = on; hud.refresh(); },
     mode: () => mode,
     onMode: chooseMode,
+
+    engines: [
+      { key: 'own', label: i18n.t('engine.own') },
+      // A proper noun, like a typeface: shown as it is, in every language.
+      { key: 'stockfish', label: 'Stockfish 18 lite' },
+    ],
+    engine: () => engineKind,
+    onEngine: (key) => {
+      if (key === engineKind) return;
+      saveSettings({ ...currentSettings(), engine: key as EngineKind });
+      clearGame();
+      window.location.reload();
+    },
+
+    ...(engineKind === 'stockfish' ? {
+      strengths: STRENGTH_LADDER.map((rung) => ({ elo: rung.elo, name: rung.name })),
+      strength: () => elo,
+      onStrength: (next) => {
+        elo = next;
+        (opponent as ReturnType<typeof createStockfishClient>).setStrength(next);
+        saveSettings({ ...currentSettings(), elo: next });
+        hud.refresh();
+      },
+    } : {}),
     ...(mode === 'two' ? {} : { onHint: () => { void askHint(); }, hintBusy: () => hinting }),
 
     canTakeBack: () => !walking && game.canTakeBack(),
@@ -248,7 +302,12 @@ export function boot(host: Document = document): void {
       hud.refresh();
       // A change mid-search would otherwise be answered by the OLD depth: cancel, then ask again
       // at the new one. The client drops the stale reply either way, but this makes it prompt.
-      if (game.phase() === 'thinking') { opponent.cancel(); thinking = false; askOpponent(); }
+      if (game.phase() === 'thinking') {
+        opponent.cancel();
+        searching = false;
+        thinking.setBusy(false);
+        askOpponent();
+      }
     },
   });
   /**
@@ -259,7 +318,7 @@ export function boot(host: Document = document): void {
    * The narrowed constant is captured once, above, where the check has already happened.
    */
   const currentSettings = () => ({
-    theme: themeKey, coordinates: showCoordinates, mode,
+    theme: themeKey, coordinates: showCoordinates, mode, engine: engineKind, elo,
   });
 
   /**
@@ -300,6 +359,7 @@ export function boot(host: Document = document): void {
   async function askHint(): Promise<void> {
     if (hinting || game.phase() !== 'idle') return;
     hinting = true;
+    thinking.setBusy(true);
     hud.refresh();
     srSay(i18n.t('a11y.hintAsked'));
     try {
@@ -310,6 +370,7 @@ export function boot(host: Document = document): void {
       srSay(i18n.t('status.engineFailed'));
     } finally {
       hinting = false;
+      thinking.setBusy(false);
       hud.refresh();
     }
   }
@@ -330,6 +391,11 @@ export function boot(host: Document = document): void {
   region.appendChild(hud.root);
   // Outside the panel, over the board: see `.theme-report` in the stylesheet.
   region.appendChild(hud.report);
+  // ⚠️ After `#stage-wrap`, not inside it. That element is a centring FLEX ROW, so a child lands
+  // beside the board and squeezes it — which is exactly what happened. The panel belongs under the
+  // board, and under the board is the next sibling.
+  const wrap = host.getElementById('stage-wrap');
+  wrap?.parentElement?.insertBefore(thinking.root, wrap.nextSibling);
   region.dataset.contrast = themeKey.startsWith('contrast-') ? 'high' : '';
 
   /**
@@ -450,13 +516,15 @@ export function boot(host: Document = document): void {
   }
 
   function askOpponent(): void {
-    if (game.phase() !== 'thinking' || thinking) return;
-    thinking = true;
+    if (game.phase() !== 'thinking' || searching) return;
+    searching = true;
+    thinking.setBusy(true);
     srSay(i18n.t('status.thinking'));
 
     opponent.requestMove(rules.fen(), DIFFICULTY_DEPTH[difficulty])
       .then((reply) => {
-        thinking = false;
+        searching = false;
+        thinking.setBusy(false);
         // The position may have moved on while the worker was busy — a restart, a difficulty
         // change. The state machine refuses the move in that case, and so does this guard.
         if (!reply || game.phase() !== 'thinking') return;
@@ -471,7 +539,8 @@ export function boot(host: Document = document): void {
         if (!move.checkmate && move.check) srAlert(i18n.t('status.check'));
       })
       .catch((error: unknown) => {
-        thinking = false;
+        searching = false;
+        thinking.setBusy(false);
         // Saying nothing would leave the game on "thinking" for good, and a child waiting for a
         // reply cannot tell that apart from a game that is broken.
         srAlert(i18n.t('status.engineFailed'));
@@ -512,7 +581,8 @@ export function boot(host: Document = document): void {
     // One walk at a time, and never on top of a move already in flight.
     if (walking || animation) return;
     opponent.cancel();
-    thinking = false;
+    searching = false;
+    thinking.setBusy(false);
     walkDirection = direction;
 
     const step = direction === 'back' ? game.takeBackStep() : game.replayStep();
