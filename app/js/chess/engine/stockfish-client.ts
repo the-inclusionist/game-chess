@@ -16,6 +16,7 @@
 import type { LegalMove } from '../rules.ts';
 import { fromAlgebraic, type PieceType } from '../types.ts';
 import type { EngineClient, EngineMove } from './client.ts';
+import { SAME_LEVEL_CP } from './search.ts';
 import { limitFor, parseBestMove, parseInfo, parseSpinOption, type Thought } from './uci.ts';
 
 /** Where the vendored build lives, served from this origin. */
@@ -126,7 +127,14 @@ export function createStockfishClient(options: StockfishOptions = {}): Stockfish
         if (info.line?.length) {
           pending.best.set(info.rank ?? 1, {
             move: info.line[0],
-            score: info.score ?? (info.mate !== undefined ? Math.sign(info.mate) * 100000 : 0),
+            // ⚠️ A mate carries its DISTANCE. Flattening every mate to the same 100000 was fine
+            // while ties were exact matches and useless the moment they became a margin: mate in
+            // one and mate in seven would have arrived as "the same level", which is the one
+            // place a hint must not shrug. A thousand a move puts them far outside the margin
+            // while leaving mates of equal length tied, which they are.
+            score: info.score ?? (info.mate !== undefined
+              ? Math.sign(info.mate) * (100000 - Math.abs(info.mate) * 1000)
+              : 0),
           });
         }
       }
@@ -141,12 +149,18 @@ export function createStockfishClient(options: StockfishOptions = {}): Stockfish
     const best = token ? toMove(token) : null;
     if (!best) { settle.resolve(null); return; }
 
-    // The ties are the MultiPV lines that scored the same as the best one. ⚠️ "The same" is the
-    // engine's opinion at the depth it reached, which is what the panel says out loud.
+    // ⚠️ WITHIN A MARGIN, not equal to. Stockfish's MultiPV lines essentially never carry the
+    // same number, so filtering on equality gave a hint that showed one move and called it the
+    // only idea. `SAME_LEVEL_CP` is shared with our own engine so the two mean the same thing by
+    // "the same level" — see the note on it for why thirty, and why it is not a third of a pawn.
+    //
+    // What "the same" means is still the ENGINE'S opinion at the depth it reached, which is
+    // exactly what the panel below the board says out loud.
     const ranked = [...settle.best.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
     const top = ranked[0]?.score;
     const ties = settle.hint && top !== undefined
-      ? ranked.filter((entry) => entry.score === top)
+      ? ranked.filter((entry) => top - entry.score <= SAME_LEVEL_CP)
+        .slice(0, 3)
         .map((entry) => toMove(entry.move))
         .filter((move): move is LegalMove => move !== null)
       : [];
@@ -156,7 +170,7 @@ export function createStockfishClient(options: StockfishOptions = {}): Stockfish
       score: top ?? 0,
       nodes: settle.nodes,
       depth: settle.depth,
-      ties: ties.length > 1 ? ties : [],
+      ties,
     });
   }
 

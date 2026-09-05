@@ -10,7 +10,7 @@ import type { Square } from '../chess/types.ts';
 import { isLightSquare, squareCenter, squareFromIndex, squareIndex } from './board-geometry.ts';
 import {
   DEFAULT_PALETTE, MARKER_CAPTURE, MARKER_CHECK,
-  MARKER_HINT, MARKER_CURSOR, MARKER_MOVE, MARKER_SELECTED,
+  MARKER_HINT, MARKER_HINT_FROM, MARKER_CURSOR, MARKER_MOVE, MARKER_SELECTED,
   type Palette, SQUARE_STROKE,
 } from './palette.ts';
 import type { Quad } from './picking.ts';
@@ -41,7 +41,8 @@ const MARKER_LIFT = -0.5;
  * visually hidden, so a sighted person navigating by keyboard would otherwise have focus sitting
  * somewhere invisible. This marker is that focus, drawn on the board.
  */
-export type Marker = 'cursor' | 'selected' | 'move' | 'capture' | 'check' | 'hint';
+export type Marker = 'cursor' | 'selected' | 'move' | 'capture' | 'check'
+  | 'hintFrom' | 'hintTo';
 
 export interface BoardView {
   /** The subtree to add to the scene. */
@@ -59,13 +60,23 @@ export interface BoardView {
   setPalette(palette: Palette): void;
 }
 
+/**
+ * ⚠️ NEVER COLOUR ALONE (1.4.1). The two halves of a hint are told apart by WEIGHT as well as by
+ * hue — the destination is the answer and wears the heavy ring, the piece is the subject and wears
+ * a fine one. The flat board says the same thing with one line against two; Zdog has no dashed or
+ * double stroke, so here the channel is thickness. Either way the difference survives greyscale,
+ * every kind of colour blindness, and the tricolour correction filters.
+ */
+const OUTLINE_WEIGHT: Partial<Record<Marker, number>> = { hintFrom: 1.4 };
+
 const OUTLINE_COLOUR: Record<Marker, string> = {
   cursor: MARKER_CURSOR,
   move: MARKER_MOVE,
   capture: MARKER_CAPTURE,
   selected: MARKER_SELECTED,
   check: MARKER_CHECK,
-  hint: MARKER_HINT,
+  hintFrom: MARKER_HINT_FROM,
+  hintTo: MARKER_HINT,
 };
 
 export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE): BoardView {
@@ -151,6 +162,9 @@ export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE):
         dots[index].color = kind === 'selected' ? MARKER_SELECTED : MARKER_MOVE;
         outlines[index].visible = showOutline;
         outlines[index].color = OUTLINE_COLOUR[kind];
+        // Reset rather than set: these Rects are reused every frame, and a marker that inherited
+        // the previous kind's weight would be a hint's thin ring left on a selection.
+        outlines[index].stroke = SQUARE_STROKE * (OUTLINE_WEIGHT[kind] ?? 3);
       }
     },
 

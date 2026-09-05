@@ -111,9 +111,9 @@ export function boot2d(host: Document = document): void {
    * A reload rather than a rebuild because the composition root wires one game into a dozen
    * closures, and tearing that down by hand would be a second, quieter way of starting over.
    */
-  /** Marks the hinted destinations and says them. Cleared by the next thing that redraws. */
+  /** Marks the hinted moves, piece and square, and says them. Cleared by the next redraw. */
   function showHint(moves: readonly { from: Square; to: Square }[]): void {
-    board.setHints(moves.map((m) => m.to));
+    board.setHints(moves.map((m) => ({ from: m.from, to: m.to })));
     const say = (m: { from: Square; to: Square }): string =>
       `${toAlgebraic(m.from)} ${toAlgebraic(m.to)}`;
     srSay(moves.length > 1

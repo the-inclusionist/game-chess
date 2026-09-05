@@ -95,6 +95,14 @@ export const MARKER_CURSOR = '#0E7C86';
  * would make it look like something the player had done.
  */
 export const MARKER_HINT = '#7A4FBF';
+/**
+ * The PIECE a hint is about, as against the square it would go to. ⚠️ Marking only the
+ * destination was the first version, and it left the more important half unsaid: "play to d4" is
+ * not advice until you know which piece. Lighter than the destination, because between the two
+ * the destination is the answer and this is the subject — and never the only difference, since
+ * the two marks are also different SHAPES (1.4.1).
+ */
+export const MARKER_HINT_FROM = '#B79BE8';
 
 /**
  * Stroke width in Zdog units.

@@ -257,3 +257,55 @@ describe('[Activation] the keyboard uses the same door as the pointer', () => {
     expect(onCursor).toHaveBeenCalledWith(sq('f6'));
   });
 });
+
+// The hint marks are the VISIBLE board's — in the projected view the Zdog markers carry them, and
+// the screen-reader grid says the move in words. So these are built with the drawing turned on.
+function shown() {
+  const rules = createRules();
+  const state = createGameState({ rules, opponent: false });
+  mirror = createGridMirror({
+    doc: document, i18n: createI18n('pt'), rules, state, onActivate: () => {}, visible: true,
+  });
+  document.body.appendChild(mirror.root);
+  return mirror;
+}
+
+describe('[GridMirror] a hint is two squares', () => {
+  it('marks the piece as well as the square it goes to', () => {
+    const mirror = shown();
+    mirror.setHints([{ from: sq('g1'), to: sq('f3') }]);
+    expect(cellAt('g1').dataset.hint).toBe('from');
+    expect(cellAt('f3').dataset.hint).toBe('to');
+  });
+
+  it('ranks them, so three hints still say which one the engine chose', () => {
+    const mirror = shown();
+    mirror.setHints([
+      { from: sq('e2'), to: sq('e4') },
+      { from: sq('d2'), to: sq('d4') },
+      { from: sq('g1'), to: sq('f3') },
+    ]);
+    expect(cellAt('e4').dataset.hintRank).toBe('1');
+    expect(cellAt('d4').dataset.hintRank).toBe('2');
+    expect(cellAt('f3').dataset.hintRank).toBe('3');
+    expect(cellAt('g1').dataset.hintRank).toBe('3');
+  });
+
+  it('lets the destination win a square both roles want', () => {
+    // One hint ends where another begins. The destination is the answer, so it is the mark that
+    // survives — a square wearing the subject of one sentence and the answer to another would
+    // read as neither.
+    const mirror = shown();
+    mirror.setHints([{ from: sq('b1'), to: sq('c3') }, { from: sq('c3'), to: sq('d5') }]);
+    expect(cellAt('c3').dataset.hint).toBe('to');
+  });
+
+  it('clears every mark, not only the ones it set last', () => {
+    const mirror = shown();
+    mirror.setHints([{ from: sq('g1'), to: sq('f3') }]);
+    mirror.setHints([]);
+    expect(cellAt('g1').dataset.hint).toBeUndefined();
+    expect(cellAt('f3').dataset.hint).toBeUndefined();
+    expect(cellAt('g1').dataset.hintRank).toBeUndefined();
+  });
+});

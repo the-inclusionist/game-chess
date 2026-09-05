@@ -151,6 +151,36 @@ describe('[Markers] shape carries the meaning, not only colour', () => {
     const { board } = build();
     expect(() => board.setMarkers(new Map([[64, 'move'], [-1, 'move']]))).not.toThrow();
   });
+
+  /** The visible marker rings, thickest first. Read off the graph, since that is what renders. */
+  const rings = (board: ReturnType<typeof createBoard>): number[] =>
+    (board.anchor.children as { visible?: boolean; fill?: boolean; stroke?: number }[])
+      .filter((child) => child.visible === true && child.fill === false)
+      .map((child) => child.stroke ?? 0)
+      .sort((a, b) => b - a);
+
+  it('draws the two halves of a hint at different weights, not only in different colours', () => {
+    // ⚠️ 1.4.1. Zdog has no dashed or double stroke, so thickness is the channel that carries
+    // "which of these is the answer" for a reader who sees no colour at all.
+    const { board } = build();
+    board.setMarkers(markersFor([[sq('g1'), 'hintFrom'], [sq('f3'), 'hintTo']]));
+    const [heavy, fine] = rings(board);
+    expect(heavy).toBeGreaterThan(fine);
+  });
+
+  it('gives a marker back its own weight after a hint has borrowed the ring', () => {
+    // The Rects are reused, so a weight set for one kind and not reset is a selection wearing a
+    // hint's thin ring — invisible to tsc and to every test that only looks at colour.
+    const { board } = build();
+    const fresh = (() => {
+      board.setMarkers(markersFor([[sq('e2'), 'selected']]));
+      return rings(board);
+    })();
+
+    board.setMarkers(markersFor([[sq('e2'), 'hintFrom']]));
+    board.setMarkers(markersFor([[sq('e2'), 'selected']]));
+    expect(rings(board)).toEqual(fresh);
+  });
 });
 
 describe('[Render] the canvas is not blank', () => {

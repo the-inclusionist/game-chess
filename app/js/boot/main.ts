@@ -15,7 +15,7 @@ import { startLoop } from '@the-inclusionist/engine/core/loop.js';
 import { VIZ_FILTER } from '@the-inclusionist/engine/render/viz-modes.js';
 import { createChessDeclaration } from '../declaration/chess-declaration.ts';
 import { createCoordinates } from '../ui/coordinates.ts';
-import { createGridMirror } from '../ui/grid-mirror.ts';
+import { createGridMirror, type HintMove } from '../ui/grid-mirror.ts';
 import { createHud, type GameMode } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
 import type { EngineClient } from '../chess/engine/client.ts';
@@ -224,7 +224,7 @@ export function boot(host: Document = document): void {
   let walkMore = false;
   /** A hint is in flight, and the squares it last pointed at. */
   let hinting = false;
-  let hinted: readonly Square[] = [];
+  let hinted: readonly HintMove[] = [];
 
   // ⚠️ Both declared ABOVE `createHud` on purpose. `createHud` calls its own `refresh()` while it
   // is still being built, `refresh` asks `canTakeBack`, and that reads `walking` — a `let` below
@@ -337,9 +337,9 @@ export function boot(host: Document = document): void {
     window.location.reload();
   }
 
-  /** Marks the hinted destinations and says them aloud. */
+  /** Marks the hinted moves, piece and square, and says them aloud. */
   function showHint(moves: readonly { from: Square; to: Square }[]): void {
-    hinted = moves.map((m) => m.to);
+    hinted = moves.map((m) => ({ from: m.from, to: m.to }));
     syncMarkers();
     const say = (m: { from: Square; to: Square }): string =>
       `${toAlgebraic(m.from)} ${toAlgebraic(m.to)}`;
@@ -445,7 +445,10 @@ export function boot(host: Document = document): void {
   function syncMarkers(): void {
     const markers = new Map<number, Marker>();
     // First, so anything more urgent — a selection, a check — writes over them.
-    for (const square of hinted) markers.set(squareIndex(square), 'hint');
+    // The piece first and the destination second, so where a hint's two squares collide with
+    // another's the destination — the answer — is the one left standing.
+    for (const move of hinted) markers.set(squareIndex(move.from), 'hintFrom');
+    for (const move of hinted) markers.set(squareIndex(move.to), 'hintTo');
     const selected = game.selection();
     if (selected) {
       markers.set(squareIndex(selected), 'selected');

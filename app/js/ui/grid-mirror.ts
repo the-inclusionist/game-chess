@@ -73,6 +73,12 @@ export interface GridMirrorDeps {
   readonly theme?: string;
 }
 
+/** One hint: the piece to move and where it goes. Both halves, because half is not advice. */
+export interface HintMove {
+  readonly from: Square;
+  readonly to: Square;
+}
+
 export interface GridMirror {
   readonly root: HTMLElement;
   /** Re-labels every cell from the current position. Call after anything changes. */
@@ -83,10 +89,12 @@ export interface GridMirror {
   setPieceSet(key: string): void;
   pieceSetKey(): string;
   /**
-   * The squares a hint is pointing at. Marked, and also named in the live region by whoever asked
-   * — a mark alone would be a hint only for the players who can see it.
+   * The moves a hint is pointing at, best first. BOTH halves of each are marked: marking only the
+   * destination leaves the more important part unsaid, because "play to d4" is not advice until
+   * you know which piece. Also named in the live region by whoever asked — a mark alone would be
+   * a hint only for the players who can see it.
    */
-  setHints(squares: readonly Square[]): void;
+  setHints(moves: readonly HintMove[]): void;
   /** Swaps the board colours. Also nothing a screen reader hears. */
   setTheme(key: string): void;
   themeKey(): string;
@@ -123,7 +131,7 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
   const visible = deps.visible ?? false;
   let set: PieceSet = pieceSet(deps.set ?? DEFAULT_SET);
   let theme: BoardTheme = boardTheme(deps.theme ?? DEFAULT_THEME);
-  let hints: readonly Square[] = [];
+  let hints: readonly HintMove[] = [];
 
   const root = doc.createElement('div');
   root.className = visible ? 'board-2d' : 'sr-only';
@@ -258,8 +266,22 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
       if (check && sameSquare(check, square)) cell.dataset.check = 'true';
       else delete cell.dataset.check;
 
-      if (hints.some((s) => sameSquare(s, square))) cell.dataset.hint = 'true';
-      else delete cell.dataset.hint;
+      // Role AND rank. Role, because the piece and the square it goes to are different halves
+      // of one sentence and are drawn as different shapes. Rank, because a board carrying three
+      // hints has to still say which one the engine actually chose.
+      //
+      // Destination wins a collision: where one hinted move ends on another's starting square,
+      // the answer is the mark that has to survive.
+      const asTo = hints.findIndex((h) => sameSquare(h.to, square));
+      const asFrom = hints.findIndex((h) => sameSquare(h.from, square));
+      const role = asTo >= 0 ? asTo : asFrom;
+      if (role >= 0) {
+        cell.dataset.hint = asTo >= 0 ? 'to' : 'from';
+        cell.dataset.hintRank = String(role + 1);
+      } else {
+        delete cell.dataset.hint;
+        delete cell.dataset.hintRank;
+      }
     }
   }
 
@@ -329,8 +351,8 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
   return {
     root,
 
-    setHints(squares) {
-      hints = squares;
+    setHints(moves) {
+      hints = moves;
       refresh();
     },
 

@@ -495,18 +495,51 @@
   .board-2d [role="gridcell"][data-check] { background: #B3341F; }
 
   /*
-   * Where the engine would play. A ring INSIDE the square rather than a fill, so it sits over a
-   * piece without hiding it — a hint is usually about a piece that is already there. The colour is
-   * its own: a hint is an opinion from outside the game, and wearing the selection blue would make
-   * it look like something the player had done.
+   * ========================= A HINT IS TWO SQUARES, NOT ONE =========================
+   * A ring INSIDE the square rather than a fill, so it sits over a piece without hiding it — a
+   * hint is usually about a piece that is already there. The colour is its own: a hint is an
+   * opinion from outside the game, and wearing the selection blue would make it look like
+   * something the player had done.
+   *
+   * ⚠️ The first version marked only the DESTINATION, and that is half a sentence. "Play to d4"
+   * is not advice until you know which piece, and on a board with sixteen pieces the reader was
+   * left to guess. Both ends are marked now, and they are told apart by SHAPE — one line against
+   * two — so the difference survives greyscale, every kind of colour blindness, and a projector
+   * with the contrast wound down (1.4.1).
+   *
+   * The hairline sandwich is what makes the ring legal on any square: a dark line outside and a
+   * light one inside means one of the two always carries the boundary, instead of the purple
+   * having to clear 3:1 against a brown, a green, a grey and a cream by itself (1.4.11). Measured
+   * on the default board, the purple alone is 4.14:1 on the light square and 1.80:1 on the dark
+   * one — the ring was already failing on half the board before this, and marking two squares
+   * would have doubled how often it did.
    */
   .board-2d [role="gridcell"][data-hint]::before {
     content: '';
     position: absolute;
     inset: 8%;
-    border: 3px solid #7A4FBF;
+    border: 4px solid #7A4FBF;
     border-radius: 12%;
+    box-shadow: 0 0 0 1px rgba(23, 17, 10, .92), inset 0 0 0 1px rgba(255, 255, 255, .92);
     pointer-events: none;
+  }
+
+  /* The piece to move, as against the square it goes to: two concentric lines rather than one. */
+  .board-2d [role="gridcell"][data-hint="from"]::before {
+    border-style: double;
+    border-width: 6px;
+  }
+
+  /*
+   * Which one the engine actually chose. The alternatives are drawn THINNER, never fainter —
+   * fading them would trade away the boundary contrast to say something a weight already says,
+   * and the second-best move is a real suggestion, not a ghost of one.
+   */
+  .board-2d [role="gridcell"][data-hint]:not([data-hint-rank="1"])::before {
+    border-width: 2px;
+  }
+  .board-2d [role="gridcell"][data-hint="from"]:not([data-hint-rank="1"])::before {
+    border-width: 4px;
   }
 
   /*

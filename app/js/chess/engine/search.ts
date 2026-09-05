@@ -149,11 +149,35 @@ export function rankMoves(rules: Rules, depth: number): RankedResult | null {
   return { moves: scored, depth, nodes: counter.nodes };
 }
 
-/** The moves that tie for best, best first. At least one whenever there is a legal move. */
-export function bestMoves(result: RankedResult, limit = 4): readonly RankedMove[] {
+/**
+ * ==================== "THE SAME LEVEL" IS A MARGIN, NOT AN EQUALITY ====================
+ * This filtered on `score === top`, and the hint it produced almost always showed ONE move.
+ * Two moves scoring 34 and 33 are not distinguishable by the function that scored them, but
+ * they are not `===`, so the second was thrown away.
+ *
+ * ⚠️ THIRTY IS NOT A THIRD OF A PAWN, and the coincidence is worth not believing. Stockfish
+ * has normalised its centipawn since 15.1: `+1.00` means roughly an even chance of winning
+ * from here, not a pawn of material — internally a pawn is about 330 units, rescaled before
+ * it reaches the UCI output. So this margin is a small shift in WINNING CHANCE, measured
+ * against three things:
+ *
+ *   1. The evaluation disagrees with itself by more than this between iterations. In a quiet
+ *      position the same move is 0.24 at depth 18 and 0.11 at 19. Two moves 0.20 apart are
+ *      inside the noise of whatever produced both numbers.
+ *   2. Above about 0.30 there is usually something concrete to point at — a pawn structure, a
+ *      tempo — and a hint that calls those the same thing is teaching something false.
+ *   3. A CONSTANT margin narrows itself where it should. In an opening it opens two or three
+ *      ideas. In a position where the best move wins a rook (+5.00) and the next is +0.40 it
+ *      shows one — and it shows one because there IS one. A proportional margin would widen
+ *      exactly where the answer is least ambiguous.
+ */
+export const SAME_LEVEL_CP = 30;
+
+/** The moves worth calling equally good, best first. At least one whenever there is a legal move. */
+export function bestMoves(result: RankedResult, limit = 3): readonly RankedMove[] {
   const top = result.moves[0]?.score;
   if (top === undefined) return [];
-  return result.moves.filter((entry) => entry.score === top).slice(0, limit);
+  return result.moves.filter((entry) => top - entry.score <= SAME_LEVEL_CP).slice(0, limit);
 }
 
 /** The search the game uses. */
