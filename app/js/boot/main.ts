@@ -12,6 +12,7 @@
 import { createGame } from '@pm-monte/inclusionist-engine';
 import { srAlert, srSay } from '@pm-monte/inclusionist-engine/core/a11y-sr.ts';
 import { startLoop } from '@pm-monte/inclusionist-engine/core/loop.ts';
+import { VIZ_FILTER } from '@pm-monte/inclusionist-engine/render/viz-modes.ts';
 import { createChessDeclaration } from '../declaration/chess-declaration.ts';
 import { createGridMirror } from '../ui/grid-mirror.ts';
 import { createHud } from '../ui/hud.ts';
@@ -96,6 +97,7 @@ export function boot(host: Document = document): void {
   // expressed to their OS; making them find a checkbox to repeat it would be the wrong default.
   let paletteMode: PaletteMode =
     window.matchMedia?.('(prefers-contrast: more)').matches ? 'high-contrast' : 'default';
+  let vision = 'normal';
 
   const stage = createZdogStage();
   const boardView = createBoard(stage.root, createPalette(paletteMode));
@@ -129,6 +131,14 @@ export function boot(host: Document = document): void {
     rules,
     state: game,
     difficulty: () => difficulty,
+    vision: () => vision,
+    onVision: (key) => {
+      vision = key;
+      // The filter goes on the whole REGION, so the board and the panel are corrected together.
+      // Correcting only the board would leave the move list in the colours the child cannot read.
+      region.style.filter = VIZ_FILTER[key] ?? '';
+      hud.refresh();
+    },
     highContrast: () => paletteMode === 'high-contrast',
     onHighContrast: (on) => {
       paletteMode = on ? 'high-contrast' : 'default';

@@ -23,10 +23,13 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   let highContrast = false;
   const onDifficulty = vi.fn((level: Difficulty) => { difficulty = level; });
   const onHighContrast = vi.fn((on: boolean) => { highContrast = on; });
+  let vision = 'normal';
+  const onVision = vi.fn((key: string) => { vision = key; });
   hud = createHud({
     doc: document, i18n: createI18n(locale), rules, state,
     difficulty: () => difficulty, onDifficulty,
     highContrast: () => highContrast, onHighContrast,
+    vision: () => vision, onVision,
   });
   document.body.appendChild(hud.root);
   const play = (from: string, to: string) => {
@@ -35,8 +38,9 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
     state.animationDone();
     hud!.refresh();
   };
-  return { rules, state, hud, onDifficulty, onHighContrast, play,
-           getDifficulty: () => difficulty, getContrast: () => highContrast };
+  return { rules, state, hud, onDifficulty, onHighContrast, onVision, play,
+           getDifficulty: () => difficulty, getContrast: () => highContrast,
+           getVision: () => vision };
 }
 
 const text = (selector: string): string =>
@@ -137,25 +141,26 @@ describe('[Moves] a scoresheet, one line per pair', () => {
 describe('[Difficulty] a real control, with a real label', () => {
   it('offers the three levels', () => {
     build();
-    expect([...document.querySelectorAll('select option')].map((o) => o.textContent))
+    expect([...document.querySelectorAll('#hud-difficulty option')].map((o) => o.textContent))
       .toEqual(['Fácil', 'Médio', 'Difícil']);
   });
 
   it('is labelled, and the label points at it', () => {
     build();
-    const select = document.querySelector('select')!;
-    expect(document.querySelector('label')!.htmlFor).toBe(select.id);
-    expect(document.querySelector('label')!.textContent).toBe('Dificuldade');
+    const select = document.querySelector<HTMLSelectElement>('#hud-difficulty')!;
+    const label = document.querySelector<HTMLLabelElement>('label[for="hud-difficulty"]')!;
+    expect(label.htmlFor).toBe(select.id);
+    expect(label.textContent).toBe('Dificuldade');
   });
 
   it('shows the level in force', () => {
     build();
-    expect(document.querySelector('select')!.value).toBe('medium');
+    expect(document.querySelector<HTMLSelectElement>('#hud-difficulty')!.value).toBe('medium');
   });
 
   it('reports a change', () => {
     const { onDifficulty, getDifficulty } = build();
-    const select = document.querySelector('select')!;
+    const select = document.querySelector<HTMLSelectElement>('#hud-difficulty')!;
     select.value = 'hard';
     select.dispatchEvent(new Event('change', { bubbles: true }));
     expect(onDifficulty).toHaveBeenCalledWith('hard');
@@ -167,15 +172,15 @@ describe('[i18n] the panel follows the interface language', () => {
   it('speaks English', () => {
     build('en');
     expect(text('.hud-turn')).toContain('White');
-    expect(document.querySelector('label')?.textContent).toBe('Difficulty');
-    expect([...document.querySelectorAll('select option')].map((o) => o.textContent))
+    expect(document.querySelector('label[for="hud-difficulty"]')?.textContent).toBe('Difficulty');
+    expect([...document.querySelectorAll('#hud-difficulty option')].map((o) => o.textContent))
       .toEqual(['Easy', 'Medium', 'Hard']);
   });
 
   it('speaks Spanish', () => {
     build('es');
     expect(text('.hud-turn')).toContain('Blancas');
-    expect(document.querySelector('label')?.textContent).toBe('Dificultad');
+    expect(document.querySelector('label[for="hud-difficulty"]')?.textContent).toBe('Dificultad');
   });
 });
 
@@ -201,5 +206,45 @@ describe('[High contrast] a switch the system may have already thrown', () => {
   it('follows the interface language', () => {
     build('en');
     expect(document.querySelector('label[for="hud-contrast"]')?.textContent).toBe('High contrast');
+  });
+});
+
+describe('[Colour vision] the corrections, and only the corrections', () => {
+  it('offers normal plus the three corrections, named by the ENGINE', () => {
+    build();
+    const options = [...document.querySelectorAll('#hud-vision option')];
+    expect(options.map((o) => (o as HTMLOptionElement).value))
+      .toEqual(['normal', 'fix-protan', 'fix-deuter', 'fix-tritan']);
+    expect(options[0].textContent).toBe('Cores normais');
+    expect(options[1].textContent).toBe('Correção protanopia');
+  });
+
+  it('offers no SIMULATION of a deficiency', () => {
+    // The engine's list also holds simulations, which show a sighted adult what a deficiency
+    // looks like. Beside a child's own correction, that control would invite switching a
+    // disability ON in the one place they came to switch it off. Teaching tools live in the
+    // engine's empathy menu, not here.
+    build();
+    const values = [...document.querySelectorAll('#hud-vision option')]
+      .map((o) => (o as HTMLOptionElement).value);
+    expect(values.some((v) => v.startsWith('sim-'))).toBe(false);
+    expect(values.some((v) => v.startsWith('lv-') || v === 'blind')).toBe(false);
+  });
+
+  it('is labelled, and the label points at it', () => {
+    build();
+    const select = document.querySelector<HTMLSelectElement>('#hud-vision')!;
+    const label = document.querySelector<HTMLLabelElement>('label[for="hud-vision"]')!;
+    expect(label.textContent).toBe('Visão de cores');
+    expect(label.htmlFor).toBe(select.id);
+  });
+
+  it('reports a change', () => {
+    const { onVision, getVision } = build();
+    const select = document.querySelector<HTMLSelectElement>('#hud-vision')!;
+    select.value = 'fix-deuter';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onVision).toHaveBeenCalledWith('fix-deuter');
+    expect(getVision()).toBe('fix-deuter');
   });
 });

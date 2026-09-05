@@ -18,6 +18,8 @@
 // PixiJS still earns its keep: it composites the Zdog frame, it owns the layer order, and the
 // post-processing applies to the BOARD. Only the text argument was mistaken.
 
+import { t as engineT } from '@pm-monte/inclusionist-engine/core/i18n.ts';
+import { VIZ_CORRECTIONS } from '@pm-monte/inclusionist-engine/render/viz-modes.ts';
 import type { Difficulty } from '../chess/engine/difficulty.ts';
 import { DIFFICULTIES } from '../chess/engine/difficulty.ts';
 import type { Rules } from '../chess/rules.ts';
@@ -34,6 +36,9 @@ export interface HudDeps {
   onDifficulty(level: Difficulty): void;
   highContrast(): boolean;
   onHighContrast(on: boolean): void;
+  /** A key from the engine's VIZ_MODES, or 'normal'. */
+  vision(): string;
+  onVision(key: string): void;
 }
 
 export interface Hud {
@@ -106,7 +111,25 @@ export function createHud(deps: HudDeps): Hud {
   contrastLabel.className = 'hud-check';
   contrastBox.append(contrastInput, contrastLabel);
 
-  root.append(turn, capturedBox, movesBox, difficultyBox, contrastBox);
+  // --- colour vision ---------------------------------------------------------
+  // Only the CORRECTIONS. The engine's list also holds simulations, which exist to show a
+  // sighted adult what a deficiency looks like — a teaching tool, and it belongs in the
+  // engine's own empathy menu. Putting it beside a child's own correction would invite
+  // switching a disability ON in the one place they went to switch it off.
+  const visionBox = doc.createElement('p');
+  const visionLabel = doc.createElement('label');
+  const visionSelect = doc.createElement('select');
+  visionSelect.id = 'hud-vision';
+  visionLabel.htmlFor = visionSelect.id;
+  for (const mode of [{ key: 'normal', nome: 'viz.normal' }, ...VIZ_CORRECTIONS]) {
+    const option = doc.createElement('option');
+    option.value = mode.key;
+    option.dataset.nome = mode.nome;
+    visionSelect.appendChild(option);
+  }
+  visionBox.append(visionLabel, visionSelect);
+
+  root.append(turn, capturedBox, movesBox, difficultyBox, contrastBox, visionBox);
 
   function onDifficultyChange(): void {
     deps.onDifficulty(difficultySelect.value as Difficulty);
@@ -115,6 +138,9 @@ export function createHud(deps: HudDeps): Hud {
 
   function onContrastChange(): void { deps.onHighContrast(contrastInput.checked); }
   contrastInput.addEventListener('change', onContrastChange);
+
+  function onVisionChange(): void { deps.onVision(visionSelect.value); }
+  visionSelect.addEventListener('change', onVisionChange);
 
   function capturedFor(side: Side): string {
     // Reading the history rather than keeping a tally: one source of truth, and a taken-back move
@@ -173,6 +199,15 @@ export function createHud(deps: HudDeps): Hud {
     contrastLabel.textContent = i18n.t('hud.highContrast');
     contrastInput.checked = deps.highContrast();
 
+    // These labels come from the ENGINE's catalogue, not this game's: the modes are the engine's
+    // and it already names them in all three languages. Restating them here would be a second
+    // copy to drift.
+    visionLabel.textContent = i18n.t('hud.vision');
+    for (const option of visionSelect.options) {
+      option.textContent = engineT(option.dataset.nome ?? '');
+    }
+    visionSelect.value = deps.vision();
+
     const outcome = state.outcome();
     root.dataset.outcome = outcome ? outcome.kind : '';
   }
@@ -185,6 +220,7 @@ export function createHud(deps: HudDeps): Hud {
     destroy() {
       difficultySelect.removeEventListener('change', onDifficultyChange);
       contrastInput.removeEventListener('change', onContrastChange);
+      visionSelect.removeEventListener('change', onVisionChange);
       root.remove();
     },
   };

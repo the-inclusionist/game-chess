@@ -89,7 +89,14 @@
   }
   .hud label { display: block; font-size: 0.75em; color: #8b949e; }
   /* --tap is 22*k, which is 44px at the k=2 floor: the WCAG 2.5.5 target size, inherited. */
-  .hud select { width: 100%; min-height: var(--tap, 44px); font: inherit; }
+  /* --tap is 22*k, which is 44px at the k=2 floor: the WCAG 2.5.5 target size, inherited.
+     The font shrinks but the TARGET does not — "Correção deuteranopia" has to fit in 176px
+     without the control becoming harder to hit. */
+  .hud select {
+    width: 100%; min-height: var(--tap, 44px);
+    font: inherit; font-size: 0.8em;
+    text-overflow: ellipsis;
+  }
 
   .hud-check { display: inline; font-size: 0.8em; color: #c9d1d9; margin-left: 0.4em; }
   .hud input[type="checkbox"] {
