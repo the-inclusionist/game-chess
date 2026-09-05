@@ -103,10 +103,11 @@ export function boot(host: Document = document): void {
   let paletteMode: PaletteMode =
     window.matchMedia?.('(prefers-contrast: more)').matches ? 'high-contrast' : 'default';
   let vision = 'normal';
+  let outlined = true;
 
   const stage = createZdogStage();
   const boardView = createBoard(stage.root, createPalette(paletteMode));
-  const pieces = createPiecesLayer(stage.root, createPalette(paletteMode));
+  const pieces = createPiecesLayer(stage.root, createPalette(paletteMode), outlined);
   const surface = createPixiSurface(stage.canvas);
   const camera = createCamera();
 
@@ -142,6 +143,8 @@ export function boot(host: Document = document): void {
     difficulty: () => difficulty,
     reducedMotion,
     onReducedMotion: (on) => { motionReduced = on; hud.refresh(); },
+    outline: () => outlined,
+    onOutline: (on) => { outlined = on; pieces.setOutline(on); hud.refresh(); invalidate(); },
     vision: () => vision,
     onVision: (key) => {
       vision = key;

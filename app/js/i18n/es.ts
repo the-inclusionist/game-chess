@@ -43,6 +43,7 @@ export const es: Catalog = {
     'hud.difficulty': 'Dificultad',
     'hud.highContrast': 'Alto contraste',
     'hud.reducedMotion': 'Movimiento reducido',
+    'hud.outline':    'Contorno de piezas',
     'hud.vision':     'Visión de color',
 
     'difficulty.easy':   'Fácil',

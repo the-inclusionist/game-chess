@@ -207,13 +207,15 @@ describe('[Queen] the ball holds up near and far, alone and in a crowd', () => {
     // The lone-queen case below already passes, so if this one fails the cause is interaction
     // with the neighbouring pieces rather than the disc itself.
     stage = createZdogStage();
-    const solo = createPiecesLayer(stage.root);
+    const solo = createPiecesLayer(stage.root, undefined, false);
     solo.setPosition([{ piece: white('q'), square: { x: 3, y: 7 } }]);
     const at = discPixel(solo, stage);
 
     stage.destroy();
     stage = createZdogStage();
-    const full = createPiecesLayer(stage.root);
+    // No outline: this test is about the ball's FILL, and the outline draws the equator ellipse
+    // straight through the sample point. Isolating the thing under test beats moving the probe.
+    const full = createPiecesLayer(stage.root, undefined, false);
     const back: PieceType[] = ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'];
     full.setPosition([
       ...back.map((type, x) => ({ piece: { type, side: 'w' as const }, square: { x, y: 7 } })),

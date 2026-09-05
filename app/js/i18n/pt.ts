@@ -47,6 +47,7 @@ export const pt: Catalog = {
     'hud.difficulty': 'Dificuldade',
     'hud.highContrast': 'Alto contraste',
     'hud.reducedMotion': 'Movimento reduzido',
+    'hud.outline':    'Contorno das peças',
     'hud.vision':     'Visão de cores',
 
     'difficulty.easy':   'Fácil',

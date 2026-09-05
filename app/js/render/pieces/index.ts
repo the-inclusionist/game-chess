@@ -39,6 +39,8 @@ export interface PiecesLayer {
   count(): number;
   /** Recolours by rebuilding, because the colours are baked into the Zdog nodes. */
   setPalette(palette: Palette): void;
+  /** Turns the outline on or off. Rebuilds, for the same reason. */
+  setOutline(on: boolean): void;
 }
 
 export function sideColours(piece: Piece, palette: Palette = DEFAULT_PALETTE): SidePalette {
@@ -46,7 +48,29 @@ export function sideColours(piece: Piece, palette: Palette = DEFAULT_PALETTE): S
 }
 
 /** Builds one piece under `parent`, standing on the board plane at the origin. */
-export function buildPiece(parent: Anchor, spec: PieceSpec, colours: SidePalette): Anchor {
+export interface BuildOptions {
+  /**
+   * Draw a real outline in this colour, or omit for none.
+   *
+   * ========================= WHY THIS NEEDS A SECOND BOX =========================
+   * Zdog has no separate stroke colour. `Box.setFace` assigns `color = <that face's colour>` and
+   * `Shape` uses `color` for the stroke as well as the fill, so the `stroke:` passed to a Box is a
+   * WIDTH and every face ends up outlined in its own colour — which is to say not outlined.
+   *
+   * So the outline is a SECOND Box of identical geometry with `fill: false`, every face set to the
+   * outline colour. Identical geometry means identical sort values, and a stable sort keeps the
+   * fill face ahead of its own outline face wherever the two tie — so each face is outlined over
+   * itself, and the pair still sorts against the rest of the board as one surface.
+   */
+  readonly outline?: string;
+}
+
+export function buildPiece(
+  parent: Anchor,
+  spec: PieceSpec,
+  colours: SidePalette,
+  options: BuildOptions = {},
+): Anchor {
   const anchor = new Zdog.Anchor({ addTo: parent });
 
   for (const box of spec.boxes) {
@@ -94,18 +118,59 @@ export function buildPiece(parent: Anchor, spec: PieceSpec, colours: SidePalette
     });
   }
 
+  if (options.outline) {
+    const line = options.outline;
+    for (const box of spec.boxes) {
+      new Zdog.Box({
+        addTo: anchor,
+        width: box.w,
+        height: box.h,
+        depth: box.d,
+        translate: { x: box.x ?? 0, y: box.y ?? 0, z: box.z ?? 0 },
+        rotate: { y: box.rotY ?? 0 },
+        stroke: STROKE,
+        fill: false,
+        color: line,
+        topFace: line,
+        bottomFace: line,
+        leftFace: line,
+        rightFace: line,
+        frontFace: line,
+        rearFace: line,
+      });
+    }
+
+    if (spec.sphere) {
+      const half = {
+        diameter: spec.sphere.diameter,
+        stroke: STROKE,
+        fill: false,
+        color: line,
+        backface: line,
+        translate: { y: spec.sphere.y },
+      };
+      new Zdog.Hemisphere({ ...half, addTo: anchor, rotate: { x: Zdog.TAU / 4 } });
+      new Zdog.Hemisphere({ ...half, addTo: anchor, rotate: { x: -Zdog.TAU / 4 } });
+    }
+  }
+
   return anchor;
 }
 
 export function createPiecesLayer(
   parent: Anchor,
   initial: Palette = DEFAULT_PALETTE,
+  outlined = true,
 ): PiecesLayer {
   const layer = new Zdog.Anchor({ addTo: parent });
   const travelling = new Zdog.Anchor({ addTo: parent });
   let palette = initial;
+  let outline = outlined;
   let placed = 0;
   let current: readonly PiecePlacement[] = [];
+
+  const opts = (piece: Piece): BuildOptions =>
+    (outline ? { outline: sideColours(piece, palette).stroke } : {});
 
   return {
     anchor: layer,
@@ -114,7 +179,7 @@ export function createPiecesLayer(
     setTravelling(piece) {
       for (const child of [...travelling.children]) child.remove();
       travelling.translate.set({ x: 0, y: 0, z: 0 });
-      if (piece) buildPiece(travelling, PIECE_SPECS[piece.type], sideColours(piece, palette));
+      if (piece) buildPiece(travelling, PIECE_SPECS[piece.type], sideColours(piece, palette), opts(piece));
     },
 
     moveTravelling(x, y, z) {
@@ -127,7 +192,7 @@ export function createPiecesLayer(
       for (const { piece, square } of placements) {
         const { x, z } = squareCenter(square, TILE);
         const holder = new Zdog.Anchor({ addTo: layer, translate: { x, z } });
-        buildPiece(holder, PIECE_SPECS[piece.type], sideColours(piece, palette));
+        buildPiece(holder, PIECE_SPECS[piece.type], sideColours(piece, palette), opts(piece));
       }
 
       current = placements;
@@ -136,6 +201,11 @@ export function createPiecesLayer(
 
     setPalette(next) {
       palette = next;
+      this.setPosition(current);
+    },
+
+    setOutline(on) {
+      outline = on;
       this.setPosition(current);
     },
   };

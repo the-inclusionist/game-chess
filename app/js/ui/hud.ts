@@ -41,6 +41,8 @@ export interface HudDeps {
   onVision(key: string): void;
   reducedMotion(): boolean;
   onReducedMotion(on: boolean): void;
+  outline(): boolean;
+  onOutline(on: boolean): void;
 }
 
 export interface Hud {
@@ -145,7 +147,21 @@ export function createHud(deps: HudDeps): Hud {
   motionLabel.className = 'hud-check';
   motionBox.append(motionInput, motionLabel);
 
-  root.append(turn, capturedBox, movesBox, difficultyBox, contrastBox, visionBox, motionBox);
+  // --- piece outline ---------------------------------------------------------
+  // On by default: it is what gives a piece its form in high contrast, where every face is the
+  // same colour. Switchable because it is also a strong visual opinion, and because a flat look
+  // is a legitimate thing to prefer.
+  const outlineBox = doc.createElement('p');
+  const outlineInput = doc.createElement('input');
+  outlineInput.type = 'checkbox';
+  outlineInput.id = 'hud-outline';
+  const outlineLabel = doc.createElement('label');
+  outlineLabel.htmlFor = outlineInput.id;
+  outlineLabel.className = 'hud-check';
+  outlineBox.append(outlineInput, outlineLabel);
+
+  root.append(turn, capturedBox, movesBox, difficultyBox,
+              contrastBox, visionBox, motionBox, outlineBox);
 
   function onDifficultyChange(): void {
     deps.onDifficulty(difficultySelect.value as Difficulty);
@@ -160,6 +176,9 @@ export function createHud(deps: HudDeps): Hud {
 
   function onMotionChange(): void { deps.onReducedMotion(motionInput.checked); }
   motionInput.addEventListener('change', onMotionChange);
+
+  function onOutlineChange(): void { deps.onOutline(outlineInput.checked); }
+  outlineInput.addEventListener('change', onOutlineChange);
 
   function capturedFor(side: Side): string {
     // Reading the history rather than keeping a tally: one source of truth, and a taken-back move
@@ -230,6 +249,9 @@ export function createHud(deps: HudDeps): Hud {
     motionLabel.textContent = i18n.t('hud.reducedMotion');
     motionInput.checked = deps.reducedMotion();
 
+    outlineLabel.textContent = i18n.t('hud.outline');
+    outlineInput.checked = deps.outline();
+
     const outcome = state.outcome();
     root.dataset.outcome = outcome ? outcome.kind : '';
   }
@@ -244,6 +266,7 @@ export function createHud(deps: HudDeps): Hud {
       contrastInput.removeEventListener('change', onContrastChange);
       visionSelect.removeEventListener('change', onVisionChange);
       motionInput.removeEventListener('change', onMotionChange);
+      outlineInput.removeEventListener('change', onOutlineChange);
       root.remove();
     },
   };

@@ -27,12 +27,15 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   const onVision = vi.fn((key: string) => { vision = key; });
   let motion = false;
   const onReducedMotion = vi.fn((on: boolean) => { motion = on; });
+  let outline = true;
+  const onOutline = vi.fn((on: boolean) => { outline = on; });
   hud = createHud({
     doc: document, i18n: createI18n(locale), rules, state,
     difficulty: () => difficulty, onDifficulty,
     highContrast: () => highContrast, onHighContrast,
     vision: () => vision, onVision,
     reducedMotion: () => motion, onReducedMotion,
+    outline: () => outline, onOutline,
   });
   document.body.appendChild(hud.root);
   const play = (from: string, to: string) => {
@@ -43,7 +46,8 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   };
   return { rules, state, hud, onDifficulty, onHighContrast, onVision, play,
            getDifficulty: () => difficulty, getContrast: () => highContrast,
-           getVision: () => vision, onReducedMotion, getMotion: () => motion };
+           getVision: () => vision, onReducedMotion, getMotion: () => motion,
+           onOutline, getOutline: () => outline };
 }
 
 const text = (selector: string): string =>
@@ -267,5 +271,27 @@ describe('[Reduced motion] one switch, because one thing moves', () => {
     box.dispatchEvent(new Event('change', { bubbles: true }));
     expect(onReducedMotion).toHaveBeenCalledWith(true);
     expect(getMotion()).toBe(true);
+  });
+});
+
+describe('[Outline] on by default, and switchable', () => {
+  it('starts on, because it is what gives a piece form in high contrast', () => {
+    build();
+    expect(document.querySelector<HTMLInputElement>('#hud-outline')!.checked).toBe(true);
+  });
+
+  it('is labelled, and the label points at it', () => {
+    build();
+    const label = document.querySelector<HTMLLabelElement>('label[for="hud-outline"]')!;
+    expect(label.textContent).toBe('Contorno das peças');
+  });
+
+  it('reports being switched off', () => {
+    const { onOutline, getOutline } = build();
+    const box = document.querySelector<HTMLInputElement>('#hud-outline')!;
+    box.checked = false;
+    box.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onOutline).toHaveBeenCalledWith(false);
+    expect(getOutline()).toBe(false);
   });
 });
