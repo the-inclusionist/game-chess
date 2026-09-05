@@ -201,7 +201,10 @@ describe('[Themes] six named palettes, measured', () => {
     // ⚠️ XBoard is the GUI; GNU Chess is the engine behind it. The colours are XBoard's.
     expect(boardTheme('xboard').light).toBe('#C8C365');
     expect(boardTheme('xboard').dark).toBe('#77A26D');
-    expect(DEFAULT_THEME).toBe('wikipedia');
+    // ⚠️ The default is lichess's board, which is byte-for-byte chessboard.js's — confirmed
+    // against niklasf/web-boardimage's lichess-brown.json rather than remembered. It is the board
+    // a learner has most likely already met, because it is what lichess shows by default.
+    expect(DEFAULT_THEME).toBe('brown');
   });
 
   it('gives the two high-contrast entries the same SQUARES and different PIECES', () => {
@@ -227,8 +230,8 @@ describe('[Themes] six named palettes, measured', () => {
 
   it('publishes every ink as a custom property, so one write reaches 64 cells', () => {
     const { mirror: m } = build();
-    expect(m.root.dataset.theme).toBe('wikipedia');
-    expect(m.root.style.getPropertyValue('--square-light')).toBe('#ffce9e');
+    expect(m.root.dataset.theme).toBe('brown');
+    expect(m.root.style.getPropertyValue('--square-light')).toBe('#f0d9b5');
 
     m.setTheme('jose');
     expect(m.root.style.getPropertyValue('--piece-white')).toBe('#FFE08A');

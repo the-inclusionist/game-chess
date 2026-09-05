@@ -243,3 +243,83 @@ export const HIGH_CONTRAST_PALETTE: Palette = {
 export function createPalette(mode: PaletteMode): Palette {
   return mode === 'high-contrast' ? HIGH_CONTRAST_PALETTE : DEFAULT_PALETTE;
 }
+
+/* ============================ THE NAMED PALETTES, SHADED ============================ */
+
+const channels = (hex: string): [number, number, number] => [
+  parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16),
+];
+
+const hex = (rgb: readonly number[]): string =>
+  `#${rgb.map((c) => Math.round(Math.min(255, Math.max(0, c))).toString(16).padStart(2, '0')).join('')}`
+    .toUpperCase();
+
+/** Moves a colour `amount` of the way towards `target`, channel by channel. */
+const towards = (colour: string, target: string, amount: number): string => {
+  const from = channels(colour);
+  const to = channels(target);
+  return hex(from.map((c, i) => c + (to[i] - c) * amount));
+};
+
+/** sRGB relative luminance, the same function every measurement in this file uses. */
+function luminance(colour: string): number {
+  const linear = (c: number): number => {
+    const v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const [r, g, b] = channels(colour);
+  return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
+}
+
+/**
+ * ========================= SHADING, DERIVED RATHER THAN AUTHORED =========================
+ * Six named palettes times three planes times two sides is thirty-six colours, and hand-picking
+ * them would be thirty-six chances to miss the one thing that matters — that the top and the front
+ * stay far enough apart to read as two planes. So they come from ONE rule with the measurement
+ * built into it.
+ *
+ * The direction is decided by the fill, not chosen: a light piece is shaded by moving its lower
+ * planes towards black, and a dark piece by lifting its upper planes towards white, because
+ * darkening black does nothing and lightening white does nothing. Pure black is the case that
+ * forces this — and it is a real case, since three of the six themes have black pieces.
+ *
+ * The amounts are the smallest that clear the 1.5 the file already argued for, with margin: they
+ * come out between 1.6 and 2.0 for every theme, which `tests/palette.node.test.ts` asserts for all
+ * six rather than for the two that used to exist.
+ */
+function shade(fill: string): [string, string, string] {
+  // Above this a colour has room to be darkened; below it, it has to be lifted instead.
+  const light = luminance(fill) > 0.18;
+  return light
+    ? [fill, towards(fill, '#000000', 0.28), towards(fill, '#000000', 0.5)]
+    : [towards(fill, '#FFFFFF', 0.29), towards(fill, '#FFFFFF', 0.14), fill];
+}
+
+/**
+ * The palette the projected board draws a named theme with.
+ *
+ * Authored values win where they exist: this project's own palette and the two high-contrast ones
+ * were solved numerically, and re-deriving them would silently move numbers that were argued for.
+ */
+export function projectedPalette(theme: {
+  light: string; dark: string; white: string; black: string;
+  whiteRim: string; blackRim: string;
+  solid?: { light: readonly [string, string, string]; dark: readonly [string, string, string] };
+  flatSolid?: boolean;
+}): Palette {
+  const planes = (fill: string, authored?: readonly [string, string, string]): [string, string, string] => {
+    if (authored) return [authored[0], authored[1], authored[2]];
+    if (theme.flatSolid) return [fill, fill, fill];
+    return shade(fill);
+  };
+
+  const [lightTop, lightFace, lightSide] = planes(theme.white, theme.solid?.light);
+  const [darkTop, darkFace, darkSide] = planes(theme.black, theme.solid?.dark);
+
+  return {
+    lightPieces: { top: lightTop, face: lightFace, side: lightSide, stroke: theme.whiteRim },
+    darkPieces: { top: darkTop, face: darkFace, side: darkSide, stroke: theme.blackRim },
+    squareLight: theme.light,
+    squareDark: theme.dark,
+  };
+}

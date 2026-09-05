@@ -27,7 +27,7 @@ import { createChessDeclaration } from '../declaration/chess-declaration.ts';
 import { createEngineClient } from '../chess/engine/client.ts';
 import { DEFAULT_DIFFICULTY, DIFFICULTY_DEPTH, type Difficulty } from '../chess/engine/difficulty.ts';
 import { type MoveResult } from '../chess/rules.ts';
-import { resume, save as saveGame } from '../chess/session.ts';
+import { loadSettings, resume, save as saveGame, saveSettings } from '../chess/session.ts';
 import { createGameState, type Activation } from '../chess/state.ts';
 import { type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale, type I18n } from '../i18n/index.ts';
@@ -85,15 +85,17 @@ export function boot2d(host: Document = document): void {
   let motionReduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   let paletteHigh = window.matchMedia?.('(prefers-contrast: more)').matches ?? false;
   let vision = 'normal';
-  let showCoordinates = true;
-  let setKey = DEFAULT_SET;
-  let themeKey = paletteHigh ? CONTRAST_THEME : DEFAULT_THEME;
+  const remembered = loadSettings();
+  let showCoordinates = remembered.coordinates ?? true;
+  let setKey = remembered.set ?? DEFAULT_SET;
+  let themeKey = remembered.theme ?? (paletteHigh ? CONTRAST_THEME : DEFAULT_THEME);
   /** What to go back to when high contrast is switched off again. */
   let previousTheme = DEFAULT_THEME;
 
   const applyTheme = (key: string): void => {
     themeKey = key;
     board.setTheme(key);
+    saveSettings({ theme: key, set: setKey, coordinates: showCoordinates });
   };
 
   const declaration = createChessDeclaration({ rules, state: game, i18n, cursor: () => cursor });
@@ -173,6 +175,7 @@ export function boot2d(host: Document = document): void {
     onCoordinates: (on) => {
       showCoordinates = on;
       region.dataset.coords = on ? 'on' : '';
+      saveSettings({ theme: themeKey, set: setKey, coordinates: on });
       hud.refresh();
     },
     canTakeBack: () => !walking && game.canTakeBack(),
@@ -181,6 +184,9 @@ export function boot2d(host: Document = document): void {
     onReplay: () => { void walkHistory('forward'); },
   });
   region.appendChild(hud.root);
+  // Outside the panel, over the board: see `.theme-report` in the stylesheet.
+  region.appendChild(hud.report);
+  paletteHigh = themeKey.startsWith('contrast-');
   region.dataset.contrast = paletteHigh ? 'high' : '';
   region.dataset.coords = showCoordinates ? 'on' : '';
 

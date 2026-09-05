@@ -25,6 +25,8 @@ import { DIFFICULTIES } from '../chess/engine/difficulty.ts';
 import type { Rules } from '../chess/rules.ts';
 import type { GameState } from '../chess/state.ts';
 import type { PieceType, Side } from '../chess/types.ts';
+import { BOARD_THEMES } from './board-themes.ts';
+import { contrastRows } from './contrast-report.ts';
 import type { I18n } from '../i18n/index.ts';
 
 /** Which drawing of the board this page is. Also which of the three buttons is the current one. */
@@ -72,6 +74,12 @@ export interface HudDeps {
 
 export interface Hud {
   readonly root: HTMLElement;
+  /**
+   * The measured contrast of every palette, side by side, shown while one is being chosen. It
+   * lives OUTSIDE the panel — in the space the board leaves — because a table six columns wide
+   * cannot be read in an 88-pixel column, and because it is about the board, not about the panel.
+   */
+  readonly report: HTMLElement;
   refresh(): void;
   destroy(): void;
 }
@@ -108,6 +116,25 @@ export function createHud(deps: HudDeps): Hud {
   // The current view stays in the list and is marked `aria-current="page"`. Removing it would make
   // the control jump about as you move between views, and a screen reader would lose the answer to
   // "which one am I in".
+  // ========================= THE NUMBERS, WHERE THE PERSON CHOOSING CAN SEE THEM ==============
+  // Every palette here was argued for with measurements, and until now those lived in comments and
+  // tests — read by whoever maintains the code and by nobody who uses it. The person choosing a
+  // board is the one they are about: a teacher picking a palette for a child with low vision has
+  // exactly one question, and this table answers it for all six at once rather than one at a time.
+  //
+  // It does not warn and it does not refuse. Four of the six have fills under the floor ON PURPOSE
+  // — that is how the printed convention works and the rim is what carries them — so the table
+  // marks those differently from a real failure instead of hiding them.
+  const report = doc.createElement('aside');
+  report.className = 'theme-report';
+  report.id = 'theme-report';
+  report.hidden = true;
+  const reportTitle = doc.createElement('h2');
+  const reportTable = doc.createElement('table');
+  const reportFloor = doc.createElement('p');
+  reportFloor.className = 'theme-report-floor';
+  report.append(reportTitle, reportTable, reportFloor);
+
   const views = doc.createElement('nav');
   views.className = 'hud-views';
   const viewLinks: { kind: ViewKind; el: HTMLElement }[] = [];
@@ -315,6 +342,64 @@ export function createHud(deps: HudDeps): Hud {
   function onThemeChange(): void { deps.onTheme?.(themeSelect.value); }
   themeSelect.addEventListener('change', onThemeChange);
 
+  // On screen exactly while someone is choosing, because that is what it describes.
+  const showReport = (): void => { report.hidden = false; fillReport(); };
+  const hideReport = (): void => { report.hidden = true; };
+  themeSelect.addEventListener('focus', showReport);
+  themeSelect.addEventListener('blur', hideReport);
+  themeSelect.addEventListener('pointerenter', showReport);
+  themeSelect.addEventListener('pointerleave', () => {
+    if (doc.activeElement !== themeSelect) hideReport();
+  });
+
+  /** Redraws the whole matrix: one row per measured pair, one column per palette. */
+  function fillReport(): void {
+    if (!deps.themes) return;
+    const current = deps.theme?.() ?? '';
+    const columns = BOARD_THEMES;
+    const rows = columns.map((theme) => contrastRows(theme));
+
+    reportTitle.textContent = i18n.t('contrast.title');
+    reportTable.replaceChildren();
+
+    const head = doc.createElement('tr');
+    const corner = doc.createElement('th');
+    corner.scope = 'col';
+    corner.textContent = i18n.t('contrast.pair');
+    head.appendChild(corner);
+    for (const theme of columns) {
+      const cell = doc.createElement('th');
+      cell.scope = 'col';
+      cell.textContent = i18n.t(theme.short);
+      if (theme.key === current) cell.setAttribute('aria-current', 'true');
+      head.appendChild(cell);
+    }
+    reportTable.appendChild(head);
+
+    rows[0].forEach((_, index) => {
+      const line = doc.createElement('tr');
+      const label = doc.createElement('th');
+      label.scope = 'row';
+      label.textContent = i18n.t(rows[0][index].label);
+      line.appendChild(label);
+
+      columns.forEach((theme, column) => {
+        const row = rows[column][index];
+        const cell = doc.createElement('td');
+        // Never colour alone: the mark is a character a reader speaks; the colour is the extra.
+        const state = row.passes ? 'pass' : (row.optional ? 'carried' : 'short');
+        cell.dataset.state = state;
+        if (theme.key === current) cell.dataset.current = 'true';
+        cell.textContent = `${row.ratio.toFixed(1)}\u202F${
+          state === 'pass' ? '\u2713' : state === 'carried' ? '\u2022' : '\u2717'}`;
+        line.appendChild(cell);
+      });
+      reportTable.appendChild(line);
+    });
+
+    reportFloor.textContent = i18n.t('contrast.floor');
+  }
+
   function onCoordsChange(): void { deps.onCoordinates(coordsInput.checked); }
   coordsInput.addEventListener('change', onCoordsChange);
 
@@ -416,6 +501,8 @@ export function createHud(deps: HudDeps): Hud {
       themeLabel.textContent = i18n.t('hud.boardTheme');
       for (const option of themeSelect.options) option.textContent = i18n.t(option.dataset.name ?? '');
       themeSelect.value = deps.theme?.() ?? '';
+      themeSelect.setAttribute('aria-describedby', report.id);
+      if (!report.hidden) fillReport();
     }
 
     outlineLabel.textContent = i18n.t('hud.outline');
@@ -432,6 +519,7 @@ export function createHud(deps: HudDeps): Hud {
 
   return {
     root,
+    report,
     refresh,
     destroy() {
       difficultySelect.removeEventListener('change', onDifficultyChange);
@@ -440,6 +528,9 @@ export function createHud(deps: HudDeps): Hud {
       motionInput.removeEventListener('change', onMotionChange);
       outlineInput.removeEventListener('change', onOutlineChange);
       themeSelect.removeEventListener('change', onThemeChange);
+      themeSelect.removeEventListener('focus', showReport);
+      themeSelect.removeEventListener('blur', hideReport);
+      report.remove();
       coordsInput.removeEventListener('change', onCoordsChange);
       backButton.removeEventListener('click', onBackClick);
       forwardButton.removeEventListener('click', onForwardClick);

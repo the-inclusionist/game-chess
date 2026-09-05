@@ -21,7 +21,7 @@ import { applyLayout } from '../ui/layout.ts';
 import { createEngineClient } from '../chess/engine/client.ts';
 import { DEFAULT_DIFFICULTY, DIFFICULTY_DEPTH, type Difficulty } from '../chess/engine/difficulty.ts';
 import { type MoveResult } from '../chess/rules.ts';
-import { resume, save as saveGame } from '../chess/session.ts';
+import { loadSettings, resume, save as saveGame, saveSettings } from '../chess/session.ts';
 import { createGameState, type Activation, type HistoryStep } from '../chess/state.ts';
 import { sameSquare, type Piece, type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale, type I18n } from '../i18n/index.ts';
@@ -33,7 +33,8 @@ import { buildPiece, createPiecesLayer } from '../render/pieces/index.ts';
 import { PIECE_SPECS } from '../render/pieces/geometry.ts';
 import { DARK_PIECES, LIGHT_PIECES } from '../render/palette.ts';
 import { pickTopmost, toIllustrationSpace } from '../render/picking.ts';
-import { createPalette, type PaletteMode } from '../render/palette.ts';
+import { projectedPalette } from '../render/palette.ts';
+import { BOARD_THEMES, boardTheme, DEFAULT_THEME } from '../ui/board-themes.ts';
 import { createFrameTicker } from '../render/frame-ticker.ts';
 import { LOGICAL_W } from '../render/resolution.ts';
 import { createZdogStage } from '../render/zdog-stage.ts';
@@ -63,6 +64,8 @@ function moveSentence(i18n: I18n, move: MoveResult): string {
 export function boot(host: Document = document): void {
   const region = host.getElementById('game-region');
   if (!region) throw new Error('#game-region is required (engine MARCACAO_EXIGIDA)');
+  /** The same element, narrowed once, for the hoisted functions below. */
+  const area: HTMLElement = region;
 
   const i18n = createI18n(preferredLocale(navigator.language));
   host.documentElement.lang = i18n.bcp47();
@@ -106,19 +109,31 @@ export function boot(host: Document = document): void {
 
   // The system asks first. `prefers-contrast: more` is a real preference a person has already
   // expressed to their OS; making them find a checkbox to repeat it would be the wrong default.
-  let paletteMode: PaletteMode =
-    window.matchMedia?.('(prefers-contrast: more)').matches ? 'high-contrast' : 'default';
+  // ========================= THE SAME NAMED PALETTES AS THE FLAT BOARD =========================
+  // Six themes, shared between the views, so a player who picks one keeps it when they switch.
+  // Each carries its own shading for this view — derived by one rule from the flat fill, except
+  // for the three that were solved numerically, which carry their measured answers. See
+  // `projectedPalette` in `render/palette.ts`.
+  //
+  // ⚠️ High contrast selects `contrast-solid` HERE and `contrast-flat` on the flat board, and that
+  // is the whole reason a theme carries piece inks: the two have the same squares and different
+  // pieces, because a solid whose ink is mostly STROKE needs a different answer from a glyph.
+  const CONTRAST_HERE = 'contrast-solid';
+  const remembered = loadSettings();
+  const systemContrast = window.matchMedia?.('(prefers-contrast: more)').matches ?? false;
+  let themeKey = remembered.theme ?? (systemContrast ? CONTRAST_HERE : DEFAULT_THEME);
+  let previousTheme = themeKey.startsWith('contrast-') ? DEFAULT_THEME : themeKey;
   let vision = 'normal';
   let outlined = true;
-  let showCoordinates = true;
+  let showCoordinates = loadSettings().coordinates ?? true;
 
   // Real DOM text over the board: Zdog has no text primitive, and `ui/coordinates` explains why
   // that turns out to be a gain. Created before the HUD so the panel stacks above it.
   const coordinates = createCoordinates({ doc: host, visible: showCoordinates });
 
   const stage = createZdogStage();
-  const boardView = createBoard(stage.root, createPalette(paletteMode));
-  const pieces = createPiecesLayer(stage.root, createPalette(paletteMode), outlined);
+  const boardView = createBoard(stage.root, projectedPalette(boardTheme(themeKey)));
+  const pieces = createPiecesLayer(stage.root, projectedPalette(boardTheme(themeKey)), outlined);
   const camera = createCamera();
 
   // ========================= NO COMPOSITOR =========================
@@ -198,6 +213,7 @@ export function boot(host: Document = document): void {
     onCoordinates: (on) => {
       showCoordinates = on;
       coordinates.setVisible(on);
+      saveSettings({ theme: themeKey, coordinates: on });
       hud.refresh();
       invalidate();
     },
@@ -209,16 +225,21 @@ export function boot(host: Document = document): void {
       region.style.filter = VIZ_FILTER[key] ?? '';
       hud.refresh();
     },
-    highContrast: () => paletteMode === 'high-contrast',
+    highContrast: () => themeKey.startsWith('contrast-'),
     onHighContrast: (on) => {
-      paletteMode = on ? 'high-contrast' : 'default';
-      const palette = createPalette(paletteMode);
-      boardView.setPalette(palette);
-      pieces.setPalette(palette);
-      // The DOM panel follows the same switch: it is over the same board and read by the same eye.
-      region.dataset.contrast = on ? 'high' : '';
-      invalidate();
+      // One state, two doors — the same arrangement the flat board uses. Turning high contrast off
+      // returns the palette the player had chosen, not the factory one.
+      if (on) {
+        if (!themeKey.startsWith('contrast-')) previousTheme = themeKey;
+        applyTheme(CONTRAST_HERE);
+      } else {
+        applyTheme(previousTheme);
+      }
     },
+
+    themes: BOARD_THEMES.map((t) => ({ key: t.key, name: t.name })),
+    theme: () => themeKey,
+    onTheme: (key) => { applyTheme(key); },
     onDifficulty: (level) => {
       difficulty = level;
       hud.refresh();
@@ -227,9 +248,31 @@ export function boot(host: Document = document): void {
       if (game.phase() === 'thinking') { opponent.cancel(); thinking = false; askOpponent(); }
     },
   });
+  /**
+   * Repaints the board and the panel from a named palette, and remembers the choice.
+   *
+   * `area` rather than `region` because this is a hoisted declaration: TypeScript will not carry
+   * the null check into a function that could, as far as it knows, have been called before it.
+   * The narrowed constant is captured once, above, where the check has already happened.
+   */
+  function applyTheme(key: string): void {
+    themeKey = key;
+    if (!key.startsWith('contrast-')) previousTheme = key;
+    const palette = projectedPalette(boardTheme(key));
+    boardView.setPalette(palette);
+    pieces.setPalette(palette);
+    // The DOM panel follows the same switch: it is over the same board and read by the same eye.
+    area.dataset.contrast = key.startsWith('contrast-') ? 'high' : '';
+    saveSettings({ theme: key, coordinates: showCoordinates });
+    hud.refresh();
+    invalidate();
+  }
+
   region.appendChild(coordinates.root);
   region.appendChild(hud.root);
-  region.dataset.contrast = paletteMode === 'high-contrast' ? 'high' : '';
+  // Outside the panel, over the board: see `.theme-report` in the stylesheet.
+  region.appendChild(hud.report);
+  region.dataset.contrast = themeKey.startsWith('contrast-') ? 'high' : '';
 
   /**
    * CSS pixels per canvas pixel, kept from the last layout instead of measured per frame.

@@ -31,6 +31,7 @@ import { fromAlgebraic, toAlgebraic } from './types.ts';
 import { createRules, type Rules } from './rules.ts';
 
 const KEY = 'incl_chess_game';
+const SETTINGS_KEY = 'incl_chess_view';
 
 /** A move as four or five characters: `e2e4`, or `e7e8q` for a promotion. */
 export type MoveToken = string;
@@ -149,4 +150,44 @@ export function restore(saved: SavedGame): Rules {
 export function resume(store: SessionStore | null = defaultStore()): Rules {
   const saved = load(store);
   return saved ? restore(saved) : createRules();
+}
+
+
+/* ============================ WHAT THE VIEWS AGREE ON ============================ */
+
+/**
+ * The handful of choices that must not reset when a player changes view. A board palette that went
+ * back to the factory one on every switch would be a worse bug than the restarting game was: the
+ * game at least announced itself, and a colour quietly reverting just looks broken.
+ *
+ * Deliberately NOT everything. Difficulty and the colour-vision correction belong to the engine's
+ * own settings and are its to remember; this is the short list this game owns.
+ */
+export interface ViewSettings {
+  readonly theme?: string;
+  readonly set?: string;
+  readonly coordinates?: boolean;
+}
+
+export function saveSettings(settings: ViewSettings, store: SessionStore | null = defaultStore()): void {
+  if (!store) return;
+  try { store.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* see save() */ }
+}
+
+export function loadSettings(store: SessionStore | null = defaultStore()): ViewSettings {
+  if (!store) return {};
+  try {
+    const raw = store.getItem(SETTINGS_KEY);
+    if (!raw) return {};
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return {};
+    const { theme, set, coordinates } = parsed as ViewSettings;
+    return {
+      ...(typeof theme === 'string' ? { theme } : {}),
+      ...(typeof set === 'string' ? { set } : {}),
+      ...(typeof coordinates === 'boolean' ? { coordinates } : {}),
+    };
+  } catch {
+    return {};
+  }
 }

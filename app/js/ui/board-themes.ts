@@ -13,8 +13,8 @@
 // about pieces first.
 //
 // ========================= WHERE THESE COME FROM =========================
+//   brown       chessboard.js (MIT), and lichess's default #f0d9b5 / #b58863   ← the default here
 //   wikipedia   Wikipedia's chess diagram template          #ffce9e / #d18b47
-//   brown       chessboard.js (MIT), also lichess's default #f0d9b5 / #b58863
 //   xboard      XBoard, the GNU Chess interface             #C8C365 / #77A26D
 //   jose        this project's own, from render/palette.ts  #DCD6C8 / #8D8677
 //   contrast-*  solved numerically here and in palette.ts   #8F8F8F / #5A5A5A
@@ -57,14 +57,36 @@ export interface BoardTheme {
   readonly rim: string;
   /** i18n key for the name in the panel. */
   readonly name: string;
+  /** i18n key for the abbreviation used as a column heading in the comparison table. */
+  readonly short: string;
+  /**
+   * ========================= THE PROJECTED BOARD NEEDS MORE THAN A FILL =========================
+   * A flat piece is one colour. A Zdog piece is a SOLID, and it reads as mass only if its top,
+   * front and side differ — `render/palette.ts` measured that: below about 1.5 between two
+   * neighbouring planes the eye fuses them and the piece goes flat.
+   *
+   * So each theme is shaded for that view. Most are DERIVED, by one rule, from the flat fill; the
+   * three that were solved numerically already — this project's own and the two high-contrast
+   * palettes — carry their answers here rather than being re-derived and quietly changed.
+   */
+  readonly solid?: {
+    readonly light: readonly [top: string, face: string, side: string];
+    readonly dark: readonly [top: string, face: string, side: string];
+  };
+  /** No shading at all: a high-contrast palette has no luminance room for it. See palette.ts. */
+  readonly flatSolid?: boolean;
 }
 
 const INK = { white: '#FFFFFF', black: '#000000', whiteRim: '#000000', blackRim: '#FFFFFF' };
 
 export const BOARD_THEMES: readonly BoardTheme[] = [
-  { key: 'wikipedia', light: '#ffce9e', dark: '#d18b47', ...INK, rim: '#17110a', name: 'theme.wikipedia' },
-  { key: 'brown', light: '#f0d9b5', dark: '#b58863', ...INK, rim: '#17110a', name: 'theme.brown' },
-  { key: 'xboard', light: '#C8C365', dark: '#77A26D', ...INK, rim: '#17110a', name: 'theme.xboard' },
+  // ⚠️ THE DEFAULT, and it is one pair serving two names: lichess's "brown" board and
+  // chessboard.js's default are the same #f0d9b5 / #b58863 — confirmed against
+  // `niklasf/web-boardimage`'s `lichess-brown.json`, not remembered. It is very probably the board
+  // a learner has already met, since it is what lichess shows before anyone changes anything.
+  { key: 'brown', light: '#f0d9b5', dark: '#b58863', ...INK, rim: '#17110a', name: 'theme.brown', short: 'theme.short.brown' },
+  { key: 'wikipedia', light: '#ffce9e', dark: '#d18b47', ...INK, rim: '#17110a', name: 'theme.wikipedia', short: 'theme.short.wikipedia' },
+  { key: 'xboard', light: '#C8C365', dark: '#77A26D', ...INK, rim: '#17110a', name: 'theme.xboard', short: 'theme.short.xboard' },
   {
     // The Hartwig palette, flat. Yellow against indigo separates by LUMINANCE at 8.91, which is
     // the argument `render/palette.ts` is built on and the reason it survives a CVD filter.
@@ -74,9 +96,21 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
     white: '#FFE08A',
     black: '#3F2B78',
     whiteRim: '#3B2A12',
-    blackRim: '#FFE08A',
+    // ⚠️ NOT a light rim. `render/palette.ts` gives the dark side `stroke: '#0E0722'` — the piece
+    // is outlined in something darker than itself, not brighter. Putting the light side's yellow
+    // here reversed that and the dark pieces came out ringed in gold, which is not this palette.
+    // The rule the file states is the one that governs: the ink that covers a piece names it.
+    blackRim: '#0E0722',
     rim: '#0E0722',
     name: 'theme.jose',
+    short: 'theme.short.jose',
+    // The numbers `render/palette.ts` solved: top against front is 1.72 on the light side and 1.64
+    // on the dark, widened from 1.18 after counting pixels by face and finding that at this camera
+    // pitch only top-against-front does any work.
+    solid: {
+      light: ['#FFE08A', '#E0A33A', '#B8781F'],
+      dark: ['#5B44A0', '#3A2670', '#1E1140'],
+    },
   },
   {
     // High contrast as the FLAT board solves it: the default already uses the extreme inks, so all
@@ -87,6 +121,8 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
     ...INK,
     rim: '#000000',
     name: 'theme.contrast1',
+    short: 'theme.short.contrast1',
+    flatSolid: true,
   },
   {
     // High contrast as the PROJECTED board solves it, brought over unchanged: yellow filling and a
@@ -100,11 +136,13 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
     blackRim: '#0099FF',
     rim: '#000000',
     name: 'theme.contrast2',
+    short: 'theme.short.contrast2',
+    flatSolid: true,
   },
 ];
 
-/** Wikipedia's, because it is the board a learner is most likely to have seen. */
-export const DEFAULT_THEME = 'wikipedia';
+/** lichess's, which is also chessboard.js's — the board a learner is most likely to have seen. */
+export const DEFAULT_THEME = 'brown';
 /** What the high-contrast switch selects on the flat board. */
 export const CONTRAST_THEME = 'contrast-flat';
 
