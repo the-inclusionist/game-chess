@@ -43,6 +43,13 @@ export interface HudDeps {
   onReducedMotion(on: boolean): void;
   outline(): boolean;
   onOutline(on: boolean): void;
+  /**
+   * i18n key for that switch's label. It defaults to the piece outline, which is what it is in the
+   * projected view — but the flat board has no outline to switch and uses the slot to choose which
+   * 2D standard it is painted in. A control whose label lied about its question would be worse
+   * than a second control.
+   */
+  outlineLabel?: string;
   coordinates(): boolean;
   onCoordinates(on: boolean): void;
   /** Whether the score sheet can be walked back or forward from where it stands. */
@@ -319,7 +326,7 @@ export function createHud(deps: HudDeps): Hud {
     motionLabel.textContent = i18n.t('hud.reducedMotion');
     motionInput.checked = deps.reducedMotion();
 
-    outlineLabel.textContent = i18n.t('hud.outline');
+    outlineLabel.textContent = i18n.t(deps.outlineLabel ?? 'hud.outline');
     outlineInput.checked = deps.outline();
 
     coordsLabel.textContent = i18n.t('hud.coordinates');

@@ -44,6 +44,7 @@ import type { Rules } from '../chess/rules.ts';
 import type { GameState } from '../chess/state.ts';
 import { FILES, RANKS, sameSquare, type Square, toAlgebraic } from '../chess/types.ts';
 import type { I18n } from '../i18n/index.ts';
+import { boardTheme, DEFAULT_THEME, type BoardTheme } from './board-themes.ts';
 import { DEFAULT_SET, pieceSet, type PieceSet } from './piece-sets.ts';
 import { squareFromIndex, squareIndex } from '../render/board-geometry.ts';
 
@@ -68,6 +69,8 @@ export interface GridMirrorDeps {
   readonly visible?: boolean;
   /** Which drawing to use. Only consulted when visible. */
   readonly set?: string;
+  /** Which board colours. Only consulted when visible. */
+  readonly theme?: string;
 }
 
 export interface GridMirror {
@@ -79,6 +82,9 @@ export interface GridMirror {
   /** Swaps the drawing. No effect on anything a screen reader hears. */
   setPieceSet(key: string): void;
   pieceSetKey(): string;
+  /** Swaps the board colours. Also nothing a screen reader hears. */
+  setTheme(key: string): void;
+  themeKey(): string;
   destroy(): void;
 }
 
@@ -91,6 +97,7 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
 
   const visible = deps.visible ?? false;
   let set: PieceSet = pieceSet(deps.set ?? DEFAULT_SET);
+  let theme: BoardTheme = boardTheme(deps.theme ?? DEFAULT_THEME);
 
   const root = doc.createElement('div');
   root.className = visible ? 'board-2d' : 'sr-only';
@@ -101,6 +108,13 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
 
   const cells: HTMLButtonElement[] = [];
   const glyphs: HTMLElement[] = [];
+
+  /** Paints the squares from the chosen standard. Custom properties, so one write does 64 cells. */
+  function applyTheme(): void {
+    root.dataset.theme = theme.key;
+    root.style.setProperty('--square-light', theme.light);
+    root.style.setProperty('--square-dark', theme.dark);
+  }
 
   /** A corner mark on a cell. Hidden from the reader: the cell's own label already says "e4". */
   function coordLabel(kind: 'file' | 'rank', text: string): HTMLElement {
@@ -263,6 +277,7 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
     root.dataset.set = set.key;
     root.style.setProperty('--piece-font', set.family);
     root.dataset.coloured = set.coloured ? 'true' : '';
+    applyTheme();
   }
 
   refresh();
@@ -271,6 +286,12 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
     root,
 
     pieceSetKey: () => set.key,
+    themeKey: () => theme.key,
+
+    setTheme(key) {
+      theme = boardTheme(key);
+      applyTheme();
+    },
 
     setPieceSet(key) {
       set = pieceSet(key);

@@ -6,6 +6,7 @@ import { type Square } from '../app/js/chess/types.ts';
 import { createI18n } from '../app/js/i18n/index.ts';
 import { createGridMirror, type GridMirror } from '../app/js/ui/grid-mirror.ts';
 import { AVAILABLE_SETS, DEFAULT_SET, PIECE_SETS, pieceSet } from '../app/js/ui/piece-sets.ts';
+import { BOARD_THEMES, DEFAULT_THEME, boardTheme } from '../app/js/ui/board-themes.ts';
 
 // ========================= WHAT THE 2D BOARD IS =========================
 // The grid mirror with its `sr-only` taken off. That is not a shortcut — it is the point. This
@@ -169,6 +170,62 @@ describe('[PieceSets] the drawing is a choice with no semantic surface', () => {
     // The stack must therefore END in a generic family, or a board can come out blank.
     for (const set of PIECE_SETS) {
       expect(/(serif|sans-serif|cursive|monospace)\s*$/.test(set.family)).toBe(true);
+    }
+  });
+});
+
+// ========================= THE FLAT BOARD USES THE FLAT CONVENTION =========================
+// It first reused the 3D palette — yellow on indigo — which was solved for solids catching light
+// on three faces and looked wrong flat. Two-dimensional chess has a convention older than any of
+// this, and a learner has already met it everywhere else.
+
+describe('[Themes] the two standards, by name and by value', () => {
+  const luminance = (hex: string): number => {
+    const channel = (offset: number): number => {
+      const c = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+      return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+  };
+  const contrast = (a: string, b: string): number => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
+
+  it('carries Wikipedia and XBoard at their real values', () => {
+    expect(boardTheme('wikipedia').light).toBe('#ffce9e');
+    expect(boardTheme('wikipedia').dark).toBe('#d18b47');
+    expect(boardTheme('gnuchess').light).toBe('#C8C365');
+    expect(boardTheme('gnuchess').dark).toBe('#77A26D');
+    expect(DEFAULT_THEME).toBe('wikipedia');
+  });
+
+  it('paints the squares through custom properties, so one write does 64 cells', () => {
+    const { mirror: m } = build();
+    expect(m.root.dataset.theme).toBe('wikipedia');
+    expect(m.root.style.getPropertyValue('--square-light')).toBe('#ffce9e');
+
+    m.setTheme('gnuchess');
+    expect(m.root.dataset.theme).toBe('gnuchess');
+    expect(m.root.style.getPropertyValue('--square-dark')).toBe('#77A26D');
+    m.setTheme('nonsense');
+    expect(m.themeKey()).toBe(DEFAULT_THEME);
+  });
+
+  it('records the awkward half of the convention rather than pretending it away', () => {
+    // ⚠️ A white piece's FILL clears 3:1 against NEITHER square, in EITHER standard. That is how
+    // the convention works: what identifies it is the black outline. WCAG 1.4.11 asks that the
+    // boundary be perceivable, not the fill — the same position render/palette.ts already takes
+    // for the 3D default, with high contrast as the way out for anyone who needs more.
+    for (const theme of BOARD_THEMES) {
+      expect(contrast('#FFFFFF', theme.light)).toBeLessThan(3);
+      expect(contrast('#FFFFFF', theme.dark)).toBeLessThan(3);
+      // And the outline that carries it, which is why the stroke is a rim and not a hairline.
+      expect(contrast('#000000', theme.light)).toBeGreaterThan(10);
+      expect(contrast('#000000', theme.dark)).toBeGreaterThan(7);
+      // The black piece's own fill needs no help.
+      expect(contrast('#000000', theme.light)).toBeGreaterThanOrEqual(3);
+      expect(contrast('#000000', theme.dark)).toBeGreaterThanOrEqual(3);
     }
   });
 });

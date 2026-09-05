@@ -56,6 +56,9 @@ export const es: Catalog = {
     'set.emoji':    'Emoji (varía según el aparato)',
     'set.pecita':   'Manuscrita',
     'set.off.licence': 'licencia por confirmar',
+    'hud.boardStandard': 'Colores de GNU Chess',
+    'theme.wikipedia': 'Tablero de Wikipedia',
+    'theme.gnuchess':  'Tablero de GNU Chess',
 
     'difficulty.easy':   'Fácil',
     'difficulty.medium': 'Medio',

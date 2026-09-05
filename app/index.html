@@ -199,7 +199,7 @@
     max-width: 68%;
     aspect-ratio: 1;
     margin: calc(var(--ui-fs, 16px) * 0.8);
-    border: 2px solid #3b2a12;
+    border: 2px solid #3a2a14;
     box-sizing: border-box;
   }
   .board-2d [role="row"] { display: grid; grid-template-columns: repeat(8, 1fr); }
@@ -215,8 +215,9 @@
     line-height: 1;
     cursor: pointer;
   }
-  .board-2d [role="gridcell"][data-shade="light"] { background: #DCD6C8; }
-  .board-2d [role="gridcell"][data-shade="dark"]  { background: #8D8677; }
+  /* From `ui/board-themes.ts`: Wikipedia's diagram colours or XBoard's, by name and by value. */
+  .board-2d [role="gridcell"][data-shade="light"] { background: var(--square-light, #ffce9e); }
+  .board-2d [role="gridcell"][data-shade="dark"]  { background: var(--square-dark, #d18b47); }
   .board-2d [role="gridcell"]:focus-visible {
     outline: 3px solid #0E7C86;
     outline-offset: -3px;
@@ -251,14 +252,18 @@
     line-height: 1;
     user-select: none;
   }
-  /* Both sides use the SOLID glyphs, so the fill is the piece and the colour is the side — see
-     ui/piece-sets.ts. The stroke is the opposite ink, thin enough to edge the shape rather than
-     become it, which is the mistake the hollow glyphs made on their own. */
+  /*
+   * White and black with the opposite ink around them — the convention every printed diagram and
+   * every 2D interface uses, and the one a learner has already met. ⚠️ Measured in
+   * `ui/board-themes.ts`: a white piece's FILL clears 3:1 against neither square in either
+   * standard. What identifies it is the black outline, at 14.57 against a light Wikipedia square —
+   * which is why the stroke here is a real rim and not a hairline.
+   */
   .board-2d:not([data-coloured="true"]) .cell-piece[data-side="w"] {
-    color: #FFE08A; -webkit-text-stroke: 0.5px #3B2A12; paint-order: stroke fill;
+    color: #FFFFFF; -webkit-text-stroke: 1px #000000; paint-order: stroke fill;
   }
   .board-2d:not([data-coloured="true"]) .cell-piece[data-side="b"] {
-    color: #3F2B78; -webkit-text-stroke: 0.5px #FFE08A; paint-order: stroke fill;
+    color: #000000; -webkit-text-stroke: 1px #FFFFFF; paint-order: stroke fill;
   }
 
   /* ⚠️ A coloured set paints its own pixels and cannot be tinted, so the SIDE moves to a disc
@@ -269,8 +274,8 @@
     border-radius: 50%;
     box-sizing: border-box;
   }
-  .board-2d[data-coloured="true"] .cell-piece[data-side="w"] { background: #FFE08A; border: 2px solid #3B2A12; }
-  .board-2d[data-coloured="true"] .cell-piece[data-side="b"] { background: #3F2B78; border: 2px solid #FFE08A; }
+  .board-2d[data-coloured="true"] .cell-piece[data-side="w"] { background: #FFFFFF; border: 2px solid #000000; }
+  .board-2d[data-coloured="true"] .cell-piece[data-side="b"] { background: #000000; border: 2px solid #FFFFFF; }
 
   /*
    * The coordinates. On a flat board they need no projection at all: the file letter belongs in
@@ -282,7 +287,9 @@
     position: absolute;
     font-size: calc(var(--ui-fs, 16px) * 0.5);
     font-weight: 700;
-    color: #4a4436;
+    /* Dark on both standards' squares: 14.57 and 11.45 against the light ones, 7.50 and 7.17
+       against the dark. One ink reads on all four. */
+    color: #3a2a14;
     pointer-events: none;
   }
   .board-2d [role="gridcell"] .cell-coord[data-kind="file"] { right: 3%; bottom: 1%; }

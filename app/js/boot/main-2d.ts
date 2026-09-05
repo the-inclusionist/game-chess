@@ -33,6 +33,7 @@ import { createI18n, preferredLocale, type I18n } from '../i18n/index.ts';
 import { createGridMirror } from '../ui/grid-mirror.ts';
 import { createHud } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
+import { BOARD_THEMES, DEFAULT_THEME } from '../ui/board-themes.ts';
 import { DEFAULT_SET } from '../ui/piece-sets.ts';
 
 /** What the move sounds like. Shared word for word with the 3D root, and worth keeping in step. */
@@ -79,6 +80,7 @@ export function boot2d(host: Document = document): void {
   let vision = 'normal';
   let showCoordinates = true;
   let setKey = DEFAULT_SET;
+  let themeKey = DEFAULT_THEME;
 
   const declaration = createChessDeclaration({ rules, state: game, i18n, cursor: () => cursor });
   const engine = createGame({
@@ -95,6 +97,7 @@ export function boot2d(host: Document = document): void {
     state: game,
     visible: true,
     set: setKey,
+    theme: themeKey,
     onActivate: (square) => onActivate(square),
     onCursor: (square) => { cursor = square; },
     resolveAction: (code) => engine.keyboard.actionOf(code, 0),
@@ -126,13 +129,14 @@ export function boot2d(host: Document = document): void {
     },
     reducedMotion: () => motionReduced,
     onReducedMotion: (on) => { motionReduced = on; hud.refresh(); },
-    // ⚠️ There is no outline on a glyph, so this control is the piece SET here. Same slot in the
-    // panel, different question — which is honest, because in both views it asks how a piece is
-    // drawn. The label comes from i18n and says which one it is.
-    outline: () => setKey !== DEFAULT_SET,
+    // ⚠️ A glyph has no outline to switch, so this slot asks the flat board's own version of the
+    // same question: which standard is it painted in. Off is Wikipedia's diagram, on is XBoard's —
+    // the GNU Chess interface — and the label says so.
+    outlineLabel: 'hud.boardStandard',
+    outline: () => themeKey !== DEFAULT_THEME,
     onOutline: (on) => {
-      setKey = on ? 'math' : DEFAULT_SET;
-      board.setPieceSet(setKey);
+      themeKey = on ? BOARD_THEMES[1].key : DEFAULT_THEME;
+      board.setTheme(themeKey);
       hud.refresh();
     },
     coordinates: () => showCoordinates,
@@ -256,6 +260,7 @@ export function boot2d(host: Document = document): void {
     (window as unknown as Record<string, unknown>).__chess2d = {
       game, rules, board, hud, activate: onActivate, opponent, engine, declaration,
       setPieceSet: (key: string) => { setKey = key; board.setPieceSet(key); },
+      setTheme: (key: string) => { themeKey = key; board.setTheme(key); },
     };
   }
 }

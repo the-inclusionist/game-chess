@@ -60,6 +60,9 @@ export const pt: Catalog = {
     'set.emoji':    'Emoji (varia com o aparelho)',
     'set.pecita':   'Manuscrita',
     'set.off.licence': 'licença a confirmar',
+    'hud.boardStandard': 'Cores do GNU Chess',
+    'theme.wikipedia': 'Tabuleiro da Wikipédia',
+    'theme.gnuchess':  'Tabuleiro do GNU Chess',
 
     'difficulty.easy':   'Fácil',
     'difficulty.medium': 'Médio',
