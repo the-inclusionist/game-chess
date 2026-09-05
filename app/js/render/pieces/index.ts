@@ -27,7 +27,15 @@ export interface PiecesLayer {
   readonly anchor: Anchor;
   /** Replaces every piece on the board. Call on a move, not on a frame. */
   setPosition(placements: readonly PiecePlacement[]): void;
-  /** How many pieces are currently on the board. */
+  /**
+   * The one piece currently crossing the board, or null. Held apart from the others because it
+   * moves EVERY frame: rebuilding 32 pieces per frame to shift one of them would throw away the
+   * whole point of rebuilding only on a move. Setting a translate costs nothing.
+   */
+  setTravelling(piece: Piece | null): void;
+  /** Where that piece is right now, in board units. `y` is the lift, and negative is up. */
+  moveTravelling(x: number, y: number, z: number): void;
+  /** How many pieces are currently on the board, the traveller excluded. */
   count(): number;
 }
 
@@ -85,11 +93,22 @@ export function buildPiece(parent: Anchor, spec: PieceSpec, colours: SidePalette
 
 export function createPiecesLayer(parent: Anchor): PiecesLayer {
   const layer = new Zdog.Anchor({ addTo: parent });
+  const travelling = new Zdog.Anchor({ addTo: parent });
   let placed = 0;
 
   return {
     anchor: layer,
     count: () => placed,
+
+    setTravelling(piece) {
+      for (const child of [...travelling.children]) child.remove();
+      travelling.translate.set({ x: 0, y: 0, z: 0 });
+      if (piece) buildPiece(travelling, PIECE_SPECS[piece.type], paletteFor(piece));
+    },
+
+    moveTravelling(x, y, z) {
+      travelling.translate.set({ x, y, z });
+    },
 
     setPosition(placements) {
       for (const child of [...layer.children]) child.remove();
