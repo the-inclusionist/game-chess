@@ -16,6 +16,8 @@ import type {
 } from '@pm-monte/inclusionist-engine/core/contract.ts';
 import { startLoop } from '@pm-monte/inclusionist-engine/core/loop.ts';
 import { initLayout, layout } from '@pm-monte/inclusionist-engine/ui/layout.ts';
+import { createEngineClient } from '../chess/engine/client.ts';
+import { DEFAULT_DIFFICULTY, DIFFICULTY_DEPTH, type Difficulty } from '../chess/engine/difficulty.ts';
 import { createRules, type MoveResult } from '../chess/rules.ts';
 import { createGameState, type Activation } from '../chess/state.ts';
 import { sameSquare, type Square, toAlgebraic } from '../chess/types.ts';
@@ -65,8 +67,10 @@ export function boot(host: Document = document): void {
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
   const rules = createRules();
-  // Hot seat for now. The minimax opponent arrives at step 6 and flips this to true.
-  const game = createGameState({ rules, opponent: false });
+  const game = createGameState({ rules, opponent: true });
+  const opponent = createEngineClient();
+  let difficulty: Difficulty = DEFAULT_DIFFICULTY;
+  let thinking = false;
 
   let cursor: Square = { x: 4, y: 6 };
 
@@ -212,15 +216,45 @@ export function boot(host: Document = document): void {
     }
   }
 
+  /** Plays a move the game has already accepted: animate it, redraw it, say it. */
+  function beginMove(move: MoveResult): void {
+    animation = createMoveAnimation(move.from, move.to, { reducedMotion: reducedMotion() });
+    syncPieces();
+    syncMarkers();
+  }
+
+  function askOpponent(): void {
+    if (game.phase() !== 'thinking' || thinking) return;
+    thinking = true;
+    srSay(i18n.t('status.thinking'));
+
+    opponent.requestMove(rules.fen(), DIFFICULTY_DEPTH[difficulty])
+      .then((reply) => {
+        thinking = false;
+        // The position may have moved on while the worker was busy — a restart, a difficulty
+        // change. The state machine refuses the move in that case, and so does this guard.
+        if (!reply || game.phase() !== 'thinking') return;
+        const move = game.applyOpponentMove(
+          reply.move.from, reply.move.to, reply.move.promotion,
+        );
+        if (!move) return;
+        beginMove(move);
+        srSay(moveSentence(i18n, move));
+        if (!move.checkmate && move.check) srAlert(i18n.t('status.check'));
+      })
+      .catch((error: unknown) => {
+        thinking = false;
+        // Saying nothing would leave the game on "thinking" for good, and a child waiting for a
+        // reply cannot tell that apart from a game that is broken.
+        srAlert(i18n.t('status.engineFailed'));
+        console.error('[chess] engine failed', error);
+      });
+  }
+
   function onActivate(square: Square): void {
     cursor = square;
     const result = game.activate(square);
-    if (result.kind === 'moved') {
-      animation = createMoveAnimation(result.move.from, result.move.to, {
-        reducedMotion: reducedMotion(),
-      });
-      syncPieces();
-    }
+    if (result.kind === 'moved') beginMove(result.move);
     syncMarkers();
     announce(result);
   }
@@ -306,6 +340,7 @@ export function boot(host: Document = document): void {
         syncPieces();
         syncMarkers();
         announceOutcome();
+        askOpponent();
       }
     }
 
@@ -329,6 +364,7 @@ export function boot(host: Document = document): void {
 
   syncPieces();
   syncMarkers();
+  askOpponent();   // in case the opponent has the first move
 
   // Diagnostics behind ?debug=true, the same switch the engine's own ui/layout uses. Off by
   // default, so nothing is exposed to a page that did not ask for it — and available when a
@@ -354,6 +390,9 @@ export function boot(host: Document = document): void {
         };
       },
       activate: onActivate,
+      opponent,
+      setDifficulty(level: Difficulty) { difficulty = level; },
+      askOpponent,
       /** Advances the loop by hand — see `frame`. */
       step: frame,
     };

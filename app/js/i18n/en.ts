@@ -31,6 +31,7 @@ export const en: Catalog = {
     'status.stalemate':  'Stalemate. Draw.',
     'status.draw':       'Draw.',
     'status.thinking':   'Thinking…',
+    'status.engineFailed': 'I could not work out a move. Please try again.',
 
     'turn.w': 'White',
     'turn.b': 'Black',

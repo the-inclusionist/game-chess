@@ -204,3 +204,24 @@ describe('[History] taking a move back', () => {
     expect(rules.turn()).toBe('w');
   });
 });
+
+describe('[Enumeration] every legal move, for the search to walk', () => {
+  it('counts the twenty openings', () => {
+    expect(createRules().allMoves()).toHaveLength(20);
+  });
+
+  it('gives up nothing when the game is over', () => {
+    const rules = createRules('7k/5Q2/6K1/8/8/8/8/8 b - - 0 1');
+    expect(rules.allMoves()).toEqual([]);
+  });
+
+  it('marks a promotion, and offers all four pieces', () => {
+    const rules = createRules('4k3/P7/8/8/8/8/8/4K3 w - - 0 1');
+    const promotions = rules.allMoves().filter((m) => m.promotion);
+    expect(promotions.map((m) => m.promotion).sort()).toEqual(['b', 'n', 'q', 'r']);
+  });
+
+  it('leaves promotion null on an ordinary move', () => {
+    expect(createRules().allMoves().every((m) => m.promotion === null)).toBe(true);
+  });
+});

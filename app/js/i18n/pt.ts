@@ -36,6 +36,7 @@ export const pt: Catalog = {
     'status.stalemate':  'Afogamento. Empate.',
     'status.draw':       'Empate.',
     'status.thinking':   'Pensando…',
+    'status.engineFailed': 'Não consegui pensar a jogada. Tente novamente.',
 
     'turn.w': 'Brancas',
     'turn.b': 'Pretas',

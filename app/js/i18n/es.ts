@@ -32,6 +32,7 @@ export const es: Catalog = {
     'status.stalemate':  'Rey ahogado. Tablas.',
     'status.draw':       'Tablas.',
     'status.thinking':   'Pensando…',
+    'status.engineFailed': 'No pude calcular la jugada. Inténtalo de nuevo.',
 
     'turn.w': 'Blancas',
     'turn.b': 'Negras',
