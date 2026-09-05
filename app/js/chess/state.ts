@@ -32,6 +32,26 @@ export type Activation =
       readonly reason: 'empty' | 'not-your-turn' | 'busy' | 'over';
     };
 
+/**
+ * One ply of a walk through the score sheet, handed to a caller that draws it.
+ *
+ * ========================= WHY A CALLER NEEDS THE PLIES ONE AT A TIME =========================
+ * `takeBack()` moves the whole unit — your move and the reply to it — and that is the right unit
+ * for a button. It is the wrong unit for an ANIMATION: applying both plies and then drawing them
+ * means the second piece stands on its destination from the moment the button is pressed, and
+ * only starts travelling once the first has landed. It teleports, then flies.
+ *
+ * So the position moves one ply at a time, and `more` says whether the unit is finished. The
+ * policy — two plies against an opponent, one in a hot seat — stays here; only the clock belongs
+ * to whoever is drawing.
+ */
+export interface HistoryStep {
+  /** The move that left the board, or arrived on it. */
+  readonly move: MoveResult;
+  /** True while the unit is unfinished: step again once this one has been drawn. */
+  readonly more: boolean;
+}
+
 export type Outcome =
   | { readonly kind: 'checkmate'; readonly winner: Side }
   | { readonly kind: 'stalemate' }
@@ -80,6 +100,9 @@ export interface GameState {
   /** Returns whether anything moved, so the caller knows whether to redraw and speak. */
   takeBack(): boolean;
   replay(): boolean;
+  /** The same two operations, one ply at a time, for a caller that animates them. */
+  takeBackStep(): HistoryStep | null;
+  replayStep(): HistoryStep | null;
 }
 
 export function createGameState(options: GameStateOptions): GameState {
@@ -117,6 +140,38 @@ export function createGameState(options: GameStateOptions): GameState {
     inFlight = move;
     phase = 'animating';
     return move;
+  }
+
+  /**
+   * Is the board still the opponent's after the ply just moved? That is the whole rule, and it is
+   * why a take-back is two plies against an opponent and one in a hot seat: the unit ends when the
+   * player is on move again.
+   */
+  const unfinished = (canContinue: boolean): boolean =>
+    hasOpponent && canContinue && rules.turn() !== playerSide;
+
+  function stepBack(): HistoryStep | null {
+    if (phase === 'animating' || !rules.canUndo()) return null;
+    const history = rules.history();
+    const move = history[history.length - 1];
+    rules.undo();
+    const more = unfinished(rules.canUndo());
+    // Settled only when the unit is complete. Half a take-back is not a position anyone may play
+    // from, and settling into it would hand the board back mid-rewind.
+    if (!more) settle();
+    return { move, more };
+  }
+
+  function stepForward(): HistoryStep | null {
+    if (phase === 'animating' || !rules.canRedo()) return null;
+    if (!rules.redo()) return null;
+    const history = rules.history();
+    const move = history[history.length - 1];
+    const more = unfinished(rules.canRedo());
+    // If the redo stack ran out on the opponent's turn, `settle` says `thinking` and the
+    // composition root asks them to move. That is the right answer, not an edge case.
+    if (!more) settle();
+    return { move, more };
   }
 
   settle();
@@ -182,26 +237,28 @@ export function createGameState(options: GameStateOptions): GameState {
     canTakeBack: () => phase !== 'animating' && rules.canUndo(),
     canReplay: () => phase !== 'animating' && rules.canRedo(),
 
+    takeBackStep: stepBack,
+    replayStep: stepForward,
+
     takeBack() {
-      if (phase === 'animating' || !rules.canUndo()) return false;
-      rules.undo();
-      // Keep going until the board is the player's again — the reply, then the move it answered.
-      if (hasOpponent) {
-        while (rules.canUndo() && rules.turn() !== playerSide) rules.undo();
+      let step = stepBack();
+      if (!step) return false;
+      while (step.more) {
+        const next = stepBack();
+        if (!next) { settle(); break; }
+        step = next;
       }
-      settle();
       return true;
     },
 
     replay() {
-      if (phase === 'animating' || !rules.canRedo()) return false;
-      rules.redo();
-      if (hasOpponent) {
-        while (rules.canRedo() && rules.turn() !== playerSide) rules.redo();
+      let step = stepForward();
+      if (!step) return false;
+      while (step.more) {
+        const next = stepForward();
+        if (!next) { settle(); break; }
+        step = next;
       }
-      // If the redo stack ran out on the opponent's turn, `settle` says `thinking` and the
-      // composition root asks them to move. That is the right answer, not an edge case.
-      settle();
       return true;
     },
 

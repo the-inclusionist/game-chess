@@ -20,7 +20,7 @@ import { applyLayout } from '../ui/layout.ts';
 import { createEngineClient } from '../chess/engine/client.ts';
 import { DEFAULT_DIFFICULTY, DIFFICULTY_DEPTH, type Difficulty } from '../chess/engine/difficulty.ts';
 import { createRules, type MoveResult } from '../chess/rules.ts';
-import { createGameState, type Activation } from '../chess/state.ts';
+import { createGameState, type Activation, type HistoryStep } from '../chess/state.ts';
 import { sameSquare, type Piece, type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale, type I18n } from '../i18n/index.ts';
 import { createMoveAnimation, type MoveAnimation } from '../render/animation.ts';
@@ -149,8 +149,10 @@ export function boot(host: Document = document): void {
     readonly hide: readonly Square[];
   }
 
-  let walkQueue: Walk[] = [];
   let walking: Walk | null = null;
+  /** Which way the walk is going, and whether the unit has another ply to move after this leg. */
+  let walkDirection: 'back' | 'forward' = 'back';
+  let walkMore = false;
 
   // ⚠️ Both declared ABOVE `createHud` on purpose. `createHud` calls its own `refresh()` while it
   // is still being built, `refresh` asks `canTakeBack`, and that reads `walking` — a `let` below
@@ -339,69 +341,85 @@ export function boot(host: Document = document): void {
    * There is no animation. A take-back is not a move being played, and pretending otherwise would
    * mean animating a piece backwards along a path it never took.
    */
+  /** Where a move's capture actually stood. En passant is the one case it is not `to`. */
+  const capturedSquare = (move: MoveResult): Square =>
+    (move.enPassant ? { x: move.to.x, y: move.from.y } : move.to);
+
+  /**
+   * ========================= ONE PLY PER LEG, NOT ALL OF THEM AT ONCE =========================
+   * This applied the whole take-back to the rules and then animated the plies one by one, and the
+   * bug that produced was visible from across the room: the SECOND piece stood on its destination
+   * from the moment the button was pressed, waited for the first to land, and only then flew there
+   * from where it had already left. It teleported, then travelled.
+   *
+   * The position now moves exactly one ply per leg, so what is drawn is always the position the
+   * rules are actually in. The state machine keeps the policy — two plies against an opponent, one
+   * in a hot seat — and hands it over a ply at a time through `more`.
+   */
   function walkHistory(direction: 'back' | 'forward'): void {
     // One walk at a time, and never on top of a move already in flight.
     if (walking || animation) return;
     opponent.cancel();
     thinking = false;
+    walkDirection = direction;
 
-    // The state machine does not report WHICH plies it moved, and it should not have to: the
-    // difference between the score sheet before and after says it exactly, and reading it here
-    // keeps the rules and the renderer from having to agree on a second vocabulary.
-    const before = rules.history().slice();
-    const moved = direction === 'back' ? game.takeBack() : game.replay();
-    if (!moved) {
+    const step = direction === 'back' ? game.takeBackStep() : game.replayStep();
+    if (!step) {
       srSay(i18n.t(direction === 'back' ? 'a11y.nothingToTakeBack' : 'a11y.nothingToReplay'));
       hud.refresh();
       return;
     }
-    const after = rules.history();
+    mirror.refresh();
+    hud.refresh();
+    beginWalkLeg(step);
+  }
 
-    walkQueue = direction === 'back'
-      // Newest first: the reply is unwound before the move it answered, which is the order the
-      // two pieces actually left the board in, run backwards.
-      ? before.slice(after.length).reverse().map((move) => ({
+  /** Draws one ply travelling, in whichever direction the walk is going. */
+  function beginWalkLeg(step: HistoryStep): void {
+    const move = step.move;
+    walkMore = step.more;
+    walking = walkDirection === 'back'
+      ? {
         piece: move.piece,
         from: move.to,
         to: move.from,
-        // Where the mover now stands, and where a piece it captured has just come back to. En
-        // passant is the one case in which those are not the move's own two squares.
-        hide: move.captured
-          ? [move.from, move.enPassant ? { x: move.to.x, y: move.from.y } : move.to]
-          : [move.from],
-      }))
-      : after.slice(before.length).map((move) => ({
-        piece: move.piece, from: move.from, to: move.to, hide: [move.to],
-      }));
+        // Where the mover now stands, and where a piece it took has just come back to. Both are
+        // on the board as far as the rules are concerned; both wait for the traveller to land.
+        hide: move.captured ? [move.from, capturedSquare(move)] : [move.from],
+      }
+      : { piece: move.piece, from: move.from, to: move.to, hide: [move.to] };
 
-    mirror.refresh();
-    hud.refresh();
-    // Said now rather than when the pieces land: the answer to a button press should not wait for
-    // an animation, and a screen reader user is not watching the animation at all.
-    srSay(i18n.t(direction === 'back' ? 'a11y.tookBack' : 'a11y.replayed', {
-      side: i18n.t(`turn.${rules.turn()}`),
-    }));
-    startNextWalk();
-  }
-
-  /** Starts the next leg of a walk, or finishes the walk if there is none left. */
-  function startNextWalk(): void {
-    const step = walkQueue.shift();
-    if (!step) {
-      walking = null;
-      animation = null;
-      syncPieces();
-      syncMarkers();
-      mirror.refresh();
-      hud.refresh();
-      // Advancing your own move alone leaves the opponent to answer, and nothing else would ask.
-      askOpponent();
-      return;
-    }
-    walking = step;
-    animation = createMoveAnimation(step.from, step.to, { reducedMotion: reducedMotion() });
+    animation = createMoveAnimation(walking.from, walking.to, { reducedMotion: reducedMotion() });
     syncPieces();
     syncMarkers();
+  }
+
+  /** The leg has landed: take the next ply, or end the walk. */
+  function continueWalk(): void {
+    if (walkMore) {
+      const next = walkDirection === 'back' ? game.takeBackStep() : game.replayStep();
+      if (next) {
+        mirror.refresh();
+        hud.refresh();
+        beginWalkLeg(next);
+        return;
+      }
+    }
+
+    walking = null;
+    animation = null;
+    walkMore = false;
+    syncPieces();
+    syncMarkers();
+    mirror.refresh();
+    hud.refresh();
+    // Said here rather than at the button press: mid-walk the board belongs to whoever has just
+    // been rewound past, and announcing THAT as the turn would be false for the whole animation.
+    srSay(i18n.t(walkDirection === 'back' ? 'a11y.tookBack' : 'a11y.replayed', {
+      side: i18n.t(`turn.${rules.turn()}`),
+    }));
+    // Advancing your own move alone leaves the opponent to answer, and nothing else would ask.
+    askOpponent();
   }
 
   function onActivate(square: Square): void {
@@ -507,11 +525,11 @@ export function boot(host: Document = document): void {
       pieces.moveTravelling(at.x, at.lift, at.z);
       dirty = true;
       if (!running) {
-        // A walk through the score sheet has its own ending: the next leg, or the settling that
-        // `startNextWalk` does when there is none. The state machine settled before the first leg
-        // began, so telling it the animation is done a second time would be a lie.
+        // A walk through the score sheet has its own ending: the next ply, or the settling that
+        // `continueWalk` does when there is none. The state machine settles itself on the LAST
+        // ply of the unit, so telling it the animation is done here would be a second, false one.
         if (walking) {
-          startNextWalk();
+          continueWalk();
         } else {
           animation = null;
           game.animationDone();

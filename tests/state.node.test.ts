@@ -321,3 +321,124 @@ describe('[History] take back and advance', () => {
     expect(game.legalTargets()).toEqual([]);
   });
 });
+
+// ========================= WHY THE PLIES COME OUT ONE AT A TIME =========================
+// Reported, and visible from across the room: pressing back showed the pieces already standing on
+// their destination squares, and only THEN animated them arriving there from where they had left.
+//
+// The cause was not in the animation. `takeBack()` moved both plies before anything was drawn, so
+// the second piece was on its destination from the moment the button was pressed and simply
+// waited its turn to fly there. Whatever the renderer did with that was going to be a lie.
+//
+// So the position moves one ply per drawn leg. `more` carries the policy — two plies against an
+// opponent, one in a hot seat — without the caller having to know what the policy is.
+
+describe('[History] one ply at a time, so it can be drawn honestly', () => {
+  const play = (game: ReturnType<typeof versus>, from: string, to: string) => {
+    game.activate(sq(from));
+    game.activate(sq(to));
+    game.animationDone();
+  };
+
+  const opened = () => {
+    const game = versus();
+    play(game, 'e2', 'e4');
+    game.applyOpponentMove(sq('e7'), sq('e5'));
+    game.animationDone();
+    return game;
+  };
+
+  it('moves exactly ONE ply and says the unit is unfinished', () => {
+    const game = opened();
+    const step = game.takeBackStep();
+    expect(step?.move.san).toBe('e5');
+    expect(step?.more).toBe(true);
+    // The half-rewound position: your move is still on the board, which is the whole point.
+    expect(game.rules.history().map((m) => m.san)).toEqual(['e4']);
+    expect(game.rules.pieceAt(sq('e4'))).toEqual({ type: 'p', side: 'w' });
+    expect(game.rules.pieceAt(sq('e5'))).toBeNull();
+  });
+
+  it('finishes on the second ply and settles there', () => {
+    const game = opened();
+    game.takeBackStep();
+    const second = game.takeBackStep();
+    expect(second?.move.san).toBe('e4');
+    expect(second?.more).toBe(false);
+    expect(game.rules.history()).toHaveLength(0);
+    expect(game.phase()).toBe('idle');
+  });
+
+  it('hands back the move that LEFT the board, which is what has to be drawn', () => {
+    const game = opened();
+    const step = game.takeBackStep();
+    // Travelling backwards means flying from the move's destination to its origin.
+    expect(toAlgebraic(step!.move.from)).toBe('e7');
+    expect(toAlgebraic(step!.move.to)).toBe('e5');
+    expect(step!.move.piece).toEqual({ type: 'p', side: 'b' });
+  });
+
+  it('carries the captured piece on the step, so the restore can be held back', () => {
+    const game = versus();
+    play(game, 'e2', 'e4');
+    game.applyOpponentMove(sq('d7'), sq('d5'));
+    game.animationDone();
+    play(game, 'e4', 'd5');
+    game.applyOpponentMove(sq('d8'), sq('d5'));
+    game.animationDone();
+
+    const step = game.takeBackStep();
+    expect(step?.move.captured).toEqual({ type: 'p', side: 'w' });
+    // Already back on the board as far as the rules are concerned — which is exactly why the
+    // renderer has to know to hide it until the traveller lands.
+    expect(game.rules.pieceAt(sq('d5'))).toEqual({ type: 'p', side: 'w' });
+  });
+
+  it('is one ply and finished in a hot seat', () => {
+    const game = solo();
+    game.activate(sq('e2'));
+    game.activate(sq('e4'));
+    game.animationDone();
+    const step = game.takeBackStep();
+    expect(step?.more).toBe(false);
+    expect(game.phase()).toBe('idle');
+  });
+
+  it('steps forward the same way, and leaves the opponent to think at the end', () => {
+    const game = opened();
+    game.takeBack();
+    const first = game.replayStep();
+    expect(first?.move.san).toBe('e4');
+    expect(first?.more).toBe(true);
+    const second = game.replayStep();
+    expect(second?.move.san).toBe('e5');
+    expect(second?.more).toBe(false);
+    expect(game.phase()).toBe('idle');
+  });
+
+  it('says there is nothing to step when there is nothing', () => {
+    const game = versus();
+    expect(game.takeBackStep()).toBeNull();
+    expect(game.replayStep()).toBeNull();
+  });
+
+  it('refuses to step while a piece is in flight', () => {
+    const game = versus();
+    game.activate(sq('e2'));
+    game.activate(sq('e4'));
+    expect(game.phase()).toBe('animating');
+    expect(game.takeBackStep()).toBeNull();
+  });
+
+  it('agrees with the whole-unit take-back it is built from', () => {
+    const stepwise = opened();
+    let step = stepwise.takeBackStep();
+    while (step?.more) step = stepwise.takeBackStep();
+
+    const atOnce = opened();
+    atOnce.takeBack();
+
+    expect(stepwise.rules.fen()).toBe(atOnce.rules.fen());
+    expect(stepwise.phase()).toBe(atOnce.phase());
+  });
+});
