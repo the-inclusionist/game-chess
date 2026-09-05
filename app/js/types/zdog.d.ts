@@ -123,6 +123,46 @@ declare module 'zdog' {
     constructor(options?: EllipseOptions);
   }
 
+  /**
+   * A tube: the curved wall plus an ellipse at each end. `length` runs along local Z, so a piece
+   * standing on the board wants `rotate: { x: TAU/4 }` — the same turn the flat Rects take.
+   *
+   * ========================= WHY THESE TWO APPEAR HERE AT ALL =========================
+   * Hartwig needed none of this: five of his six pieces are a Box, and the sixth adds a ball. A
+   * TURNED piece — anything cut on a lathe, which is every European chess pattern from the 18th
+   * century onward — is a stack of cylinders and cones, and Zdog has shipped both all along.
+   * Declaring them is therefore a real widening of the surface, and a deliberate one.
+   */
+  export interface CylinderOptions extends AnchorOptions {
+    diameter?: number;
+    length?: number;
+    color?: string;
+    stroke?: number | false;
+    fill?: boolean;
+    visible?: boolean;
+    backface?: string | boolean;
+    /** The flat disc at the far end, or false to leave it open. */
+    frontFace?: string | false;
+    /** The flat disc at the near end. */
+    backFace?: string | false;
+  }
+
+  export class Cylinder extends Anchor {
+    constructor(options?: CylinderOptions);
+    diameter: number;
+    length: number;
+    color: string;
+  }
+
+  export interface ConeOptions extends CylinderOptions {}
+
+  export class Cone extends Anchor {
+    constructor(options?: ConeOptions);
+    diameter: number;
+    length: number;
+    color: string;
+  }
+
   export interface BoxOptions extends AnchorOptions {
     width?: number;
     height?: number;
@@ -191,6 +231,8 @@ declare module 'zdog' {
     Rect: typeof Rect;
     Ellipse: typeof Ellipse;
     Hemisphere: typeof Hemisphere;
+    Cylinder: typeof Cylinder;
+    Cone: typeof Cone;
     Box: typeof Box;
     Illustration: typeof Illustration;
   };

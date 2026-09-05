@@ -1,6 +1,7 @@
 # The 2D board, the piece sets, and which of the two modes is actually the cheap one
 
-Status: **specification agreed, three decisions still open.** Nothing here is built yet.
+Status: **specification agreed; the two measurements it waited on are done.** The 2D weight is
+settled (§2) and the outline budget is settled (§5). No piece set is built yet.
 
 This document exists because two of the questions behind it have answers that are the opposite of
 what they sound like, and both were measured rather than assumed.
@@ -143,6 +144,89 @@ than using a design that has been in the public domain since before anyone alive
 and Lichess use — are CC-BY-SA 3.0. Usable with attribution, but share-alike is a condition to take
 deliberately rather than by accident, and the font route already gives the 2D board what it needs.
 
+## 5. The piece sets, and the budget that decides what they can be
+
+### ⚠️ The measurement that has to come first
+
+A figurative piece is not one solid; it is a dozen or two stacked and joined. Zdog outlines **every
+solid** and has no way not to — the outline here is a second body of identical geometry with
+`fill: false`, because Zdog's `stroke` is a WIDTH and a shape's `color` paints its fill and its
+stroke alike. So before drawing six pieces six times, the question was how much detail survives its
+own outline.
+
+Measured in `tests/outline-budget.browser.test.ts`, on one envelope sliced ever more finely so the
+silhouette and the volume are held constant and only the seams multiply:
+
+| slice | line px | filling px | painted px |
+|---|---|---|---|
+| 11.00 u | 348 | 352 | 867 |
+| 5.50 u | 397 | 288 | 867 |
+| **3.67 u** | 426 | **208** | 867 |
+| 2.75 u | 490 | 208 | 867 |
+| 1.38 u | 419 | 208 | 867 |
+| 0.69 u | 262 | 208 | 867 |
+
+Two readings, and the second is the one that decides the design:
+
+- The painted silhouette is **867 pixels at every slice height**. Nothing about the shape changes;
+  only how much of it is line rather than filling. That is the control.
+- The filling **floors at 208 — 24% of the piece — from 3.67 units down**, and never falls again
+  however fine the slicing gets. Past that point the outline has eaten everything it can eat, and
+  further detail is invisible. It costs painter-sort time and draws nothing new.
+
+The stroke is 1.5 units, so the floor sits at about **2.4 stroke widths**. Stated as a rule:
+
+> **A feature must be roughly two and a half stroke widths across to survive its own outline** —
+> 3.7 Zdog units, which is 23% of a 16-unit square. An eleven-unit-tall piece has room for about
+> **three stacked features**, and no more.
+
+### What that means for the sets that were asked for
+
+It means **none of them can be figurative, and all of them can be distinctive.** A knight cannot be
+a knight on a horse; it can be a horse's head in profile, which is what Staunton settled on in 1849
+for the same reason — the shape has to survive being small. An archer on a tower cannot be an
+archer; it can be a crenellated drum with a notch in it. An elephant cannot be an elephant; it can
+be a domed body with the curve of a trunk.
+
+That is not a retreat to Hartwig by another route. Hartwig's answer was to abandon representation
+entirely and encode the MOVE; these sets keep representation and spend their three features on
+silhouette. Both are legible at fourteen pixels, and they look nothing like each other, which is
+the point of offering them.
+
+It also means the piece count per set is bounded, and the frame budget stays intact: spike 0
+measured 450 sorted shapes at 1.44 ms, and a three-feature set outlined doubles to roughly 12
+shapes per piece — 384 for the pieces plus 64 squares, the same order of magnitude.
+
+### The catalogue
+
+**European, turned (abstract).** All three are lathe profiles, which is exactly the vocabulary
+`Zdog.Cylinder` and `Zdog.Cone` provide — declared in `types/zdog.d.ts` now, and confirmed by test
+to accept the same outline trick a Box does.
+
+| Set | Period | Licence position |
+|---|---|---|
+| A pattern in the 1849 manner, **unnamed** | 1849 | shapes long out of copyright; the NAME is a live trademark and is not used |
+| Régence | French, early 19th c. | out of copyright |
+| St George | English, early 19th c. | out of copyright |
+
+**Figurative, by silhouette.**
+
+| Set | Basis | Licence position |
+|---|---|---|
+| European medieval | armoured infantry, archer on the tower, rider, mitre, crown | iconography, not an author's work |
+| Maharaja / Rajasthani | the chaturanga lineage: elephant, camel, horse, chariot | traditional design; modelled here, never traced |
+| Sikh Empire | 19th-century Punjab | historic patterns only — ⚠️ modern makers' sets carry their own rights |
+| Lewis | 12th-century Norse, British Museum | the objects are ancient; ⚠️ the museum's photographs and 3D scans are not — model from proportions, never from a file |
+| Cangaceiros | Lampião-era Northeastern Brazil | ⚠️ the cleanest of all: a cultural type, not an author's work. Drawn here, owned by the Município, and the only set with a local tie |
+
+**⚠️ And one that was asked for and cannot be made.** A simplified Harry Potter set is not a
+calendar question like Hartwig. It is Warner Bros. and J.K. Rowling property, actively enforced,
+and the Wizard's Chess set of the first film is a specific protected design. For software owned by
+a município and distributed in public schools that is copyright and trademark infringement at once,
+and "simplified" is not a defence — a recognisable derivative is still a derivative. The nearest
+thing that CAN be built is a generic medieval-romantic set, which is what the European medieval row
+above is, and it was accepted in place of it.
+
 ## Open decisions
 
 1. ~~**Mode or game?**~~ **SETTLED by measurement**: one repository, two entry points. A 2D-only
@@ -151,4 +235,5 @@ deliberately rather than by accident, and the font route already gives the 2D bo
 2. **Pecita.** Not on Google Fonts, obtained from `pecita.eu`, SIL OFL — so subsetting and shipping
    is permitted if the licence is confirmed. Until it is, it belongs in the catalogue with the
    engine's own `off:` marker, which exists for exactly this state.
-3. **The figurative sets.** See §5.
+3. **Which sets to build first.** Nine are catalogued in §5 and the budget in that section says
+   what each of them can be. Order is a scheduling question, not a design one.
