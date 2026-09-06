@@ -162,3 +162,21 @@ describe('[Designs] Selenus counts and Sikh points', () => {
     }
   });
 });
+
+describe('[Designs] a dome has no height of its own', () => {
+  it('declares every dome at exactly half its diameter', () => {
+    // ⚠️ THE INVARIANT THE THREE.JS BUILDER NEEDS AND NOBODY HAD WRITTEN DOWN. Zdog's
+    // `Hemisphere` IS half a ball: its height is its radius and there is no way to say otherwise.
+    // The table lets a dome carry an `h` of its own, so a value that is not d/2 would draw one
+    // way in the flat renderer and another way in the solid one — two pictures of one piece, with
+    // nothing failing.
+    for (const design of PIECE_DESIGNS) {
+      for (const type of ['p', 'n', 'b', 'r', 'q', 'k'] as PieceType[]) {
+        for (const part of design.specs[type].turned ?? []) {
+          if (part.shape !== 'dome') continue;
+          expect(`${design.key} ${type} ${part.h}`).toBe(`${design.key} ${type} ${part.d / 2}`);
+        }
+      }
+    }
+  });
+});

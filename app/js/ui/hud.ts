@@ -153,7 +153,7 @@ export interface Hud {
 const VIEW_PAGES: readonly (readonly [ViewKind, string | null])[] = [
   ['2d', '2d.html'],
   ['2.5d', 'index.html'],
-  ['3d', null],
+  ['3d', '3d.html'],
 ];
 
 export function createHud(deps: HudDeps): Hud {
@@ -190,9 +190,9 @@ export function createHud(deps: HudDeps): Hud {
   if (deps.view) {
     const here = deps.view;
     for (const [kind, href] of VIEW_PAGES) {
-      // ⚠️ The 3D view does not exist yet. It is shown and disabled rather than hidden, because a
-      // control that appears later moves the other two, and because saying "not yet" is more
-      // useful than pretending there were only ever two.
+      // ⚠️ All three exist now. The `null` case stays: a view that is not built yet is shown and
+      // disabled rather than hidden, because a control that appears later moves the other two,
+      // and because saying "not yet" is more useful than pretending there were only ever two.
       const pending = href === null;
       const el = doc.createElement(pending ? 'span' : 'a');
       el.className = 'hud-view';

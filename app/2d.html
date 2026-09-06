@@ -453,6 +453,26 @@
   #game-region[data-contrast="high"] .player-strip,
   #game-region[data-contrast="high"] .board-eval { color: #FFFFFF; }
 
+
+  /*
+   * ========================= THE WEBGL BOARD =========================
+   * ⚠️ It is NOT laid out like the other two. Those render into the engine's 320×180 and are
+   * upscaled by whole pixels, because a drawing of flat shapes is a pixel image and a fractional
+   * upscale turns its outlines to mush. This canvas is resolution-independent, so it simply fills
+   * the space the panel leaves and renders at the device's own pixels.
+   *
+   * `touch-action: none` because the board is TURNED by dragging on it, and without this a touch
+   * drag scrolls the page instead — on a tablet, which is the machine most likely to be in a
+   * classroom.
+   */
+  .stage-3d {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 72.5%;
+    display: block;
+    touch-action: none;
+  }
+
   .hud-nav { display: flex; gap: 0.3em; }
   .hud-nav button {
     flex: 1 1 0; min-width: 0; min-height: var(--tap, 44px);

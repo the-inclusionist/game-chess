@@ -27,6 +27,7 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL('./app/index.html', import.meta.url)),
         flat: fileURLToPath(new URL('./app/2d.html', import.meta.url)),
+        solid: fileURLToPath(new URL('./app/3d.html', import.meta.url)),
       },
     },
   },

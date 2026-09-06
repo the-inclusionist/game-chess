@@ -5,7 +5,9 @@
   "type": "module",
   "description": "Josef Hartwig's Bauhaus chess set (1924) in pseudo-3D, drawn with Zdog and composited with PixiJS, on the Inclusionist accessibility engine.",
   "license": "AGPL-3.0-or-later",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -19,7 +21,9 @@
   },
   "dependencies": {
     "@the-inclusionist/engine": "file:../SP-the-inclusionist-tracer",
+    "@types/three": "^0.185.4",
     "chess.js": "^1.4.0",
+    "three": "^0.185.1",
     "zdog": "^1.1.3"
   },
   "devDependencies": {

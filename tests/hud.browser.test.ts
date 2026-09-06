@@ -353,14 +353,19 @@ describe('[Views] 2D, 2.5D and 3D across the top of the panel', () => {
     expect(projected.getAttribute('href')).toBe('index.html');
   });
 
-  it('shows the view that does not exist yet as disabled, and says why', () => {
+  it('links all three views, none of them disabled any more', () => {
+    // ⚠️ The 3D view used to be shown and DISABLED, because saying "not yet" is more useful than
+    // pretending there were only ever two. It exists now, so it is a link like the others — and
+    // the `null` case stays in `VIEW_PAGES` for the next view that does not exist yet.
     build();
-    const third = views()[2];
-    // A control that appears later moves the other two; saying "not yet" beats pretending there
-    // were only ever two.
-    expect(third.tagName).toBe('SPAN');
-    expect(third.getAttribute('aria-disabled')).toBe('true');
-    expect(third.getAttribute('aria-label')).toContain('ainda não disponível');
+    const views = [...document.querySelectorAll('.hud-view')];
+    expect(views).toHaveLength(3);
+    for (const view of views) {
+      expect(`${view.getAttribute('data-view')} ${view.hasAttribute('aria-disabled')}`)
+        .toBe(`${view.getAttribute('data-view')} false`);
+    }
+    expect(views.map((v) => v.getAttribute('href')))
+      .toEqual(['2d.html', 'index.html', '3d.html']);
   });
 
   it('names each destination in the language the reader chose', () => {
