@@ -13,13 +13,13 @@ const sq = (name: string): Square => {
   return s;
 };
 
-function build(fen?: string, locale: 'pt' | 'en' | 'es' = 'pt') {
+function build(fen?: string, locale: 'pt' | 'en' | 'es' = 'pt', playerSide: 'w' | 'b' = 'w') {
   const rules = createRules(fen);
   const state = createGameState({ rules, opponent: false });
   const i18n = createI18n(locale);
   let cursor: Square = sq('e2');
   const declaration = createChessDeclaration({
-    rules, state, i18n, cursor: () => cursor,
+    rules, state, i18n, playerSide, cursor: () => cursor,
   });
   return { rules, state, i18n, declaration, setCursor: (s: Square) => { cursor = s; } };
 }
@@ -85,6 +85,42 @@ describe('[Roles] the platformer vocabulary, in chess', () => {
       }
     }
     expect(hazards.sort()).toEqual(['a6', 'b6', 'c6', 'd6', 'e6', 'f6', 'g6', 'h6']);
+  });
+});
+
+describe('[Roles] a player who chose black is told THEIR board', () => {
+  /*
+   * ⚠️ NO ROOT EVER PASSED `playerSide`, for the whole life of this game, so `mine` defaulted
+   * to white and a player who chose black was told the board from the other side of it: their own
+   * pieces `key`, the piece hunting their king `structure`, the king they were defending `goal`.
+   *
+   * None of that is visible. The seven fields feed the sonar and the screen reader and nothing
+   * else — so it was wrong only for the players those fields exist for.
+   */
+  it('calls black’s own men structure and white’s king the goal', () => {
+    const { declaration } = build(undefined, 'pt', 'b');
+    expect(declaration.roleAt(sq('e7'))).toBe('structure');
+    expect(declaration.roleAt(sq('a8'))).toBe('structure');
+    expect(declaration.roleAt(sq('d1'))).toBe('key');
+    expect(declaration.roleAt(sq('e1'))).toBe('goal');
+  });
+
+  it('is the exact mirror of what white is told', () => {
+    const white = build(undefined, 'pt', 'w').declaration;
+    const black = build(undefined, 'pt', 'b').declaration;
+    // The same square, the two points of view, and never the same answer where a piece stands.
+    expect(white.roleAt(sq('e2'))).toBe('structure');
+    expect(black.roleAt(sq('e2'))).toBe('key');
+    expect(white.roleAt(sq('e8'))).toBe('goal');
+    expect(black.roleAt(sq('e8'))).toBe('structure');
+  });
+
+  it('warns about the squares the OTHER side covers', () => {
+    // `hazard` is an empty square the opponent attacks, so whose opponent it is decides the whole
+    // answer. On the opening board it is white's third rank for black, not black's sixth.
+    const black = build(undefined, 'pt', 'b').declaration;
+    expect(black.roleAt(sq('e3'))).toBe('hazard');
+    expect(black.roleAt(sq('e6'))).toBe('free');
   });
 });
 

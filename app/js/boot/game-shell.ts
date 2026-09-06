@@ -237,7 +237,19 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     blunders: (side) => reviewer.blunders(side),
   });
 
-  const declaration = createChessDeclaration({ rules, state: game, i18n, cursor: () => cursor });
+  /*
+   * ⚠️ `playerSide` WAS NEVER PASSED, by any of the three roots, for the whole life of this
+   * game. `createChessDeclaration` defaults it to white — so a player who chose black was told the
+   * board from the other side of it: their own pieces declared `key`, the piece hunting their king
+   * declared `structure`, and the king they were defending declared `goal`.
+   *
+   * Nothing about that is visible. The seven fields feed the sonar and the screen reader and
+   * nothing else, so it was wrong only for the players who cannot see the board — which is the
+   * whole audience those fields exist for.
+   */
+  const declaration = createChessDeclaration({
+    rules, state: game, i18n, playerSide, cursor: () => cursor,
+  });
   const engine = createGame({
     declaration,
     host: { doc: host, win: window, cvdHost: host.getElementById('cvd') },
