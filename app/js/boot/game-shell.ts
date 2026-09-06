@@ -174,7 +174,18 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   const stage = host.getElementById('stage') ?? region;
   const column = host.getElementById('side-column') ?? region;
 
-  const i18n = createI18n(preferredLocale(navigator.language));
+  /*
+   * ⚠️ THE REMEMBERED LANGUAGE BEATS THE BROWSER'S, and until now there was no remembered one to
+   * beat it with: `setLocale` existed on the interface and was called nowhere in production, so
+   * three catalogues shipped and only the browser could pick between them.
+   */
+  const startingLocale = (() => {
+    const saved = loadSettings().locale;
+    return saved === 'pt' || saved === 'en' || saved === 'es'
+      ? saved
+      : preferredLocale(navigator.language);
+  })();
+  const i18n = createI18n(startingLocale);
   host.documentElement.lang = i18n.bcp47();
 
   // ========================= THE GAME SURVIVES A CHANGE OF VIEW =========================
@@ -489,6 +500,19 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       }
       : {}),
 
+    /*
+     * ⚠️ NAMED IN THEIR OWN LANGUAGES. A reader looking for Spanish is looking for "Español", not
+     * for this game's Portuguese word for Spanish — which is the one string a language menu must
+     * not translate.
+     */
+    locales: [
+      { code: 'pt', name: 'Português' },
+      { code: 'en', name: 'English' },
+      { code: 'es', name: 'Español' },
+    ],
+    locale: () => i18n.getLocale(),
+    onLocale: (code) => { void changeLocale(code); },
+
     ...view.hudControls,
 
     canTakeBack: () => !walking && game.canTakeBack(),
@@ -527,6 +551,38 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   // Below the blunder bar: a warning about the move just played is more urgent than the engine's
   // running commentary.
   below.appendChild(thinking.root);
+
+  /**
+   * Changes the language, everywhere, without losing where anybody was.
+   *
+   * ⚠️ THE LESSON PROSE HAS TO BE FETCHED AGAIN. It is a dynamic import per language, so a panel
+   * refreshed before the new catalogue lands shows raw keys — which is the documented behaviour of
+   * `t()` and useless to a child. Awaited first, then everything is redrawn.
+   *
+   * ⚠️ AND NOTHING IS REBUILT. Every panel re-reads its own strings, so the focused cell, the
+   * open lesson, the step being answered and the reader's place in the list all survive. Rebuilding
+   * would have been easier and would have thrown a child out of the lesson they were mid-way
+   * through, for the crime of changing language.
+   */
+  async function changeLocale(code: string): Promise<void> {
+    if (code !== 'pt' && code !== 'en' && code !== 'es') return;
+    if (code === i18n.getLocale()) return;
+    prefs.save({ locale: code });
+    i18n.setLocale(code);
+    host.documentElement.lang = i18n.bcp47();
+    if (lessonMode) {
+      const { loadTeach } = await import('../i18n/teach/index.ts');
+      i18n.extend(code, await loadTeach(code));
+    }
+    hud.refresh();
+    mirror.refresh();
+    lessonPanel?.refresh();
+    refreshLessonMenu();
+    pause.refresh();
+    players.refresh();
+    thinking.refresh?.();
+    blunderBar.refresh();
+  }
 
   /* ============================ THE TEACHING MODE ============================ */
 
@@ -568,6 +624,8 @@ export function createGameShell(deps: GameShellDeps): GameShell {
    */
   /** The lesson's own side panel, in the slot the HUD normally fills. */
   let lessonMenu: import('../ui/lesson-menu.ts').LessonMenu | null = null;
+  /** The lesson section inside it, kept so a change of language can re-read its strings. */
+  let lessonPanel: import('../ui/lesson-panel.ts').LessonPanel | null = null;
 
   /** Redraws the lesson menu. Cheap, and called after anything that could change it. */
   function refreshLessonMenu(): void {
@@ -599,6 +657,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       say: (text) => { srSay(text); refreshLessonMenu(); },
       onLeave: () => {
         panel.destroy();
+        lessonPanel = null;
         lessonMenu?.destroy();
         lessonMenu = null;
         lessonMode = null;
@@ -617,6 +676,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
      * whose turn it is, the captures, the move list, the difficulty, the take-back pair — so it
      * steps aside entirely rather than hiding nine of its twelve controls and pretending.
      */
+    lessonPanel = panel;
     lessonMenu = createLessonMenu({
       doc: host,
       i18n,

@@ -180,6 +180,7 @@ export const pt: Catalog = {
     'lesson.step': 'Passo {at} de {of}',
     'lesson.found': '{done} de {of} casas',
     'lesson.finished': 'Aula concluída',
+    'hud.language': 'Idioma',
     'hud.lessons': 'Aulas',
     /*
      * ⚠️ OS TÍTULOS SÃO MOLDURA, NÃO PROSA, e por isso moram aqui e não em `i18n/teach/`.

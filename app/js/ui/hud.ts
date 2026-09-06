@@ -52,6 +52,10 @@ export interface HudDeps {
   rules(): Rules;
   state(): GameState;
   /** A key from the engine's VIZ_MODES, or 'normal'. */
+  /** The languages on offer, and the one in use. Absent means the game cannot change language. */
+  locales?: readonly { readonly code: string; readonly name: string }[];
+  locale?(): string;
+  onLocale?(code: string): void;
   vision(): string;
   onVision(key: string): void;
   reducedMotion(): boolean;
@@ -231,6 +235,30 @@ export function createHud(deps: HudDeps): Hud {
    */
   const settings = doc.createElement('div');
   settings.className = 'hud-settings';
+
+  /*
+   * ⚠️ FIRST IN THE SETTINGS, ABOVE THE VIEW SWITCH. Somebody who cannot read the panel cannot
+   * find anything else in it — so the control that fixes that comes before the controls that
+   * assume it. The option NAMES are in their own languages ("Português", "English", "Español")
+   * rather than translated, for the same reason: a reader looking for their language is looking
+   * for the word they know, not for this game's word for it.
+   */
+  const localeBox = doc.createElement('p');
+  localeBox.className = 'hud-field';
+  const localeLabel = doc.createElement('label');
+  const localeSelect = doc.createElement('select');
+  localeSelect.id = 'hud-locale';
+  localeLabel.htmlFor = localeSelect.id;
+  localeBox.append(localeLabel, localeSelect);
+  if (deps.locales) {
+    for (const { code, name } of deps.locales) {
+      const option = doc.createElement('option');
+      option.value = code;
+      option.textContent = name;
+      localeSelect.appendChild(option);
+    }
+    settings.appendChild(localeBox);
+  }
 
   const views = doc.createElement('nav');
   views.className = 'hud-views';
@@ -570,6 +598,9 @@ export function createHud(deps: HudDeps): Hud {
   function onLessonClick(): void { deps.onLesson?.(lessonSelect.value); }
   lessonButton.addEventListener('click', onLessonClick);
 
+  function onLocaleChange(): void { deps.onLocale?.(localeSelect.value); }
+  localeSelect.addEventListener('change', onLocaleChange);
+
   function onVisionChange(): void { deps.onVision(visionSelect.value); }
   visionSelect.addEventListener('change', onVisionChange);
 
@@ -780,6 +811,10 @@ export function createHud(deps: HudDeps): Hud {
         // silently reset the select to the first lesson under their hand.
         if (list.some((l) => l.id === chosen)) lessonSelect.value = chosen;
       }
+      if (deps.locales) {
+        localeLabel.textContent = i18n.t('hud.language');
+        localeSelect.value = deps.locale?.() ?? '';
+      }
       hintButton.textContent = i18n.t('hud.hint');
       hintButton.disabled = false;
       const on = deps.hintsOn?.();
@@ -835,6 +870,7 @@ export function createHud(deps: HudDeps): Hud {
       for (const { input } of modeGroup.options) input.removeEventListener('change', onModeInput);
       hintButton.removeEventListener('click', onHintClick);
       lessonButton.removeEventListener('click', onLessonClick);
+      localeSelect.removeEventListener('change', onLocaleChange);
       strengthSelect.removeEventListener('change', onStrengthChange);
       protectedInput.removeEventListener('change', onProtectedChange);
       visionSelect.removeEventListener('change', onVisionChange);

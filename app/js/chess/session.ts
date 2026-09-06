@@ -164,6 +164,15 @@ export function resume(store: SessionStore | null = defaultStore()): Rules {
  * own settings and are its to remember; this is the short list this game owns.
  */
 export interface ViewSettings {
+  /**
+   * The language, once somebody has chosen one.
+   *
+   * ⚠️ ABSENT MEANS "ASK THE BROWSER", which is what the game did exclusively until now — and
+   * exclusively was the bug: three catalogues shipped and `setLocale` was never called anywhere in
+   * production, so a child on a Portuguese machine could not read the game in Spanish however much
+   * they wanted to. A chosen language has to outlive a change of view like every other choice here.
+   */
+  readonly locale?: string;
   readonly theme?: string;
   readonly set?: string;
   readonly coordinates?: boolean;
@@ -228,9 +237,10 @@ export function loadSettings(store: SessionStore | null = defaultStore()): ViewS
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return {};
     const {
-      theme, set, design, coordinates, mode, elo, hints, protect,
+      locale, theme, set, design, coordinates, mode, elo, hints, protect,
     } = parsed as ViewSettings;
     return {
+      ...(locale === 'pt' || locale === 'en' || locale === 'es' ? { locale } : {}),
       ...(typeof theme === 'string' ? { theme } : {}),
       ...(typeof set === 'string' ? { set } : {}),
       ...(typeof coordinates === 'boolean' ? { coordinates } : {}),

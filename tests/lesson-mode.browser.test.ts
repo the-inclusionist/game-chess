@@ -13,7 +13,7 @@ import { createGameShell, type GameShell } from '../app/js/boot/game-shell.ts';
 import { createLessonMode, type LessonMode } from '../app/js/boot/lesson-mode.ts';
 import { createLessonPanel } from '../app/js/ui/lesson-panel.ts';
 import type { BoardView, ViewContext } from '../app/js/boot/view.ts';
-import { clear, loadProgress, saveSettings } from '../app/js/chess/session.ts';
+import { clear, loadProgress, loadSettings, saveSettings } from '../app/js/chess/session.ts';
 import { fromAlgebraic, type Square } from '../app/js/chess/types.ts';
 
 const at = (name: string): Square => {
@@ -568,5 +568,91 @@ describe('[Actions] the four buttons reach the lesson', () => {
     press('Escape');
     const actions = [...document.querySelectorAll('.pause-action')].map((b) => b.textContent);
     expect(actions).toContain('Sair da aula');
+  });
+});
+
+describe('[Language] the switch the game never had', () => {
+  /*
+   * ⚠️ THREE CATALOGUES SHIPPED AND `setLocale` WAS CALLED NOWHERE IN PRODUCTION. The language was
+   * decided at boot from `navigator.language` and never again, so a child on a Portuguese machine
+   * could not read the game in Spanish however much they wanted to — and the plan's own
+   * verification list has had "changing language mid-lesson keeps the progress" on it, unrunnable,
+   * since it was written.
+   */
+  const chooseLanguage = async (code: string): Promise<void> => {
+    /*
+     * ⚠️ WAITS FOR THE TEXT TO CHANGE, not for it to stop looking like a key. The prose is a
+     * dynamic import per language, so the change is asynchronous — and the first version of this
+     * helper waited for "no longer a raw key", which was already true of the Portuguese it was
+     * replacing. It exited immediately, and the test then read the old language and blamed the
+     * switch. It passed alone and failed in the full suite, which is what a race looks like.
+     */
+    const before = document.querySelector('#side-column .lesson-say')?.textContent ?? '';
+    const select = document.getElementById('hud-locale') as HTMLSelectElement;
+    select.value = code;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    const deadline = Date.now() + 3000;
+    while ((document.querySelector('#side-column .lesson-say')?.textContent ?? '') === before
+      && Date.now() < deadline) {
+      await new Promise((resolve) => { setTimeout(resolve, 10); });
+    }
+    await settle();
+  };
+
+  it('offers the three languages, named in their own words', () => {
+    const select = document.getElementById('hud-locale') as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent))
+      .toEqual(['Português', 'English', 'Español']);
+  });
+
+  /*
+   * ⚠️ SCOPED TO THE COLUMN. `beforeEach` builds its own panel for the driver tests and appends it
+   * to the body, so a bare `.lesson-say` finds THAT one — empty — rather than the one the shell
+   * opened. The first version of this test read the wrong element and reported the language switch
+   * broken.
+   */
+  const inColumn = (selector: string): string =>
+    document.querySelector(`#side-column ${selector}`)?.textContent ?? '';
+
+  it('⚠️ translates the lesson being taken, without losing the step', async () => {
+    expect(shell.teach()).toBe(true);
+    const deadline = Date.now() + 3000;
+    while (!document.getElementById('lesson-teacher') && Date.now() < deadline) {
+      await new Promise((resolve) => { setTimeout(resolve, 10); });
+    }
+    /*
+     * ⚠️ THE SHELL'S OWN MODE USES THE REAL 800 ms HOLD. Every other test here injects zero, so
+     * `settle()` is enough for them; this one goes through `shell.teach()` and has to wait for the
+     * answer to be shown before the step turns over. Polling for the step, not for a duration.
+     */
+    shell.activate(at('e4'));
+    const stepDeadline = Date.now() + 3000;
+    while (!inColumn('.lesson-say').includes('c6') && Date.now() < stepDeadline) {
+      await new Promise((resolve) => { setTimeout(resolve, 20); });
+    }
+    expect(inColumn('.lesson-say')).toContain('Agora toque em c6');
+
+    await chooseLanguage('en');
+    // The same step, in English: the place in the lesson is a fact about the reader, not about
+    // the language they are reading it in.
+    expect(inColumn('.lesson-say')).toContain('Now touch c6');
+    expect(inColumn('.lesson-counter')).toContain('Step 2 of 4');
+    expect(document.querySelector('.lesson-entry[aria-current]')!.textContent)
+      .toContain('Reading the board');
+  });
+
+  it('translates the board labels too, and keeps the cursor', async () => {
+    shell.mirror.focusSquare(at('d4'));
+    await chooseLanguage('es');
+    expect(document.querySelector('[data-square="d4"]')!.getAttribute('aria-label'))
+      .toContain('vacía');
+    expect(shell.mirror.cursor()).toEqual(at('d4'));
+  });
+
+  it('remembers the choice, because a language that reset per view would be a bug', () => {
+    const select = document.getElementById('hud-locale') as HTMLSelectElement;
+    select.value = 'es';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(loadSettings().locale).toBe('es');
   });
 });

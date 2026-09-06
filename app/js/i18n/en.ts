@@ -166,6 +166,7 @@ export const en: Catalog = {
     'lesson.step': 'Step {at} of {of}',
     'lesson.found': '{done} of {of} squares',
     'lesson.finished': 'Lesson finished',
+    'hud.language': 'Language',
     'hud.lessons': 'Lessons',
     'teach.notation.title': 'Reading the board',
     'teach.values.title': 'What each piece is worth',

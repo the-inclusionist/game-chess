@@ -167,6 +167,7 @@ export const es: Catalog = {
     'lesson.step': 'Paso {at} de {of}',
     'lesson.found': '{done} de {of} casillas',
     'lesson.finished': 'Lección terminada',
+    'hud.language': 'Idioma',
     'hud.lessons': 'Lecciones',
     'teach.notation.title': 'Leer el tablero',
     'teach.values.title': 'Cuánto vale cada pieza',
