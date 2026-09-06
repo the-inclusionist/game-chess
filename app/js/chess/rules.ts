@@ -70,6 +70,11 @@ export interface Rules {
    * `before` and `after` FEN for every single move. Across a few thousand nodes that is the
    * difference between a search that answers and one that hangs.
    *
+   * ⚠️ THE ABSOLUTE NUMBERS ARE ONE MACHINE ON ONE DAY; THE RATIO IS THE CLAIM, and it can be
+   * re-checked rather than believed: `node scripts/bench-chess-js.mjs`. This matters because the
+   * argument has an expiry date — the day a chess.js release stops building both FENs, this whole
+   * second interface becomes complexity with nothing behind it.
+   *
    * `searchPlay` also skips building a MoveResult and skips the history, for the same reason.
    */
   searchMoves(): readonly string[];
