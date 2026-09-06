@@ -76,7 +76,20 @@ export type Task =
    * One square is "touch e4" — the notation lesson, and the same gesture the game's own hint asks
    * for. Several is "find every square this bishop attacks".
    */
-  | { readonly kind: 'mark'; readonly want: readonly SquareName[] }
+  | {
+    readonly kind: 'mark';
+    readonly want: readonly SquareName[];
+    /**
+     * The square whose LEGAL TARGETS this set is meant to be, when it is meant to be that.
+     *
+     * ⚠️ THIS IS FOR THE TEST, and it is the difference between an invariant and a list somebody
+     * maintains by hand. "Find every square this bishop attacks" is a claim the rules can settle;
+     * "touch e4" is not. Naming the piece lets the table test re-derive the first kind and leave
+     * the second alone — and it makes the check TOTAL, which a hand-written map of lesson ids was
+     * not: the knight's second step was wrong and the map did not cover it.
+     */
+    readonly reachOf?: SquareName;
+  }
   /**
    * Pick one written answer.
    *
