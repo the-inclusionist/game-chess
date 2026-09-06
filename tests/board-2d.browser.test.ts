@@ -337,9 +337,14 @@ describe('[Themes] six named palettes, measured', () => {
     }
   });
 
-  it('separates the two pieces past the floor on every board', () => {
+  it('separates the two pieces well past the floor on every board', () => {
+    // ⚠️ 8 was the bound until the coloured palette's dark piece became BLUE instead of black.
+    // Yellow against #3557A8 is 6.35 — twice the floor, and deliberately less than the 19.56 it
+    // had against black: that palette exists for someone who reads hue faster than lightness, and
+    // yellow-against-blue is the most robust hue pair there is under every kind of colour
+    // blindness. Trading some luminance for that is the whole point of it.
     for (const theme of BOARD_THEMES) {
-      expect(contrast(theme.white, theme.black)).toBeGreaterThan(8);
+      expect(`${theme.key} ${contrast(theme.white, theme.black) > 6}`).toBe(`${theme.key} true`);
     }
   });
 

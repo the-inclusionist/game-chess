@@ -29,7 +29,7 @@ import { DEFAULT_ELO, STRENGTH_LADDER } from '../chess/engine/strength.ts';
 import { createThinkingPanel } from '../ui/thinking.ts';
 import { type MoveResult } from '../chess/rules.ts';
 import {
-  clear as clearGame, loadSettings, resume, save as saveGame, saveSettings,
+  loadSettings, resume, save as saveGame, saveSettings,
 } from '../chess/session.ts';
 import { createGameState, type Activation } from '../chess/state.ts';
 import { type Side, type Square, toAlgebraic } from '../chess/types.ts';
@@ -261,10 +261,25 @@ export function boot2d(host: Document = document): void {
     }
   }
 
+  /**
+   * ========================= CHANGING SIDES KEEPS THE GAME =========================
+   * ⚠️ IT USED TO THROW THE GAME AWAY, on the argument that the position and the score sheet
+   * belong to whoever played them. That argument is about who gets CREDIT for a game, and nobody
+   * pressing this button is asking about credit — they are asking to swap seats, or to hand the
+   * board to somebody else, or to see the position from the other side. Deleting their game to
+   * answer that is a very expensive way to be principled.
+   *
+   * So the score sheet stays. The reload remains, because the composition root wires one game
+   * into a dozen closures and rebuilding those by hand would be a second, quieter way of getting
+   * it wrong — but it reloads INTO the same game, restored from the moves as it always is.
+   *
+   * And it flags itself as an in-app move, so the title screen stays out of the way. That screen
+   * exists to cover the engine's download and nothing else.
+   */
   function chooseMode(next: GameMode): void {
     if (next === mode) return;
     saveSettings({ ...currentSettings(), mode: next });
-    clearGame();
+    try { sessionStorage.setItem('incl_chess_switching', '1'); } catch { /* private mode */ }
     window.location.reload();
   }
 

@@ -85,7 +85,7 @@
     margin: 1.6em 0 0;
     min-height: 1.4em;
     font-size: clamp(0.85rem, 2.4vmin, 1.05rem);
-    color: #8b98a5;
+    color: #A0ABB5;
   }
   /*
    * Bigger than the 44 px floor, because it is the only control on the screen and the first thing
@@ -143,6 +143,26 @@
    * is 27.5% however the region is scaled. Sizes come from the engine's own --ui-fs and --tap,
    * so the HUD grows with the board instead of drifting away from it.
    */
+  /*
+   * ========================= ⚠️ WCAG 2.2 AAA IN THE ORDINARY PALETTES TOO =========================
+   * The high-contrast boards were audited first and the panel passed on them, because there it is
+   * white on black. On every OTHER board the panel keeps its own colours, and audited element by
+   * element it was short in exactly three inks — three, for thirteen failing pieces of text and
+   * five failing control boundaries:
+   *
+   *   #8b949e  5.70:1  labels, legends, section headings, the checkbox captions   -> #A3ABB2  7.54
+   *   #8b98a5  5.96:1  the score table's caption and column headings              -> #A0ABB5  7.51
+   *   #2b3a4a  1.51:1  the border of every view link, nav button and side button  -> #506C8A  3.22
+   *
+   * 1.4.6 asks 7:1 of body text and 1.4.11 asks 3:1 of a control's own boundary — and that last
+   * one was the worse miss: at 1.51 those controls had no edge at all against the panel, which is
+   * a button you can only find by knowing where it is.
+   *
+   * ⚠️ ONLY LIGHTNESS MOVED. Hue and saturation are carried across unchanged — 211.6° stays
+   * 208.0° and 211.0° stays 211.0°, the difference being what eight bits per channel can express —
+   * so the panel is the same colour it always was, further from its background. Making it
+   * compliant by turning it grey would have been a different panel.
+   */
   .hud {
     position: absolute;
     inset: 0 0 0 auto;
@@ -156,7 +176,7 @@
     line-height: 1.25;
     color: #c9d1d9;
     background: #111a24;
-    border-left: 1px solid #2b3a4a;
+    border-left: 1px solid #506C8A;
 
     /* ========================= THE PANEL SCROLLS =========================
        It used to be `overflow: hidden`, on the assumption that the move list was the only thing
@@ -187,7 +207,7 @@
     text-decoration: none;
     color: #c9d1d9;
     background: #1b2733;
-    border: 1px solid #2b3a4a;
+    border: 1px solid #506C8A;
     border-radius: 2px;
   }
   .hud-view:hover { background: #24344a; }
@@ -202,7 +222,7 @@
 
   .hud h2 {
     margin: 0; font-size: 0.75em; font-weight: 600;
-    color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em;
+    color: #A3ABB2; text-transform: uppercase; letter-spacing: 0.04em;
   }
   .hud p { margin: 0; }
   .hud-turn { display: flex; align-items: center; gap: 0.4em; font-weight: 600; }
@@ -272,11 +292,11 @@
   .hud-score caption {
     text-align: left;
     font-size: 0.95em; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
-    color: #8b98a5;
+    color: #A0ABB5;
     padding-bottom: 0.2em;
   }
   .hud-score th, .hud-score td { padding: 0.15em 0.25em; text-align: right; }
-  .hud-score thead th { font-weight: 600; color: #8b98a5; }
+  .hud-score thead th { font-weight: 600; color: #A0ABB5; }
   .hud-score tbody th { text-align: left; font-weight: 600; }
   /* Tabular figures, so a column of numbers does not shuffle sideways as the game goes on. */
   .hud-score td { font-variant-numeric: tabular-nums; }
@@ -384,7 +404,7 @@
   .player-name {
     margin: 0;
     font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-    font-size: 0.85em; color: #8b98a5;
+    font-size: 0.85em; color: #A0ABB5;
   }
   .player-row { margin: 0; display: flex; align-items: baseline; gap: 0.4em; min-width: 0; }
 
@@ -395,7 +415,7 @@
   .player-mistakes {
     flex: 0 0 auto;
     font-variant-numeric: tabular-nums;
-    color: #8b98a5;
+    color: #A0ABB5;
   }
   .player-mistakes[data-level="mid"] { color: #E8C07D; }
   .player-mistakes[data-level="high"] { color: #FF8B7D; }
@@ -425,7 +445,7 @@
     font-size: 1.6em; font-weight: 800;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
-    color: #8b98a5;
+    color: #A0ABB5;
   }
   .board-eval[data-lead="white"] { color: #F2F6FA; }
   .board-eval[data-lead="black"] { color: #B79BE8; }
@@ -439,13 +459,13 @@
     display: flex; align-items: center; justify-content: center; gap: 0.2em;
     font: inherit; font-size: 0.75em;
     color: #c9d1d9; background: #1b2733;
-    border: 1px solid #2b3a4a; border-radius: 2px;
+    border: 1px solid #506C8A; border-radius: 2px;
     cursor: pointer;
   }
   .hud-nav button:hover:not(:disabled) { background: #24344a; }
   .hud-nav button:disabled { opacity: 0.45; cursor: default; }
   .hud-nav-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .hud label { display: block; font-size: 0.75em; color: #8b949e; }
+  .hud label { display: block; font-size: 0.75em; color: #A3ABB2; }
 
   /*
    * ========================= TWO OR THREE OPTIONS ARE BUTTONS =========================
@@ -461,7 +481,7 @@
   .hud-choice { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px; }
   .hud-choice legend {
     width: 100%; padding: 0; margin-bottom: 0.15em;
-    font-size: 0.75em; color: #8b949e;
+    font-size: 0.75em; color: #A3ABB2;
   }
   .hud-choice input {
     position: absolute; width: 1px; height: 1px;
@@ -474,7 +494,7 @@
     padding: 0 0.2em;
     font-size: 0.72em; font-weight: 600;
     color: #c9d1d9; background: #1b2733;
-    border: 1px solid #2b3a4a; border-radius: 2px;
+    border: 1px solid #506C8A; border-radius: 2px;
     cursor: pointer;
     /*
      * ⚠️ `pre-line`, not `nowrap`. "1 jog. / brancas" is two facts — how many people are playing
@@ -521,7 +541,7 @@
    * made them visible.
    *
    * 1.4.6 CONTRAST (ENHANCED) asks 7:1 of body text. Everything in the panel was above it except
-   * one word: the `legend` of a radio group, at #8b949e on black — **6.83:1**. Seventeen
+   * one word: the `legend` of a radio group, at #A3ABB2 on black — **6.83:1**. Seventeen
    * hundredths, and the kind of miss that only a measurement finds.
    *
    * 2.4.13 FOCUS APPEARANCE asks a focus indicator at least as large as a 2 px perimeter, with
@@ -637,14 +657,14 @@
     margin: 0.4em auto 0;
     padding: 0 0.6em;
     font-size: 0.78rem;
-    color: #8b949e;
+    color: #A3ABB2;
     font-variant-numeric: tabular-nums;
   }
   .thinking h2 {
     margin: 0; font-size: 1em; font-weight: 700; color: #c9d1d9;
     text-transform: none; letter-spacing: 0;
   }
-  .thinking-state { color: #8b949e; }
+  .thinking-state { color: #A3ABB2; }
   .thinking-state[data-busy="true"] { color: #FFD97D; }
   .thinking dl { display: flex; flex-wrap: wrap; gap: 0 1em; margin: 0; }
   .thinking dt { color: #6f7b87; }

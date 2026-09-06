@@ -178,21 +178,17 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
     black: '#3F2B78',
     whiteRim: '#3B2A12',
     /*
-     * ⚠️ #8C80AE, and it was #0E0722. The inner stroke is drawn ON the piece, so it and the fill
-     * share an edge — and near-black against this violet measures **1.71**, which is not a line,
-     * it is the same colour twice. The dark pieces had no internal drawing at all: no crown, no
-     * collar, only a silhouette.
+     * ⚠️ WHITE, and it has been three things. It was #0E0722, near-black on a #3F2B78 violet:
+     * **1.71**, which is not a line, it is the same colour twice, and the dark pieces had no
+     * crown and no collar. Then a lavender at 3.18, the least that cleared the floor. White is
+     * 11.49 and it is simply the right answer — the stroke is drawn INSIDE the piece, so it never
+     * meets a square and has nothing to lose by being bright.
      *
-     * A LAVENDER and not the gold of José-2, and only 40% toward white, because that is the least
-     * that clears 3:1 (3.18) — enough to draw the piece, not enough to turn this palette into the
-     * other one, which sits 2.80 away and in a different hue.
-     *
-     * The earlier note here said a dark piece must be outlined in something darker than itself.
-     * That rule is about the SILHOUETTE, which is still #0E0722 and still the outermost ink; it
-     * was never about the stroke drawn inside the piece, and applying it there left the piece
-     * blank.
+     * The old note here said a dark piece must be outlined in something darker than itself. That
+     * rule is about the SILHOUETTE, which is still #0E0722 and still the outermost ink. It was
+     * never about the stroke drawn inside the piece, and applying it there left the piece blank.
      */
-    blackRim: '#8C80AE',
+    blackRim: '#FFFFFF',
     rim: '#0E0722',
     name: 'theme.jose',
     short: 'theme.short.jose',
@@ -284,9 +280,22 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
     light: '#ABABAB',
     dark: '#5A5A5A',
     white: '#FFFF00',
-    black: '#000000',
+    /*
+     * ⚠️ BLUE, not black, and this was an outright fault. The flat board drew a BLACK piece with
+     * a BLUE outline while the projected board drew a blue piece with a black one — the same
+     * palette, the same name, two different pieces, and the flat version had a bright blue line
+     * around a black mass, which reads as neither colour.
+     *
+     * The blue is #3557A8, the tone the projected board already uses, so the two views finally
+     * show the same piece. Against the yellow it is 6.35, and against its own white stroke 6.82.
+     */
+    black: '#3557A8',
     whiteRim: '#000000',
-    blackRim: '#0099FF',
+    /*
+     * WHITE. The inner stroke never meets a square — the silhouette is between them — so it is
+     * free to be the brightest thing available, and against this blue that is 6.82.
+     */
+    blackRim: '#FFFFFF',
     rim: '#000000',
     // Projected: both strokes black, because the stroke is what touches the square there. The
     // blue moves into the FILL, which never meets a square and is free to be a real blue — and

@@ -1,27 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// ui/contrast-report — the measured contrast of a board palette, shown to whoever is choosing it.
+// ui/contrast-report — every pair of inks a board palette puts next to each other, measured.
 //
-// ========================= WHY THIS IS NOT ON SCREEN =========================
-// It was, over the board, while a palette was being chosen. It is `docs/CONTRAST.md` now, written
-// by `contrastMarkdown()` below and held to this module by a test.
+// ========================= NOTHING READS THIS AT RUN TIME ANY MORE =========================
+// It drew a table over the board while a palette was being chosen, and then a document. Both are
+// gone, and for the same reason: EVERY palette in this game now clears 3:1 on every pair that
+// touches. There is no longer a choice to warn anybody about.
 //
-// The person the numbers are for is whoever CONFIGURES the game — a teacher setting a room up, a
-// maintainer changing an ink — and they read documentation. A child choosing a board mid-game is
-// not deciding on ratios, and six columns of them were in their way.
+// What is left is the measurement itself, and the tests are what use it — `board-2d.browser`
+// walks every theme through `contrastRows` and fails if any touching pair drops below the floor.
+// So this module went from being a feature to being the thing that keeps the palettes honest,
+// which is the more useful of the two.
 //
-// ========================= WHY THE NUMBERS EXIST AT ALL =========================
-// Every palette in this project was argued for with numbers, and until now those numbers lived in
-// comments and tests — read by whoever maintains the code and by nobody who uses it. But the
-// person choosing a board is the one the numbers are about. A teacher picking a palette for a
-// child with low vision has exactly one question, and it is the question this table answers.
-//
-// It is not a warning and it does not stop anyone. Four of the six palettes have fills under the
-// 3:1 floor, on purpose — that is how the printed convention works, and the rim is what carries
-// them. Showing the whole table, floor marked, says that plainly instead of hiding it or refusing
-// the choice.
-//
-// The ratios are COMPUTED here from the palette the renderer will actually use. A table typed out
-// by hand would be a fourth copy of numbers this repository has already had go stale once.
+// ⚠️ THE DISTINCTION THIS FILE TURNS ON: 1.4.11 asks that a BOUNDARY be perceivable, and two
+// colours that never share an edge have no boundary between them. A piece's fill against a square
+// is such a pair — the silhouette is always drawn between them — and marking it `optional` is
+// what stops the tests from demanding something that is arithmetically impossible.
 
 import type { BoardTheme } from './board-themes.ts';
 
@@ -92,35 +85,3 @@ export function contrastRows(theme: BoardTheme): ContrastRow[] {
   ];
 }
 
-/** One line saying what the table amounts to, so nobody has to read eight rows to get the point. */
-export function verdict(rows: readonly ContrastRow[]): 'all' | 'required' | 'short' {
-  if (rows.every((r) => r.passes)) return 'all';
-  return rows.every((r) => r.passes || r.optional) ? 'required' : 'short';
-}
-
-/**
- * The whole table as Markdown, for `docs/CONTRAST.md`.
- *
- * ⚠️ GENERATED, and a test fails if the document and this module disagree. A table typed by hand
- * would be a second copy of numbers this repository has already had go stale once — which is
- * exactly how the high-contrast palette shipped for months with its squares at 2.13:1 while every
- * comment around it said otherwise.
- */
-export function contrastMarkdown(
-  themes: readonly BoardTheme[],
-  label: (key: string) => string,
-): string {
-  const rows = contrastRows(themes[0]);
-  const head = `| par | ${themes.map((t) => label(t.short)).join(' | ')} |`;
-  const rule = `| --- | ${themes.map(() => '---:').join(' | ')} |`;
-  const body = rows.map((_, index) => {
-    const cells = themes.map((theme) => {
-      const row = contrastRows(theme)[index];
-      const mark = row.passes ? '' : row.optional ? ' ·' : ' **<**';
-      return `${row.ratio.toFixed(2)}${mark}`;
-    });
-    const touches = rows[index].optional ? '' : ' **(encosta)**';
-    return `| ${label(rows[index].label)}${touches} | ${cells.join(' | ')} |`;
-  });
-  return [head, rule, ...body].join(String.fromCharCode(10));
-}
