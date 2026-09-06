@@ -627,6 +627,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       i18n.extend(code, await loadTeach(code));
     }
     hud.refresh();
+    refreshKeyHints();
     mirror.refresh();
     lessonPanel?.refresh();
     refreshLessonMenu();
@@ -936,6 +937,48 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     return true;
   }
 
+  /**
+   * The line of keyboard hints under the board.
+   *
+   * ========================= ⚠️ IT WAS HARDCODED PORTUGUESE, AND IT WAS WRONG =========================
+   * It read "Setas navegam o tabuleiro · Enter seleciona · K sonar" in all three pages, in one
+   * language, in a game whose floor is three. That was the recorded debt. What the debt did not say
+   * is that every claim in it had also stopped being true: Enter opens the PAUSE menu now, K is
+   * cancel, and the sonar was on an intent nothing was bound to.
+   *
+   * ⚠️ A HINT THAT LIES IS WORSE THAN NO HINT. Somebody who presses the key it names and gets
+   * something else concludes the keyboard does not work, which is the opposite of what a control
+   * list is for — and the people most likely to read it are the ones with no other way in.
+   */
+  function refreshKeyHints(): void {
+    const line = host.querySelector('.hint');
+    if (!line) return;
+    line.replaceChildren();
+    const parts: readonly (readonly [string, string])[] = [
+      ['WASD', 'keys.move'],
+      ['J', 'keys.select'],
+      ['K', 'keys.cancel'],
+      ['U', 'keys.teacher'],
+      ['I', 'keys.panel'],
+      ['L', 'keys.sonar'],
+      ['H', 'keys.pause'],
+    ];
+    /*
+     * ⚠️ THE CAMERA HINTS BELONG TO THE VIEWS THAT HAVE A CAMERA, and they used to be typed into
+     * two of the three HTML files by hand — which is how the flat page nearly ended up advertising
+     * a board it cannot turn.
+     */
+    const camera: readonly (readonly [string, string])[] = deps.kind === '2d'
+      ? []
+      : [['⇧ + WASD', 'keys.turn'], ['⇧ + / −', 'keys.zoom']];
+    [...parts, ...camera].forEach(([key, label], index) => {
+      if (index > 0) line.append(' · ');
+      const kbd = host.createElement('kbd');
+      kbd.textContent = key;
+      line.append(kbd, ` ${i18n.t(label)}`);
+    });
+  }
+
   /* ============================ WHAT START OPENS ============================ */
 
   /**
@@ -1081,7 +1124,17 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       return;
     }
 
-    if (action === 'especial') {
+    /*
+     * ⚠️ `especial` IS NOT BOUND TO ANY KEY, and the sonar was therefore unreachable. The engine's
+     * solo scheme carries up/down/left/right, action1-4, the shoulders, start and select — and
+     * nothing else. `especial` is the slot a game may define, and this game never defined it: the
+     * sonar moved there when a bare `s` was found colliding with `down`, and moving it there is
+     * what silently switched it off.
+     *
+     * Asked of the running page rather than read off the table. So the key is NAMED here, the way
+     * the pause key is, and `especial` is still honoured for the day the engine binds it.
+     */
+    if (action === 'especial' || event.code === 'KeyL') {
       engine.sonar.sonar({ i: 0, x: cursor.x, y: cursor.y, viz: 'normal' });
       event.preventDefault();
       return;
@@ -1429,6 +1482,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   syncPosition();
   askOpponent();
 
+  refreshKeyHints();
   if (engine.problems.length) console.warn('[chess] engine problems:', engine.problems);
   srSay(i18n.t('a11y.boardLabel'));
 

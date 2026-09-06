@@ -185,6 +185,19 @@ export const en: Catalog = {
     'puzzle.nudge.pin': 'Rook, bishop and queen pin, because they attack in a line.',
     'puzzle.nudge.hangingPiece': 'Count who attacks and who defends each of their pieces.',
     'hud.opening': 'Opening: {name}',
+    /*
+     * The keyboard hint line under the board. One word each, because the line is a reminder rather
+     * than a manual -- and because the arrows and WASD both move, which is one fact, not two.
+     */
+    'keys.move': 'move',
+    'keys.select': 'select',
+    'keys.cancel': 'cancel',
+    'keys.teacher': 'teacher',
+    'keys.panel': 'switch panel',
+    'keys.sonar': 'sonar',
+    'keys.pause': 'pause',
+    'keys.turn': 'turn the board',
+    'keys.zoom': 'zoom',
     'hud.language': 'Language',
     'hud.lessons': 'Lessons',
     'teach.notation.title': 'Reading the board',

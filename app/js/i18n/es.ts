@@ -186,6 +186,19 @@ export const es: Catalog = {
     'puzzle.nudge.pin': 'Torre, alfil y dama clavan, porque atacan en línea.',
     'puzzle.nudge.hangingPiece': 'Cuenta quién ataca y quién defiende cada pieza del rival.',
     'hud.opening': 'Apertura: {name}',
+    /*
+     * The keyboard hint line under the board. One word each, because the line is a reminder rather
+     * than a manual -- and because the arrows and WASD both move, which is one fact, not two.
+     */
+    'keys.move': 'mueve',
+    'keys.select': 'selecciona',
+    'keys.cancel': 'cancela',
+    'keys.teacher': 'profesor',
+    'keys.panel': 'cambia de panel',
+    'keys.sonar': 'sonar',
+    'keys.pause': 'pausa',
+    'keys.turn': 'gira el tablero',
+    'keys.zoom': 'acerca',
     'hud.language': 'Idioma',
     'hud.lessons': 'Lecciones',
     'teach.notation.title': 'Leer el tablero',

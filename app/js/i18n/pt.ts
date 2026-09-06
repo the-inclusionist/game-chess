@@ -206,6 +206,19 @@ export const pt: Catalog = {
     'puzzle.nudge.pin': 'Torre, bispo e dama prendem, porque atacam em linha.',
     'puzzle.nudge.hangingPiece': 'Conte quem ataca e quem defende cada peça do adversário.',
     'hud.opening': 'Abertura: {name}',
+    /*
+     * The keyboard hint line under the board. One word each, because the line is a reminder rather
+     * than a manual -- and because the arrows and WASD both move, which is one fact, not two.
+     */
+    'keys.move': 'move',
+    'keys.select': 'seleciona',
+    'keys.cancel': 'cancela',
+    'keys.teacher': 'professor',
+    'keys.panel': 'muda de painel',
+    'keys.sonar': 'sonar',
+    'keys.pause': 'pausa',
+    'keys.turn': 'gira o tabuleiro',
+    'keys.zoom': 'aproxima',
     'hud.language': 'Idioma',
     'hud.lessons': 'Aulas',
     /*
