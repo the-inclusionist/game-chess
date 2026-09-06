@@ -101,6 +101,14 @@ export interface BoardView {
    */
   travel(from: Square, to: Square): Promise<void>;
   relayout(): void;
+  /**
+   * A key the shell did not want. Return true when it was used, and the shell calls
+   * `preventDefault` — so a view says what it consumed rather than reaching for the event itself.
+   *
+   * ⚠️ ONLY ONE LISTENER EXISTS, and it is the shell's. Two listeners on `#game-region` is two
+   * places for a key to be swallowed, and the second one is always the one nobody remembers.
+   */
+  onKey?(event: KeyboardEvent): boolean;
   /** Extras merged into the `?debug=true` global. */
   debug?(): Record<string, unknown>;
   destroy(): void;

@@ -24,6 +24,7 @@
 
 import { createGameShell } from './game-shell.ts';
 import { createFlatView } from './view-flat.ts';
+import { CONTRAST_THEME } from '../ui/board-themes.ts';
 
 export function boot2d(host: Document = document): void {
   createGameShell({
@@ -34,6 +35,8 @@ export function boot2d(host: Document = document): void {
     // roving tabindex — it simply keeps its pixels instead of being `sr-only` behind a canvas.
     visibleMirror: true,
     debugName: '__chess2d',
+    // Glyphs, not solids: `contrast-flat` answers a drawing whose ink is a typeface.
+    contrastTheme: CONTRAST_THEME,
   });
 }
 

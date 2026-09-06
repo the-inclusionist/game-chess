@@ -43,7 +43,7 @@ import { type Side, type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale } from '../i18n/index.ts';
 import { squareIndex, type Marker } from '../render/board-geometry.ts';
 import type { HintMove } from '../render/hint-arrows.ts';
-import { BOARD_THEMES, CONTRAST_THEME, DEFAULT_THEME } from '../ui/board-themes.ts';
+import { BOARD_THEMES, DEFAULT_THEME } from '../ui/board-themes.ts';
 import { createBlunderBar } from '../ui/blunder-bar.ts';
 import { createGridMirror } from '../ui/grid-mirror.ts';
 import { createHud, type GameMode, type Hud, type ViewKind } from '../ui/hud.ts';
@@ -64,6 +64,15 @@ export interface GameShellDeps {
   readonly visibleMirror?: boolean;
   /** `__chess` | `__chess2d` | `__chess3d`, kept distinct because console habits are real. */
   readonly debugName: string;
+  /**
+   * Which palette `prefers-contrast: more` picks on THIS page.
+   *
+   * ⚠️ IT IS NOT THE SAME ON ALL THREE, and the difference is the reason a theme carries piece
+   * inks at all. The projected and solid boards take `contrast-solid`; the flat board takes
+   * `contrast-flat`. Same squares, different pieces — because a solid whose ink is mostly STROKE
+   * needs a different answer from a glyph.
+   */
+  readonly contrastTheme: string;
   /**
    * ⚠️ THE SEAM THAT SHOULD HAVE EXISTED ALL ALONG. There is no way to reach the opponent's reply
    * path without downloading 6.98 MB of WebAssembly, which is exactly why the solid board's reply
@@ -117,7 +126,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   let motionReduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   let paletteHigh = window.matchMedia?.('(prefers-contrast: more)').matches ?? false;
   let vision = 'normal';
-  let themeKey = remembered.theme ?? (paletteHigh ? CONTRAST_THEME : DEFAULT_THEME);
+  let themeKey = remembered.theme ?? (paletteHigh ? deps.contrastTheme : DEFAULT_THEME);
 
   /**
    * ========================= A SUGGESTION IS A SETTING, NOT A QUESTION =========================
@@ -248,7 +257,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     state: game,
     ...(deps.visibleMirror ? { visible: true, set: remembered.set, theme: themeKey } : {}),
     onActivate: (square) => onActivate(square),
-    onCursor: (square) => { cursor = square; },
+    onCursor: (square) => { cursor = square; syncMarks(); },
     resolveAction: (code) => engine.keyboard.actionOf(code, 0),
   });
 
@@ -367,6 +376,28 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   wrap?.parentElement?.insertBefore(blunderBar.root, thinking.root);
   paletteHigh = themeKey.startsWith('contrast-');
   region.dataset.contrast = paletteHigh ? 'high' : '';
+
+  /*
+   * ================= ⚠️ ONE KEYDOWN, ON `#game-region`, NEVER ON `window` =================
+   * The engine's rule, and what keeps the board from swallowing keys meant for a dialog.
+   *
+   * The sonar goes first and it is the shell's, because it is the same on every page — and because
+   * two of the three pages have been PRINTING "K sonar" in their keyboard legend while listening
+   * for nothing at all. It is on the `especial` intent rather than on a key: a bare `s` was the
+   * first attempt and `KeyS` is `down` in the engine's default scheme, so it fought the board
+   * navigation. `especial` is the open slot the engine leaves a game to define.
+   *
+   * What the shell does not want, the view is offered. That is also where `cenas.input(intent)`
+   * goes the day there are two things to stack — a lesson over a game, a puzzle over a lesson.
+   */
+  region.addEventListener('keydown', (event) => {
+    if (engine.keyboard.actionOf(event.code, 0) === 'especial') {
+      engine.sonar.sonar({ i: 0, x: cursor.x, y: cursor.y, viz: 'normal' });
+      event.preventDefault();
+      return;
+    }
+    if (view.onKey?.(event)) event.preventDefault();
+  });
 
   const relayout = (): void => { applyLayout({ doc: host, win: window }); view.relayout(); };
   relayout();

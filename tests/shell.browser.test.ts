@@ -73,7 +73,7 @@ describe('[Shell] the walk travels every ply, and lets go of the board afterward
     const record: Recorded = { legs: [], hidden: [] };
     const shell = createGameShell({
       host: document, kind: '2d', view: fakeView(record), visibleMirror: true,
-      debugName: '__shellTest',
+      debugName: '__shellTest', contrastTheme: 'contrast-flat',
     });
 
     const at = (name: string): Square => ({
@@ -108,7 +108,7 @@ describe('[Shell] the walk travels every ply, and lets go of the board afterward
       host: document,
       kind: '2d',
       visibleMirror: true,
-      debugName: '__shellTest',
+      debugName: '__shellTest', contrastTheme: 'contrast-flat',
       view: (ctx) => {
         const view = fakeView(record)(ctx);
         return { ...view, travel: () => Promise.reject(new Error('the scene went away')) };
@@ -142,7 +142,7 @@ describe('[Shell] the walk travels every ply, and lets go of the board afterward
     const record: Recorded = { legs: [], hidden: [] };
     const shell = createGameShell({
       host: document, kind: '2d', view: fakeView(record), visibleMirror: true,
-      debugName: '__shellTest',
+      debugName: '__shellTest', contrastTheme: 'contrast-flat',
     });
 
     const at = (name: string): Square => ({
