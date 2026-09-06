@@ -467,6 +467,35 @@ describe('[Opening] the name reaches the screen, not only the lookup', () => {
     expect((document.querySelector('.hud-opening') as HTMLElement).hidden).toBe(true);
   });
 
+  it('⚠️ fills the lesson list in a two-player game, where there is no hint button', () => {
+    /*
+     * The other half of the same brace. `deps.lessons` and `deps.onHint` are independent — a hot
+     * seat has a course and no engine — but the list was drawn inside the hint's `if`, so it
+     * stayed empty on exactly the boards two people share.
+     *
+     * ⚠️ ASSERTED THROUGH THE OPTIONS RATHER THAN THE COUNT. The number is `LESSONS.length` and
+     * writing it here would be the same copy-of-data this repository has now got wrong three
+     * times; what matters is that the list is not EMPTY and that the names came through `t()`
+     * rather than arriving as raw keys, which is the other way this has failed before.
+     */
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    createGameShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      teaches: true,
+      debugName: '__hudHotSeat', contrastTheme: 'contrast-flat',
+    });
+
+    const select = document.getElementById('hud-lesson') as HTMLSelectElement | null;
+    expect(select).not.toBeNull();
+    expect(document.getElementById('hud-hint')).toBeNull();     // no engine, no hint: the premise
+    const names = [...select!.options].map((o) => o.textContent ?? '');
+    expect(names.length).toBeGreaterThan(0);
+    expect(names.some((n) => n.includes('.'))).toBe(false);     // no raw `teach.*.title` keys
+    expect(names).toContain('Lendo o tabuleiro');
+  });
+
   it('⚠️ names the Ruy Lopez on the board that is in one', async () => {
     const shell = shellFor();
     // 1.e4 e5 2.Nf3 Nc6 3.Bb5 — hot seat, so both sides are played from the same board.
