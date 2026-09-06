@@ -25,8 +25,31 @@
 
 import type { Lesson } from './lesson.ts';
 
+/*
+ * ========================= ⚠️ THE LONE PAWNS ARE LEAD BALLAST, NOT DECORATION =========================
+ * Four positions here carry one spare pawn that no lesson ever mentions — h7 in `CORNERS` and in
+ * the knight's first step, h5 in the bishop's, a7 in the king's. They are there because WITHOUT
+ * THEM THOSE FOUR LESSONS CANNOT BE ANSWERED AT ALL, and the way that failed is worth keeping.
+ *
+ * Two lone kings is insufficient material. So is king and bishop against king, and king and knight
+ * against king. `Rules.isGameOver()` is therefore true before a child has touched anything;
+ * `chess/state.ts` settles the phase to `over`; and `activate()` answers every square with
+ * `{kind:'ignored', reason:'over'}`. The board simply stops responding, with nothing on screen to
+ * say why.
+ *
+ * ⚠️ AND THE TABLE TEST DID NOT SEE IT, because it asks `Rules` and the tutor is answered by
+ * `GameState`. `legalTargets()` reports a knight's eight squares perfectly happily in a position
+ * no one is allowed to move in. `tests/teach-table.node.test.ts` now builds a `GameState` for
+ * every position for exactly this reason.
+ *
+ * A pawn is the cheapest fix that is also true: any pawn can promote, so its side is never short of
+ * material. Each one is parked off the taught piece's lines — h5 is on neither of the bishop's
+ * diagonals, and a knight does not care — so no answer set moves. THEY ARE NOT CLUTTER TO BE
+ * TIDIED AWAY.
+ */
+
 /** Two kings in opposite corners of the LONG diagonal, for pieces that do not travel on it. */
-const CORNERS = 'k7/8/8/8/8/8/8/7K w - - 0 1';
+const CORNERS = 'k7/7p/8/8/8/8/8/7K w - - 0 1';
 
 export const LESSONS: readonly Lesson[] = [
   /* ============================ READING THE BOARD ============================ */
@@ -156,7 +179,7 @@ export const LESSONS: readonly Lesson[] = [
       {
         // ⚠️ Kings on a1 and h8, NOT a8 and h1. A bishop on d5 runs through h1, and a king standing
         // there costs it the thirteenth square — which would make the set below unanswerable.
-        fen: '7k/8/8/3B4/8/8/8/K7 w - - 0 1',
+        fen: '7k/8/8/3B3p/8/8/8/K7 w - - 0 1',
         say: 'teach.bishop.reach',
         task: {
           kind: 'mark',
@@ -179,7 +202,7 @@ export const LESSONS: readonly Lesson[] = [
     after: ['bishop'],
     steps: [
       {
-        fen: 'k7/8/8/3N4/8/8/8/7K w - - 0 1',
+        fen: 'k7/7p/8/3N4/8/8/8/7K w - - 0 1',
         say: 'teach.knight.reach',
         task: { kind: 'mark', reachOf: 'd5', want: ['b4', 'b6', 'c3', 'c7', 'e3', 'e7', 'f4', 'f6'] },
         nudge: 'teach.knight.reach.nudge',
@@ -227,7 +250,7 @@ export const LESSONS: readonly Lesson[] = [
     steps: [
       {
         // The white king is the piece being taught, so the black one goes to the far corner.
-        fen: '8/8/8/3K4/8/8/8/7k w - - 0 1',
+        fen: '8/p7/8/3K4/8/8/8/7k w - - 0 1',
         say: 'teach.king.reach',
         task: { kind: 'mark', reachOf: 'd5', want: ['c4', 'c5', 'c6', 'd4', 'd6', 'e4', 'e5', 'e6'] },
         nudge: 'teach.king.reach.nudge',

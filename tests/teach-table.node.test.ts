@@ -14,6 +14,7 @@ import { describe, expect, it } from 'vitest';
 import { LESSONS, lessonById } from '../app/js/teach/lessons.ts';
 import { asSquareSet, isSquareName, matchesShape, type Step } from '../app/js/teach/lesson.ts';
 import { createRules, type Rules } from '../app/js/chess/rules.ts';
+import { createGameState } from '../app/js/chess/state.ts';
 import { fromAlgebraic, toAlgebraic } from '../app/js/chess/types.ts';
 
 /**
@@ -144,6 +145,54 @@ describe('[Table] every lesson is playable as written', () => {
           const piece = rules.pieceAt(fromAlgebraic(name)!);
           expect(`${where} ${name} holds a king: ${piece?.type === 'k'}`)
             .toBe(`${where} ${name} holds a king: false`);
+        }
+      });
+    }
+  });
+
+  it('⚠️ is a position the board will actually accept a touch in', () => {
+    /*
+     * THE ASSERTION THAT WAS MISSING, AND FOUR LESSONS WERE BROKEN UNDERNEATH IT.
+     *
+     * Everything above this asks `Rules`, and `Rules` answers cheerfully in positions nobody is
+     * allowed to move in: `legalTargets` reported the knight's eight squares from a board that was
+     * already a draw. The tutor is not answered by `Rules` — it is answered by `GameState`, which
+     * settles the phase to `over` when `isGameOver()` holds and then refuses every square with
+     * `{kind:'ignored', reason:'over'}`.
+     *
+     * Two lone kings is insufficient material. So is king and bishop against king, and king and
+     * knight against king. That is the notation, king, bishop and knight lessons — four of eleven,
+     * dead on arrival, and the symptom is a board that stops responding without a word.
+     */
+    for (const lesson of LESSONS) {
+      for (const [index, step] of lesson.steps.entries()) {
+        if (!step.fen) continue;
+        const game = createGameState({ rules: createRules(step.fen), opponent: false });
+        expect(`${lesson.id}[${index}] phase: ${game.phase()}`)
+          .toBe(`${lesson.id}[${index}] phase: idle`);
+      }
+    }
+  });
+
+  it('⚠️ never asks a student to mark a square holding a piece of their own', () => {
+    /*
+     * Touching your own piece is `selected` — it picks the piece up — and the tutor is right to
+     * treat that as choosing rather than answering, because seeing the legal targets is how a
+     * sighted child checks their thinking and how a keyboard child hears it at all.
+     *
+     * The consequence lands here: a `want` square occupied by the mover's own piece could never be
+     * marked, and the lesson would refuse to move on for a child doing exactly as they were told.
+     * An ENEMY piece is fine — that comes back as `not-your-turn`, which names its square and
+     * which the tutor counts.
+     */
+    for (const lesson of LESSONS) {
+      walk(lesson.id, (step, rules, where) => {
+        if (step.task.kind !== 'mark') return;
+        for (const name of step.task.want) {
+          const piece = rules.pieceAt(fromAlgebraic(name)!);
+          const mine = piece?.side === rules.turn();
+          expect(`${where} ${name} is the mover's own: ${mine}`)
+            .toBe(`${where} ${name} is the mover's own: false`);
         }
       });
     }
