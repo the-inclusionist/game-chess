@@ -478,13 +478,25 @@ export function boot3d(host: Document = document): void {
         searching = false;
         thinking.setBusy(false);
         if (!reply || game.phase() !== 'thinking') return;
-        const result = game.activate(reply.move.from);
-        if (result.kind !== 'selected') return;
-        const played = game.activate(reply.move.to);
-        if (played.kind !== 'moved') return;
+        /*
+         * ⚠️ `applyOpponentMove`, NOT TWO `activate` CALLS. This view used to pick the piece up
+         * and put it down the way a player does, and it never once moved a piece: `askOpponent`
+         * runs only while the phase is `thinking`, and `activate` answers EVERY call in that
+         * phase with `{ kind: 'ignored', reason: 'busy' }` — which is the whole point of the
+         * phase. So the first call returned `ignored`, the guard on it returned, and the reply
+         * was dropped.
+         *
+         * Nothing threw and nothing was logged. The engine really searched, the panel really
+         * showed the depth and the evaluation it reached, and the board simply never changed —
+         * which reads as a slow opponent rather than as a fault, and did for as long as this
+         * view has existed. `applyOpponentMove` (`chess/state.ts`) is the door built for exactly
+         * this: the only one that accepts a move while the game is thinking.
+         */
+        const move = game.applyOpponentMove(reply.move.from, reply.move.to, reply.move.promotion);
+        if (!move) return;
         game.animationDone();
-        srSay(i18n.t('status.played', { move: played.move.san }));
-        if (!played.move.checkmate && played.move.check) srAlert(i18n.t('status.check'));
+        srSay(i18n.t('status.played', { move: move.san }));
+        if (!move.checkmate && move.check) srAlert(i18n.t('status.check'));
         afterMove();
         announceOutcome();
       })

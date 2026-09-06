@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { boot } from '../app/js/boot/main.ts';
 import { boot2d } from '../app/js/boot/main-2d.ts';
+import { boot3d } from '../app/js/boot/main-3d.ts';
 import { saveSettings } from '../app/js/chess/session.ts';
 
 // ========================= WHY THIS TEST EXISTS =========================
@@ -115,5 +116,40 @@ describe('[Boot] the board turns round for a player who chose black', () => {
     const first = document.querySelector('[role="gridcell"]');
     expect(first?.getAttribute('data-square')).toBe('a8');
     saveSettings({});
+  });
+});
+
+// ========================= AND THE THIRD ROOT, WHICH NOTHING EVER BOOTED =========================
+// ⚠️ THIS IS THE TEST WHOSE ABSENCE COST A DEAD OPPONENT. `main-3d.ts` answered the engine by
+// picking the piece up and putting it down the way a player does — two `activate` calls — and
+// `activate` answers every call in the `thinking` phase with `ignored/busy`, which is the whole
+// point of the phase and which `state.node.test.ts` has asserted all along. So the reply was
+// dropped, in silence, for as long as this view has existed: the engine searched, the panel showed
+// the depth it reached, and the board never changed.
+//
+// Nothing here would have caught THAT — the wiring lives inside a `.then()` that needs 6.98 MB of
+// WebAssembly to reach, which is the seam the shared core is meant to open. What this catches is
+// the class the other two describes catch: a root that does not come up at all.
+describe('[Boot] the solid composition root composes too', () => {
+  it('boots without throwing', () => {
+    fixture();
+    expect(() => boot3d(document)).not.toThrow();
+  });
+
+  it('puts a canvas, the mirror and the panel on the screen', () => {
+    fixture();
+    boot3d(document);
+    const region = document.getElementById('game-region');
+    expect(region?.querySelector('canvas')).not.toBeNull();
+    expect(region?.querySelectorAll('[role="gridcell"]')).toHaveLength(64);
+    expect(region?.querySelector('.hud')).not.toBeNull();
+  });
+
+  it('starts from the opening position', () => {
+    fixture();
+    boot3d(document);
+    const occupied = [...document.querySelectorAll('[role="gridcell"]')]
+      .filter((cell) => !/vazia|empty|vacía/.test(cell.getAttribute('aria-label') ?? ''));
+    expect(occupied).toHaveLength(32);
   });
 });
