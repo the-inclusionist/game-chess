@@ -15,6 +15,7 @@ import { positionFor } from '../app/js/teach/position.ts';
 import { matchesShape } from '../app/js/teach/lesson.ts';
 import { createRules } from '../app/js/chess/rules.ts';
 import { createGameState } from '../app/js/chess/state.ts';
+import { toAlgebraic, type Square } from '../app/js/chess/types.ts';
 
 const set = JSON.parse(readFileSync('app/data/puzzles.json', 'utf8')) as PuzzleSet;
 const lessons = set.puzzles.map((p) => ({ puzzle: p, lesson: puzzleLesson(p) }));
@@ -101,13 +102,28 @@ describe('[Positions] every step asks its move from the position that move is le
         if (step.task.kind !== 'play') throw new Error('a puzzle step must ask for a move');
         const want = step.task.want;
         const rules = createRules(step.fen!);
-        const possible = rules.allMoves().some((candidate) => {
-          const move = rules.move(candidate.from, candidate.to, candidate.promotion ?? 'q');
-          if (!move) return false;
-          const fits = matchesShape(want, move);
-          rules.undo();
-          return fits;
-        });
+        /*
+         * ⚠️ ORDERED BY THE SHAPE'S OWN HINT, AND STILL QUANTIFIED OVER ALL OF THEM. Playing and
+         * unplaying every legal move in four hundred positions took 1.8 s of the node project's
+         * five-second budget, and it tipped over whenever the browser project ran beside it — a
+         * flake that reported itself as an assertion failure in a test that had not changed.
+         *
+         * Ordering is not filtering. `.some` still walks the whole list when nothing fits, so the
+         * claim proved is exactly the one before: SOME legal move satisfies the shape. What changes
+         * is that the likely candidate is tried first, so the usual case costs one move and one
+         * undo instead of twenty — and a shape whose hint is wrong is still caught, just later.
+         */
+        const first = (candidate: { from: Square; to: Square }): number =>
+          (toAlgebraic(candidate.from) === want.from && toAlgebraic(candidate.to) === want.to
+            ? 0 : 1);
+        const possible = [...rules.allMoves()].sort((a, b) => first(a) - first(b))
+          .some((candidate) => {
+            const move = rules.move(candidate.from, candidate.to, candidate.promotion ?? 'q');
+            if (!move) return false;
+            const fits = matchesShape(want, move);
+            rules.undo();
+            return fits;
+          });
         expect(`${puzzle.id}[${index}] playable: ${possible}`)
           .toBe(`${puzzle.id}[${index}] playable: true`);
       });

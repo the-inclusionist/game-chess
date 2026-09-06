@@ -222,7 +222,7 @@ export const en: Catalog = {
     'pause.title': 'Paused',
     'pause.resume': 'Back to the game',
     'pause.leaveLesson': 'Leave the lesson',
-    'a11y.gridHint': 'Arrows navigate, Enter selects',
+    'a11y.gridHint': 'Arrows navigate, J selects',
     'a11y.tookBack': 'Move taken back. {side} to play',
     'a11y.replayed': 'Move played forward. {side} to play',
     'a11y.nothingToTakeBack': 'Nothing to take back',

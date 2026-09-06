@@ -126,33 +126,33 @@ export const es: TeachStrings = {
 
   /* --------------------------- the endgame, which is geometry --------------------------- */
   'teach.square.can':
-    'Un peon pasado corre hacia la promocion. Traza un cuadrado del peon hasta la ultima fila: si '
-    + 'el rey puede entrar en el, alcanza al peon. Este rey lo alcanza?',
+    'Un peón pasado corre hacia la promoción. Traza un cuadrado del peón hasta la última fila: si '
+    + 'el rey puede entrar en él, alcanza al peón. ¿Este rey lo alcanza?',
   'teach.square.can.nudge':
-    'El peon esta en la cuarta fila: le faltan cuatro casillas. Cuenta cuantas necesita el rey para '
-    + 'llegar a la casilla de promocion.',
-  'teach.square.yes': 'Si, lo alcanza',
-  'teach.square.no': 'No, el peon promociona',
+    'El peón está en la cuarta fila: le faltan cuatro casillas. Cuenta cuántas necesita el rey '
+    + 'para llegar a la casilla de promoción.',
+  'teach.square.yes': 'Sí, lo alcanza',
+  'teach.square.no': 'No, el peón promociona',
   'teach.square.cannot':
-    'Y ahora? El peon avanzo una casilla y el rey quedo una columna mas lejos.',
+    '¿Y ahora? El peón avanzó una casilla y el rey quedó una columna más lejos.',
   'teach.square.cannot.nudge':
-    'Un tiempo vale exactamente una columna de cuadrado. El rey quedo fuera, y correr no sirve.',
+    'Un tiempo vale exactamente una columna de cuadrado. El rey quedó fuera, y correr no sirve.',
   'teach.square.take':
-    'La regla habla de una carrera, pero el rey no tiene que correr. El peon esta a su lado: '
-    + 'capturalo.',
+    'La regla habla de una carrera, pero el rey no tiene que correr. El peón está a su lado: '
+    + 'captúralo.',
   'teach.square.take.nudge':
-    'Contar la carrera hasta la casilla de promocion diria que no se puede. Mira el peon, no la '
+    'Contar la carrera hasta la casilla de promoción diría que no se puede. Mira el peón, no la '
     + 'octava fila.',
 
   'teach.opposition.who':
-    'Los reyes estan frente a frente con una casilla en medio: eso es la oposicion. La tiene quien '
-    + 'NO debe jugar. Juegan las blancas. Quien la tiene?',
+    'Los reyes están frente a frente con una casilla en medio: eso es la oposición. La tiene quien '
+    + 'NO debe jugar. Juegan las blancas. ¿Quién la tiene?',
   'teach.opposition.who.nudge':
-    'Quien juega tiene que apartarse. La oposicion es de quien espera.',
+    'Quien juega tiene que apartarse. La oposición es de quien espera.',
   'teach.opposition.white': 'Las blancas',
   'teach.opposition.black': 'Las negras',
   'teach.opposition.take':
-    'Ahora hay dos casillas entre los reyes y nadie tiene la oposicion. Una jugada la toma. Hazla.',
+    'Ahora hay dos casillas entre los reyes y nadie tiene la oposición. Una jugada la toma. Hazla.',
   'teach.opposition.take.nudge':
     'Avanza el rey por la misma columna hasta que quede una casilla entre los dos.',
 };

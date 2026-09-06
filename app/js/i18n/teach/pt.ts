@@ -127,31 +127,31 @@ export const pt: TeachStrings = {
 
   /* --------------------------- the endgame, which is geometry --------------------------- */
   'teach.square.can':
-    'Um peao passado corre para a promocao. Trace um quadrado do peao ate a ultima linha: se o rei '
-    + 'conseguir entrar nele, alcanca o peao. Este rei alcanca?',
+    'Um peão passado corre para a promoção. Trace um quadrado do peão até a última linha: se o rei '
+    + 'conseguir entrar nele, alcança o peão. Este rei alcança?',
   'teach.square.can.nudge':
-    'O peao esta na quarta linha: faltam quatro casas. Conte quantas o rei precisa para chegar a '
-    + 'casa de promocao.',
-  'teach.square.yes': 'Sim, alcanca',
-  'teach.square.no': 'Nao, o peao promove',
-  'teach.square.cannot': 'E agora? O peao avancou uma casa e o rei ficou uma coluna mais longe.',
+    'O peão está na quarta linha: faltam quatro casas. Conte quantas o rei precisa para chegar à '
+    + 'casa de promoção.',
+  'teach.square.yes': 'Sim, alcança',
+  'teach.square.no': 'Não, o peão promove',
+  'teach.square.cannot': 'E agora? O peão avançou uma casa e o rei ficou uma coluna mais longe.',
   'teach.square.cannot.nudge':
-    'Um tempo vale exatamente uma coluna de quadrado. O rei ficou de fora, e correr nao adianta.',
+    'Um tempo vale exatamente uma coluna de quadrado. O rei ficou de fora, e correr não adianta.',
   'teach.square.take':
-    'A regra fala de uma corrida, mas o rei nao precisa correr. O peao esta ao lado dele: capture.',
+    'A regra fala de uma corrida, mas o rei não precisa correr. O peão está ao lado dele: capture.',
   'teach.square.take.nudge':
-    'Contar a corrida ate a casa de promocao diria que nao da. Olhe para o peao, nao para a oitava '
-    + 'linha.',
+    'Contar a corrida até a casa de promoção diria que não dá. Olhe para o peão, não para a '
+    + 'oitava linha.',
 
   'teach.opposition.who':
-    'Os reis estao frente a frente com uma casa no meio: isso e a oposicao. Quem a tem e quem NAO '
-    + 'precisa jogar. As brancas jogam. Quem tem a oposicao?',
+    'Os reis estão frente a frente com uma casa no meio: isso é a oposição. Quem a tem é quem NÃO '
+    + 'precisa jogar. As brancas jogam. Quem tem a oposição?',
   'teach.opposition.who.nudge':
-    'Quem joga tem de sair da frente. A oposicao e de quem espera.',
+    'Quem joga tem de sair da frente. A oposição é de quem espera.',
   'teach.opposition.white': 'As brancas',
   'teach.opposition.black': 'As pretas',
   'teach.opposition.take':
-    'Agora ha duas casas entre os reis, e ninguem tem a oposicao. Um lance a toma. Jogue-o.',
+    'Agora há duas casas entre os reis, e ninguém tem a oposição. Um lance a toma. Jogue-o.',
   'teach.opposition.take.nudge':
-    'Ande com o rei para a frente, na mesma coluna, ate sobrar uma casa entre os dois.',
+    'Ande com o rei para a frente, na mesma coluna, até sobrar uma casa entre os dois.',
 };

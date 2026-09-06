@@ -516,10 +516,23 @@ describe('[Actions] the four buttons reach the lesson', () => {
    */
   const teaching = async (): Promise<void> => {
     expect(shell.teach()).toBe(true);
+    /*
+     * The shell's OWN panel, scoped to the column, and waited on until it has a sentence in it.
+     *
+     * A CONTROL EXISTING IS NOT THE FEATURE BEING READY, and waiting on `#lesson-teacher` was
+     * exactly that mistake: `game-shell.ts` mounts the lesson menu BEFORE it awaits
+     * `lessonMode.start()`, because the panel needs a slot to mount into. Correct there, and it
+     * left this helper returning while the tutor was still null — so the touches meant to earn the
+     * teacher were counted by nobody, and the test failed only when the dynamic imports were slow
+     * enough, which is to say only in a full run and never alone.
+     */
+    const step = (): string =>
+      document.querySelector('#side-column .lesson-say')?.textContent ?? '';
     const deadline = Date.now() + 3000;
-    while (!document.getElementById('lesson-teacher') && Date.now() < deadline) {
+    while (step() === '' && Date.now() < deadline) {
       await new Promise((resolve) => { setTimeout(resolve, 10); });
     }
+    expect(step()).not.toBe('');
     expect(document.getElementById('lesson-teacher')).not.toBeNull();
   };
 

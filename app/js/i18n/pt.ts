@@ -239,7 +239,7 @@ export const pt: Catalog = {
     'teach.enpassant.title': 'A captura en passant',
     'teach.castling.title': 'O roque',
     'teach.square.title': 'A regra do quadrado',
-    'teach.opposition.title': 'A oposicao',
+    'teach.opposition.title': 'A oposição',
     'hud.startLesson': 'Começar',
     // ⚠️ O visto vai no TEXTO da opção. Um `<option>` não carrega marca própria que um leitor
     // de tela anuncie, então "aprendida" ou está no nome ou não existe para quem mais precisa
@@ -254,7 +254,7 @@ export const pt: Catalog = {
     'pause.title': 'Pausa',
     'pause.resume': 'Voltar ao jogo',
     'pause.leaveLesson': 'Sair da aula',
-    'a11y.gridHint': 'Setas navegam, Enter seleciona',
+    'a11y.gridHint': 'Setas navegam, J seleciona',
     'a11y.tookBack': 'Lance desfeito. Vez de {side}',
     'a11y.replayed': 'Lance refeito. Vez de {side}',
     'a11y.nothingToTakeBack': 'Nada a desfazer',
