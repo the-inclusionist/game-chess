@@ -167,6 +167,16 @@ export const pt: Catalog = {
     // gênero só para o substantivo da peça, e uma frase que exigisse concordância pediria uma
     // segunda tabela de gênero. Onde a frase exigiria, reescreva a frase.
     'a11y.cellLesson': 'a aula aponta nesta casa',
+
+    /*
+     * A MOLDURA DO PAINEL DE AULA. A prosa das aulas mora em `i18n/teach/`, buscada só por quem
+     * abre uma; estas quatro existem no instante em que o painel existe e não crescem quando uma
+     * aula é acrescentada. `teach.` fica reservado para a prosa.
+     */
+    'lesson.step': 'Passo {at} de {of}',
+    'lesson.found': '{done} de {of} casas',
+    'lesson.finished': 'Aula concluída',
+    'lesson.leave': 'Sair da aula',
     'a11y.gridHint': 'Setas navegam, Enter seleciona',
     'a11y.tookBack': 'Lance desfeito. Vez de {side}',
     'a11y.replayed': 'Lance refeito. Vez de {side}',

@@ -159,6 +159,11 @@ export const en: Catalog = {
     'a11y.cellCapture': 'capture available',
     'a11y.cellCheck': 'in check',
     'a11y.cellLesson': 'the lesson points here',
+
+    'lesson.step': 'Step {at} of {of}',
+    'lesson.found': '{done} of {of} squares',
+    'lesson.finished': 'Lesson finished',
+    'lesson.leave': 'Leave the lesson',
     'a11y.gridHint': 'Arrows navigate, Enter selects',
     'a11y.tookBack': 'Move taken back. {side} to play',
     'a11y.replayed': 'Move played forward. {side} to play',

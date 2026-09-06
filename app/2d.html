@@ -324,6 +324,68 @@
   /* ⚠️ `display: flex` beats `[hidden]`, which is display:none from the UA sheet at LOWER
      specificity. Without this line the bar is on screen from the first frame of every game,
      warning about a blunder nobody played. */
+  /*
+   * ========================= THE LESSON PANEL =========================
+   * Modelled on the blunder bar below it and deliberately calmer: teaching colours, not warning
+   * ones. Same `position: relative; z-index` for the same measured reason — `.hud` is absolutely
+   * positioned, so an unpositioned sibling paints underneath it however the source order reads,
+   * and half the buttons would simply not be there to click.
+   */
+  .lesson-panel[hidden] { display: none; }
+  .lesson-panel {
+    position: relative;
+    z-index: 3;
+    margin: 0.4em 0 0;
+    padding: 0.55em 0.8em;
+    background: #14202b;
+    border: 2px solid #FFB300;
+    border-radius: 3px;
+    color: #F2EEE4;
+    font-size: 0.82em;
+  }
+  .lesson-title { margin: 0; font-size: 1.05em; font-weight: 700; color: #FFB300; }
+  .lesson-counter { margin: 0.15em 0 0; font-size: 0.9em; opacity: 0.85; }
+  .lesson-say { margin: 0.4em 0 0; font-weight: 600; line-height: 1.35; }
+  /* The nudge reads as a second voice, not as an error: no red, no icon, no raised volume. */
+  .lesson-nudge[hidden] { display: none; }
+  .lesson-nudge {
+    margin: 0.4em 0 0;
+    padding: 0.35em 0.55em;
+    background: #1F2E3C;
+    border-left: 3px solid #7DD3A0;
+    line-height: 1.35;
+  }
+  .lesson-options[hidden] { display: none; }
+  .lesson-options { display: flex; flex-wrap: wrap; gap: 0.4em; margin: 0.5em 0 0; }
+  .lesson-option {
+    min-height: var(--tap, 44px);
+    padding: 0 0.9em;
+    font: inherit; font-weight: 700;
+    color: #14202b; background: #FFB300;
+    border: 1px solid #000000; border-radius: 2px;
+    cursor: pointer;
+  }
+  .lesson-actions { margin: 0.5em 0 0; }
+  .lesson-leave {
+    min-height: var(--tap, 44px);
+    padding: 0 0.9em;
+    font: inherit;
+    color: #F2EEE4; background: transparent;
+    border: 1px solid #F2EEE4; border-radius: 2px;
+    cursor: pointer;
+  }
+  .lesson-option:hover, .lesson-leave:hover { background: #FFFFFF; color: #14202b; }
+  .lesson-option:focus-visible, .lesson-leave:focus-visible {
+    outline: 3px solid #FFD97D; outline-offset: 2px;
+  }
+  @media (prefers-contrast: more) {
+    .lesson-panel { background: #000000; border-color: #FFFFFF; color: #FFFFFF; }
+    .lesson-title { color: #FFFFFF; }
+    .lesson-nudge { background: #000000; border-left-color: #FFFFFF; }
+    .lesson-option { background: #FFFFFF; color: #000000; border-color: #000000; }
+    .lesson-leave { color: #FFFFFF; border-color: #FFFFFF; }
+  }
+
   .blunder-bar[hidden] { display: none; }
   .blunder-bar {
     /*
