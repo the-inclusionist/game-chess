@@ -422,3 +422,68 @@ describe('[Panel keys] being IN the side panel is not the same as getting into i
     expect(document.activeElement).toBe(first);
   });
 });
+
+describe('[Opening] the name reaches the screen, not only the lookup', () => {
+  /*
+   * ========================= THE HALF NOBODY WAS CHECKING =========================
+   * `openings.node.test.ts` is thorough about the BOOK: all 2,833 lines play from the opening
+   * position, none carries a move number, the search runs deepest-first so a Najdorf is not
+   * announced as a Sicilian. Every one of those assertions can hold while the name never appears
+   * on screen, because none of them touches the shell or the HUD.
+   *
+   * That gap has bitten this repository before and in this exact shape: the lesson catalogue was
+   * correct and complete, and the menu still listed `teach.notation.title` over and over, because
+   * the titles were on the wrong side of a dynamic import. Logic right, delivery broken, and no
+   * test in the suite could see it.
+   *
+   * ⚠️ AND THE BOOK IS FETCHED, so this waits rather than asserting immediately. 230 kB is not
+   * carried by somebody who never plays a move — `refreshOpening` starts the download on the first
+   * move and names the line when it lands.
+   */
+  const at = (name: string): Square => ({
+    x: 'abcdefgh'.indexOf(name[0]!), y: 8 - Number(name[1]),
+  });
+
+  function shellFor() {
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    return createGameShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: '__openingTest', contrastTheme: 'contrast-flat',
+    });
+  }
+
+  const play = (shell: ReturnType<typeof shellFor>, from: string, to: string): void => {
+    shell.activate(at(from));
+    shell.activate(at(to));
+  };
+
+  const shown = (): string => document.querySelector('.hud-opening')?.textContent ?? '';
+
+  it('says nothing before there is anything to say', () => {
+    shellFor();
+    expect(document.querySelector('.hud-opening')).not.toBeNull();
+    expect((document.querySelector('.hud-opening') as HTMLElement).hidden).toBe(true);
+  });
+
+  it('⚠️ names the Ruy Lopez on the board that is in one', async () => {
+    const shell = shellFor();
+    // 1.e4 e5 2.Nf3 Nc6 3.Bb5 — hot seat, so both sides are played from the same board.
+    play(shell, 'e2', 'e4');
+    play(shell, 'e7', 'e5');
+    play(shell, 'g1', 'f3');
+    play(shell, 'b8', 'c6');
+    play(shell, 'f1', 'b5');
+
+    const deadline = Date.now() + 5000;
+    while (!shown().includes('Ruy Lopez') && Date.now() < deadline) {
+      await new Promise((resolve) => { setTimeout(resolve, 20); });
+    }
+    expect(shown()).toContain('Ruy Lopez');
+    // The label around it is translated even though the name is not — the one thing
+    // `openingLabelKey` exists to say.
+    expect(shown()).toContain('Abertura');
+    expect((document.querySelector('.hud-opening') as HTMLElement).hidden).toBe(false);
+  });
+});

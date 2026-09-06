@@ -801,41 +801,55 @@ export function createHud(deps: HudDeps): Hud {
       strengthSelect.value = String(deps.strength?.() ?? '');
     }
 
+    /*
+     * ================= ⚠️ THESE THREE ARE NOT THE HINT'S, AND THEY USED TO BE =================
+     * The lesson list, the language selector and the opening name sat inside `if (deps.onHint)`
+     * — one level too deep, which `tsc` cannot see and a reader skims straight past because
+     * every line in it is correct.
+     *
+     * ⚠️ THE SHELL WITHHOLDS `onHint` IN A TWO-PLAYER GAME, deliberately: there is no engine to
+     * ask, so there is no hint button. So on one board shared by two people the opening was
+     * never named, the lesson dropdown was never filled, and the language selector never
+     * followed a change of language — three features switched off by a brace.
+     *
+     * Each has its own guard already, which is what made the nesting invisible: nothing here
+     * changes except how deep it sits.
+     */
+    if (deps.lessons) {
+      lessonLabel.textContent = i18n.t('hud.lessons');
+      lessonButton.textContent = i18n.t('hud.startLesson');
+      const chosen = lessonSelect.value;
+      const list = deps.lessons();
+      lessonSelect.replaceChildren(...list.map((lesson) => {
+        const option = doc.createElement('option');
+        option.value = lesson.id;
+        /*
+         * ⚠️ THE TICK IS A CHARACTER IN THE TEXT, not a colour and not an icon. An `<option>`
+         * cannot carry a marker of its own that a screen reader will read, so "learned" has to
+         * be part of the name or it is not there at all for the reader who most needs to know
+         * which lessons are left. WCAG 1.4.1, in the one place where the platform gives no
+         * other channel.
+         */
+        option.textContent = lesson.done
+          ? i18n.t('hud.lessonDone', { title: i18n.t(lesson.title) })
+          : i18n.t(lesson.title);
+        return option;
+      }));
+      // Keep the reader's choice across a refresh; otherwise every redraw of the HUD would
+      // silently reset the select to the first lesson under their hand.
+      if (list.some((l) => l.id === chosen)) lessonSelect.value = chosen;
+    }
+    if (deps.locales) {
+      localeLabel.textContent = i18n.t('hud.language');
+      localeSelect.value = deps.locale?.() ?? '';
+    }
+    const opening = deps.opening?.() ?? null;
+    openingBox.hidden = opening === null;
+    // ⚠️ The NAME is not translated; the label around it is. See `openings/opening.ts`: "Ruy
+    // Lopez" is what it is called in all three languages, and inventing our own spellings of
+    // three thousand of them would make this game the only place they read that way.
+    openingBox.textContent = opening === null ? '' : i18n.t('hud.opening', { name: opening });
     if (deps.onHint) {
-      if (deps.lessons) {
-        lessonLabel.textContent = i18n.t('hud.lessons');
-        lessonButton.textContent = i18n.t('hud.startLesson');
-        const chosen = lessonSelect.value;
-        const list = deps.lessons();
-        lessonSelect.replaceChildren(...list.map((lesson) => {
-          const option = doc.createElement('option');
-          option.value = lesson.id;
-          /*
-           * ⚠️ THE TICK IS A CHARACTER IN THE TEXT, not a colour and not an icon. An `<option>`
-           * cannot carry a marker of its own that a screen reader will read, so "learned" has to
-           * be part of the name or it is not there at all for the reader who most needs to know
-           * which lessons are left. WCAG 1.4.1, in the one place where the platform gives no
-           * other channel.
-           */
-          option.textContent = lesson.done
-            ? i18n.t('hud.lessonDone', { title: i18n.t(lesson.title) })
-            : i18n.t(lesson.title);
-          return option;
-        }));
-        // Keep the reader's choice across a refresh; otherwise every redraw of the HUD would
-        // silently reset the select to the first lesson under their hand.
-        if (list.some((l) => l.id === chosen)) lessonSelect.value = chosen;
-      }
-      if (deps.locales) {
-        localeLabel.textContent = i18n.t('hud.language');
-        localeSelect.value = deps.locale?.() ?? '';
-      }
-      const opening = deps.opening?.() ?? null;
-      openingBox.hidden = opening === null;
-      // ⚠️ The NAME is not translated; the label around it is. See `openings/opening.ts`: "Ruy
-      // Lopez" is what it is called in all three languages, and inventing our own spellings of
-      // three thousand of them would make this game the only place they read that way.
-      openingBox.textContent = opening === null ? '' : i18n.t('hud.opening', { name: opening });
       hintButton.textContent = i18n.t('hud.hint');
       hintButton.disabled = false;
       const on = deps.hintsOn?.();

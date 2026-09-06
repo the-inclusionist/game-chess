@@ -262,6 +262,8 @@ export function createGameShell(deps: GameShellDeps): GameShell {
    * reference is in scope and correctly typed.
    */
   let openings: OpeningBook | null = null;
+  /** In flight. Separate from `openings`, which is only set when the book LANDS. */
+  let fetchingOpenings = false;
   let openingName: string | null = null;
   let openingPlies = -1;
   /** Who is being told what the board did. A lesson, or nobody. */
@@ -661,13 +663,29 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     const history = rules.history();
     if (history.length === 0) { openingName = null; openingPlies = -1; return; }
     if (!openings) {
-      // One fetch, ever. When it lands, ask again and redraw — the game will have moved on by then
-      // and that is fine, because the answer is computed from the history as it is at that moment.
+      /*
+       * ⚠️ "ONE FETCH, EVER" WAS A COMMENT AND NOT A GUARD. `openings` is only set when the book
+       * LANDS, so every move played while it was still in the air started another one — counted,
+       * on a five-move opening: eleven requests for the same 230 kB. Nothing broke, because they
+       * all resolve to the same book, which is exactly why it survived.
+       *
+       * It is not free. This game is for a school connection, and the whole reason the book is
+       * fetched on the first move rather than at boot is to spend that download carefully.
+       *
+       * When it lands, ask again and redraw — the game will have moved on by then and that is
+       * fine, because the answer is computed from the history as it is at that moment.
+       */
+      if (fetchingOpenings) return;
+      fetchingOpenings = true;
       void loadOpenings().then((book) => {
         openings = book;
         refreshOpening();
         hud.refresh();
-      }).catch(() => { /* a name that never arrives is a line that never appears. Nothing else. */ });
+      }).catch(() => {
+        // A name that never arrives is a line that never appears. Nothing else — but the flag is
+        // released, so a later move can try again rather than the game going permanently nameless.
+        fetchingOpenings = false;
+      });
       return;
     }
     if (openingPlies === history.length) return;
