@@ -34,9 +34,10 @@ import { type MoveResult } from '../chess/rules.ts';
 import {
   loadSettings, resume, patchSettings, save as saveGame,
 } from '../chess/session.ts';
-import { createGameState, type Activation, type HistoryStep } from '../chess/state.ts';
+import { announceActivation, announceMove, announceOutcome } from './narration.ts';
+import { createGameState, type HistoryStep } from '../chess/state.ts';
 import { sameSquare, type Piece, type Side, type Square, toAlgebraic } from '../chess/types.ts';
-import { createI18n, preferredLocale, type I18n } from '../i18n/index.ts';
+import { createI18n, preferredLocale } from '../i18n/index.ts';
 import { createMoveAnimation, type MoveAnimation } from '../render/animation.ts';
 import { createBoard, type Marker } from '../render/board.ts';
 import { squareFromIndex, squareIndex } from '../render/board-geometry.ts';
@@ -52,27 +53,6 @@ import { createFrameTicker } from '../render/frame-ticker.ts';
 import { LOGICAL_W } from '../render/resolution.ts';
 import { CAMERA, createZdogStage } from '../render/zdog-stage.ts';
 
-/** What the move sounds like. The notation is exact; this is what a person actually hears. */
-function moveSentence(i18n: I18n, move: MoveResult): string {
-  if (move.castle === 'king') return i18n.t('move.castleShort');
-  if (move.castle === 'queen') return i18n.t('move.castleLong');
-
-  const piece = i18n.describePiece(move.piece).text;
-  const from = toAlgebraic(move.from);
-  const to = toAlgebraic(move.to);
-
-  if (move.captured) {
-    return i18n.t('move.capture', {
-      piece, from, to, target: i18n.describePiece(move.captured).text,
-    });
-  }
-  if (move.promotion) {
-    return i18n.t('move.promotion', {
-      to, piece: i18n.describePiece({ type: move.promotion, side: move.piece.side }).text,
-    });
-  }
-  return i18n.t('move.plain', { piece, from, to });
-}
 
 export function boot(host: Document = document): void {
   const region = host.getElementById('game-region');
@@ -688,50 +668,6 @@ export function boot(host: Document = document): void {
     invalidate();
   }
 
-  function announce(result: Activation): void {
-    if (result.kind === 'selected') {
-      const piece = rules.pieceAt(result.square);
-      const where = toAlgebraic(result.square);
-      srSay(piece
-        ? `${i18n.t('a11y.selected', { piece: i18n.describePiece(piece).text, square: where })}. `
-          + i18n.t('a11y.legalMoves', { count: result.targets.length })
-        : i18n.t('square.empty', { square: where }));
-      return;
-    }
-
-    if (result.kind === 'deselected') {
-      srSay(i18n.t('a11y.noSelection'));
-      return;
-    }
-
-    if (result.kind === 'moved') {
-      srSay(moveSentence(i18n, result.move));
-      // Check is an EVENT, and an urgent one: assertive, not polite.
-      if (!result.move.checkmate && result.move.check) srAlert(i18n.t('status.check'));
-      return;
-    }
-
-    if (result.kind === 'illegal') {
-      const piece = rules.pieceAt(result.square);
-      const square = toAlgebraic(result.square);
-      srSay(piece
-        ? i18n.t('square.occupied', { square, piece: i18n.describePiece(piece).text })
-        : i18n.t('square.empty', { square }));
-    }
-  }
-
-  function announceOutcome(): void {
-    const outcome = game.outcome();
-    if (!outcome) return;
-    if (outcome.kind === 'checkmate') {
-      srAlert(i18n.t('status.checkmate', { side: i18n.t(`turn.${outcome.winner}`) }));
-    } else if (outcome.kind === 'stalemate') {
-      srAlert(i18n.t('status.stalemate'));
-    } else {
-      srAlert(i18n.t('status.draw'));
-    }
-  }
-
   /** Plays a move the game has already accepted: animate it, redraw it, say it. */
   function beginMove(move: MoveResult): void {
     animation = createMoveAnimation(move.from, move.to, { reducedMotion: reducedMotion() });
@@ -770,8 +706,7 @@ export function boot(host: Document = document): void {
         beginMove(move);
         mirror.refresh();
         hud.refresh();
-        srSay(moveSentence(i18n, move));
-        if (!move.checkmate && move.check) srAlert(i18n.t('status.check'));
+        announceMove(i18n, move);
       })
       .catch((error: unknown) => {
         searching = false;
@@ -890,7 +825,7 @@ export function boot(host: Document = document): void {
     syncMarkers();
     mirror.refresh();
     hud.refresh();
-    announce(result);
+    announceActivation(i18n, rules, result);
   }
 
   /* ---------- pointer: drag turns the camera, a click activates a square ---------- */
@@ -1086,7 +1021,7 @@ export function boot(host: Document = document): void {
           syncMarkers();
           mirror.refresh();
           hud.refresh();
-          announceOutcome();
+          announceOutcome(i18n, game.outcome());
           askOpponent();
         }
       }

@@ -38,6 +38,7 @@ import { createStockfishClient } from '../chess/engine/stockfish-client.ts';
 import { DEFAULT_ELO, STRENGTH_LADDER } from '../chess/engine/strength.ts';
 import { createThinkingPanel } from '../ui/thinking.ts';
 import { loadSettings, patchSettings, resume, save as saveGame } from '../chess/session.ts';
+import { announceMove, announceOutcome } from './narration.ts';
 import { createGameState } from '../chess/state.ts';
 import { type Side, type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale } from '../i18n/index.ts';
@@ -440,24 +441,11 @@ export function boot3d(host: Document = document): void {
     const result = game.activate(square);
     if (result.kind === 'moved') {
       game.animationDone();
-      srSay(i18n.t('status.played', { move: result.move.san }));
-      if (!result.move.checkmate && result.move.check) srAlert(i18n.t('status.check'));
+      announceMove(i18n, result.move);
       afterMove();
-      announceOutcome();
+      announceOutcome(i18n, game.outcome());
     } else {
       mirror.refresh();
-    }
-  }
-
-  function announceOutcome(): void {
-    const outcome = game.outcome();
-    if (!outcome) return;
-    if (outcome.kind === 'checkmate') {
-      srAlert(i18n.t('status.checkmate', { side: i18n.t(`turn.${outcome.winner}`) }));
-    } else if (outcome.kind === 'stalemate') {
-      srAlert(i18n.t('status.stalemate'));
-    } else {
-      srAlert(i18n.t('status.draw'));
     }
   }
 
@@ -491,10 +479,9 @@ export function boot3d(host: Document = document): void {
         const move = game.applyOpponentMove(reply.move.from, reply.move.to, reply.move.promotion);
         if (!move) return;
         game.animationDone();
-        srSay(i18n.t('status.played', { move: move.san }));
-        if (!move.checkmate && move.check) srAlert(i18n.t('status.check'));
+        announceMove(i18n, move);
         afterMove();
-        announceOutcome();
+        announceOutcome(i18n, game.outcome());
       })
       .catch(() => {
         searching = false;

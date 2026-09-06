@@ -27,13 +27,13 @@ import { createChessDeclaration } from '../declaration/chess-declaration.ts';
 import { createStockfishClient } from '../chess/engine/stockfish-client.ts';
 import { DEFAULT_ELO, STRENGTH_LADDER } from '../chess/engine/strength.ts';
 import { createThinkingPanel } from '../ui/thinking.ts';
-import { type MoveResult } from '../chess/rules.ts';
 import {
   loadSettings, resume, patchSettings, save as saveGame,
 } from '../chess/session.ts';
-import { createGameState, type Activation } from '../chess/state.ts';
+import { announceActivation, announceMove, announceOutcome } from './narration.ts';
+import { createGameState } from '../chess/state.ts';
 import { type Side, type Square, toAlgebraic } from '../chess/types.ts';
-import { createI18n, preferredLocale, type I18n } from '../i18n/index.ts';
+import { createI18n, preferredLocale } from '../i18n/index.ts';
 import { createGridMirror } from '../ui/grid-mirror.ts';
 import { createReviewer, type ReviewedMove } from '../chess/reviewer.ts';
 import { isBlunder } from '../chess/review.ts';
@@ -48,27 +48,6 @@ import { applyLayout } from '../ui/layout.ts';
 import { BOARD_THEMES, CONTRAST_THEME, DEFAULT_THEME } from '../ui/board-themes.ts';
 import { AVAILABLE_SETS, DEFAULT_SET } from '../ui/piece-sets.ts';
 
-/** What the move sounds like. Shared word for word with the 3D root, and worth keeping in step. */
-function moveSentence(i18n: I18n, move: MoveResult): string {
-  if (move.castle === 'king') return i18n.t('move.castleShort');
-  if (move.castle === 'queen') return i18n.t('move.castleLong');
-
-  const piece = i18n.describePiece(move.piece).text;
-  const from = toAlgebraic(move.from);
-  const to = toAlgebraic(move.to);
-
-  if (move.captured) {
-    return i18n.t('move.capture', {
-      piece, from, to, target: i18n.describePiece(move.captured).text,
-    });
-  }
-  if (move.promotion) {
-    return i18n.t('move.promotion', {
-      to, piece: i18n.describePiece({ type: move.promotion, side: move.piece.side }).text,
-    });
-  }
-  return i18n.t('move.plain', { piece, from, to });
-}
 
 export function boot2d(host: Document = document): void {
   const region = host.getElementById('game-region');
@@ -531,43 +510,6 @@ export function boot2d(host: Document = document): void {
   relayout();
   window.addEventListener('resize', relayout);
 
-  function announce(result: Activation): void {
-    if (result.kind === 'selected') {
-      const piece = rules.pieceAt(result.square);
-      const where = toAlgebraic(result.square);
-      srSay(piece
-        ? `${i18n.t('a11y.selected', { piece: i18n.describePiece(piece).text, square: where })}. `
-          + i18n.t('a11y.legalMoves', { count: result.targets.length })
-        : i18n.t('square.empty', { square: where }));
-      return;
-    }
-    if (result.kind === 'deselected') { srSay(i18n.t('a11y.noSelection')); return; }
-    if (result.kind === 'moved') {
-      srSay(moveSentence(i18n, result.move));
-      if (!result.move.checkmate && result.move.check) srAlert(i18n.t('status.check'));
-      return;
-    }
-    if (result.kind === 'illegal') {
-      const piece = rules.pieceAt(result.square);
-      const square = toAlgebraic(result.square);
-      srSay(piece
-        ? i18n.t('square.occupied', { square, piece: i18n.describePiece(piece).text })
-        : i18n.t('square.empty', { square }));
-    }
-  }
-
-  function announceOutcome(): void {
-    const outcome = game.outcome();
-    if (!outcome) return;
-    if (outcome.kind === 'checkmate') {
-      srAlert(i18n.t('status.checkmate', { side: i18n.t(`turn.${outcome.winner}`) }));
-    } else if (outcome.kind === 'stalemate') {
-      srAlert(i18n.t('status.stalemate'));
-    } else {
-      srAlert(i18n.t('status.draw'));
-    }
-  }
-
   function redraw(): void {
     board.refresh();
     hud.refresh();
@@ -608,9 +550,8 @@ export function boot2d(host: Document = document): void {
         if (!move) return;
         game.animationDone();
         redraw();
-        srSay(moveSentence(i18n, move));
-        if (!move.checkmate && move.check) srAlert(i18n.t('status.check'));
-        announceOutcome();
+        announceMove(i18n, move);
+        announceOutcome(i18n, game.outcome());
         // The reply is the move nobody was watching for, so it is the one that most needs to be
         // seen travelling rather than to have simply appeared somewhere else.
         void board.animate(move.from, move.to, { reducedMotion: motionReduced });
@@ -629,7 +570,7 @@ export function boot2d(host: Document = document): void {
     const result = game.activate(square);
     if (result.kind !== 'moved') {
       redraw();
-      announce(result);
+      announceActivation(i18n, rules, result);
       return;
     }
 
@@ -639,8 +580,8 @@ export function boot2d(host: Document = document): void {
     // not wait a third of a second to be told what happened.
     game.animationDone();
     redraw();
-    announce(result);
-    announceOutcome();
+    announceActivation(i18n, rules, result);
+    announceOutcome(i18n, game.outcome());
     void board.animate(move.from, move.to, { reducedMotion: motionReduced })
       .then(() => askOpponent());
   }
