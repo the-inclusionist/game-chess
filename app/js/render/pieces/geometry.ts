@@ -40,6 +40,34 @@ export interface BoxSpec {
   readonly z?: number;
   /** Turn about the vertical axis, in radians. */
   readonly rotY?: number;
+  /**
+   * Tilts, in radians. ⚠️ Hartwig needs neither — his set turns about the vertical and nothing
+   * else — and they exist for the one thing on a lathe-turned board that is not turned: a horse's
+   * head. `pieceFootprint` projects all eight corners rather than assuming the box stays axis
+   * aligned, because a tilted box reaches further than its own half-width and a piece that
+   * quietly overlaps its neighbour is not visible as an error.
+   */
+  readonly rotX?: number;
+  readonly rotZ?: number;
+}
+
+/**
+ * One turned part: a circle of some diameter, given a length along the vertical.
+ *
+ * ========================= WHY THIS VOCABULARY EXISTS =========================
+ * Hartwig needed none of it. Every OTHER European pattern is a shape cut on a lathe, which is to
+ * say a stack of circles — and `render/pieces/turned.ts` is three of those patterns. A cone is a
+ * circle that changes diameter along its length; a dome is the half-ball that ends most of them.
+ */
+export interface TurnedSpec {
+  readonly shape: 'cylinder' | 'cone' | 'dome';
+  /** Diameter. For a cone this is the WIDE end. */
+  readonly d: number;
+  readonly h: number;
+  /** Centre of the part on the vertical. Negative is up, as everywhere else here. */
+  readonly y: number;
+  /** A cone or dome pointing down rather than up. */
+  readonly down?: boolean;
 }
 
 /**
@@ -60,6 +88,8 @@ export interface SphereSpec {
 
 export interface PieceSpec {
   readonly boxes: readonly BoxSpec[];
+  /** The turned parts, bottom to top. Empty for Hartwig, who has none. */
+  readonly turned?: readonly TurnedSpec[];
   readonly sphere?: SphereSpec;
 }
 
@@ -137,15 +167,40 @@ export const PIECE_SPECS: Readonly<Record<PieceType, PieceSpec>> = {
   },
 };
 
-/** Half-extents of a box on the board plane, after its turn about the vertical axis. */
+/**
+ * Half-extents of a box on the board plane, after every turn it is given.
+ *
+ * ⚠️ ALL EIGHT CORNERS, projected. The closed form `w·cos + d·sin` is exact for a turn about the
+ * vertical and wrong the moment a box is also TILTED, which the knight's head is. A footprint
+ * computed from the wrong formula passes its own test and lets a piece lean into the square next
+ * to it, which is the kind of error that looks like a drawing rather than like a fault.
+ *
+ * Zdog applies Z, then Y, then X — `Vector.rotate` in that order — and this follows it.
+ */
 function halfExtents(b: BoxSpec): { x: number; z: number } {
-  const t = b.rotY ?? 0;
-  const c = Math.abs(Math.cos(t));
-  const s = Math.abs(Math.sin(t));
-  return {
-    x: (b.w / 2) * c + (b.d / 2) * s,
-    z: (b.w / 2) * s + (b.d / 2) * c,
-  };
+  const rz = b.rotZ ?? 0;
+  const ry = b.rotY ?? 0;
+  const rx = b.rotX ?? 0;
+  let maxX = 0;
+  let maxZ = 0;
+  for (const sx of [-1, 1]) {
+    for (const sy of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        let x = (sx * b.w) / 2;
+        let y = (sy * b.h) / 2;
+        let z = (sz * b.d) / 2;
+        // Z
+        [x, y] = [x * Math.cos(rz) - y * Math.sin(rz), x * Math.sin(rz) + y * Math.cos(rz)];
+        // Y
+        [x, z] = [x * Math.cos(ry) + z * Math.sin(ry), z * Math.cos(ry) - x * Math.sin(ry)];
+        // X
+        [y, z] = [y * Math.cos(rx) - z * Math.sin(rx), y * Math.sin(rx) + z * Math.cos(rx)];
+        maxX = Math.max(maxX, Math.abs(x));
+        maxZ = Math.max(maxZ, Math.abs(z));
+      }
+    }
+  }
+  return { x: maxX, z: maxZ };
 }
 
 /**
@@ -172,6 +227,14 @@ export function pieceFootprint(spec: PieceSpec): number {
     maxZ = Math.max(maxZ, z + half.z);
   }
 
+  for (const t of spec.turned ?? []) {
+    const r = t.d / 2;
+    minX = Math.min(minX, -r);
+    maxX = Math.max(maxX, r);
+    minZ = Math.min(minZ, -r);
+    maxZ = Math.max(maxZ, r);
+  }
+
   if (spec.sphere) {
     const r = spec.sphere.diameter / 2;
     minX = Math.min(minX, -r);
@@ -187,6 +250,7 @@ export function pieceFootprint(spec: PieceSpec): number {
 export function pieceHeight(spec: PieceSpec): number {
   let top = 0;
   for (const b of spec.boxes) top = Math.min(top, (b.y ?? 0) - b.h / 2);
+  for (const t of spec.turned ?? []) top = Math.min(top, t.y - t.h / 2);
   if (spec.sphere) top = Math.min(top, spec.sphere.y - spec.sphere.diameter / 2);
   return -top;
 }
@@ -198,5 +262,6 @@ export function pieceHeight(spec: PieceSpec): number {
 export function restsOnBoard(spec: PieceSpec): boolean {
   let bottom = -Infinity;
   for (const b of spec.boxes) bottom = Math.max(bottom, (b.y ?? 0) + b.h / 2);
+  for (const t of spec.turned ?? []) bottom = Math.max(bottom, t.y + t.h / 2);
   return Math.abs(bottom) < 1e-9;
 }

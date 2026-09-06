@@ -42,6 +42,7 @@ import { createBoard, type Marker } from '../render/board.ts';
 import { squareFromIndex, squareIndex } from '../render/board-geometry.ts';
 import { createCamera, ROTATE_HOLD_MS } from '../render/camera.ts';
 import { buildPiece, createPiecesLayer } from '../render/pieces/index.ts';
+import { DEFAULT_DESIGN, PIECE_DESIGNS } from '../render/pieces/sets.ts';
 import { PIECE_SPECS } from '../render/pieces/geometry.ts';
 import { DARK_PIECES, LIGHT_PIECES } from '../render/palette.ts';
 import { pickTopmost, toIllustrationSpace } from '../render/picking.ts';
@@ -244,7 +245,16 @@ export function boot(host: Document = document): void {
 
   const stage = createZdogStage();
   const boardView = createBoard(stage.root, projectedPalette(boardTheme(themeKey)));
-  const pieces = createPiecesLayer(stage.root, projectedPalette(boardTheme(themeKey)), outlined);
+  /**
+   * ⚠️ HARTWIG IS THE DEFAULT AND STAYS IT. It is the set this game is a reimplementation OF, and
+   * the only one whose shapes are the MOVEMENT of the pieces rather than a decoration on them.
+   * The three European patterns are alternatives offered to a player, not a replacement for the
+   * reason this project exists.
+   */
+  let designKey = remembered.design ?? DEFAULT_DESIGN;
+  const pieces = createPiecesLayer(
+    stage.root, projectedPalette(boardTheme(themeKey)), outlined, designKey,
+  );
   // Half a turn when you are black, so your own men are nearest you. Zdog projects the whole graph
   // through the illustration's rotation, so this is the entire flip — no second board, no mirrored
   // geometry, and picking keeps reading the same projected corners it always did.
@@ -428,6 +438,20 @@ export function boot(host: Document = document): void {
       hud.refresh();
     },
 
+    // ⚠️ A maintainer's instrument, behind `?debug=true`. It answers "did that ink change break
+    // anything", which is asked while working on the game and never while playing it.
+    debug: /[?&]debug=true/.test(location.search),
+    // The flat board's "piece set" is a FONT; the projected board's is a SHAPE. Same control,
+    // different question, and neither list means anything on the other page.
+    pieceSets: PIECE_DESIGNS.map((d) => ({ key: d.key, label: i18n.t(d.name) })),
+    pieceSet: () => designKey,
+    onPieceSet: (key) => {
+      designKey = key;
+      pieces.setDesign(key);
+      saveSettings({ ...currentSettings(), design: key });
+      invalidate();
+    },
+
     themes: BOARD_THEMES.map((t) => ({ key: t.key, name: t.name })),
     theme: () => themeKey,
     onTheme: (key) => { applyTheme(key); },
@@ -440,7 +464,8 @@ export function boot(host: Document = document): void {
    * The narrowed constant is captured once, above, where the check has already happened.
    */
   const currentSettings = () => ({
-    theme: themeKey, coordinates: showCoordinates, mode, elo, hints: hintsOn, protect: protectedOn,
+    theme: themeKey, design: designKey, coordinates: showCoordinates,
+    mode, elo, hints: hintsOn, protect: protectedOn,
   });
 
   /**
@@ -583,6 +608,8 @@ export function boot(host: Document = document): void {
 
   region.appendChild(coordinates.root);
   region.appendChild(players.root);
+  // Outside the panel, over the board: see `.theme-report` in the stylesheet.
+  region.appendChild(hud.report);
   region.appendChild(hud.root);
   // ⚠️ After `#stage-wrap`, not inside it. That element is a centring FLEX ROW, so a child lands
   // beside the board and squeezes it — which is exactly what happened. The panel belongs under the

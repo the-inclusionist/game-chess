@@ -425,6 +425,9 @@ export function boot2d(host: Document = document): void {
     rules,
     state: game,
 
+    // ⚠️ A maintainer's instrument, behind `?debug=true`. It answers "did that ink change break
+    // anything", which is asked while working on the game and never while playing it.
+    debug: /[?&]debug=true/.test(location.search),
     themes: BOARD_THEMES.map((t) => ({ key: t.key, name: t.name })),
     theme: () => themeKey,
     onTheme: (key) => {
@@ -513,6 +516,8 @@ export function boot2d(host: Document = document): void {
     onReplay: () => { void walkHistory('forward'); },
   });
   region.appendChild(players.root);
+  // Outside the panel, over the board: see `.theme-report` in the stylesheet.
+  region.appendChild(hud.report);
   region.appendChild(hud.root);
   // ⚠️ After `#stage-wrap`, not inside it. That element is a centring FLEX ROW, so a child lands
   // beside the board and squeezes it — which is exactly what happened. The panel belongs under the

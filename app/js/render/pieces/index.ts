@@ -18,7 +18,8 @@ import {
   DARK_OUTLINE_SCALE, DEFAULT_PALETTE, STROKE, type Palette, type SidePalette,
 } from '../palette.ts';
 import { TILE } from '../resolution.ts';
-import { PIECE_SPECS, type PieceSpec } from './geometry.ts';
+import { type PieceSpec } from './geometry.ts';
+import { DEFAULT_DESIGN, pieceDesign } from './sets.ts';
 
 export interface PiecePlacement {
   readonly piece: Piece;
@@ -43,6 +44,11 @@ export interface PiecesLayer {
   setPalette(palette: Palette): void;
   /** Turns the outline on or off. Rebuilds, for the same reason. */
   setOutline(on: boolean): void;
+  /**
+   * Swaps the drawing — Hartwig or one of the three European patterns. Rebuilds, like everything
+   * else here, because the geometry is baked into the Zdog nodes when a piece is built.
+   */
+  setDesign(key: string): void;
 }
 
 export function sideColours(piece: Piece, palette: Palette = DEFAULT_PALETTE): SidePalette {
@@ -88,7 +94,7 @@ export function buildPiece(
       height: box.h,
       depth: box.d,
       translate: { x: box.x ?? 0, y: box.y ?? 0, z: box.z ?? 0 },
-      rotate: { y: box.rotY ?? 0 },
+      rotate: { x: box.rotX ?? 0, y: box.rotY ?? 0, z: box.rotZ ?? 0 },
       stroke: STROKE,
       color: colours.stroke,
       topFace: colours.top,
@@ -98,6 +104,56 @@ export function buildPiece(
       frontFace: colours.face,
       rearFace: colours.face,
     });
+  }
+
+
+  /*
+   * ========================= THE TURNED PARTS =========================
+   * A lathe-cut piece is a stack of circles, and Zdog has shipped `Cylinder` and `Cone` all along.
+   * Both run along local Z, so a part standing on the board takes the same quarter turn about X
+   * that the board's own Rects take.
+   *
+   * ⚠️ `rotate: { x: +TAU/4 }` sends local +Z to −y, which is UP — the same sign the queen's ball
+   * relies on, and the same sign that made her look flat when it was wrong. A cone's apex and a
+   * dome's crown both point along +Z, so `down` is the OPPOSITE turn rather than a different shape.
+   *
+   * ⚠️ AND IT IS DRAWN TWICE, exactly as a Box is. `Cylinder` takes one `color` and uses it for
+   * the wall AND for the stroke, so painting the stroke in the outline ink paints the whole
+   * barrel in it too — which is what the first version did, and every piece came out a stack of
+   * near-black rings with a coloured rim. The fix is the one already proven on the boxes: the
+   * solid first, then the same geometry again with `fill: false` in the outline ink. Identical
+   * geometry means identical sort values, and a stable sort keeps the pair together.
+   */
+  for (const part of spec.turned ?? []) {
+    const up = part.down ? -Zdog.TAU / 4 : Zdog.TAU / 4;
+    const place = { translate: { y: part.y }, rotate: { x: up } };
+
+    const draw = (colour: string, filled: boolean, faces: boolean): void => {
+      const common = {
+        addTo: anchor,
+        diameter: part.d,
+        stroke: filled ? STROKE : (options.outlineWidth ?? STROKE),
+        color: colour,
+        fill: filled,
+        backface: filled ? colours.side : colour,
+        ...place,
+      };
+      if (part.shape === 'dome') {
+        new Zdog.Hemisphere(common);
+      } else if (part.shape === 'cone') {
+        new Zdog.Cone({ ...common, length: part.h });
+      } else {
+        new Zdog.Cylinder({
+          ...common,
+          length: part.h,
+          frontFace: faces ? colours.top : colour,
+          backFace: faces ? colours.side : colour,
+        });
+      }
+    };
+
+    draw(colours.face, true, true);
+    if (options.outline) draw(options.outline, false, false);
   }
 
   if (spec.sphere) {
@@ -170,12 +226,14 @@ export function createPiecesLayer(
   parent: Anchor,
   initial: Palette = DEFAULT_PALETTE,
   outlined = true,
+  design = DEFAULT_DESIGN,
 ): PiecesLayer {
   const layer = new Zdog.Anchor({ addTo: parent });
   const travelling = new Zdog.Anchor({ addTo: parent });
   let palette = initial;
   let outline = outlined;
   let placed = 0;
+  let specs = pieceDesign(design).specs;
   let current: readonly PiecePlacement[] = [];
 
   const opts = (piece: Piece): BuildOptions => (outline
@@ -194,7 +252,7 @@ export function createPiecesLayer(
     setTravelling(piece) {
       for (const child of [...travelling.children]) child.remove();
       travelling.translate.set({ x: 0, y: 0, z: 0 });
-      if (piece) buildPiece(travelling, PIECE_SPECS[piece.type], sideColours(piece, palette), opts(piece));
+      if (piece) buildPiece(travelling, specs[piece.type], sideColours(piece, palette), opts(piece));
     },
 
     moveTravelling(x, y, z) {
@@ -207,7 +265,7 @@ export function createPiecesLayer(
       for (const { piece, square } of placements) {
         const { x, z } = squareCenter(square, TILE);
         const holder = new Zdog.Anchor({ addTo: layer, translate: { x, z } });
-        buildPiece(holder, PIECE_SPECS[piece.type], sideColours(piece, palette), opts(piece));
+        buildPiece(holder, specs[piece.type], sideColours(piece, palette), opts(piece));
       }
 
       current = placements;
@@ -221,6 +279,11 @@ export function createPiecesLayer(
 
     setOutline(on) {
       outline = on;
+      this.setPosition(current);
+    },
+
+    setDesign(key) {
+      specs = pieceDesign(key).specs;
       this.setPosition(current);
     },
   };
