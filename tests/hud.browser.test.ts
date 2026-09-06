@@ -47,6 +47,16 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
     onTakeBack, onReplay,
   });
   document.body.appendChild(hud.root);
+  /*
+   * ⚠️ TWO ROOTS, BECAUSE THE PANEL AND THE SETTINGS ARE TWO PLACES NOW. The view switch, the
+   * piece drawing, the board colours, the colour-vision correction, reduced motion and the
+   * coordinate labels are built and refreshed by the HUD but SHOWN in the pause menu — a node has
+   * one parent, so the shell puts them there and this puts them somewhere.
+   *
+   * Mounting only `root` is what these tests did, and ten of them went red the moment the six
+   * moved: they were querying the document, not the panel, and had never had to care which.
+   */
+  document.body.appendChild(hud.settings);
   const play = (from: string, to: string) => {
     state.activate(sq(from));
     state.activate(sq(to));
@@ -328,11 +338,17 @@ describe('[Panel] walking the game backwards and forwards', () => {
 describe('[Views] 2D, 2.5D and 3D across the top of the panel', () => {
   const views = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>('.hud-view')];
 
-  it('offers all three, in order, at the top', () => {
+  it('offers all three, in order, at the top of the settings', () => {
     build();
     expect(views().map((v) => v.textContent)).toEqual(['2D', '2,5D', '3D']);
-    // First child of the panel: a view switch below the score sheet would be a scroll away.
-    expect(document.querySelector('.hud')!.firstElementChild!.className).toBe('hud-views');
+    /*
+     * ⚠️ FIRST IN THE SETTINGS, WHICH USED TO MEAN FIRST IN THE PANEL. The six things you set once
+     * and forget moved out of the side panel and into the pause menu — but the reason this was
+     * asserted has not changed with the address: a view switch below five other settings is a
+     * scroll away from somebody who opened the menu to change view.
+     */
+    expect(document.querySelector('.hud-settings')!.firstElementChild!.className)
+      .toBe('hud-views');
   });
 
   it('marks the current one for the eye AND for the reader', () => {

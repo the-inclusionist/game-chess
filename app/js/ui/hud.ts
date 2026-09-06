@@ -165,6 +165,16 @@ export interface HudDeps {
 export interface Hud {
   readonly root: HTMLElement;
   /**
+   * The controls you set once and then forget: the view switch, the piece drawing, the board
+   * colours, the colour-vision correction, reduced motion and the coordinate labels.
+   *
+   * ⚠️ NOT INSIDE `root`. They are built and refreshed by the HUD because that is where their
+   * state and callbacks live, but they are SHOWN wherever the composition root puts them — which
+   * is the pause menu. Appending this to two places at once would silently move it: a node has one
+   * parent.
+   */
+  readonly settings: HTMLElement;
+  /**
    * The measured contrast table, or an empty node when `debug` is off. It lives OUTSIDE the panel
    * — in the space the board leaves — because six columns cannot be read in an 88-pixel column.
    */
@@ -207,6 +217,21 @@ export function createHud(deps: HudDeps): Hud {
   // — that is how the printed convention works and the rim is what carries them — so the table
   // marks those differently from a real failure instead of hiding them.
 
+  /*
+   * ========================= ⚠️ THESE SIX LEFT THE SIDE PANEL =========================
+   * The view switch, the piece drawing, the board colours, the colour-vision correction, reduced
+   * motion and the coordinate labels are all things you set ONCE and then forget. They were taking
+   * most of a panel that is 27.5% of a 640-pixel board, above the things a player actually watches
+   * while playing — and in a lesson they were taking that room from the lesson.
+   *
+   * They are still BUILT and REFRESHED here, because this is where their state and their callbacks
+   * live. Only where they are SHOWN has moved: the composition root hands this container to the
+   * pause menu. That is a seam rather than a move — the HUD owns the controls, the shell decides
+   * where they appear — and it is why `refresh()` needed no change at all.
+   */
+  const settings = doc.createElement('div');
+  settings.className = 'hud-settings';
+
   const views = doc.createElement('nav');
   views.className = 'hud-views';
   const viewLinks: { kind: ViewKind; el: HTMLElement }[] = [];
@@ -237,7 +262,7 @@ export function createHud(deps: HudDeps): Hud {
       views.appendChild(el);
       viewLinks.push({ kind, el });
     }
-    root.appendChild(views);
+    settings.appendChild(views);
   }
 
   const report = doc.createElement('aside');
@@ -522,11 +547,11 @@ export function createHud(deps: HudDeps): Hud {
   if (deps.scoreboard) root.appendChild(deps.scoreboard);
   if (deps.strengths) root.appendChild(strengthBox);
   if (deps.onProtected) root.appendChild(protectedBox);
-  if (deps.pieceSets) root.appendChild(setBox);
-  if (deps.themes) root.appendChild(themeBox);
-  root.append(visionBox, motionBox);
-  if (deps.onOutline) root.appendChild(outlineBox);
-  root.appendChild(coordsBox);
+  if (deps.pieceSets) settings.appendChild(setBox);
+  if (deps.themes) settings.appendChild(themeBox);
+  settings.append(visionBox, motionBox);
+  if (deps.onOutline) settings.appendChild(outlineBox);
+  settings.appendChild(coordsBox);
 
   function onModeInput(event: Event): void {
     deps.onMode?.((event.target as HTMLInputElement).value as GameMode);
@@ -803,6 +828,7 @@ export function createHud(deps: HudDeps): Hud {
 
   return {
     root,
+    settings,
     report,
     refresh,
     destroy() {

@@ -665,6 +665,12 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   const pause = createPauseMenu({
     doc: host,
     i18n,
+    /*
+     * ⚠️ THE HUD STILL OWNS THESE, and hands them over rather than duplicating them. Building a
+     * second copy of six controls would be two of everything to keep in step — and the pair that
+     * drifted would be the one nobody was looking at.
+     */
+    settings: hud.settings,
     actions: () => [
       { label: 'pause.resume', run: () => pause.hide() },
       ...(lessonMode

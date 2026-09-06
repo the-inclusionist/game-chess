@@ -382,6 +382,20 @@
     font-size: var(--ui-fs, 16px);
   }
   .pause-title { margin: 0; font-size: 1.2em; color: #FFB300; }
+  /*
+   * The six settings, inside the pause menu now. They keep the HUD's own class names — they ARE
+   * the HUD's controls, handed over — so every rule written for them still applies; only the
+   * column they sit in is new.
+   */
+  .hud-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4em;
+    max-height: 55vh;
+    overflow-y: auto;
+    padding-top: 0.5em;
+    border-top: 1px solid #2b3947;
+  }
   .pause-actions { display: flex; flex-direction: column; gap: 0.35em; }
   .pause-action {
     min-height: var(--tap, 44px);
