@@ -40,6 +40,14 @@ export interface LessonModeDeps {
   /** Called when the lesson ends, however it ends. The caller puts the game back. */
   onLeave(): void;
   /**
+   * Finds a lesson by id. Defaults to the syllabus.
+   *
+   * ⚠️ INJECTED SO A PUZZLE CAN BE ONE. `teach/puzzle-lesson.ts` turns a tactic into a `Lesson`,
+   * and everything here then works on it unchanged — but resolving a `puzzle:` id means fetching a
+   * 59 KB file, which is the composition root's business rather than this driver's.
+   */
+  find?(id: string): Promise<Lesson | null>;
+  /**
    * How long a right answer stays on the board before the lesson moves on. Defaults to `HOLD_MS`.
    *
    * ⚠️ INJECTABLE FOR THE TESTS, and for nothing else. A suite that waited 800 ms per correct
@@ -310,7 +318,7 @@ export function createLessonMode(deps: LessonModeDeps): LessonMode {
     active: () => lesson,
 
     async start(lessonId, from) {
-      const found_ = lessonById(lessonId);
+      const found_ = deps.find ? await deps.find(lessonId) : lessonById(lessonId);
       if (!found_) return false;
       // ⚠️ FIRST. The prose is a dynamic import; a panel opened before it lands shows raw keys.
       shell.i18n.extend(shell.i18n.getLocale(), await loadTeach(shell.i18n.getLocale()));
@@ -354,9 +362,15 @@ export function createLessonMode(deps: LessonModeDeps): LessonMode {
       const step = tutor.back();
       if (step) { open(step, true); return; }
       // Off the front of this lesson: the last step of the one before it in the syllabus.
+      /*
+       * ⚠️ ONLY WITHIN THE SYLLABUS. A puzzle is a `Lesson` but it is not IN the course, so its
+       * index is -1 — and `order[-2]` is undefined while `order[-1 + 1]` is the FIRST lesson.
+       * Without this guard, pressing "next" at the end of a tactic dropped the reader into the
+       * notation lesson.
+       */
       const order = syllabus();
       const at = lessonIndex(lesson.id);
-      const previous = order[at - 1];
+      const previous = at < 0 ? undefined : order[at - 1];
       if (!previous) { open(tutor.step()!, true); return; }
       await this.start(previous.id, previous.steps.length - 1);
     },
@@ -368,7 +382,8 @@ export function createLessonMode(deps: LessonModeDeps): LessonMode {
       if (step) { open(step, true); return; }
       // Off the end: the first step of the next lesson, or back to the list when there is none.
       const order = syllabus();
-      const next = order[lessonIndex(lesson.id) + 1];
+      const here = lessonIndex(lesson.id);
+      const next = here < 0 ? undefined : order[here + 1];
       if (!next) { this.stop(); return; }
       await this.start(next.id, 0);
     },

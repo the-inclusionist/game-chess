@@ -56,6 +56,19 @@ const MIN_STAGE_K = 3;
  */
 const MIN_COLUMN_W = 300;
 
+/**
+ * The widest the side panel may grow.
+ *
+ * ⚠️ WITHOUT THIS THE PANEL IS AS WIDE AS THE BOARD, and that is not a taste judgement — it is what
+ * a 2:1 stage does to a SQUARE board. The board is bound by the stage's height, so on 1080x540 it
+ * is about 510 across; the panel then took the whole remaining 440 and the screen read as two
+ * equal halves, one of them a chess board and the other a menu.
+ *
+ * Capped, the leftover becomes MARGIN either side of the pair rather than width nobody asked the
+ * panel to have. One stage unit is the cap because it is the unit everything else here is in.
+ */
+const MAX_COLUMN_W = 360;
+
 export interface LayoutHost {
   readonly doc: Document;
   readonly win: Window;
@@ -130,13 +143,26 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
    * a canvas in it or there is not.
    */
   const boardCanvas = host.doc.getElementById('board-canvas');
+  /*
+   * ⚠️ AND AS WIDE. A canvas page needs exactly `LOGICAL_W x LOGICAL_H` times the scale, or the
+   * canvas — which is `width: 100%; height: 100%` — stretches. The flat page's board is a SQUARE
+   * drawn as a percentage of this box, so a 640-wide box for a 508-wide board left 132 px of
+   * nothing inside the region and made the panel look bigger than it was.
+   */
   const regionHeight = boardCanvas ? height : Math.max(height, stageH);
+  const regionWidth = boardCanvas ? width : regionHeight;
 
-  region.style.width = `${width}px`;
+  region.style.width = `${regionWidth}px`;
   region.style.height = `${regionHeight}px`;
-  // Whatever the board did not take. The panel is the remainder by construction, so the two can
-  // never overlap — which is the whole reason they stopped being one element.
-  if (column) column.style.width = `${stageW - width}px`;
+  /*
+   * Whatever the board did not take, within the two bounds. The panel is still the remainder by
+   * construction — the two can never overlap — but the remainder is now clamped, and `#stage`
+   * centres the pair so anything left over is margin on both sides.
+   */
+  if (column) {
+    const rest = stageW - regionWidth;
+    column.style.width = `${Math.min(MAX_COLUMN_W, Math.max(MIN_COLUMN_W, rest))}px`;
+  }
 
   // Against the ENGINE's base, not ours: a 44 px target is 44 px whatever this game rasterises at.
   const ui = width / ENGINE_BASE_W;
