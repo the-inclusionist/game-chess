@@ -87,6 +87,22 @@ export interface Rules {
   fen(): string;
   /** The position this game began from. Only interesting to whoever has to rebuild it. */
   startFen(): string;
+  /**
+   * The game as PGN, with whatever comments are on it.
+   *
+   * ⚠️ THE POINT OF THIS IS THE COMMENTS, not the moves. A game's MOVES are facts and can come from
+   * anywhere; a master's NOTES on them are the thing a book is, and the thing copyright attaches
+   * to. `docs/LICENSES.md` records which books are old enough for those notes to be usable at all.
+   */
+  pgn(): string;
+  /**
+   * The comment on the position AFTER `ply` moves, or null.
+   *
+   * ⚠️ INDEXED BY PLY RATHER THAN BY MOVE, because that is what a comment is attached to: PGN puts
+   * a note after the move it is about, which is to say on the position it produced. Numbering it
+   * by move would need a rule for whose move, and the rule would be wrong half the time.
+   */
+  commentAt(ply: number): string | null;
   history(): readonly MoveResult[];
   canUndo(): boolean;
   undo(): void;
@@ -121,7 +137,52 @@ function toSquare(name: string): Square {
 const toPiece = (type: PieceSymbol, color: Color): Piece =>
   ({ type: type as PieceType, side: color as Side });
 
-export function createRules(fen?: string): Rules {
+/**
+ * A game read from PGN, or null if the text is not one.
+ *
+ * ========================= ⚠️ NULL, NOT A THROW, AND THE PLAN NAMED THIS =========================
+ * `searchPlay` throws on a token it cannot play, and the plan flagged that the book mode "vai
+ * precisar de um caminho de SAN que não lance". This is that path. A book is a FILE — downloaded,
+ * transcribed, possibly edited by a teacher — and a file that will not parse is a thing to be told
+ * about, not an exception thrown through whatever happened to be reading it.
+ *
+ * It is the same argument `rules.ts` already makes for an illegal move: a throw inside a handler
+ * takes the frame loop with it, and "this did not work" is a value.
+ */
+export function rulesFromPgn(pgn: string): Rules | null {
+  if (!pgn.trim()) return null;
+  const probe = new Chess();
+  try {
+    probe.loadPgn(pgn);
+  } catch {
+    return null;
+  }
+  /*
+   * ⚠️ REBUILT BY REPLAY RATHER THAN WRAPPED. `createRules` owns the redo stack, the `played` list
+   * and the start position, and none of that exists on a `Chess` loaded from text. Replaying
+   * through the front door is what makes a book's game indistinguishable from one somebody played
+   * — the reviewer, the score sheet, the take-back and the declaration all work on it without
+   * knowing where it came from.
+   *
+   * ⚠️ AND THE COMMENTS ARE CARRIED ACROSS BY HAND, because replaying loses them. They live on the
+   * `Chess` that parsed the text, and that one is thrown away here; worse, `chess.js` PRUNES its
+   * own comment map when a move is played, so re-attaching them to the rebuilt game would have
+   * them deleted underneath. Handing them over as data — position to note — sidesteps the whole
+   * question, and the first version of this returned every note as null without failing anything
+   * except the test that asked.
+   */
+  const header = probe.getHeaders();
+  const notes = new Map(probe.getComments().map((c) => [c.fen, c.comment]));
+  const rules = createRules(header.FEN || undefined, notes);
+  for (const move of probe.history({ verbose: true })) {
+    const from = fromAlgebraic(move.from);
+    const to = fromAlgebraic(move.to);
+    if (!from || !to || !rules.move(from, to, move.promotion as PieceType | undefined)) return null;
+  }
+  return rules;
+}
+
+export function createRules(fen?: string, notes?: ReadonlyMap<string, string>): Rules {
   const game = fen ? new Chess(fen) : new Chess();
   // Captured before a move is played, because chess.js will not tell us later and a saved game
   // that always assumed the standard opening would rebuild the wrong game from any other.
@@ -226,6 +287,53 @@ export function createRules(fen?: string): Rules {
     fen: () => game.fen(),
     startFen: () => start,
     history: () => played,
+
+    pgn() {
+      /*
+       * ⚠️ THE NOTES ARE WRITTEN BACK IN, because the live game does not hold them — see
+       * `commentAt`. Serialising `game` alone would hand somebody a book with the book taken out,
+       * and the moves are the half that was never in doubt.
+       *
+       * Built on a throwaway so that attaching them cannot disturb the position anybody is looking
+       * at, and so `chess.js` can prune its own comment map as much as it likes on the way.
+       */
+      if (!notes || notes.size === 0) return game.pgn();
+      const out = new Chess(start);
+      for (const move of played) {
+        out.move({
+          from: toAlgebraic(move.from),
+          to: toAlgebraic(move.to),
+          ...(move.promotion ? { promotion: move.promotion } : {}),
+        });
+        const note = notes.get(out.fen());
+        if (note) out.setComment(note);
+      }
+      return out.pgn();
+    },
+
+    commentAt(ply) {
+      /*
+       * ⚠️ REPLAYED RATHER THAN ASKED. `chess.js` keeps comments against the FEN of the position
+       * they sit on, and `getComments()` hands back every one of them with its FEN — but a FEN
+       * repeats: the same position can occur twice in a game, and a note about the second occasion
+       * would be shown against the first.
+       *
+       * So the ply is turned into a position by walking there, and the comment is looked up by
+       * that. Walking a copy, because doing it on the live game would take the board apart under
+       * whoever is looking at it.
+       */
+      if (!notes || ply < 0 || ply > played.length) return null;
+      const walk = new Chess(start);
+      for (let i = 0; i < ply; i += 1) {
+        const move = played[i]!;
+        walk.move({
+          from: toAlgebraic(move.from),
+          to: toAlgebraic(move.to),
+          ...(move.promotion ? { promotion: move.promotion } : {}),
+        });
+      }
+      return notes.get(walk.fen()) ?? null;
+    },
 
     canUndo: () => played.length > 0,
 
