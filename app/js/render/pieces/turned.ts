@@ -81,6 +81,31 @@ function stack(parts: readonly Part[], from = 0): TurnedSpec[] {
 }
 
 /**
+ * The top of a stack, which is where anything carved has to start.
+ *
+ * ⚠️ NEVER WRITE THIS NUMBER DOWN. Every piece with a carving used to name its own top as a
+ * literal — `knightHead(-5.6, 4.0)` — and every one of those literals is a copy of a sum made
+ * somewhere else. Change one height anywhere below it and the head floats, which does not read as
+ * an error: it reads as a slightly wrong drawing. It has happened in this file before.
+ */
+function topOf(parts: readonly Part[], from = 0): number {
+  return parts.reduce((y, part) => y - part.h, from);
+}
+
+/** A piece whose turned stack carries something carved on top, placed by arithmetic. */
+function crowned(
+  parts: readonly Part[],
+  crown: (top: number) => BoxSpec[],
+  options: { base?: readonly BoxSpec[]; from?: number } = {},
+): PieceSpec {
+  const from = options.from ?? 0;
+  return {
+    boxes: [...(options.base ?? []), ...crown(topOf(parts, from))],
+    turned: stack(parts, from),
+  };
+}
+
+/**
  * A whole ball, as two hemispheres.
  *
  * ⚠️ NOT a `dome`. A dome is half a ball with its flat face down, and a bulb finial — which is what
@@ -169,20 +194,17 @@ export const SET_1849: Readonly<Record<PieceType, PieceSpec>> = {
     ...ball(2.4),
   ]),
 
-  r: STA([
+  r: crowned([...ST_BASE,
     { shape: 'taper', d: 6.6, dTop: 5.6, h: 1.5 },
     { shape: 'cylinder', d: 5.4, h: 4.0 },
     { shape: 'taper', d: 5.2, dTop: 6.6, h: 0.9 },
     { shape: 'cylinder', d: 6.6, h: 0.5 },
-  ], crenels(-9.3, 2.2, 1.7, 1.2)),
+  ], (top) => crenels(top, 2.2, 1.8, 1.4)),
 
-  n: {
-    boxes: knightHead(-6.6, 4.0),
-    turned: stack([...ST_BASE,
-      { shape: 'taper', d: 6.6, dTop: 4.2, h: 3.6 },
-      { shape: 'taper', d: 4.6, dTop: 4.0, h: 0.6 },
-    ]),
-  },
+  n: crowned([...ST_BASE,
+    { shape: 'taper', d: 6.6, dTop: 4.2, h: 3.6 },
+    { shape: 'taper', d: 4.6, dTop: 4.0, h: 0.6 },
+  ], (top) => knightHead(top, 4.0)),
 
   b: STA([
     { shape: 'taper', d: 6.4, dTop: 3.0, h: 4.8 },
@@ -203,13 +225,13 @@ export const SET_1849: Readonly<Record<PieceType, PieceSpec>> = {
     ...ball(1.8),
   ]),
 
-  k: STA([
+  k: crowned([...ST_BASE,
     { shape: 'taper', d: 7.0, dTop: 3.4, h: 8.6 },
     { shape: 'taper', d: 4.6, dTop: 3.8, h: 0.7 },
     { shape: 'taper', d: 4.2, dTop: 6.2, h: 1.7 },
     { shape: 'cylinder', d: 6.2, h: 0.5 },
     { shape: 'taper', d: 3.0, dTop: 2.0, h: 0.9 },
-  ], cross(-14.8, 1.6, 1.3)),
+  ], (top) => cross(top, 1.6, 1.3)),
 };
 
 /* ============================ RÉGENCE ============================ */
@@ -223,11 +245,24 @@ export const SET_1849: Readonly<Record<PieceType, PieceSpec>> = {
 // board. It is the only pattern on the page whose foot is not a circle, and at twenty pixels a
 // square corner against a square board is the fastest thing on the piece to recognise.
 
+/*
+ * ⚠️ ONE STEP, AND THE PLATE DRAWS TWO. This is the one place a Regence piece is knowingly
+ * simpler than its reference, and the reason is the line rather than the shape.
+ *
+ * A box is outlined by a SECOND box with `fill: false`, and Zdog centres that stroke on the path:
+ * half of it is spent eating the face it edges. A turned set draws at 0.75 units, so a step 0.8
+ * units tall is almost entirely line. Drawn faithfully, the plate's two shallow steps came out as
+ * a black slab with a pale lid — measured at four parts ink to one part filling, and visible as
+ * exactly that on screen.
+ *
+ * A single step 2.2 units tall spends about a third of itself on its own edge, which is the same
+ * bargain every Hartwig cube makes. What is kept is the thing that identifies the pattern at
+ * twenty pixels: the foot is SQUARE, and it is the only square foot on the page.
+ */
 const REG_PLINTH: BoxSpec[] = [
-  { w: 8.0, h: 0.8, d: 8.0, y: -0.4 },
-  { w: 6.8, h: 0.7, d: 6.8, y: -1.15 },
+  { w: 8.0, h: 2.2, d: 8.0, y: -1.1 },
 ];
-const REG_TOP = -1.5;
+const REG_TOP = -2.2;
 
 /** Régence stacks its stem in TIERS: a swelling, then the disc that caps it. */
 function tier(swell: number, disc: number): Part[] {
@@ -253,26 +288,31 @@ export const SET_REGENCE: Readonly<Record<PieceType, PieceSpec>> = {
     ...ball(1.1),
   ]),
 
-  // A tapering tower with turned bands and four crenellations, which is the plate's fifth piece
-  // almost literally. The bands are what make it a Régence rook rather than any other turret.
-  r: REG([
-    { shape: 'taper', d: 7.4, dTop: 6.4, h: 1.8 },
-    { shape: 'cylinder', d: 6.6, h: 0.4 },
-    { shape: 'taper', d: 6.2, dTop: 5.4, h: 1.6 },
-    { shape: 'cylinder', d: 5.8, h: 0.4 },
-    { shape: 'taper', d: 5.2, dTop: 4.6, h: 1.6 },
-    { shape: 'cylinder', d: 5.6, h: 0.6 },
-  ], crenels(-7.9, 1.9, 1.5, 1.3)),
+  /*
+   * A tapering tower with turned bands and four crenellations, which is the plate's fifth piece
+   * almost literally. The bands are what make it a Régence rook rather than any other turret.
+   *
+   * ⚠️ ITS CAP IS WIDER THAN THE PLATE'S, and for the same reason the plinth has one step. Four
+   * battlements sawn from a narrow cap are four small boxes, and a box is edged by a stroke centred
+   * on its own face: at 1.7 units against a 0.75 line each one is more line than block. Measured at
+   * three parts ink to one part filling, and the worst piece on the page by a distance. A wider cap
+   * gives them room to be blocks.
+   */
+  r: crowned([
+    { shape: 'taper', d: 7.4, dTop: 6.6, h: 1.8 },
+    { shape: 'cylinder', d: 7.0, h: 0.6 },
+    { shape: 'taper', d: 6.4, dTop: 5.8, h: 1.6 },
+    { shape: 'cylinder', d: 6.2, h: 0.6 },
+    { shape: 'taper', d: 5.6, dTop: 5.2, h: 1.4 },
+    { shape: 'cylinder', d: 6.8, h: 0.9 },
+  ], (top) => crenels(top, 2.3, 2.0, 1.9), { base: REG_PLINTH, from: REG_TOP }),
 
-  n: {
-    boxes: [...REG_PLINTH, ...knightHead(-7.8, 3.2)],
-    turned: stack([
-      { shape: 'taper', d: 5.0, dTop: 3.2, h: 0.7 },
-      { shape: 'taper', d: 2.2, dTop: 2.6, h: 1.6 },
-      ...ball(3.4),
-      { shape: 'taper', d: 1.8, dTop: 1.6, h: 0.6 },
-    ], REG_TOP),
-  },
+  n: crowned([
+    { shape: 'taper', d: 5.0, dTop: 3.2, h: 0.7 },
+    { shape: 'taper', d: 2.2, dTop: 2.6, h: 1.6 },
+    ...ball(3.4),
+    { shape: 'taper', d: 1.8, dTop: 1.6, h: 0.6 },
+  ], (top) => knightHead(top, 3.4), { base: REG_PLINTH, from: REG_TOP }),
 
   // The plate's third piece: a sphere, then a WIDE FLAT SAUCER, then a small point. Nothing else
   // on this page has a disc that overhangs its own body, and it is the whole of the silhouette.
@@ -298,14 +338,14 @@ export const SET_REGENCE: Readonly<Record<PieceType, PieceSpec>> = {
 
   // The king takes a fourth tier and finishes in a CROWN — a flared band with battlements round
   // it, which is what the plate draws and what no other king here has.
-  k: REG([
+  k: crowned([
     { shape: 'taper', d: 5.4, dTop: 3.6, h: 0.7 },
     { shape: 'taper', d: 3.6, dTop: 7.6, h: 5.4 },
     { shape: 'cylinder', d: 7.6, h: 0.4 },
     ...tier(3.4, 5.4), ...tier(3.2, 5.0), ...tier(3.0, 4.6), ...tier(2.8, 4.2),
-    { shape: 'taper', d: 2.4, dTop: 4.6, h: 0.9 },
-    { shape: 'cylinder', d: 4.6, h: 0.5 },
-  ], crenels(-14.6, 1.7, 1.2, 1.4)),
+    { shape: 'taper', d: 2.4, dTop: 5.2, h: 0.9 },
+    { shape: 'cylinder', d: 5.4, h: 0.7 },
+  ], (top) => crenels(top, 1.8, 1.7, 1.7), { base: REG_PLINTH, from: REG_TOP }),
 };
 
 /* ============================ ST GEORGE ============================ */
@@ -338,21 +378,18 @@ export const SET_ST_GEORGE: Readonly<Record<PieceType, PieceSpec>> = {
     ...ball(3.0),
   ]),
 
-  r: STG([
+  r: crowned([...STG_BASE,
     { shape: 'taper', d: 6.8, dTop: 5.4, h: 1.6 },
     { shape: 'taper', d: 5.0, dTop: 4.6, h: 3.4 },
-    { shape: 'taper', d: 4.4, dTop: 6.4, h: 0.9 },
-    { shape: 'cylinder', d: 6.4, h: 0.5 },
-  ], crenels(-8.7, 2.1, 1.7, 1.3)),
+    { shape: 'taper', d: 4.4, dTop: 6.6, h: 0.9 },
+    { shape: 'cylinder', d: 6.6, h: 0.6 },
+  ], (top) => crenels(top, 2.2, 1.9, 1.5)),
 
-  n: {
-    boxes: knightHead(-6.7, 3.6),
-    turned: stack([...STG_BASE,
-      { shape: 'taper', d: 6.8, dTop: 5.0, h: 1.8 },
-      { shape: 'taper', d: 4.6, dTop: 3.6, h: 2.1 },
-      { shape: 'cylinder', d: 4.0, h: 0.5 },
-    ]),
-  },
+  n: crowned([...STG_BASE,
+    { shape: 'taper', d: 6.8, dTop: 5.0, h: 1.8 },
+    { shape: 'taper', d: 4.6, dTop: 3.6, h: 2.1 },
+    { shape: 'cylinder', d: 4.0, h: 0.5 },
+  ], (top) => knightHead(top, 3.6)),
 
   // ⚠️ THE SPLIT IS NOT DRAWN. A St George mitre is cut with a slit, and cutting is subtraction:
   // the table has no boolean and neither renderer has one either. What is here is the mitre
@@ -446,13 +483,10 @@ export const SET_SELENUS: Readonly<Record<PieceType, PieceSpec>> = {
     ...ball(1.4),
   ]),
 
-  n: {
-    boxes: knightHead(-7.7, 3.2),
-    turned: stack([...SEL_BASE,
-      ...baluster(2.2, 3.2, 1.8, 2.0),
-      { shape: 'cylinder', d: 3.4, h: 0.4 },
-    ]),
-  },
+  n: crowned([...SEL_BASE,
+    ...baluster(2.2, 3.2, 1.8, 2.0),
+    { shape: 'cylinder', d: 3.4, h: 0.4 },
+  ], (top) => knightHead(top, 3.2)),
 
   b: SEL([
     ...baluster(2.2, 3.4, 1.8, 1.6),
@@ -536,20 +570,17 @@ export const SET_SIKH: Readonly<Record<PieceType, PieceSpec>> = {
     ...ball(2.6),
   ]),
 
-  r: SIK([
+  r: crowned([...SIK_BASE,
     { shape: 'taper', d: 5.8, dTop: 5.0, h: 1.6 },
     { shape: 'cylinder', d: 4.8, h: 4.2 },
-    { shape: 'taper', d: 4.6, dTop: 6.0, h: 0.9 },
-    { shape: 'cylinder', d: 6.0, h: 0.5 },
-  ], crenels(-9.8, 2.0, 1.6, 1.3)),
+    { shape: 'taper', d: 4.6, dTop: 6.2, h: 0.9 },
+    { shape: 'cylinder', d: 6.2, h: 0.6 },
+  ], (top) => crenels(top, 2.1, 1.8, 1.4)),
 
-  n: {
-    boxes: knightHead(-7.7, 3.6),
-    turned: stack([...SIK_BASE,
-      { shape: 'taper', d: 5.8, dTop: 3.8, h: 4.5 },
-      { shape: 'taper', d: 4.2, dTop: 3.6, h: 0.6 },
-    ]),
-  },
+  n: crowned([...SIK_BASE,
+    { shape: 'taper', d: 5.8, dTop: 3.8, h: 4.5 },
+    { shape: 'taper', d: 4.2, dTop: 3.6, h: 0.6 },
+  ], (top) => knightHead(top, 3.6)),
 
   b: SIK([
     { shape: 'taper', d: 5.6, dTop: 2.8, h: 5.2 },
@@ -567,11 +598,11 @@ export const SET_SIKH: Readonly<Record<PieceType, PieceSpec>> = {
     ...ball(1.7),
   ]),
 
-  k: SIK([
+  k: crowned([...SIK_BASE,
     { shape: 'taper', d: 6.2, dTop: 3.0, h: 8.8 },
     { shape: 'taper', d: 4.2, dTop: 3.4, h: 0.7 },
     { shape: 'taper', d: 3.8, dTop: 5.8, h: 1.6 },
     { shape: 'cylinder', d: 5.8, h: 0.5 },
     { shape: 'taper', d: 2.6, dTop: 1.8, h: 0.8 },
-  ], khanda(-15.0)),
+  ], khanda),
 };

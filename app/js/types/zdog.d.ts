@@ -94,6 +94,27 @@ declare module 'zdog' {
     pathCommands: PathCommand[];
   }
 
+  export interface GroupOptions extends AnchorOptions {
+    visible?: boolean;
+    /**
+     * Whether the group sorts its own children by depth.
+     *
+     * ⚠️ FALSE IS THE USEFUL ONE, and it is the only reason this class is declared at all. A
+     * Group renders as a single unit against the rest of the scene, and with `updateSort: false`
+     * its children keep INSERTION order inside it. That is what lets a piece's outline hull be
+     * drawn behind its own solid: their sort values are a mean of projected points and tie only in
+     * arithmetic, not in floating point, so a plain stable sort loses the pair about half the time.
+     */
+    updateSort?: boolean;
+  }
+
+  /** Renders as one object against the scene; see `updateSort`. */
+  export class Group extends Anchor {
+    constructor(options?: GroupOptions);
+    visible: boolean;
+    updateSort: boolean;
+  }
+
   export interface RectOptions extends ShapeOptions {
     width?: number;
     height?: number;
@@ -233,6 +254,7 @@ declare module 'zdog' {
     TAU: number;
     Vector: typeof Vector;
     Anchor: typeof Anchor;
+    Group: typeof Group;
     Shape: typeof Shape;
     Rect: typeof Rect;
     Ellipse: typeof Ellipse;

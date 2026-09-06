@@ -4,6 +4,7 @@ import type { Piece, PieceType } from '../app/js/chess/types.ts';
 import { DARK_OUTLINE_SCALE, HIGH_CONTRAST_PALETTE, LIGHT_PIECES, STROKE } from '../app/js/render/palette.ts';
 import { buildPiece, createPiecesLayer } from '../app/js/render/pieces/index.ts';
 import { PIECE_SPECS } from '../app/js/render/pieces/geometry.ts';
+import { pieceDesign } from '../app/js/render/pieces/sets.ts';
 import { CAMERA, createZdogStage, type ZdogStage } from '../app/js/render/zdog-stage.ts';
 import { LOGICAL_H, LOGICAL_W } from '../app/js/render/resolution.ts';
 
@@ -438,5 +439,75 @@ describe('[Outline] the two sides are not given the same weight', () => {
     // outline is entirely inside the silhouette and stops being an edge. The scale is 1 now and
     // this is nowhere near the floor, which is exactly the point of keeping the check.
     expect(STROKE * DARK_OUTLINE_SCALE).toBeGreaterThanOrEqual(STROKE / 2);
+  });
+});
+
+// ========================= A TURNED PIECE IS MOSTLY ITSELF =========================
+// ⚠️ THE REGRESSION THIS EXISTS TO CATCH, and it stood in the repository for weeks behind a comment
+// saying it had been fixed. `CylinderGroup.renderCylinderSurface` in zdog 1.1.3 reads
+//
+//     renderer.stroke( ctx, elem, true, this.color, strokeWidth );
+//
+// with `true` as a LITERAL: a cylinder's wall is one fat line painted at the full diameter in
+// `this.color`, and `fill: false` never reaches it. So the "outline" copy of every drum was an
+// opaque bar of ink laid over the piece, and a pattern with ten turned parts came out as a striped
+// cone with its colour pushed out to a rim. The outline is a larger copy drawn BEHIND now — see
+// `render/pieces/index.ts` — and this is the assertion that says so in pixels rather than in prose.
+describe('[Ink] a turned piece is mostly itself, not mostly its own outline', () => {
+  const rgbOf = (hex: string): [number, number, number] => rgb(hex);
+
+  function inkCount(s: ZdogStage, colours: readonly string[]): number[] {
+    const d = pixels(s);
+    const targets = colours.map(rgbOf);
+    const counts = targets.map(() => 0);
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 128) continue;
+      targets.forEach(([r, g, b], k) => {
+        if (Math.abs(d[i] - r) < 18 && Math.abs(d[i + 1] - g) < 18 && Math.abs(d[i + 2] - b) < 18) {
+          counts[k]++;
+        }
+      });
+    }
+    return counts;
+  }
+
+  it('covers every piece of every turned pattern in its own filling', () => {
+    /*
+     * Line against filling, dark side, high contrast. Twenty-nine of the thirty are filling-first
+     * by a distance, most of them four or five to one:
+     *
+     *   staunton  p 0.17  r 0.61  n 0.37  b 0.22  q 0.20  k 0.23
+     *   regence   p 0.58  r 2.06  n 0.90  b 0.42  q 0.42  k 0.89   <- the rook is the exception
+     *   stgeorge  p 0.16  r 0.44  n 0.33  b 0.18  q 0.14  k 0.23
+     *   selenus   p 0.35  r 0.30  n 0.60  b 0.37  q 0.28  k 0.33
+     *   sikh      p 0.22  r 0.68  n 0.45  b 0.26  q 0.20  k 0.29
+     *
+     * THE REGENCE ROOK is the one piece that carries both things this renderer edges with a CENTRED
+     * stroke rather than a hull: the square plinth and four battlements sawn from its cap. Half of
+     * that line is spent inside the face it edges, and on boxes about two units across there is not
+     * much face to spend. It is bounded rather than excused — before the cylinder fix the same
+     * measurement read nine to one, so a ceiling at 2.5 still catches that decisively.
+     */
+    const dark = HIGH_CONTRAST_PALETTE.darkPieces;
+    const heavy: string[] = [];
+    for (const key of ['s1849', 'regence', 'stgeorge', 'selenus', 'sikh']) {
+      const design = pieceDesign(key);
+      for (const type of ALL) {
+        stage?.destroy();
+        stage = createZdogStage();
+        buildPiece(stage.root, design.specs[type], dark, {
+          outline: dark.stroke, line: design.line, outlineWidth: STROKE * design.line,
+        });
+        stage.render();
+        const [stroke, filling] = inkCount(stage, [dark.stroke, dark.top]);
+        // Both present: a piece with no ink has no edge against its square, and a piece with no
+        // filling is the bug this whole block exists to catch.
+        expect(`${key} ${type} inked ${stroke > 0}`).toBe(`${key} ${type} inked true`);
+        expect(`${key} ${type} filled ${filling > 0}`).toBe(`${key} ${type} filled true`);
+        const ceiling = key === 'regence' && type === 'r' ? 2.5 : 1;
+        if (stroke / filling > ceiling) heavy.push(`${key} ${type} ${(stroke / filling).toFixed(2)}`);
+      }
+    }
+    expect(heavy).toEqual([]);
   });
 });

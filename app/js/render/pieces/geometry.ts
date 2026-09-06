@@ -117,23 +117,6 @@ export function flatDiameter(part: TurnedSpec): number {
  */
 export const MAX_TAPER_SPAN = 4.0;
 
-/**
- * Is this part so short that an outline round it would be ink rather than an edge?
- *
- * ⚠️ THE FAILURE THIS EXISTS TO STOP. Zdog centres a stroke on its path, so an outline of width w
- * covers w/2 above the part and w/2 below it. A turned set draws at `line: 0.5`, which is 0.75
- * units — and a collar 0.4 units tall is therefore SHORTER THAN ITS OWN OUTLINE. Ten of those up
- * a piece and the piece is a black-and-white striped cone with its colour pushed out to a rim,
- * which is exactly how the first render of these profiles came out.
- *
- * The part is still DRAWN. Only its outline is dropped, and what it costs is the edge on a shelf
- * that is seven tenths of a pixel tall. The neighbours above and below are thick enough to carry
- * the silhouette across the gap.
- */
-export function tooThinToOutline(part: TurnedSpec, lineWidth: number): boolean {
-  return part.h < lineWidth * 1.5;
-}
-
 /** The widest a turned part gets, which is the only thing its footprint depends on. */
 export function turnedWidth(t: TurnedSpec): number {
   return Math.max(t.d, t.dTop ?? 0);

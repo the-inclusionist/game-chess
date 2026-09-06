@@ -20,7 +20,7 @@ import {
   DARK_OUTLINE_SCALE, DEFAULT_PALETTE, STROKE, type Palette, type SidePalette,
 } from '../palette.ts';
 import { TILE } from '../resolution.ts';
-import { flatDiameter, tooThinToOutline, type PieceSpec } from './geometry.ts';
+import { flatDiameter, type PieceSpec } from './geometry.ts';
 import { DEFAULT_DESIGN, pieceDesign } from './sets.ts';
 
 export interface PiecePlacement {
@@ -118,61 +118,114 @@ export function buildPiece(
   /*
    * ========================= THE TURNED PARTS =========================
    * A lathe-cut piece is a stack of circles, and Zdog has shipped `Cylinder` and `Cone` all along.
-   * Both run along local Z, so a part standing on the board takes the same quarter turn about X
-   * that the board's own Rects take.
+   * All of them run along local Z, so a part standing on the board takes the same quarter turn
+   * about X that the board's own Rects take.
    *
    * ⚠️ `rotate: { x: +TAU/4 }` sends local +Z to −y, which is UP — the same sign the queen's ball
    * relies on, and the same sign that made her look flat when it was wrong. A cone's apex and a
    * dome's crown both point along +Z, so `down` is the OPPOSITE turn rather than a different shape.
    *
-   * ⚠️ AND IT IS DRAWN TWICE, exactly as a Box is. `Cylinder` takes one `color` and uses it for
-   * the wall AND for the stroke, so painting the stroke in the outline ink paints the whole
-   * barrel in it too — which is what the first version did, and every piece came out a stack of
-   * near-black rings with a coloured rim. The fix is the one already proven on the boxes: the
-   * solid first, then the same geometry again with `fill: false` in the outline ink. Identical
-   * geometry means identical sort values, and a stable sort keeps the pair together.
+   * ================= ⚠️ ZDOG CANNOT STROKE A CYLINDER, AND SAYING IT COULD COST MONTHS =========
+   * The outline used to be a second copy with `fill: false`, which is the trick the boxes use and
+   * which the comment here claimed worked. Read `CylinderGroup.renderCylinderSurface` in
+   * `zdog.dist.js` and it does not:
+   *
+   *     renderer.stroke( ctx, elem, true, this.color, strokeWidth );
+   *
+   * The `true` is a LITERAL. A cylinder's wall is not a stroked path at all — it is one fat line
+   * from one base to the other, painted at `diameter * scale + lineWidth`, in `this.color`,
+   * whatever `fill` says. So the "outline" copy of every drum was an OPAQUE BAR of outline ink
+   * the full width of the part, laid over the piece. On a turned pattern with eight or ten parts
+   * that is most of the piece, which is why they came out as striped cones with their colour
+   * pushed to a rim, and why adding more parts made it worse rather than better.
+   *
+   * A cone and a dome are honest — `Cone.renderConeSurface` and `Hemisphere.renderDome` both pass
+   * `this.stroke` and `this.fill` through, so an unfilled copy of either really is a contour.
+   *
+   * ================= SO THE OUTLINE IS A LARGER COPY, DRAWN FIRST =================
+   * The same trick `render3d/pieces.ts` plays with an inverted hull, and for the same reason: the
+   * renderer has no outline primitive worth the name. A copy `outlineWidth` wider all round, filled
+   * entirely in the ink, added to the anchor BEFORE the solid. Every part of it is then covered by
+   * the solid except a rim exactly where the silhouette is.
+   *
+   * ⚠️ THE DIAMETER GROWS AND THE LENGTH DOES NOT. A copy longer than its original reaches into
+   * the part above and below it, and what shows there is a disc of ink across a junction — which
+   * is the banding this whole change exists to remove. Growing only the diameter keeps the rim on
+   * the sides, where a silhouette is, and leaves the horizontal junctions to the parts themselves.
+   *
+   * ================= ⚠️ AND THE PAIR GOES IN A GROUP, WHICH IS NOT OPTIONAL =================
+   * "Identical geometry means identical sort values, and a stable sort keeps the pair together"
+   * — the old comment here said that, and it is false twice over. The hull is NOT identical
+   * geometry, and even for a true copy the sort value is the MEAN Z OF THE PATH POINTS: a sum of
+   * offsets that cancel in arithmetic and do not cancel in floating point. The two copies land a
+   * few ulps apart, in whichever direction the rounding happens to go, so the hull sorted in front
+   * of its own solid on about half the parts. On screen that is a dark piece with pale rings, which
+   * is what the first attempt at this looked like and is worse than no outline at all.
+   *
+   * `Zdog.Group` with `updateSort: false` renders its children in INSERTION order and still sorts
+   * as one object against everything else. Hull first, solid second, no tie to lose.
+   *
+   * ⚠️ A DOME NEEDS THE GROUP MOST OF ALL. `Hemisphere.updateSortValue` puts the centroid three
+   * eighths of the way to the APEX and the apex sits at `diameter / 2`, so a wider dome sorts
+   * genuinely differently from its original — not by a rounding error but by design, and in the
+   * direction that puts the ink in front whenever the crown points at the camera, which for the
+   * ball on top of a piece is always. Inside a group that stops being a question.
+   *
+   * It could have kept a stroked copy — `renderDome` passes `fill` through honestly, unlike the
+   * cylinder — but a centred stroke of 0.75 units on a ball 2.4 units across is most of the ball.
+   * The hull is the lighter line, and it is the same line every other part gets.
    */
   for (const part of spec.turned ?? []) {
     const up = part.down ? -Zdog.TAU / 4 : Zdog.TAU / 4;
+    const diameter = flatDiameter(part);
+    const width = options.outlineWidth ?? lineWidth;
 
-    const draw = (
-      colour: string, filled: boolean, faces: boolean, diameter: number, length: number, y: number,
-    ): void => {
+    const hulled = Boolean(options.outline);
+    // One group per part when it has a hull, so insertion order decides and the sort cannot.
+    const into = hulled
+      ? new Zdog.Group({ addTo: anchor, updateSort: false, translate: { y: part.y } })
+      : anchor;
+    const offset = into === anchor ? { y: part.y } : { y: 0 };
+
+    const shape = (extra: Record<string, unknown>): void => {
       const common = {
-        addTo: anchor,
-        diameter,
-        stroke: filled ? lineWidth : (options.outlineWidth ?? lineWidth),
-        color: colour,
-        fill: filled,
-        backface: filled ? colours.side : colour,
-        translate: { y },
+        addTo: into,
+        translate: offset,
         rotate: { x: up },
+        ...extra,
       };
-      if (part.shape === 'dome') {
-        new Zdog.Hemisphere(common);
-      } else if (part.shape === 'cone') {
-        new Zdog.Cone({ ...common, length });
-      } else {
-        new Zdog.Cylinder({
-          ...common,
-          length,
-          frontFace: faces ? colours.top : colour,
-          backFace: faces ? colours.side : colour,
-        });
-      }
+      if (part.shape === 'dome') new Zdog.Hemisphere(common);
+      else if (part.shape === 'cone') new Zdog.Cone({ ...common, length: part.h });
+      else new Zdog.Cylinder({ ...common, length: part.h });
     };
 
-    const diameter = flatDiameter(part);
-    draw(colours.face, true, true, diameter, part.h, part.y);
-    /*
-     * ⚠️ NOT EVERY PART GETS AN OUTLINE, and the ones that do not are the ones that could only be
-     * ink — see `tooThinToOutline`. A collar shorter than the stroke that would edge it is drawn
-     * solid and left unedged; the silhouette is carried across it by its neighbours.
-     */
-    const width = options.outlineWidth ?? lineWidth;
-    if (options.outline && !tooThinToOutline(part, width)) {
-      draw(options.outline, false, false, diameter, part.h, part.y);
+    if (hulled) {
+      shape({
+        // ⚠️ HALF THE WIDTH, because a hull is not a stroke. Zdog centres a stroke on its path,
+        // so `outlineWidth` has always meant "half of me shows outside the shape". A hull shows
+        // ALL of itself, so growing the diameter by the full width draws a line twice the weight
+        // the boxes get — which on a twenty-pixel piece is the difference between an edge and a
+        // band. Grown by the width means `width / 2` on each side, which is exactly the old line.
+        diameter: diameter + width,
+        stroke: lineWidth,
+        color: options.outline,
+        fill: true,
+        backface: options.outline,
+        frontFace: options.outline,
+        backFace: options.outline,
+      });
     }
+
+    shape({
+      diameter,
+      stroke: lineWidth,
+      color: colours.face,
+      fill: true,
+      backface: colours.side,
+      frontFace: colours.top,
+      backFace: colours.side,
+    });
+
   }
 
   if (spec.sphere) {

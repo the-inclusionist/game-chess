@@ -15,10 +15,8 @@
 // tests the guess.
 import { describe, expect, it } from 'vitest';
 import {
-  MAX_TAPER_SPAN, flatDiameter, pieceFootprint, pieceHeight, restsOnBoard, tooThinToOutline,
-  turnedWidth,
+  MAX_TAPER_SPAN, flatDiameter, pieceFootprint, pieceHeight, restsOnBoard, turnedWidth,
 } from '../app/js/render/pieces/geometry.ts';
-import { STROKE } from '../app/js/render/palette.ts';
 import { DEFAULT_DESIGN, PIECE_DESIGNS, pieceDesign } from '../app/js/render/pieces/sets.ts';
 import { TILE } from '../app/js/render/resolution.ts';
 import type { PieceType } from '../app/js/chess/types.ts';
@@ -31,7 +29,7 @@ const TURNED = ['s1849', 'regence', 'stgeorge', 'selenus', 'sikh'];
  * its plinth is square, so it cannot be turned and has to be built from boxes like the knight's
  * head is. Counting carvings without subtracting it would say a Regence pawn is carved.
  */
-const PLINTH: Record<string, number> = { regence: 2 };
+const PLINTH: Record<string, number> = { regence: 1 };
 const carved = (key: string, type: PieceType) =>
   pieceDesign(key).specs[type].boxes.slice(PLINTH[key] ?? 0);
 
@@ -183,6 +181,33 @@ describe('[Designs] the finial is the pattern', () => {
   });
 });
 
+describe('[Designs] nothing carved floats above its own neck', () => {
+  /*
+   * ⚠️ THE BUG CLASS THIS CLOSES. Every carving used to name the top of its stack as a literal
+   * — `knightHead(-5.6, 4.0)` — which is a copy of a sum made somewhere else in the same
+   * object. Change any height below it and the head lifts off, and a floating head does not read as
+   * an error: it reads as a slightly wrong drawing. It has happened here twice.
+   *
+   * `crowned` computes the top now. This is the assertion that says the arithmetic is the one that
+   * matters, so the literals cannot come back unnoticed.
+   */
+  const stackTop = (key: string, type: PieceType): number =>
+    Math.min(0, ...(pieceDesign(key).specs[type].turned ?? []).map((t) => t.y - t.h / 2));
+
+  it('starts every carving where its turning stops', () => {
+    for (const key of TURNED) {
+      for (const type of ALL) {
+        const boxes = carved(key, type);
+        if (boxes.length === 0) continue;
+        // `y` is a centre and negative is up, so a box's BASE is the larger number.
+        const base = Math.max(...boxes.map((b) => (b.y ?? 0) + b.h / 2));
+        const gap = Math.abs(base - stackTop(key, type));
+        expect(`${key} ${type} gap ${gap < 0.5}`).toBe(`${key} ${type} gap true`);
+      }
+    }
+  });
+});
+
 describe('[Designs] the proportions are the patterns', () => {
   const foot = (key: string): number => pieceFootprint(pieceDesign(key).specs.k);
   const vertical = (key: string): number =>
@@ -235,8 +260,8 @@ describe('[Designs] the proportions are the patterns', () => {
     // a square board is the fastest thing on the piece to recognise.
     for (const type of ALL) {
       const plinth = pieceDesign('regence').specs[type].boxes
-        .slice(0, 2).filter((b) => (b.y ?? 0) > -2 && b.w > 5 && b.w === b.d);
-      expect(`${type} ${plinth.length}`).toBe(`${type} 2`);
+        .slice(0, 1).filter((b) => (b.y ?? 0) > -2 && b.w > 5 && b.w === b.d);
+      expect(`${type} ${plinth.length}`).toBe(`${type} 1`);
     }
     for (const key of ['s1849', 'stgeorge', 'selenus', 'sikh']) {
       const first = (pieceDesign(key).specs.p.turned ?? [])[0];
@@ -322,34 +347,6 @@ describe('[Designs] the lathe speaks in frusta', () => {
     expect(turnedWidth({ shape: 'cylinder', d: 5, h: 2, y: -1 })).toBe(5);
   });
 
-  it('refuses to outline a part shorter than the line that would outline it', () => {
-    /*
-     * ⚠️ THE FAILURE THIS EXISTS TO STOP, and it was caught on screen rather than here. Zdog
-     * centres a stroke on its path, so a turned set's 0.75-unit line covers 0.375 above a part and
-     * 0.375 below it. A tier disc 0.4 units tall is shorter than its own outline, and ten of those
-     * up a piece turn it into a black-and-white striped cone with its colour pushed out to a rim.
-     */
-    const line = STROKE * 0.5;
-    expect(tooThinToOutline({ shape: 'cylinder', d: 5, h: 0.4, y: -0.2 }, line)).toBe(true);
-    expect(tooThinToOutline({ shape: 'cylinder', d: 5, h: 3.0, y: -1.5 }, line)).toBe(false);
-    // Hartwig draws at the full line, so the bar he can clear is higher.
-    expect(tooThinToOutline({ shape: 'cylinder', d: 5, h: 1.6, y: -0.8 }, STROKE)).toBe(true);
-  });
-
-  it('leaves every body thick enough to be outlined', () => {
-    // The rule above is for collars and ribs. If it ever caught a piece's BODY the silhouette would
-    // start coming apart, so the tallest part of every piece has to clear the line comfortably.
-    const line = STROKE * 0.5;
-    for (const design of PIECE_DESIGNS) {
-      for (const type of ALL) {
-        const parts = design.specs[type].turned ?? [];
-        if (parts.length === 0) continue;
-        const tallest = [...parts].sort((a, b) => b.h - a.h)[0];
-        expect(`${design.key} ${type} ${tooThinToOutline(tallest, line)}`)
-          .toBe(`${design.key} ${type} false`);
-      }
-    }
-  });
 });
 
 describe('[Designs] how much line each drawing gets', () => {
