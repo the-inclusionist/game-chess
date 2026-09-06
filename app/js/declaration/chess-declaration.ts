@@ -78,15 +78,18 @@ export function createChessDeclaration(deps: DeclarationDeps): GameDeclaration {
      * it. A blindness simulation aimed at the canvas would black out the board and leave the score
      * sheet perfectly legible, which simulates nothing.
      *
-     * `#game-region` is everything that is "the game as seen". The engine's menus and dialogs live
-     * outside it, which is what keeps a simulated blindness from locking a child inside the mode —
-     * the defect the engine's ADR-0087 was written about.
+     * `#stage` is everything that is "the game as seen" — the board AND the panel beside it. It
+     * was `#game-region`, which stopped being enough the day the panel moved out of the board: a
+     * blindness aimed at the region would have blacked the board and left the move list and the
+     * lesson perfectly readable, which is the very defect ADR-0087 was written about. The engine's
+     * menus and dialogs live outside it, which is what keeps a simulated blindness from locking a
+     * child inside the mode.
      *
      * And `none` would be a lie here for a reason the engine states better than this file could:
      * blindfold chess exists, so a game whose board is DOM is not a game where empathy makes no
      * sense — it is one where it asks more of whoever writes it.
      */
-    world: () => ({ kind: 'element', selector: '#game-region' }),
+    world: () => ({ kind: 'element', selector: '#stage' }),
     tick: 'player',
 
     roleAt(at: Spot): Role {

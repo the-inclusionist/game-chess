@@ -33,8 +33,17 @@ export const CAMERA = {
    * the same fraction of the screen it always did.
    */
   zoom: 2.3,
-  /** Pushes the board left so the HUD gets its 88 px column on the right. */
-  offsetX: -42,
+  /**
+   * ⚠️ ZERO NOW, AND IT USED TO BE -42. The board was pushed left because the HUD was drawn OVER
+   * the right 27.5% of this canvas — which is also why the panel could never be widened without
+   * covering the board. The panel is a sibling element now and the canvas is the board's alone, so
+   * the board is simply centred in it.
+   *
+   * The zoom is unchanged on purpose: the board is bound by the canvas HEIGHT, not its width, so
+   * the room reclaimed on the right is margin rather than magnification. Growing the zoom to
+   * spend it would push the board off the top and bottom.
+   */
+  offsetX: 0,
 } as const;
 
 export interface ZdogStage {

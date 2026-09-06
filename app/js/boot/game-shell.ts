@@ -166,6 +166,13 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   const host = deps.host;
   const region = host.getElementById('game-region');
   if (!region) throw new Error('#game-region is required (engine MARCACAO_EXIGIDA)');
+  /*
+   * ⚠️ THE STAGE IS BOARD PLUS PANEL; THE REGION IS ONLY THE BOARD. Keys are bound HERE rather
+   * than on the region, because the panel is a sibling now — an event from the lesson list would
+   * never bubble through the board, and `action4` exists precisely to move between the two.
+   */
+  const stage = host.getElementById('stage') ?? region;
+  const column = host.getElementById('side-column') ?? region;
 
   const i18n = createI18n(preferredLocale(navigator.language));
   host.documentElement.lang = i18n.bcp47();
@@ -493,7 +500,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   region.appendChild(players.root);
   // Outside the panel, over the board: see `.theme-report` in the stylesheet.
   region.appendChild(hud.report);
-  region.appendChild(hud.root);
+  column.appendChild(hud.root);
   // ⚠️ After `#stage-wrap`, not inside it. That element is a centring FLEX ROW, so a child lands
   // beside the board and squeezes it. The panel belongs under the board, and under the board is
   // the next sibling.
@@ -633,7 +640,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       teacherReady: () => lessonMode?.teacherReady() ?? false,
       onTeacher: (on) => { lessonMode?.setTeacher(on); refreshLessonMenu(); },
     });
-    region!.appendChild(lessonMenu.root);
+    column.appendChild(lessonMenu.root);
 
     const started = await lessonMode.start(id, resumeStepFor(id));
     if (!started) {
@@ -704,9 +711,9 @@ export function createGameShell(deps: GameShellDeps): GameShell {
         : []),
     ],
   });
-  region.appendChild(pause.root);
+  stage.appendChild(pause.root);
 
-  region.addEventListener('keydown', (event) => {
+  stage.addEventListener('keydown', (event) => {
     /*
      * ⚠️ START FIRST, BEFORE ANYTHING ELSE LOOKS AT THE KEY. It has to work while a lesson is
      * refusing input, while a piece is in flight, and while the menu itself is open — a pause that

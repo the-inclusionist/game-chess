@@ -28,6 +28,21 @@
    * `#below-board`, whose width `ui/layout` sets to the region's, so a panel under the board is
    * exactly as wide as the board and the side menu together.
    */
+  /* The 2:1 stage: board on the left, panel on the right, both sized in `ui/layout`. */
+  #stage {
+    display: flex;
+    align-items: stretch;
+    position: relative;
+    flex: 0 0 auto;
+  }
+  #side-column { flex: 0 0 auto; min-width: 0; }
+  /*
+   * ⚠️ CENTRED IN THE STAGE. The board region is a whole multiple of 640x360 and the stage is a
+   * whole multiple of 360x180, so at k=3 the region is 360 tall inside 540 — the two families do
+   * not divide into each other, and they are not meant to. What is left over is margin, and margin
+   * split evenly reads as a board on a background rather than a board that has slipped upwards.
+   */
+  #stage > #game-region { align-self: center; }
   #stage-wrap {
     flex: 1 1 auto;
     min-height: 0;
@@ -192,10 +207,15 @@
    * so the panel is the same colour it always was, further from its background. Making it
    * compliant by turning it grey would have been a different panel.
    */
+  /*
+   * ⚠️ A COLUMN, NOT AN OVERLAY. It was `position: absolute` over the board's right 27.5%, which
+   * is why it could never be widened: every pixel it gained covered a pixel of board. It is a
+   * sibling of the region now and `ui/layout` gives it whatever the board did not take, so the two
+   * cannot overlap by construction.
+   */
   .hud {
-    position: absolute;
-    inset: 0 0 0 auto;
-    width: 27.5%;
+    width: 100%;
+    height: 100%;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -1040,14 +1060,19 @@
    * 50% of its height, and it stands 68.8% of the region tall. The flat board is placed on that
    * centre at that height, so the two are the same board seen two ways rather than two boards.
    */
+  /*
+   * ⚠️ CENTRED, AND IT USED TO BE AT 34.91%. The board was pushed left so the panel overlaying the
+   * right 27.5% would not cover it. The panel is a sibling now, so the board has the whole region
+   * and simply sits in the middle of it — the same correction `CAMERA.offsetX` got.
+   */
   .board-2d {
     position: absolute;
     top: 50%;
-    left: 34.91%;
+    left: 50%;
     transform: translate(-50%, -50%);
     display: grid;
     grid-template-rows: repeat(8, 1fr);
-    height: 68.8%;
+    height: 94%;
     aspect-ratio: 1;
     border: 2px solid var(--piece-halo, #3a2a14);
     box-sizing: border-box;
@@ -1347,7 +1372,20 @@
 <!-- MARCACAO EXIGIDA by createGame: #game-region, #sr-status, #sr-alert.
      Anything missing does not throw — it becomes an entry in engine.problems. -->
 <div id="stage-wrap">
-  <div id="game-region" tabindex="0"></div>
+  <!--
+    ⚠️ `#stage` IS "THE GAME AS SEEN"; `#game-region` IS ONLY THE BOARD. They were one element,
+    with the side panel absolutely positioned over the board's right 27.5% and the camera pushed
+    left to make room. That is why the panel could never be widened: widening it covered the board.
+
+    Split, the board region stays an exact integer multiple of 640x360 — which is what keeps the
+    canvas pixel art — and the panel takes whatever the 2:1 stage has left over. It is also the
+    element the engine's `world()` now names, because a blindness that blanked the board and left
+    the move list readable would simulate nothing.
+  -->
+  <div id="stage">
+    <div id="game-region" tabindex="0"></div>
+    <div id="side-column"></div>
+  </div>
 </div>
 
 <p class="hint">

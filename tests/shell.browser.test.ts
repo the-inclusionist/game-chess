@@ -25,7 +25,10 @@ import { toAlgebraic, type Square } from '../app/js/chess/types.ts';
 function fixture(): void {
   document.body.innerHTML = `
     <div id="stage-wrap" style="width: 640px; height: 360px">
-      <div id="game-region" tabindex="0"></div>
+      <div id="stage">
+        <div id="game-region" tabindex="0"></div>
+        <div id="side-column"></div>
+      </div>
     </div>
     <div id="sr-status" role="status" aria-live="polite"></div>
     <div id="sr-alert" role="alert" aria-live="assertive"></div>

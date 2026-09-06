@@ -5,7 +5,7 @@ import { createBoard, markersFor, SQUARE_COUNT } from '../app/js/render/board.ts
 import { squareFromIndex, squareIndex } from '../app/js/render/board-geometry.ts';
 import { pickTopmost, quadArea, type Point2, type Quad } from '../app/js/render/picking.ts';
 import { CAMERA, createZdogStage, type ZdogStage } from '../app/js/render/zdog-stage.ts';
-import { HUD_W, HUD_X, LOGICAL_H, LOGICAL_W } from '../app/js/render/resolution.ts';
+import { LOGICAL_H, LOGICAL_W } from '../app/js/render/resolution.ts';
 
 // ========================= WHAT THIS PROVES =========================
 // The node tests prove the picking ARITHMETIC against fixtures. They cannot prove the claim the
@@ -247,15 +247,39 @@ describe('[Render] the canvas is not blank', () => {
     expect(paintedPixels(s)).toBeGreaterThan(2000);
   });
 
-  it('places the board left of centre, leaving the HUD column clear', () => {
+  it('⚠️ CENTRES the board, because the canvas belongs to the board alone now', () => {
+    /*
+     * THIS TEST USED TO ASSERT THE OPPOSITE, and it was right to at the time: the side panel was
+     * absolutely positioned over the canvas's right 27.5%, so the camera was pushed left and
+     * nothing 3D was allowed to reach into that column.
+     *
+     * The panel is a sibling element now — `ui/layout` gives it whatever the board did not take —
+     * so the reservation is gone, `CAMERA.offsetX` is zero, and the board sits in the middle. The
+     * claim worth keeping is the one that outlived the layout: the board is CENTRED, which is what
+     * says the offset really went away rather than merely changing size.
+     */
     const { stage: s } = build();
     s.render();
     const ctx = s.canvas.getContext('2d')!;
-    // Nothing 3D may reach into the HUD column, wherever the resolution puts it.
-    const hud = ctx.getImageData(HUD_X, 0, HUD_W, LOGICAL_H).data;
-    let painted = 0;
-    for (let i = 3; i < hud.length; i += 4) if (hud[i] > 0) painted++;
-    expect(painted).toBe(0);
+    const data = ctx.getImageData(0, 0, LOGICAL_W, LOGICAL_H).data;
+
+    // The painted extent, rather than two sample strips: a pitched board does not reach the
+    // canvas edges, so sampling near them measures nothing and would pass whatever the offset was.
+    let first = LOGICAL_W;
+    let last = -1;
+    for (let y = 0; y < LOGICAL_H; y++) {
+      for (let x = 0; x < LOGICAL_W; x++) {
+        if (data[(y * LOGICAL_W + x) * 4 + 3]! === 0) continue;
+        if (x < first) first = x;
+        if (x > last) last = x;
+      }
+    }
+    expect(last).toBeGreaterThan(first);
+
+    const leftMargin = first;
+    const rightMargin = LOGICAL_W - 1 - last;
+    // Equal margins to within a few pixels. At the old `offsetX: -42` they differed by ~84.
+    expect(Math.abs(leftMargin - rightMargin)).toBeLessThanOrEqual(8);
   });
 });
 
