@@ -241,7 +241,7 @@ describe('[Themes] six named palettes, measured', () => {
     //
     // Lightening the light square instead was measured and rejected: chessboard.js would have
     // needed luminance 0.949, which is very nearly white and a different board altogether.
-    for (const key of ['brown', 'wikipedia', 'xboard', 'jose', 'jose2']) {
+    for (const key of ['brown', 'wikipedia', 'xboard', 'jose']) {
       const ratio = contrast(boardTheme(key).light, boardTheme(key).dark);
       expect(ratio).toBeGreaterThanOrEqual(3);
       expect(ratio).toBeLessThan(3.2);
@@ -363,29 +363,3 @@ describe('[Themes] six named palettes, measured', () => {
   });
 });
 
-describe('[Themes] José-2 keeps the experiment on the board', () => {
-  it('is José with the dark side outlined in the LIGHT side ink', () => {
-    const one = boardTheme('jose');
-    const two = boardTheme('jose2');
-    // Everything but the one ink the experiment is about.
-    expect(two.light).toBe(one.light);
-    expect(two.dark).toBe(one.dark);
-    expect(two.white).toBe(one.white);
-    expect(two.black).toBe(one.black);
-    expect(two.rim).toBe(one.rim);
-    // ⚠️ And THAT ink is the difference: gold on the dark piece against José's lavender. Both
-    // clear 3:1 against the fill now — José's near-black #0E0722 measured 1.71 and drew nothing —
-    // so the two palettes are a choice between two visible answers rather than between one that
-    // works and one that does not.
-    expect(two.blackRim).toBe('#FFE08A');
-    expect(one.blackRim).toBe('#8C80AE');
-  });
-
-  it('is a separate entry rather than a replacement', () => {
-    // The argument that condemned it at full stroke width — the ink that covers a piece names it —
-    // has not been withdrawn. Halving the dark side's outline changed the question, not the rule,
-    // so the experiment sits beside the answer instead of overwriting it.
-    expect(BOARD_THEMES.map((t) => t.key)).toContain('jose');
-    expect(BOARD_THEMES.map((t) => t.key)).toContain('jose2');
-  });
-});

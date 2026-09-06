@@ -219,33 +219,6 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
       dark: ['#9C88D7', '#7E63CA', '#6545C0'],
     },
   },
-  {
-    // ========================= THE SAME PALETTE, OUTLINED THE OTHER WAY =========================
-    // José with the dark side's rim taken from the LIGHT side: gold on indigo instead of a
-    // near-black line. It was tried by accident, looked wrong, and was reverted — and then the
-    // dark side's outline was halved, which changes the question. At full width that rim was a
-    // thick gold ring and the piece read as a light one; at half it is a fine line on a mass of
-    // indigo, which is a different proposition entirely.
-    //
-    // ⚠️ It is kept as its own entry rather than replacing anything, because the argument in
-    // `render/palette.ts` — the ink that covers a piece is the ink that names it — is what
-    // condemned it at full width, and that argument has not been withdrawn. This is the
-    // experiment, on the board, where it can be looked at rather than described.
-    key: 'jose2',
-    light: '#DCD6C8',
-    dark: '#7D776A',
-    white: '#FFE08A',
-    black: '#3F2B78',
-    whiteRim: '#3B2A12',
-    blackRim: '#FFE08A',
-    rim: '#0E0722',
-    name: 'theme.jose2',
-    short: 'theme.short.jose2',
-    solid: {
-      light: ['#FFE08A', '#E0A33A', '#B8781F'],
-      dark: ['#5B44A0', '#3A2670', '#1E1140'],
-    },
-  },
   /*
    * ========================= ⚠️ ONLY WHAT TOUCHES HAS TO CLEAR 3:1 =========================
    * Three wrong answers came before this one, and all three came from optimising the wrong set.

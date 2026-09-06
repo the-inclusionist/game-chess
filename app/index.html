@@ -488,7 +488,9 @@
     color: #14202b; background: #FFD97D; border-color: #FFD97D;
   }
   /* The focus ring belongs on the thing that looks like the control, not on the hidden input. */
-  .hud-choice input:focus-visible + label { outline: 2px solid #FFD97D; outline-offset: 2px; }
+  /* 3 px like every other control here. 2 px already met 2.4.13's minimum perimeter; one ring
+     thinner than the rest is a difference that means nothing and reads as an oversight. */
+  .hud-choice input:focus-visible + label { outline: 3px solid #FFD97D; outline-offset: 2px; }
   #game-region[data-contrast="high"] .hud-choice label {
     color: #FFFFFF; background: #000000; border-color: #FFFFFF;
   }
@@ -509,6 +511,58 @@
   .hud input[type="checkbox"] {
     width: calc(var(--tap, 44px) * 0.4); height: calc(var(--tap, 44px) * 0.4);
     vertical-align: middle; accent-color: #FFD97D;
+  }
+
+
+  /*
+   * ========================= WCAG 2.2 AAA IN THE PANEL =========================
+   * Audited in the browser with the coloured high-contrast board on, element by element, and
+   * three things were short. All three were short in the ordinary palettes too; the audit only
+   * made them visible.
+   *
+   * 1.4.6 CONTRAST (ENHANCED) asks 7:1 of body text. Everything in the panel was above it except
+   * one word: the `legend` of a radio group, at #8b949e on black — **6.83:1**. Seventeen
+   * hundredths, and the kind of miss that only a measurement finds.
+   *
+   * 2.4.13 FOCUS APPEARANCE asks a focus indicator at least as large as a 2 px perimeter, with
+   * 3:1 against what is next to it. Several controls here had no rule at all and fell back to the
+   * browser's own 1 px ring: the view links, the teacher switch, and every select. One pixel is
+   * not two, whatever its colour.
+   *
+   * ⚠️ The ring is OFFSET rather than merely coloured, and that is what makes one colour enough.
+   * Some of these controls are white when active — a checked side button, the teacher switch when
+   * it is on — so a ring drawn ON them would need to contrast with white AND with the black
+   * panel, which no single colour does. Two pixels out, it always sits on the panel.
+   */
+  .hud a:focus-visible,
+  .hud button:focus-visible,
+  .hud select:focus-visible,
+  .hud input[type="checkbox"]:focus-visible {
+    outline: 3px solid #FFD97D;
+    outline-offset: 2px;
+  }
+  #game-region[data-contrast="high"] .hud a:focus-visible,
+  #game-region[data-contrast="high"] .hud button:focus-visible,
+  #game-region[data-contrast="high"] .hud select:focus-visible,
+  #game-region[data-contrast="high"] .hud input[type="checkbox"]:focus-visible,
+  #game-region[data-contrast="high"] .hud-choice input:focus-visible + label {
+    outline-color: #FFFFFF;
+  }
+  #game-region[data-contrast="high"] .hud legend { color: #FFFFFF; }
+
+  /*
+   * ⚠️ THE ON STATE OF THE TEACHER SWITCH WAS SURVIVING BY ACCIDENT. `[aria-pressed="true"]`
+   * paints it violet on white, and `#game-region[data-contrast="high"] .hud-hint` overrides both
+   * of those — an id beats two classes — so in high contrast the pressed and unpressed buttons
+   * were the same black-on-white. What still told them apart was the inset ring, which that rule
+   * happens not to set: a state visible only because nobody thought to overwrite it.
+   *
+   * Said on purpose now, in this palette's own inks: a heavy black ring inside the white button,
+   * 21:1 against it, plus `aria-pressed` for anyone who is not looking.
+   */
+  #game-region[data-contrast="high"] .hud-hint[aria-pressed="true"] {
+    color: #000000; background: #FFFFFF;
+    box-shadow: inset 0 0 0 4px #000000, inset 0 0 0 7px #FFFFFF;
   }
 
   /* The panel switches with the board: same surface, same eye. */
@@ -557,64 +611,13 @@
    * 88-logical-pixel column the panel gets, and putting them there would have meant shrinking them
    * until the person who most needs them could not read them.
    */
-  .theme-report {
-    position: absolute;
-    top: 50%;
-    right: 28.5%;
-    transform: translateY(-50%);
-    max-width: 64%;
-    max-height: 92%;
-    overflow: auto;
-    box-sizing: border-box;
-    padding: calc(var(--ui-fs, 16px) * 0.4);
-    font-size: calc(var(--ui-fs, 16px) * 0.56);
-    color: #e6e1d6;
-    background: rgba(10, 14, 20, 0.94);
-    border: 1px solid #2b3a4a;
-    border-radius: 3px;
-    z-index: 6;
-  }
-  .theme-report h2 {
-    margin: 0 0 0.4em; font-size: 1em; font-weight: 700;
-    color: #FFD97D; text-transform: none; letter-spacing: 0;
-  }
-  .theme-report table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
-  .theme-report th, .theme-report td { padding: 0.14em 0.4em; text-align: right; white-space: nowrap; }
-  .theme-report th[scope="row"] { text-align: left; font-weight: 400; color: #b9c2cc; }
-  .theme-report th[scope="col"] { font-weight: 700; border-bottom: 1px solid #2b3a4a; }
-  .theme-report th[aria-current] { color: #FFD97D; }
-  /* The column being chosen, so the eye lands on it without having to match a name to a heading. */
-  .theme-report [data-current] { background: rgba(255, 217, 125, 0.14); }
   /*
-   * Colour is the extra; the character in the cell is the signal. Three states, and they are
-   * meant to be told apart at a glance — which is the point of a table nobody reads row by row:
-   * PASSED is quiet, ALLOWED BELOW THE FLOOR is amber, and BELOW THE FLOOR ON A BOUNDARY THAT
-   * ACTUALLY TOUCHES is the only loud one.
+   * ⚠️ THE MEASURED CONTRAST TABLE USED TO BE DRAWN HERE, over the board, while a palette was
+   * being chosen. It lives in `docs/CONTRAST.md` now — generated from the same module and held to
+   * it by a test, so it cannot go stale — because the person the numbers are for is whoever
+   * configures the game, and they read documentation. A child choosing a board mid-game is not
+   * deciding on ratios, and the table was in their way.
    */
-  .theme-report [data-state="pass"] { color: #9fe0a8; }
-  .theme-report [data-state="carried"] { color: #E8C25A; }
-  .theme-report [data-state="short"] { color: #FF8B6B; font-weight: 700; }
-  .theme-report-floor { margin: 0.5em 0 0; color: #8b949e; max-width: 32em; }
-  #game-region[data-contrast="high"] .theme-report {
-    background: #000000; color: #FFFFFF; border-color: #FFFFFF;
-  }
-  #game-region[data-contrast="high"] .theme-report h2,
-  #game-region[data-contrast="high"] .theme-report th[aria-current] { color: #FFFFFF; }
-  #game-region[data-contrast="high"] .theme-report-floor,
-  #game-region[data-contrast="high"] .theme-report th[scope="row"] { color: #FFFFFF; }
-  /*
-   * ⚠️ THE CELLS KEEP THEIR THREE TONES IN HIGH CONTRAST TOO. There was one rule here that painted
-   * every cell `#FFFFFF`, on the reasoning that white on black is the safest thing there is — and
-   * it turned the one table in this game whose whole job is to show you where to look into a wall
-   * of identical white numbers. Safety that removes the signal is not safety.
-   *
-   * These three all clear 3:1 against the black the report sits on by a wide margin (white 21,
-   * amber 13.7, salmon 8.9), so nothing is given up. And the character in each cell still carries
-   * the state on its own, for anyone the colour does not reach.
-   */
-  #game-region[data-contrast="high"] .theme-report [data-state="pass"] { color: #FFFFFF; }
-  #game-region[data-contrast="high"] .theme-report [data-state="carried"] { color: #FFD97D; }
-  #game-region[data-contrast="high"] .theme-report [data-state="short"] { color: #FF9E80; }
 
   /*
    * ========================= THE ENGINE'S THINKING, UNDER THE BOARD =========================

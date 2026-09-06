@@ -129,14 +129,12 @@ export const es: Catalog = {
     'theme.short.wikipedia': 'Wiki',
     'theme.short.xboard':    'XB',
     'theme.short.jose':      'José',
-    'theme.short.jose2':     'José-2',
-    'theme.short.contrast1': 'AC1',
-    'theme.short.contrast2': 'AC2',
+    'theme.short.contrast1': 'NyB',
+    'theme.short.contrast2': 'AyA',
     'theme.xboard':    'XBoard',
     'theme.jose':      'José',
-    'theme.jose2':      'José-2',
-    'theme.contrast1': 'Alto contraste 1',
-    'theme.contrast2': 'Alto contraste 2',
+    'theme.contrast1': 'Negro y Blanco',
+    'theme.contrast2': 'Azul y Amarillo',
 
 
     'move.plain':       '{piece} de {from} a {to}',

@@ -499,8 +499,6 @@ export function boot2d(host: Document = document): void {
   });
   region.appendChild(players.root);
   region.appendChild(hud.root);
-  // Outside the panel, over the board: see `.theme-report` in the stylesheet.
-  region.appendChild(hud.report);
   // ⚠️ After `#stage-wrap`, not inside it. That element is a centring FLEX ROW, so a child lands
   // beside the board and squeezes it — which is exactly what happened. The panel belongs under the
   // board, and under the board is the next sibling.

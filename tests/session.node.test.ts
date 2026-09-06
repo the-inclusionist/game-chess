@@ -147,9 +147,9 @@ describe('[Session] nothing it reads back is trusted', () => {
 describe('[Session] the choices that must not reset when the view changes', () => {
   it('remembers the palette, the drawing, the coordinates and the side', () => {
     const store = fakeStore();
-    saveSettings({ theme: 'jose2', set: 'math', coordinates: false, mode: 'b' }, store);
+    saveSettings({ theme: 'jose', set: 'math', coordinates: false, mode: 'b' }, store);
     expect(loadSettings(store)).toEqual({
-      theme: 'jose2', set: 'math', coordinates: false, mode: 'b',
+      theme: 'jose', set: 'math', coordinates: false, mode: 'b',
     });
   });
 

@@ -1,7 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // ui/contrast-report — the measured contrast of a board palette, shown to whoever is choosing it.
 //
-// ========================= WHY A PLAYER SEES THIS AT ALL =========================
+// ========================= WHY THIS IS NOT ON SCREEN =========================
+// It was, over the board, while a palette was being chosen. It is `docs/CONTRAST.md` now, written
+// by `contrastMarkdown()` below and held to this module by a test.
+//
+// The person the numbers are for is whoever CONFIGURES the game — a teacher setting a room up, a
+// maintainer changing an ink — and they read documentation. A child choosing a board mid-game is
+// not deciding on ratios, and six columns of them were in their way.
+//
+// ========================= WHY THE NUMBERS EXIST AT ALL =========================
 // Every palette in this project was argued for with numbers, and until now those numbers lived in
 // comments and tests — read by whoever maintains the code and by nobody who uses it. But the
 // person choosing a board is the one the numbers are about. A teacher picking a palette for a
@@ -88,4 +96,31 @@ export function contrastRows(theme: BoardTheme): ContrastRow[] {
 export function verdict(rows: readonly ContrastRow[]): 'all' | 'required' | 'short' {
   if (rows.every((r) => r.passes)) return 'all';
   return rows.every((r) => r.passes || r.optional) ? 'required' : 'short';
+}
+
+/**
+ * The whole table as Markdown, for `docs/CONTRAST.md`.
+ *
+ * ⚠️ GENERATED, and a test fails if the document and this module disagree. A table typed by hand
+ * would be a second copy of numbers this repository has already had go stale once — which is
+ * exactly how the high-contrast palette shipped for months with its squares at 2.13:1 while every
+ * comment around it said otherwise.
+ */
+export function contrastMarkdown(
+  themes: readonly BoardTheme[],
+  label: (key: string) => string,
+): string {
+  const rows = contrastRows(themes[0]);
+  const head = `| par | ${themes.map((t) => label(t.short)).join(' | ')} |`;
+  const rule = `| --- | ${themes.map(() => '---:').join(' | ')} |`;
+  const body = rows.map((_, index) => {
+    const cells = themes.map((theme) => {
+      const row = contrastRows(theme)[index];
+      const mark = row.passes ? '' : row.optional ? ' ·' : ' **<**';
+      return `${row.ratio.toFixed(2)}${mark}`;
+    });
+    const touches = rows[index].optional ? '' : ' **(encosta)**';
+    return `| ${label(rows[index].label)}${touches} | ${cells.join(' | ')} |`;
+  });
+  return [head, rule, ...body].join(String.fromCharCode(10));
 }

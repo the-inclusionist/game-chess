@@ -25,8 +25,6 @@ import type { GameState } from '../chess/state.ts';
 
 /** One person as white, one as black, or two people sharing the board. */
 export type GameMode = 'w' | 'b' | 'two';
-import { BOARD_THEMES } from './board-themes.ts';
-import { contrastRows } from './contrast-report.ts';
 import type { I18n } from '../i18n/index.ts';
 
 /** Which drawing of the board this page is. Also which of the three buttons is the current one. */
@@ -131,12 +129,6 @@ export interface HudDeps {
 
 export interface Hud {
   readonly root: HTMLElement;
-  /**
-   * The measured contrast of every palette, side by side, shown while one is being chosen. It
-   * lives OUTSIDE the panel — in the space the board leaves — because a table six columns wide
-   * cannot be read in an 88-pixel column, and because it is about the board, not about the panel.
-   */
-  readonly report: HTMLElement;
   refresh(): void;
   destroy(): void;
 }
@@ -174,15 +166,6 @@ export function createHud(deps: HudDeps): Hud {
   // It does not warn and it does not refuse. Four of the six have fills under the floor ON PURPOSE
   // — that is how the printed convention works and the rim is what carries them — so the table
   // marks those differently from a real failure instead of hiding them.
-  const report = doc.createElement('aside');
-  report.className = 'theme-report';
-  report.id = 'theme-report';
-  report.hidden = true;
-  const reportTitle = doc.createElement('h2');
-  const reportTable = doc.createElement('table');
-  const reportFloor = doc.createElement('p');
-  reportFloor.className = 'theme-report-floor';
-  report.append(reportTitle, reportTable, reportFloor);
 
   const views = doc.createElement('nav');
   views.className = 'hud-views';
@@ -509,72 +492,13 @@ export function createHud(deps: HudDeps): Hud {
   function onThemeChange(): void { deps.onTheme?.(themeSelect.value); }
   themeSelect.addEventListener('change', onThemeChange);
 
-  // ========================= ON SCREEN WHILE THE LIST IS OPEN =========================
-  // It used to appear on hover, which put a table of numbers over the board every time a pointer
-  // crossed the panel. It belongs on screen while the list is OPEN and no longer.
-  //
-  // ⚠️ HTML gives no event for that. A `select` has no `open`, no `close` and no way to ask. What
-  // it does have is a reliable pattern around the native popup: it opens on `mousedown`, or on the
-  // keys that open one; it closes on `change`, and it closes on `blur` whichever way it went. So
-  // those four are the approximation, and it is stated as an approximation rather than dressed up
-  // as an event that exists.
-  const showReport = (): void => { report.hidden = false; fillReport(); };
-  const hideReport = (): void => { report.hidden = true; };
-  themeSelect.addEventListener('mousedown', showReport);
-  themeSelect.addEventListener('keydown', (event) => {
-    // The keys that open a native list: Alt+Down, Enter, Space, and the arrows on some platforms.
-    if (['ArrowDown', 'ArrowUp', 'Enter', ' ', 'Spacebar'].includes(event.key)) showReport();
-  });
-  themeSelect.addEventListener('change', hideReport);
-  themeSelect.addEventListener('blur', hideReport);
-
-  /** Redraws the whole matrix: one row per measured pair, one column per palette. */
-  function fillReport(): void {
-    if (!deps.themes) return;
-    const current = deps.theme?.() ?? '';
-    const columns = BOARD_THEMES;
-    const rows = columns.map((theme) => contrastRows(theme));
-
-    reportTitle.textContent = i18n.t('contrast.title');
-    reportTable.replaceChildren();
-
-    const head = doc.createElement('tr');
-    const corner = doc.createElement('th');
-    corner.scope = 'col';
-    corner.textContent = i18n.t('contrast.pair');
-    head.appendChild(corner);
-    for (const theme of columns) {
-      const cell = doc.createElement('th');
-      cell.scope = 'col';
-      cell.textContent = i18n.t(theme.short);
-      if (theme.key === current) cell.setAttribute('aria-current', 'true');
-      head.appendChild(cell);
-    }
-    reportTable.appendChild(head);
-
-    rows[0].forEach((_, index) => {
-      const line = doc.createElement('tr');
-      const label = doc.createElement('th');
-      label.scope = 'row';
-      label.textContent = i18n.t(rows[0][index].label);
-      line.appendChild(label);
-
-      columns.forEach((theme, column) => {
-        const row = rows[column][index];
-        const cell = doc.createElement('td');
-        // Never colour alone: the mark is a character a reader speaks; the colour is the extra.
-        const state = row.passes ? 'pass' : (row.optional ? 'carried' : 'short');
-        cell.dataset.state = state;
-        if (theme.key === current) cell.dataset.current = 'true';
-        cell.textContent = `${row.ratio.toFixed(1)}\u202F${
-          state === 'pass' ? '\u2713' : state === 'carried' ? '\u2022' : '\u2717'}`;
-        line.appendChild(cell);
-      });
-      reportTable.appendChild(line);
-    });
-
-    reportFloor.textContent = i18n.t('contrast.floor');
-  }
+  /*
+   * ⚠️ THE MEASURED CONTRAST TABLE USED TO BE BUILT HERE and shown over the board while a palette
+   * was being chosen. It is `docs/CONTRAST.md` now — generated from the same `contrast-report.ts`
+   * and held to it by a test, so it cannot go stale — because the person the numbers are for is
+   * whoever configures the game, and they read documentation. A child choosing a board mid-game
+   * is not deciding on ratios, and six columns of them were in the way.
+   */
 
   function onCoordsChange(): void { deps.onCoordinates(coordsInput.checked); }
   coordsInput.addEventListener('change', onCoordsChange);
@@ -707,8 +631,6 @@ export function createHud(deps: HudDeps): Hud {
       themeLabel.textContent = i18n.t('hud.boardTheme');
       for (const option of themeSelect.options) option.textContent = i18n.t(option.dataset.name ?? '');
       themeSelect.value = deps.theme?.() ?? '';
-      themeSelect.setAttribute('aria-describedby', report.id);
-      if (!report.hidden) fillReport();
     }
 
     outlineLabel.textContent = i18n.t('hud.outline');
@@ -725,7 +647,6 @@ export function createHud(deps: HudDeps): Hud {
 
   return {
     root,
-    report,
     refresh,
     destroy() {
       for (const { input } of modeGroup.options) input.removeEventListener('change', onModeInput);
@@ -737,10 +658,6 @@ export function createHud(deps: HudDeps): Hud {
       outlineInput.removeEventListener('change', onOutlineChange);
       setSelect.removeEventListener('change', onSetChange);
       themeSelect.removeEventListener('change', onThemeChange);
-      themeSelect.removeEventListener('mousedown', showReport);
-      themeSelect.removeEventListener('change', hideReport);
-      themeSelect.removeEventListener('blur', hideReport);
-      report.remove();
       coordsInput.removeEventListener('change', onCoordsChange);
       backButton.removeEventListener('click', onBackClick);
       forwardButton.removeEventListener('click', onForwardClick);

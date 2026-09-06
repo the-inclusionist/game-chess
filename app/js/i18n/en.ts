@@ -128,14 +128,12 @@ export const en: Catalog = {
     'theme.short.wikipedia': 'Wiki',
     'theme.short.xboard':    'XB',
     'theme.short.jose':      'José',
-    'theme.short.jose2':     'José-2',
-    'theme.short.contrast1': 'HC1',
-    'theme.short.contrast2': 'HC2',
+    'theme.short.contrast1': 'B&W',
+    'theme.short.contrast2': 'B&Y',
     'theme.xboard':    'XBoard',
     'theme.jose':      'José',
-    'theme.jose2':      'José-2',
-    'theme.contrast1': 'High contrast 1',
-    'theme.contrast2': 'High contrast 2',
+    'theme.contrast1': 'Black & White',
+    'theme.contrast2': 'Blue & Yellow',
 
 
     'move.plain':       '{piece} {from} to {to}',
