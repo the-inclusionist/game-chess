@@ -159,6 +159,8 @@ export const en: Catalog = {
     'a11y.cellCapture': 'capture available',
     'a11y.cellCheck': 'in check',
     'a11y.cellLesson': 'the lesson points here',
+    'a11y.cellRight': 'right',
+    'a11y.cellWrong': 'wrong',
 
     'lesson.step': 'Step {at} of {of}',
     'lesson.found': '{done} of {of} squares',

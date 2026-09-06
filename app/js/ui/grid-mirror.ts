@@ -47,6 +47,27 @@ import type { I18n } from '../i18n/index.ts';
 import { boardTheme, DEFAULT_THEME, type BoardTheme } from './board-themes.ts';
 import { DEFAULT_SET, pieceSet, type PieceSet } from './piece-sets.ts';
 import { squareFromIndex, squareIndex } from '../render/board-geometry.ts';
+
+/**
+ * What a lesson is saying about one square.
+ *
+ * ⚠️ `right` AND `wrong` ARE TOLD APART BY THE WORD AS WELL AS BY THE SHAPE. Blue and red measure
+ * 1.06:1 against each other (see `render/palette.ts`), so for a reader going by lightness they are
+ * the same mark — and for a reader going by nothing at all they are no mark. The label is the
+ * channel that always works, and this file's rule has always been literal: never colour alone.
+ */
+export type LessonMark = 'look' | 'right' | 'wrong';
+
+export interface LessonSquare {
+  readonly square: Square;
+  readonly mark: LessonMark;
+}
+
+const LESSON_PHRASE: Record<LessonMark, string> = {
+  look: 'a11y.cellLesson',
+  right: 'a11y.cellRight',
+  wrong: 'a11y.cellWrong',
+};
 import { arrowFor, arrowWidth, type HintMove } from '../render/hint-arrows.ts';
 import { hintHue } from '../render/palette.ts';
 import { SAME_LEVEL_CP } from '../chess/engine/same-level.ts';
@@ -110,7 +131,7 @@ export interface GridMirror {
    * square" is not a fact about the position — nothing in `chess/` knows it — so it has to come
    * from whoever is teaching, and it is remembered until it is replaced.
    */
-  setTaught(squares: readonly Square[]): void;
+  setTaught(marks: readonly LessonSquare[]): void;
   /** Swaps the board colours. Also nothing a screen reader hears. */
   setTheme(key: string): void;
   themeKey(): string;
@@ -303,7 +324,7 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
    * the position at all — nothing in `chess/` knows it — so it is told, and it is remembered until
    * it is told again.
    */
-  let taught: ReadonlySet<number> = new Set();
+  let taught: ReadonlyMap<number, LessonMark> = new Map();
 
   function labelFor(square: Square): string {
     const where = toAlgebraic(square);
@@ -328,7 +349,8 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
      * and for nothing else, so this is "nesta casa" and never "{piece} marcada" — the same
      * constraint the teaching catalogues satisfy by naming their pieces in full.
      */
-    if (taught.has(squareIndex(square))) extras.push(i18n.t('a11y.cellLesson'));
+    const lesson = taught.get(squareIndex(square));
+    if (lesson) extras.push(i18n.t(LESSON_PHRASE[lesson]));
 
     return extras.length ? `${base}, ${extras.join(', ')}` : base;
   }
@@ -369,7 +391,8 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
       // COINCIDE: a child picks the taught piece up while the square they were told to look at is
       // still lit, so "look here" and "you may capture here" have to be sayable at once. One
       // attribute holding one value would have made the game silence the lesson, or the reverse.
-      if (taught.has(i)) cell.dataset.lesson = 'true';
+      const lessonMark = taught.get(i);
+      if (lessonMark) cell.dataset.lesson = lessonMark;
       else delete cell.dataset.lesson;
 
       const mark = legal ? (piece ? 'capture' : 'move') : '';
@@ -448,8 +471,8 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
   return {
     root,
 
-    setTaught(squares) {
-      taught = new Set(squares.map(squareIndex));
+    setTaught(marks) {
+      taught = new Map(marks.map((m) => [squareIndex(m.square), m.mark]));
       refresh();
     },
 

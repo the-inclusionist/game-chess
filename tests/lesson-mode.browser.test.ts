@@ -66,7 +66,12 @@ beforeEach(() => {
   });
   document.body.appendChild(panel.root);
   mode = createLessonMode({
-    shell, panel, say: (text) => { said.push(text); }, onLeave: () => { left += 1; },
+    shell,
+    panel,
+    say: (text) => { said.push(text); },
+    onLeave: () => { left += 1; },
+    // The hold is real behaviour with its own test below; every other test would just sleep.
+    holdMs: 0,
   });
 });
 
@@ -79,8 +84,18 @@ const text = (selector: string): string => document.querySelector(selector)?.tex
 const mark = (name: string): string | null =>
   document.querySelector(`[data-square="${name}"]`)?.getAttribute('data-lesson') ?? null;
 
-/** Lets the shell's post-flight observer run: it fires from a resolved promise. */
-const settle = (): Promise<void> => new Promise((resolve) => { setTimeout(resolve, 0); });
+/**
+ * Lets the pending work finish.
+ *
+ * ⚠️ TWO TURNS, NOT ONE, and the second is the hold. A right answer on the board is shown before
+ * the lesson advances, so advancing is a timer even when the timer is zero: the shell's observer
+ * resolves on one macrotask and the hold fires on the next. Draining only one left the board
+ * showing the answer and the assertions reading the question it had already answered.
+ */
+const settle = async (): Promise<void> => {
+  await new Promise((resolve) => { setTimeout(resolve, 0); });
+  await new Promise((resolve) => { setTimeout(resolve, 0); });
+};
 
 /** Answers a whole step's `mark` set, in order. */
 async function touchAll(names: readonly string[]): Promise<void> {
@@ -123,7 +138,7 @@ describe('[Mode] a lesson runs through the board, and only through the board', (
     await touchAll(['e4', 'c6']);
     // Step 2 is "what is this square called", and f3 is the square being asked about.
     expect(text('.lesson-say')).toContain('Qual é o nome dela');
-    expect(mark('f3')).toBe('true');
+    expect(mark('f3')).toBe('look');
     expect(document.querySelector('[data-square="f3"]')!.getAttribute('aria-label'))
       .toContain('nesta casa');
 
@@ -251,4 +266,91 @@ describe('[Mode] the board belongs to the player again afterwards', () => {
     expect(await mode.start('a-lesson-nobody-wrote')).toBe(false);
     expect(mode.active()).toBeNull();
   });
+});
+
+describe('[Feedback] a touched square answers back before the lesson moves on', () => {
+  /*
+   * ========================= ⚠️ WHY THE PAUSE EXISTS =========================
+   * Advancing the instant a square is touched replaces the answer with the next question, so the
+   * mark that says "yes, that one" is drawn and erased inside the same frame. Nobody sees it, and
+   * the child is left with a board that changed for no reason they can name.
+   */
+  it('turns a correct square blue, and says so in words', async () => {
+    await mode.start('king');
+    shell.activate(at('c4'));
+    await settle();
+    const cell = document.querySelector('[data-square="c4"]')!;
+    expect(cell.getAttribute('data-lesson')).toBe('right');
+    // ⚠️ Blue and red measure 1.06:1 against each other, so the word is the channel that works
+    // for a reader going by lightness — or by nothing at all.
+    expect(cell.getAttribute('aria-label')).toContain('certo');
+  });
+
+  it('turns a wrong square red, and says that too', async () => {
+    await mode.start('king');
+    shell.activate(at('a1'));
+    await settle();
+    const cell = document.querySelector('[data-square="a1"]')!;
+    expect(cell.getAttribute('data-lesson')).toBe('wrong');
+    expect(cell.getAttribute('aria-label')).toContain('errado');
+  });
+
+  it('keeps every square found so far blue, not only the last one', async () => {
+    await mode.start('king');
+    shell.activate(at('c4'));
+    await settle();
+    shell.activate(at('e6'));
+    await settle();
+    expect(document.querySelector('[data-square="c4"]')!.getAttribute('data-lesson')).toBe('right');
+    expect(document.querySelector('[data-square="e6"]')!.getAttribute('data-lesson')).toBe('right');
+  });
+
+  it('⚠️ shows only ONE red at a time', async () => {
+    // Two red squares would say two answers were wrong, when only the second was even offered.
+    await mode.start('king');
+    shell.activate(at('a1'));
+    await settle();
+    shell.activate(at('h8'));
+    await settle();
+    expect(document.querySelector('[data-square="a1"]')!.getAttribute('data-lesson')).toBeNull();
+    expect(document.querySelector('[data-square="h8"]')!.getAttribute('data-lesson')).toBe('wrong');
+  });
+
+  it('forgets the verdicts when the step changes', async () => {
+    await mode.start('notation');
+    shell.activate(at('d4'));                       // wrong
+    await settle();
+    shell.activate(at('e4'));                       // right, and the step advances
+    await settle();
+    expect(document.querySelector('[data-square="d4"]')!.getAttribute('data-lesson')).toBeNull();
+    expect(document.querySelector('[data-square="e4"]')!.getAttribute('data-lesson')).toBeNull();
+  });
+
+  it('⚠️ holds the answer on the board before advancing, and a second touch cannot double-advance',
+    async () => {
+      /*
+       * The hold with a real duration, which is the behaviour every other test skips by asking for
+       * zero. Two claims in one: the blue mark is still there while the step is still shown, and a
+       * touch arriving during the pause is a no-op rather than a second advance.
+       */
+      const panel = createLessonPanel({
+        doc: document, i18n: shell.i18n, onChoose: () => {}, onLeave: () => {},
+      });
+      document.body.appendChild(panel.root);
+      const slow = createLessonMode({
+        shell, panel, say: () => {}, onLeave: () => {}, holdMs: 120,
+      });
+      await slow.start('notation');
+
+      shell.activate(at('e4'));
+      await new Promise((r) => { setTimeout(r, 0); });
+      expect(document.querySelector('[data-square="e4"]')!.getAttribute('data-lesson')).toBe('right');
+      expect(panel.root.querySelector('.lesson-counter')!.textContent).toContain('Passo 1 de 4');
+
+      shell.activate(at('c6'));                      // arrives mid-hold
+      await new Promise((r) => { setTimeout(r, 200); });
+      // One advance, not two: still step 2, not step 3.
+      expect(panel.root.querySelector('.lesson-counter')!.textContent).toContain('Passo 2 de 4');
+      slow.stop();
+    });
 });

@@ -29,6 +29,7 @@ import { lessonById } from '../teach/lessons.ts';
 import { loadTeach } from '../i18n/teach/index.ts';
 import { markLearned, rememberPlace } from '../chess/session.ts';
 import { fromAlgebraic, type Square } from '../chess/types.ts';
+import type { LessonSquare } from '../ui/grid-mirror.ts';
 
 export interface LessonModeDeps {
   readonly shell: GameShell;
@@ -37,6 +38,14 @@ export interface LessonModeDeps {
   say(text: string): void;
   /** Called when the lesson ends, however it ends. The caller puts the game back. */
   onLeave(): void;
+  /**
+   * How long a right answer stays on the board before the lesson moves on. Defaults to `HOLD_MS`.
+   *
+   * ⚠️ INJECTABLE FOR THE TESTS, and for nothing else. A suite that waited 800 ms per correct
+   * answer would spend most of a minute asleep, and a suite that stubbed the clock would stop
+   * exercising the very ordering the hold exists to create.
+   */
+  readonly holdMs?: number;
 }
 
 export interface LessonMode {
@@ -62,6 +71,18 @@ function litBy(step: Step): Square[] {
   return squaresOf(names);
 }
 
+/**
+ * How long a right answer stays on the board before the lesson moves on.
+ *
+ * ⚠️ THE PAUSE IS THE FEEDBACK. Advancing the instant a square is touched replaces the answer with
+ * the next question, so the mark that says "yes, that one" is drawn and erased inside the same
+ * frame and nobody ever sees it. The child is left with a board that changed and no idea why.
+ *
+ * Not tied to reduced motion: this is a pause, not an animation, and somebody who has asked for
+ * less movement has not asked to be told less.
+ */
+const HOLD_MS = 800;
+
 export function createLessonMode(deps: LessonModeDeps): LessonMode {
   const { shell, panel } = deps;
   let tutor: Tutor | null = null;
@@ -70,6 +91,31 @@ export function createLessonMode(deps: LessonModeDeps): LessonMode {
   let nudge: string | null = null;
   /** How much of a `mark` step is found, for the panel's "3 of 8". */
   let found: { done: number; of: number } | null = null;
+  /** Squares answered correctly in this step, kept so they all stay blue. */
+  let right: Square[] = [];
+  /** The one square answered wrongly, cleared by the next touch. */
+  let wrong: Square | null = null;
+  /** A pending advance, so a second touch during the hold cannot advance twice. */
+  let holding: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Everything the board should be showing about this step.
+   *
+   * ⚠️ ORDER MATTERS AND THE ANSWERS COME LAST. A square that a step says to look at AND that has
+   * just been answered should read as the answer — the map keeps the last write, so "you got it"
+   * wins over "look here", which is the more useful of the two once the child has acted.
+   */
+  function marks(step: Step | null): LessonSquare[] {
+    const out: LessonSquare[] = (step ? litBy(step) : [])
+      .map((square) => ({ square, mark: 'look' as const }));
+    for (const square of right) out.push({ square, mark: 'right' });
+    if (wrong) out.push({ square: wrong, mark: 'wrong' });
+    return out;
+  }
+
+  function paint(): void {
+    shell.setTaught(marks(tutor?.step() ?? null));
+  }
 
   /** The panel's picture of the step in progress. `advance` builds the finished one by hand. */
   function view(): LessonView | null {
@@ -90,13 +136,15 @@ export function createLessonMode(deps: LessonModeDeps): LessonMode {
     // ⚠️ Only when the step names one. A step without a FEN continues from where the last one left
     // the board, which is what makes "take the knight to f3, now to g5" one lesson.
     if (step.fen) shell.newGame(step.fen, { teaching: true });
-    shell.setTaught(litBy(step));
+    paint();
     panel.show(view());
     deps.say(shell.i18n.t(step.say));
     if (lesson && tutor) rememberPlace(lesson.id, tutor.stepIndex());
   }
 
   function advance(): void {
+    right = [];
+    wrong = null;
     /*
      * ⚠️ THE LAST STEP IS CAPTURED BEFORE ADVANCING PAST IT, and the first version was not.
      * `view()` needs a step to draw and `tutor.step()` is null once the lesson is over, so the
@@ -131,15 +179,28 @@ export function createLessonMode(deps: LessonModeDeps): LessonMode {
   }
 
   /** What the tutor said, turned into board and panel. The only branch in this file. */
-  function react(reaction: ReturnType<Tutor['saw']>): void {
-    if (reaction.kind !== 'waiting' && reaction.kind !== 'right' && reaction.kind !== 'wrong') {
-      if (reaction.undo) shell.undoLast();
-      return;
-    }
+  /**
+   * What the tutor said, turned into board and panel.
+   *
+   * `at` is the square that was touched, or null when the answer came from the panel. It is what
+   * lets a `mark` step answer the square itself rather than only the step.
+   */
+  function react(reaction: ReturnType<Tutor['saw']>, at: Square | null): void {
+    if (holding) return;                      // mid-hold: the step is already answered.
     if (reaction.undo) shell.undoLast();
+    if (reaction.kind === 'ignored') return;
+
+    // ⚠️ THE PREVIOUS RED GOES BEFORE THE NEW VERDICT IS DRAWN. Two red squares at once would say
+    // two answers were wrong, when only the second one was even offered.
+    wrong = null;
+    if (at) {
+      if (reaction.kind === 'wrong') wrong = at;
+      else if (!right.some((s) => s.x === at.x && s.y === at.y)) right.push(at);
+    }
 
     if (reaction.kind === 'waiting') {
       found = { done: reaction.marked, of: reaction.wanted };
+      paint();
       panel.show(view());
       return;
     }
@@ -148,11 +209,27 @@ export function createLessonMode(deps: LessonModeDeps): LessonMode {
       // mode that trained a child to hear their own mistakes as an alarm has taught them
       // something other than chess.
       if (reaction.nudge) nudge = reaction.nudge;
+      paint();
       panel.show(view());
       if (nudge) deps.say(shell.i18n.t(nudge));
       return;
     }
-    advance();
+
+    paint();
+    panel.show(view());
+
+    /*
+     * Right. ⚠️ THE ANSWER IS SHOWN BEFORE THE NEXT QUESTION REPLACES IT. Advancing here would draw
+     * the blue mark and erase it inside the same frame, leaving a child with a board that changed
+     * for no visible reason. `holding` also makes a second touch during the pause a no-op rather
+     * than a double advance.
+     *
+     * ⚠️ ONLY WHEN THE ANSWER WAS ON THE BOARD. A `pick` is answered in the panel and colours no
+     * square, so a pause there shows nothing and is simply a delay — and a delay with nothing to
+     * look at is the kind of thing a child reads as the game having frozen.
+     */
+    if (!at) { advance(); return; }
+    holding = setTimeout(() => { holding = null; advance(); }, deps.holdMs ?? HOLD_MS);
   }
 
   return {
@@ -167,17 +244,23 @@ export function createLessonMode(deps: LessonModeDeps): LessonMode {
       tutor = createTutor(found_, from === undefined ? {} : { from });
       nudge = null;
       found = null;
-      shell.watch((square, result) => { react(tutor!.saw(square, result)); });
+      shell.watch((square, result) => { react(tutor!.saw(square, result), square); });
       const step = tutor.step();
       if (step) open(step);
       return true;
     },
 
     chose(option) {
-      if (tutor) react(tutor.chose(option));
+      // No square: a `pick` is answered in the panel, so there is nothing on the board to colour.
+      if (tutor) react(tutor.chose(option), null);
     },
 
     stop() {
+      // ⚠️ A pending hold would advance a lesson that has been closed, into a panel that has been
+      // destroyed. Cancelled first, before anything it touches goes away.
+      if (holding) { clearTimeout(holding); holding = null; }
+      right = [];
+      wrong = null;
       shell.watch(null);
       panel.show(null);
       shell.setTaught([]);

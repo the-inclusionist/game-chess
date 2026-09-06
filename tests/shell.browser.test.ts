@@ -248,8 +248,8 @@ describe('[NewGame] a lesson changes the board without rebuilding anything aroun
 
   it('clears the lesson marks, because they named squares in a position that is gone', () => {
     const shell = shellFor();
-    shell.setTaught([at('e4')]);
-    expect(document.querySelector('[data-square="e4"]')!.getAttribute('data-lesson')).toBe('true');
+    shell.setTaught([{ square: at('e4'), mark: 'look' }]);
+    expect(document.querySelector('[data-square="e4"]')!.getAttribute('data-lesson')).toBe('look');
 
     shell.newGame('k7/7p/8/3R4/8/8/8/7K w - - 0 1', { teaching: true });
     expect(document.querySelector('[data-square="e4"]')!.getAttribute('data-lesson')).toBeNull();
@@ -268,9 +268,9 @@ describe('[Taught] the shell can point at squares', () => {
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       debugName: '__shellTest', contrastTheme: 'contrast-flat',
     });
-    shell.setTaught([at('e4'), at('d5')]);
+    shell.setTaught([{ square: at('e4'), mark: 'look' }, { square: at('d5'), mark: 'look' }]);
     const cell = document.querySelector('[data-square="e4"]')!;
-    expect(cell.getAttribute('data-lesson')).toBe('true');
+    expect(cell.getAttribute('data-lesson')).toBe('look');
     expect(cell.getAttribute('aria-label')).toContain('nesta casa');
     shell.setTaught([]);
     expect(cell.getAttribute('data-lesson')).toBeNull();

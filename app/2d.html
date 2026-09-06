@@ -988,6 +988,18 @@
     border: 2px solid #000000;
     pointer-events: none;
   }
+  /*
+   * ⚠️ FILLED FOR RIGHT, HOLLOW FOR WRONG, and the fill is doing the work. Blue and red measure
+   * 1.06:1 against each other — see `render/palette.ts` — so a reader going by lightness sees one
+   * mark where there are two, and a reader going by nothing sees none. The label carries it too
+   * ("certo" / "errado"): never colour alone.
+   */
+  .board-2d [role="gridcell"][data-lesson="right"]::before { background: #4DA3FF; }
+  .board-2d [role="gridcell"][data-lesson="wrong"]::before {
+    background: transparent;
+    border: 4px solid #FF6B5E;
+    box-shadow: 0 0 0 2px #000000, inset 0 0 0 2px #000000;
+  }
 
   /*
    * ========================= A HINT IS AN ARROW =========================

@@ -54,7 +54,7 @@ import { createBlunderBar } from '../ui/blunder-bar.ts';
  */
 import { LESSONS } from '../teach/lessons.ts';
 import { loadProgress } from '../chess/session.ts';
-import { createGridMirror } from '../ui/grid-mirror.ts';
+import { createGridMirror, type LessonMark, type LessonSquare } from '../ui/grid-mirror.ts';
 import { createHud, type GameMode, type Hud, type ViewKind } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
 import { createPlayerStrips } from '../ui/player-strip.ts';
@@ -136,8 +136,8 @@ export interface GameShell {
    * `teaching` suppresses the save while a lesson owns the board; see the guard in `syncPosition`.
    */
   newGame(fen?: string, options?: { readonly teaching?: boolean }): void;
-  /** The squares a lesson is pointing at. Empty clears them. */
-  setTaught(squares: readonly Square[]): void;
+  /** What a lesson is saying about each square. Empty clears them all. */
+  setTaught(marks: readonly LessonSquare[]): void;
   /**
    * Watches every activation, or stops watching when given null. One watcher, because there is one
    * lesson at a time and a list would only invite a second thing to answer the board.
@@ -146,6 +146,11 @@ export interface GameShell {
   /** Takes one ply back and redraws. Returns whether anything moved. */
   undoLast(): boolean;
 }
+
+/** The mirror's vocabulary is the board's, under two different names. One table, stated once. */
+const LESSON_MARKER: Record<LessonMark, 'lesson' | 'lessonRight' | 'lessonWrong'> = {
+  look: 'lesson', right: 'lessonRight', wrong: 'lessonWrong',
+};
 
 export function createGameShell(deps: GameShellDeps): GameShell {
   const host = deps.host;
@@ -193,7 +198,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
    * rebuild. "Look at this square" is not a fact about the position at all: nothing in `chess/`
    * knows it, and nothing in `chess/` should.
    */
-  let taught: readonly Square[] = [];
+  let taught: readonly LessonSquare[] = [];
   /**
    * True while a lesson owns the board.
    *
@@ -714,7 +719,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
      * The flat board does not need this ordering: it carries the lesson on its own attribute and
      * says BOTH. This is the projected board's compromise, and it is a compromise.
      */
-    for (const square of taught) markers.set(squareIndex(square), 'lesson');
+    for (const { square, mark } of taught) markers.set(squareIndex(square), LESSON_MARKER[mark]);
     const selected = game.selection();
     if (selected) {
       markers.set(squareIndex(selected), 'selected');
@@ -970,8 +975,8 @@ export function createGameShell(deps: GameShellDeps): GameShell {
    * sitting on the flat board, pointing at a lesson that had moved on. Everything that changes the
    * set goes through here.
    */
-  function setTaught(squares: readonly Square[]): void {
-    taught = [...squares];
+  function setTaught(marks: readonly LessonSquare[]): void {
+    taught = [...marks];
     mirror.setTaught(taught);
     syncMarks();
   }

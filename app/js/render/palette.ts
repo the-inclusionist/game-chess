@@ -122,6 +122,20 @@ export const MARKER_LESSON = '#FFB300';
  * leaves nothing else — not a stylistic choice, and not one to lighten for looks.
  */
 export const MARKER_LESSON_HALO = '#000000';
+
+/*
+ * ========================= ⚠️ BLUE AND RED ARE 1.06:1 AGAINST EACH OTHER =========================
+ * A touched square is answered blue when it was right and red when it was wrong. Measured, these
+ * two are all but IDENTICAL in luminance — 1.06:1 — so to anyone reading by lightness rather than
+ * by hue, and to a good share of colour-blind readers, they are the same mark.
+ *
+ * That is not a reason to pick different colours; blue-for-right and red-for-wrong is a convention
+ * worth keeping, and both clear the black halo comfortably (8.00 and 7.52). It is a reason the
+ * FORM has to carry the distinction as well: right is a FILLED square, wrong is a HOLLOW ring.
+ * WCAG 1.4.1, and the same argument `board-geometry.ts` makes for the three markers that co-occur.
+ */
+export const MARKER_LESSON_RIGHT = '#4DA3FF';
+export const MARKER_LESSON_WRONG = '#FF6B5E';
 /**
  * Where the engine would play. A HUE of its own, because it is not one of the player's own states:
  * a hint is an opinion from outside the game, and giving it the selection blue or the move green

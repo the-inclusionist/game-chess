@@ -73,5 +73,11 @@ export function squareCenter(s: Square, tile: number): { x: number; z: number } 
  * highlight COINCIDES with `selected` and with `move`, because the child picks the taught piece up
  * while the square they were told to look at is still lit. A second ring in another colour would
  * be a 1.4.1 failure in the one mode whose whole purpose is to teach.
+ *
+ * `lessonRight` and `lessonWrong` answer a square the student just touched. ⚠️ They are told apart
+ * by FILL, not by colour: blue and red measure 1.06:1 against each other, so a reader going by
+ * lightness sees one mark, not two. Right is filled; wrong is hollow.
  */
-export type Marker = 'cursor' | 'selected' | 'move' | 'capture' | 'check' | 'lesson';
+export type Marker =
+  | 'cursor' | 'selected' | 'move' | 'capture' | 'check'
+  | 'lesson' | 'lessonRight' | 'lessonWrong';

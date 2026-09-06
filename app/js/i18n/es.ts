@@ -160,6 +160,8 @@ export const es: Catalog = {
     'a11y.cellCapture': 'captura posible',
     'a11y.cellCheck': 'en jaque',
     'a11y.cellLesson': 'la lección señala esta casilla',
+    'a11y.cellRight': 'correcto',
+    'a11y.cellWrong': 'incorrecto',
 
     'lesson.step': 'Paso {at} de {of}',
     'lesson.found': '{done} de {of} casillas',

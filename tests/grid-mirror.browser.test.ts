@@ -374,15 +374,15 @@ describe('[Lesson] "look here" is a shape AND a word, never a colour', () => {
    */
   it('marks the squares it is told, and only those', () => {
     const { mirror: m } = board();
-    m.setTaught([sq('e4'), sq('d5')]);
-    expect(cellAt('e4').dataset.lesson).toBe('true');
-    expect(cellAt('d5').dataset.lesson).toBe('true');
+    m.setTaught([{ square: sq('e4'), mark: 'look' }, { square: sq('d5'), mark: 'look' }]);
+    expect(cellAt('e4').dataset.lesson).toBe('look');
+    expect(cellAt('d5').dataset.lesson).toBe('look');
     expect(cellAt('e5').dataset.lesson).toBeUndefined();
   });
 
   it('says so in the label, in the reader\'s own language', () => {
     const { mirror: m } = build(undefined, 'en');
-    m.setTaught([sq('e4')]);
+    m.setTaught([{ square: sq('e4'), mark: 'look' }]);
     expect(labelOf('e4')).toContain('the lesson points here');
     expect(labelOf('e5')).not.toContain('the lesson points here');
   });
@@ -395,10 +395,10 @@ describe('[Lesson] "look here" is a shape AND a word, never a colour', () => {
      * game — and a square that is "look here" and "you can move here" is more useful saying both.
      */
     const { state, mirror: m } = board();
-    m.setTaught([sq('e4')]);
+    m.setTaught([{ square: sq('e4'), mark: 'look' }]);
     state.activate(sq('e2'));
     m.refresh();
-    expect(cellAt('e4').dataset.lesson).toBe('true');
+    expect(cellAt('e4').dataset.lesson).toBe('look');
     expect(cellAt('e4').dataset.mark).toBe('move');
     const label = labelOf('e4');
     expect(label).toContain('lance possível');
@@ -407,10 +407,10 @@ describe('[Lesson] "look here" is a shape AND a word, never a colour', () => {
 
   it('replaces the set rather than adding to it, and an empty set clears it', () => {
     const { mirror: m } = board();
-    m.setTaught([sq('e4')]);
-    m.setTaught([sq('d5')]);
+    m.setTaught([{ square: sq('e4'), mark: 'look' }]);
+    m.setTaught([{ square: sq('d5'), mark: 'look' }]);
     expect(cellAt('e4').dataset.lesson).toBeUndefined();
-    expect(cellAt('d5').dataset.lesson).toBe('true');
+    expect(cellAt('d5').dataset.lesson).toBe('look');
     m.setTaught([]);
     expect(cellAt('d5').dataset.lesson).toBeUndefined();
     expect(labelOf('d5')).not.toContain('nesta casa');
@@ -421,9 +421,9 @@ describe('[Lesson] "look here" is a shape AND a word, never a colour', () => {
     // are right by construction. "Look at this square" is not a fact about the position at all —
     // nothing in `chess/` knows it — so it has to be remembered until it is replaced.
     const { state, mirror: m } = board();
-    m.setTaught([sq('e4')]);
+    m.setTaught([{ square: sq('e4'), mark: 'look' }]);
     state.activate(sq('g1'));
     m.refresh();
-    expect(cellAt('e4').dataset.lesson).toBe('true');
+    expect(cellAt('e4').dataset.lesson).toBe('look');
   });
 });

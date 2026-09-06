@@ -17,6 +17,7 @@ import {
 export type { Marker } from './board-geometry.ts';
 import {
   DEFAULT_PALETTE, MARKER_CAPTURE, MARKER_CHECK, MARKER_LESSON, MARKER_LESSON_HALO,
+  MARKER_LESSON_RIGHT, MARKER_LESSON_WRONG,
   hintHue, MARKER_CURSOR, MARKER_MOVE, MARKER_SELECTED,
   type Palette, SQUARE_STROKE,
 } from './palette.ts';
@@ -63,7 +64,7 @@ export interface BoardView {
  * Written this way, `tsc` refuses the day somebody removes the early return in `setMarkers` — the
  * lookup stops compiling instead of quietly drawing the wrong shape.
  */
-const OUTLINE_COLOUR: Record<Exclude<Marker, 'lesson'>, string> = {
+const OUTLINE_COLOUR: Record<Exclude<Marker, 'lesson' | 'lessonRight' | 'lessonWrong'>, string> = {
   cursor: MARKER_CURSOR,
   move: MARKER_MOVE,
   capture: MARKER_CAPTURE,
@@ -148,11 +149,25 @@ export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE):
    * and `capture` draw, so a square that is both "look here" and "you may capture here" still says
    * two distinguishable things.
    */
-  function drawLesson(index: number): void {
+  const LESSON_INK: Record<'lesson' | 'lessonRight' | 'lessonWrong', string> = {
+    lesson: MARKER_LESSON,
+    lessonRight: MARKER_LESSON_RIGHT,
+    lessonWrong: MARKER_LESSON_WRONG,
+  };
+
+  function drawLesson(index: number, kind: 'lesson' | 'lessonRight' | 'lessonWrong'): void {
     const { x, z } = squareCenter(squareFromIndex(index), TILE);
-    for (const [size, colour] of [
-      [TILE * 0.60, MARKER_LESSON_HALO],
-      [TILE * 0.52, MARKER_LESSON],
+    /*
+     * ⚠️ `lessonWrong` IS HOLLOW AND THE OTHER TWO ARE FILLED, and that is not decoration. Blue and
+     * red measure 1.06:1 against each other — see `palette.ts` — so a reader going by lightness
+     * rather than hue sees ONE mark where there are two. The fill is what actually separates
+     * "that was right" from "that was wrong"; the colour only makes it quicker for whoever can use
+     * it. WCAG 1.4.1.
+     */
+    const filled = kind !== 'lessonWrong';
+    for (const [size, colour, fill] of [
+      [TILE * 0.60, MARKER_LESSON_HALO, filled],
+      [TILE * 0.52, LESSON_INK[kind], filled],
     ] as const) {
       new Zdog.Rect({
         addTo: lessonAnchor,
@@ -160,9 +175,10 @@ export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE):
         height: size,
         translate: { x, y: MARKER_LIFT, z },
         rotate: { x: Zdog.TAU / 4 },
-        stroke: SQUARE_STROKE,
+        // A hollow ring needs a visible line; a filled square only needs its edge closed.
+        stroke: fill ? SQUARE_STROKE : SQUARE_STROKE * 2.5,
         color: colour,
-        fill: true,
+        fill,
         backface: true,
       });
     }
@@ -200,7 +216,10 @@ export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE):
         // what lets the game speak over it: the map holds one kind per square, and `syncMarkers`
         // writes the lesson first so a square that is also a legal target ends up saying the more
         // useful of the two.
-        if (kind === 'lesson') { drawLesson(index); continue; }
+        if (kind === 'lesson' || kind === 'lessonRight' || kind === 'lessonWrong') {
+          drawLesson(index, kind);
+          continue;
+        }
         const showDot = kind === 'move' || kind === 'selected';
         const showOutline = kind !== 'move';
         dots[index].visible = showDot;
