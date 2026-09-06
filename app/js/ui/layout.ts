@@ -118,8 +118,22 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
     stage.style.width = `${stageW}px`;
     stage.style.height = `${stageH}px`;
   }
+  /*
+   * ⚠️ THE REGION IS AS TALL AS WHAT IT MUST CONTAIN, and that differs by page.
+   *
+   * A canvas page has to be exactly `LOGICAL_H * scale` or the canvas — which is `height: 100%` —
+   * stretches and the art stops being an integer multiple of anything. The FLAT page has no canvas
+   * at all: its board is DOM, sized as a percentage of this box, so holding it to 360 in a 540-tall
+   * stage was leaving 180 px empty and drawing a 338 px board where a 507 px one fits.
+   *
+   * Asked rather than configured, because the answer is a fact about the document: either there is
+   * a canvas in it or there is not.
+   */
+  const boardCanvas = host.doc.getElementById('board-canvas');
+  const regionHeight = boardCanvas ? height : Math.max(height, stageH);
+
   region.style.width = `${width}px`;
-  region.style.height = `${height}px`;
+  region.style.height = `${regionHeight}px`;
   // Whatever the board did not take. The panel is the remainder by construction, so the two can
   // never overlap — which is the whole reason they stopped being one element.
   if (column) column.style.width = `${stageW - width}px`;
