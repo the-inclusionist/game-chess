@@ -37,9 +37,17 @@ describe('[Conformance] the engine agrees this is a well-formed game', () => {
     expect(conformanceProblems(declaration)).toEqual([]);
   });
 
-  it('declares a grid of the right size', () => {
+  it('declares a grid of the right size, and how a step is counted in it', () => {
+    /*
+     * ⚠️ `move` AND `frame` ARE NOT DECORATION, and the engine made them required because "grid"
+     * never was one thing. `diagonal` is Chebyshev — the KING'S step, so "two squares away" means
+     * the same to the sonar as to the player — and `compass` is north/south/east/west, which is
+     * what a board seen from above has. `clock` would have the sonar placing a rook at four
+     * o'clock, which is a 2D side view's vocabulary and not this one's.
+     */
     const { declaration } = build();
-    expect(declaration.topology()).toEqual({ kind: 'grid', cols: 8, rows: 8 });
+    expect(declaration.topology())
+      .toEqual({ kind: 'grid', size: [8, 8], move: 'diagonal', frame: 'compass' });
   });
 
   it('declares the player as the clock, not a timer', () => {

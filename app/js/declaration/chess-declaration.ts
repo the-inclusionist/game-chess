@@ -60,15 +60,29 @@ export function createChessDeclaration(deps: DeclarationDeps): GameDeclaration {
   const theirs = mine === 'w' ? 'b' : 'w';
 
   return {
-    // Chebyshev distance on a grid IS the king's step, which is the unit a player already counts
-    // in — so "two squares away" means the same thing to the sonar and to the person hearing it.
-    //
-    // ⚠️ A METHOD SINCE THE ENGINE'S ADR-0084. It was a value, and the asymmetry had already been
-    // patched in two places before anybody named it: the sonar door always asked for
-    // `() => Topology`. A chess board is 8x8 forever, so this one really does return a constant —
-    // but a shape that never changes is not a reason to be the one declaration in the catalogue
-    // that answers differently from the rest.
-    topology: () => ({ kind: 'grid', cols: 8, rows: 8 }),
+    /*
+     * ⚠️ A METHOD SINCE THE ENGINE'S ADR-0084. It was a value, and the asymmetry had already been
+     * patched in two places before anybody named it: the sonar door always asked for
+     * `() => Topology`. A chess board is 8x8 forever, so this one really does return a constant —
+     * but a shape that never changes is not a reason to be the one declaration in the catalogue
+     * that answers differently from the rest.
+     *
+     * ⚠️ AND THE SHAPE CHANGED AGAIN: `cols`/`rows` became `size`, and `move` and `frame` are now
+     * required. That is a better contract rather than churn — "grid" never was one thing, and the
+     * two new fields are exactly the two questions the sonar had been answering by assumption:
+     *
+     *  · `move: 'diagonal'` is L-infinity, Chebyshev — and the engine's own comment names this
+     *    game for it. It is the KING'S step, which is the unit a player already counts in, so
+     *    "two squares away" means the same thing to the sonar and to the person hearing it.
+     *  · `frame: 'compass'` is north/south/east/west rather than clock directions, which is what a
+     *    board seen from above has. `clock` is for a 2D side view, and would have had the sonar
+     *    telling a child their rook was at four o'clock.
+     *
+     * ⚠️ FOUND BY `tsc` AND BY A BOOT THAT THREW, not by a changelog: the engine is a linked
+     * dependency shared with another session, and the suite went from green to red between two
+     * runs half an hour apart with nothing of ours changed in between.
+     */
+    topology: () => ({ kind: 'grid', size: [8, 8], move: 'diagonal', frame: 'compass' }),
 
     /**
      * ⚠️ THE WHOLE REGION, NOT THE CANVAS — and for this game that distinction is the point of the
