@@ -29,7 +29,7 @@ import { DEFAULT_ELO, STRENGTH_LADDER } from '../chess/engine/strength.ts';
 import { createThinkingPanel } from '../ui/thinking.ts';
 import { type MoveResult } from '../chess/rules.ts';
 import {
-  loadSettings, resume, save as saveGame, saveSettings,
+  loadSettings, resume, patchSettings, save as saveGame,
 } from '../chess/session.ts';
 import { createGameState, type Activation } from '../chess/state.ts';
 import { type Side, type Square, toAlgebraic } from '../chess/types.ts';
@@ -177,7 +177,7 @@ export function boot2d(host: Document = document): void {
     blunderBar.show({ mark: entry.mark ?? '', lost: entry.lost });
     if (stumbles >= STUMBLES_BEFORE_HELP && !hintsOn) {
       hintsOn = true;
-      saveSettings({ ...currentSettings(), hints: hintsOn });
+      patchSettings({ hints: hintsOn });
       srSay(i18n.t('protected.teaching'));
       // Turning the switch on is not enough: the arrows are drawn when a suggestion arrives, and
       // nothing else is going to ask for one — the position has not changed and will not until
@@ -278,19 +278,16 @@ export function boot2d(host: Document = document): void {
    */
   function chooseMode(next: GameMode): void {
     if (next === mode) return;
-    saveSettings({ ...currentSettings(), mode: next });
+    patchSettings({ mode: next });
     try { sessionStorage.setItem('incl_chess_switching', '1'); } catch { /* private mode */ }
     window.location.reload();
   }
 
-  const currentSettings = () => ({
-    theme: themeKey, set: setKey, coordinates: showCoordinates, mode, elo, hints: hintsOn, protect: protectedOn,
-  });
 
   const applyTheme = (key: string): void => {
     themeKey = key;
     board.setTheme(key);
-    saveSettings({ ...currentSettings(), theme: key });
+    patchSettings({ theme: key });
   };
 
   // Under the board, because that is what it is about — and outside the panel, which has no room
@@ -453,7 +450,7 @@ export function boot2d(host: Document = document): void {
     onCoordinates: (on) => {
       showCoordinates = on;
       region.dataset.coords = on ? 'on' : '';
-      saveSettings({ ...currentSettings(), coordinates: on });
+      patchSettings({ coordinates: on });
       hud.refresh();
     },
     mode: () => mode,
@@ -466,7 +463,7 @@ export function boot2d(host: Document = document): void {
       onProtected: (on) => {
         protectedOn = on;
         if (!on) { blunderHeld = null; blunderBar.show(null); }
-        saveSettings({ ...currentSettings(), protect: on });
+        patchSettings({ protect: on });
         hud.refresh();
         askOpponent();
       },
@@ -476,7 +473,7 @@ export function boot2d(host: Document = document): void {
     onStrength: (next) => {
       elo = next;
       opponent.setStrength(next);
-      saveSettings({ ...currentSettings(), elo: next });
+      patchSettings({ elo: next });
       hud.refresh();
       // A change mid-search would otherwise be answered at the OLD rating. The client drops the
       // stale reply either way; cancelling makes the new one prompt rather than merely correct.
@@ -491,7 +488,7 @@ export function boot2d(host: Document = document): void {
     ...(mode === 'two' ? {} : {
       onHint: () => {
         hintsOn = !hintsOn;
-        saveSettings({ ...currentSettings(), hints: hintsOn });
+        patchSettings({ hints: hintsOn });
         if (!hintsOn) clearHints();
         hud.refresh();
         refreshHints();
@@ -506,7 +503,7 @@ export function boot2d(host: Document = document): void {
     onPieceSet: (key) => {
       setKey = key;
       board.setPieceSet(key);
-      saveSettings({ ...currentSettings(), set: key });
+      patchSettings({ set: key });
       hud.refresh();
     },
 

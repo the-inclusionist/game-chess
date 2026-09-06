@@ -37,7 +37,7 @@ import { applyLayout } from '../ui/layout.ts';
 import { createStockfishClient } from '../chess/engine/stockfish-client.ts';
 import { DEFAULT_ELO, STRENGTH_LADDER } from '../chess/engine/strength.ts';
 import { createThinkingPanel } from '../ui/thinking.ts';
-import { loadSettings, resume, save as saveGame, saveSettings } from '../chess/session.ts';
+import { loadSettings, patchSettings, resume, save as saveGame } from '../chess/session.ts';
 import { createGameState } from '../chess/state.ts';
 import { type Side, type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale } from '../i18n/index.ts';
@@ -189,10 +189,6 @@ export function boot3d(host: Document = document): void {
 
   const declaration = createChessDeclaration({ rules, state: game, i18n, cursor: () => cursor });
 
-  const currentSettings = () => ({
-    theme: themeKey, design: designKey, coordinates: false,
-    mode, elo, hints: hintsOn, protect: protectedOn,
-  });
 
   const hud = createHud({
     doc: host,
@@ -215,7 +211,7 @@ export function boot3d(host: Document = document): void {
     pieceSet: () => designKey,
     onPieceSet: (key) => {
       designKey = key;
-      saveSettings({ ...currentSettings(), design: key });
+      patchSettings({ design: key });
       syncPieces();
     },
 
@@ -226,7 +222,7 @@ export function boot3d(host: Document = document): void {
       const next = boardTheme(key);
       region.dataset.contrast = key.startsWith('contrast-') ? 'high' : '';
       scene.setBoard(next.light, next.dark, next.rim, unlit());
-      saveSettings({ ...currentSettings(), theme: key });
+      patchSettings({ theme: key });
       syncPieces();
     },
 
@@ -238,7 +234,7 @@ export function boot3d(host: Document = document): void {
       onProtected: (on) => {
         protectedOn = on;
         if (!on) { blunderHeld = null; blunderBar.show(null); }
-        saveSettings({ ...currentSettings(), protect: on });
+        patchSettings({ protect: on });
         hud.refresh();
         askOpponent();
       },
@@ -249,7 +245,7 @@ export function boot3d(host: Document = document): void {
     onStrength: (next) => {
       elo = next;
       opponent.setStrength(next);
-      saveSettings({ ...currentSettings(), elo: next });
+      patchSettings({ elo: next });
       hud.refresh();
       if (game.phase() === 'thinking') { opponent.cancel(); searching = false; askOpponent(); }
     },
@@ -257,7 +253,7 @@ export function boot3d(host: Document = document): void {
     ...(mode === 'two' ? {} : {
       onHint: () => {
         hintsOn = !hintsOn;
-        saveSettings({ ...currentSettings(), hints: hintsOn });
+        patchSettings({ hints: hintsOn });
         if (!hintsOn) clearHints();
         hud.refresh();
         refreshHints();
@@ -269,7 +265,7 @@ export function boot3d(host: Document = document): void {
     mode: () => mode,
     onMode: (next) => {
       if (next === mode) return;
-      saveSettings({ ...currentSettings(), mode: next });
+      patchSettings({ mode: next });
       try { sessionStorage.setItem('incl_chess_switching', '1'); } catch { /* private mode */ }
       window.location.reload();
     },
@@ -409,7 +405,7 @@ export function boot3d(host: Document = document): void {
     blunderBar.show({ mark: entry.mark ?? '', lost: entry.lost });
     if (stumbles >= STUMBLES_BEFORE_HELP && !hintsOn) {
       hintsOn = true;
-      saveSettings({ ...currentSettings(), hints: hintsOn });
+      patchSettings({ hints: hintsOn });
       srSay(i18n.t('protected.teaching'));
       refreshHints();
     }

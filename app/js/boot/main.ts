@@ -32,7 +32,7 @@ import { DEFAULT_ELO, STRENGTH_LADDER } from '../chess/engine/strength.ts';
 import { createThinkingPanel } from '../ui/thinking.ts';
 import { type MoveResult } from '../chess/rules.ts';
 import {
-  loadSettings, resume, save as saveGame, saveSettings,
+  loadSettings, resume, patchSettings, save as saveGame,
 } from '../chess/session.ts';
 import { createGameState, type Activation, type HistoryStep } from '../chess/state.ts';
 import { sameSquare, type Piece, type Side, type Square, toAlgebraic } from '../chess/types.ts';
@@ -383,7 +383,7 @@ export function boot(host: Document = document): void {
       onProtected: (on) => {
         protectedOn = on;
         if (!on) { blunderHeld = null; blunderBar.show(null); }
-        saveSettings({ ...currentSettings(), protect: on });
+        patchSettings({ protect: on });
         hud.refresh();
         askOpponent();
       },
@@ -393,7 +393,7 @@ export function boot(host: Document = document): void {
     onStrength: (next) => {
       elo = next;
       opponent.setStrength(next);
-      saveSettings({ ...currentSettings(), elo: next });
+      patchSettings({ elo: next });
       hud.refresh();
       // A change mid-search would otherwise be answered at the OLD rating. The client drops the
       // stale reply either way; cancelling makes the new one prompt rather than merely correct.
@@ -406,7 +406,7 @@ export function boot(host: Document = document): void {
     ...(mode === 'two' ? {} : {
       onHint: () => {
         hintsOn = !hintsOn;
-        saveSettings({ ...currentSettings(), hints: hintsOn });
+        patchSettings({ hints: hintsOn });
         if (!hintsOn) clearHints();
         hud.refresh();
         refreshHints();
@@ -425,7 +425,7 @@ export function boot(host: Document = document): void {
     onCoordinates: (on) => {
       showCoordinates = on;
       coordinates.setVisible(on);
-      saveSettings({ ...currentSettings(), coordinates: on });
+      patchSettings({ coordinates: on });
       hud.refresh();
       invalidate();
     },
@@ -448,7 +448,7 @@ export function boot(host: Document = document): void {
     onPieceSet: (key) => {
       designKey = key;
       pieces.setDesign(key);
-      saveSettings({ ...currentSettings(), design: key });
+      patchSettings({ design: key });
       invalidate();
     },
 
@@ -463,10 +463,6 @@ export function boot(host: Document = document): void {
    * the null check into a function that could, as far as it knows, have been called before it.
    * The narrowed constant is captured once, above, where the check has already happened.
    */
-  const currentSettings = () => ({
-    theme: themeKey, design: designKey, coordinates: showCoordinates,
-    mode, elo, hints: hintsOn, protect: protectedOn,
-  });
 
   /**
    * ========================= CHANGING SIDES KEEPS THE GAME =========================
@@ -486,7 +482,7 @@ export function boot(host: Document = document): void {
    */
   function chooseMode(next: GameMode): void {
     if (next === mode) return;
-    saveSettings({ ...currentSettings(), mode: next });
+    patchSettings({ mode: next });
     try { sessionStorage.setItem('incl_chess_switching', '1'); } catch { /* private mode */ }
     window.location.reload();
   }
@@ -511,7 +507,7 @@ export function boot(host: Document = document): void {
     blunderBar.show({ mark: entry.mark ?? '', lost: entry.lost });
     if (stumbles >= STUMBLES_BEFORE_HELP && !hintsOn) {
       hintsOn = true;
-      saveSettings({ ...currentSettings(), hints: hintsOn });
+      patchSettings({ hints: hintsOn });
       srSay(i18n.t('protected.teaching'));
       // Turning the switch on is not enough: the arrows are drawn when a suggestion arrives, and
       // nothing else is going to ask for one — the position has not changed and will not until
@@ -601,7 +597,7 @@ export function boot(host: Document = document): void {
     pieces.setPalette(palette);
     // The DOM panel follows the same switch: it is over the same board and read by the same eye.
     area.dataset.contrast = key.startsWith('contrast-') ? 'high' : '';
-    saveSettings({ ...currentSettings(), theme: key });
+    patchSettings({ theme: key });
     hud.refresh();
     invalidate();
   }

@@ -184,9 +184,40 @@ export interface ViewSettings {
   readonly elo?: number;
 }
 
+/**
+ * Replaces the whole record.
+ *
+ * ⚠️ REPLACES. What is not in `settings` is GONE, and that is almost never what a caller wants —
+ * see `patchSettings`, which is. This one stays because starting from nothing is a real operation
+ * (a test, a reset) and because saying so here is better than a second function that quietly
+ * shadows it.
+ */
 export function saveSettings(settings: ViewSettings, store: SessionStore | null = defaultStore()): void {
   if (!store) return;
   try { store.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* see save() */ }
+}
+
+/**
+ * Merges over what is already stored.
+ *
+ * ========================= ⚠️ WHY THE FLAT BOARD KEPT LOSING ITS PIECE FONT =========================
+ * `saveSettings` writes the whole record, so every page that wanted to change ONE thing had to
+ * read the others back and spread them — and each of the three composition roots kept its own
+ * `currentSettings()` closure listing only the keys IT knew about. The projected root had no
+ * `set`; the solid root had no `set` either and hardcoded `coordinates: false`.
+ *
+ * The result was not a tidiness problem. Changing the board palette on the projected page erased
+ * the flat page's choice of piece font, and touching anything at all on the solid page erased the
+ * coordinate switch — silently, and only noticed on the next change of view, by which time
+ * nothing on screen connected the loss to what caused it.
+ *
+ * A merge cannot do that. A caller says what it changed and says nothing about the rest.
+ */
+export function patchSettings(patch: ViewSettings, store: SessionStore | null = defaultStore()): void {
+  if (!store) return;
+  // Read through `loadSettings` rather than the raw string: a stored record that has gone bad
+  // reads as `{}` there, and a patch onto `{}` is a repair rather than a throw.
+  saveSettings({ ...loadSettings(store), ...patch }, store);
 }
 
 export function loadSettings(store: SessionStore | null = defaultStore()): ViewSettings {

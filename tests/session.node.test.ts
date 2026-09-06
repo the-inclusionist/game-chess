@@ -2,7 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import { createRules } from '../app/js/chess/rules.ts';
 import {
-  clear, describe as describeGame, load, loadSettings, restore, resume, save, saveSettings,
+  clear, describe as describeGame, load, loadSettings, patchSettings, restore, resume,
+  save, saveSettings,
 } from '../app/js/chess/session.ts';
 import { fromAlgebraic, type Square } from '../app/js/chess/types.ts';
 
@@ -158,6 +159,38 @@ describe('[Session] the choices that must not reset when the view changes', () =
     const store = fakeStore();
     store.setItem('incl_chess_view', JSON.stringify({ theme: 7, mode: 'purple', coordinates: 'yes' }));
     expect(loadSettings(store)).toEqual({});
+  });
+
+  it('MERGES a change instead of replacing the record', () => {
+    /*
+     * ⚠️ THE BUG THIS CLOSES WAS SILENT DATA LOSS, not untidiness. `saveSettings` writes the
+     * whole record, so each of the three composition roots kept its own `currentSettings()`
+     * closure listing only the keys IT knew about — the projected root had no `set`, the solid
+     * root had no `set` either and hardcoded `coordinates: false`. Changing the palette on one
+     * page erased a choice made on another, and it only showed on the next change of view.
+     */
+    const store = fakeStore();
+    saveSettings({ set: 'math', coordinates: true, elo: 1600 }, store);
+    patchSettings({ theme: 'xboard' }, store);
+    expect(loadSettings(store)).toEqual({
+      set: 'math', coordinates: true, elo: 1600, theme: 'xboard',
+    });
+  });
+
+  it('overwrites only the key it was given', () => {
+    const store = fakeStore();
+    saveSettings({ theme: 'jose', hints: true }, store);
+    patchSettings({ hints: false }, store);
+    expect(loadSettings(store)).toEqual({ theme: 'jose', hints: false });
+  });
+
+  it('repairs a record that has gone bad rather than throwing on it', () => {
+    // A patch reads through `loadSettings`, which drops what it does not recognise. So a stored
+    // record that is nonsense becomes an empty one plus the patch, instead of a crash at boot.
+    const store = fakeStore();
+    store.setItem('incl_chess_view', 'not json at all');
+    patchSettings({ theme: 'wikipedia' }, store);
+    expect(loadSettings(store)).toEqual({ theme: 'wikipedia' });
   });
 
   it('is separate from the game, so a new game keeps the settings', () => {
