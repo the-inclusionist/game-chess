@@ -91,6 +91,22 @@ export interface Tutor {
   chose(option: number): Reaction;
   /** Moves to the next step and returns it, or null at the end. */
   advance(): Step | null;
+  /**
+   * Moves to the previous step and returns it, or null when already at the first.
+   *
+   * ⚠️ THE BOARD IS NOT THIS MODULE'S PROBLEM, and that is deliberate. Going back to a step means
+   * putting the position back to what the step before it left — see `teach/position.ts`, which
+   * computes that by replaying. The tutor only moves the index and forgets what was answered.
+   */
+  back(): Step | null;
+  /**
+   * How many wrong answers this step has taken.
+   *
+   * ⚠️ PER STEP, AND RESET BY BOTH `advance` AND `back`. It is what gates the teacher: help is
+   * offered after three tries at THIS question, not after three anywhere in the lesson, because
+   * the point of the gate is that a child tries the thing in front of them first.
+   */
+  mistakes(): number;
   /** The squares found so far in a `mark` step, in the order they were touched. */
   marked(): readonly SquareName[];
 }
@@ -128,16 +144,27 @@ export function createTutor(lesson: Lesson, options: TutorOptions = {}): Tutor {
   let found: SquareName[] = [];
   /** Whether this step's nudge has been said. Cleared by `advance`. */
   let nudged = false;
+  /** Wrong answers to the current step. Gates the teacher; see `mistakes`. */
+  let wrongTries = 0;
 
   function current(): Step | null {
     return lesson.steps[index] ?? null;
   }
 
   function wrong(undo: boolean): Reaction {
+    wrongTries += 1;
     const step = current();
     const nudge = !nudged && step?.nudge ? step.nudge : null;
     if (nudge) nudged = true;
     return { kind: 'wrong', undo, nudge };
+  }
+
+  /** Clears everything that belonged to the step just left, and returns the new one. */
+  function reset(): Step | null {
+    found = [];
+    nudged = false;
+    wrongTries = 0;
+    return current();
   }
 
   function right(undo = false): Reaction {
@@ -217,11 +244,17 @@ export function createTutor(lesson: Lesson, options: TutorOptions = {}): Tutor {
       return option === step.task.answer ? right() : wrong(false);
     },
 
+    mistakes: () => wrongTries,
+
     advance() {
       index += 1;
-      found = [];
-      nudged = false;
-      return current();
+      return reset();
+    },
+
+    back() {
+      if (index <= 0) return null;
+      index -= 1;
+      return reset();
     },
   };
 }

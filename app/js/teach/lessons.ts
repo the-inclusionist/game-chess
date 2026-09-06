@@ -344,6 +344,41 @@ export const LESSONS: readonly Lesson[] = [
   },
 ];
 
+/**
+ * The lessons in the order they should be taken.
+ *
+ * ⚠️ DERIVED FROM `after`, NOT FROM THE ARRAY ORDER, which is the whole reason `after` exists: a
+ * lesson inserted in the middle of the table must not silently reorder everything below it. The
+ * sort is stable within a level, so the table's own order still decides between two lessons that
+ * are equally ready — `values` and `pawn` both follow `notation` and both keep their place.
+ *
+ * A cycle would leave lessons unplaced. `tests/teach-table.node.test.ts` proves there is none, so
+ * the leftovers are appended rather than dropped: a syllabus that quietly lost a lesson would be
+ * worse than one that ends in a slightly odd order.
+ */
+export function syllabus(): readonly Lesson[] {
+  const left = new Map(LESSONS.map((lesson) => [lesson.id, lesson]));
+  const done = new Set<string>();
+  const order: Lesson[] = [];
+  let moved = true;
+  while (moved && left.size > 0) {
+    moved = false;
+    for (const [id, lesson] of [...left]) {
+      if (!(lesson.after ?? []).every((before) => done.has(before))) continue;
+      order.push(lesson);
+      done.add(id);
+      left.delete(id);
+      moved = true;
+    }
+  }
+  return [...order, ...left.values()];
+}
+
+/** Where a lesson sits in that order, or -1. */
+export function lessonIndex(id: string): number {
+  return syllabus().findIndex((lesson) => lesson.id === id);
+}
+
 /** A lesson by id, or null. The panel takes a name from storage and storage outlives a rename. */
 export function lessonById(id: string): Lesson | null {
   return LESSONS.find((lesson) => lesson.id === id) ?? null;

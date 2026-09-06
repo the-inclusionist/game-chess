@@ -355,3 +355,78 @@ describe('[Nothing replies] a lesson is a hot seat', () => {
     expect(game.phase()).toBe('idle');
   });
 });
+
+describe('[Walking back] a step can be re-opened, and it forgets what it knew', () => {
+  it('moves back one step, and refuses to go before the first', () => {
+    const l = lesson('notation');
+    const tutor = createTutor(l, { from: 2 });
+    expect(tutor.back()?.say).toBe('teach.notation.ranks');
+    expect(tutor.back()?.say).toBe('teach.notation.files');
+    expect(tutor.back()).toBeNull();
+    // And refusing does not move the index off the board.
+    expect(tutor.stepIndex()).toBe(0);
+  });
+
+  it('⚠️ forgets the marks, the nudge and the mistakes of the step it leaves', () => {
+    /*
+     * A step re-opened half-answered is a step that completes itself on the first touch, and one
+     * whose nudge is already spent. The mistake count matters most: it gates the teacher, so a
+     * count that survived would hand out help on a question nobody had tried yet.
+     */
+    const l = lesson('notation');
+    const tutor = createTutor(l);
+    const game = board(l.steps[0]!.fen!);
+    touch(game, tutor, 'a3');                       // wrong
+    touch(game, tutor, 'e4');                       // right
+    // ⚠️ STILL ONE. The tutor does not advance itself — the driver does, once it has shown the
+    // answer — so a right answer leaves the count standing until the step actually changes.
+    expect(tutor.mistakes()).toBe(1);
+    tutor.advance();
+    expect(tutor.mistakes()).toBe(0);
+
+    const next = board(l.steps[0]!.fen!);
+    touch(next, tutor, 'a3');
+    expect(tutor.mistakes()).toBe(1);
+    tutor.back();
+    expect(tutor.mistakes()).toBe(0);
+    expect(tutor.marked()).toEqual([]);
+  });
+});
+
+describe('[Mistakes] the count that gates the teacher', () => {
+  it('counts wrong answers on THIS step, and starts at zero', () => {
+    const l = lesson('king');
+    const tutor = createTutor(l);
+    const game = board(l.steps[0]!.fen!);
+    expect(tutor.mistakes()).toBe(0);
+    touch(game, tutor, 'a1');
+    touch(game, tutor, 'h8');
+    expect(tutor.mistakes()).toBe(2);
+  });
+
+  it('does not count a right answer, nor a touch that was not an answer', () => {
+    const l = lesson('rook');
+    const tutor = createTutor(l);
+    const game = board(l.steps[0]!.fen!);
+    touch(game, tutor, 'a5');                       // right
+    touch(game, tutor, 'd5');                       // picking the rook up: not an answer
+    expect(tutor.mistakes()).toBe(0);
+  });
+
+  it('counts a wrong pick too, because a pick can be got wrong', () => {
+    const tutor = createTutor(lesson('values'));
+    tutor.chose(2);
+    tutor.chose(1);
+    expect(tutor.mistakes()).toBe(2);
+  });
+
+  it('⚠️ reaches three on the third try, which is when help is offered', () => {
+    // The gate the teacher toggle waits on. Asserted here rather than in the UI, because it is a
+    // fact about answering rather than about a button.
+    const l = lesson('king');
+    const tutor = createTutor(l);
+    const game = board(l.steps[0]!.fen!);
+    for (const square of ['a1', 'h8', 'b1']) touch(game, tutor, square);
+    expect(tutor.mistakes()).toBe(3);
+  });
+});
