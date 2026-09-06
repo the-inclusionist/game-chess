@@ -311,14 +311,15 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     doc: host,
     i18n,
     region,
-    ready: Promise.allSettled([
-      opponent.ready(),
-      host.fonts?.ready ?? Promise.resolve(),
-    ]).then((results) => {
-      // The ENGINE is what START promises. A rejected font is cosmetic; a rejected engine means
-      // the button should say so rather than open onto a board with no opponent.
-      if (results[0].status === 'rejected') throw results[0].reason;
-    }),
+    /*
+     * ⚠️ TWO WAITS, BECAUSE THE TWO DOORS NEED DIFFERENT THINGS. A button may only be pressable
+     * once the thing behind it has arrived — and `APRENDER` does not need the 6.98 MB opponent.
+     * `chess/state.ts` runs a lesson as a hot seat, so nothing is ever asked to reply, and the
+     * teacher shows the step's OWN recorded answer rather than an engine suggestion. Proved with
+     * an opponent that never resolves in `tests/lesson-mode.browser.test.ts`.
+     */
+    canRun: host.fonts?.ready ?? Promise.resolve(),
+    ready: opponent.ready(),
   });
 
   /*

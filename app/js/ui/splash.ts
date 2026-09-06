@@ -23,8 +23,22 @@ import type { I18n } from '../i18n/index.ts';
 export interface SplashDeps {
   readonly doc: Document;
   readonly i18n: I18n;
-  /** Resolves when there is something to play. Rejecting is handled, not thrown. */
+  /**
+   * Resolves when there is an OPPONENT to play. Rejecting is handled, not thrown.
+   *
+   * ⚠️ THIS GATES `JOGAR` AND NOTHING ELSE. It is the 6.98 MB engine download, and a lesson does
+   * not use it: `chess/state.ts` runs a lesson as a hot seat, so nothing is ever asked to reply.
+   * A child who came to learn was waiting for seven megabytes of a chess engine they would never
+   * consult, on a school connection, in front of a screen that said "loading".
+   */
   readonly ready: Promise<unknown>;
+  /**
+   * Resolves when the PAGE can run: fonts, and whatever else a board needs to be drawn.
+   *
+   * Absent means "as soon as the splash exists", which is what a page with no such wait should
+   * say rather than borrowing the opponent's.
+   */
+  readonly canRun?: Promise<unknown>;
   /** The element to make inert while the splash is up, and to focus once it is gone. */
   readonly region: HTMLElement;
   onStart?(): void;
@@ -99,18 +113,48 @@ export function createSplash(deps: SplashDeps): Splash {
   region.inert = true;
 
   const done = new Promise<Door>((resolve) => {
-    const reveal = (message: string): void => {
+    /*
+     * ========================= ⚠️ EACH DOOR WAITS FOR WHAT IT NEEDS =========================
+     * A button may only be pressable once the thing behind it has arrived — and the two doors need
+     * different things. `APRENDER` needs the page; `JOGAR` needs the opponent, which is 6.98 MB.
+     *
+     * They used to appear together, when the ENGINE was ready, so a child who came to learn waited
+     * for a chess engine no lesson consults. Learning is now offered the moment the page can draw a
+     * board, and playing joins it when there is somebody to play.
+     */
+    let learnReady = false;
+    let playReady = false;
+
+    const show = (message: string): void => {
       status.textContent = message;
-      doors.hidden = false;
-      // Focus the way out as soon as there is one. Without this a keyboard player is left on
-      // whatever the browser chose while the buttons did not exist.
-      play.focus();
+      const first = doors.hidden;
+      doors.hidden = !(learnReady || playReady);
+      play.disabled = !playReady;
+      learn.disabled = !learnReady;
+      // Focus the way out as soon as there IS one — and the first time only, so a reader who has
+      // already reached for `APRENDER` is not pulled back when `JOGAR` becomes available.
+      if (first && !doors.hidden) (playReady ? play : learn).focus();
     };
 
-    const timer = setTimeout(() => reveal(i18n.t('splash.slow')), PATIENCE_MS);
+    // Hidden AND disabled until then: `hidden` is what the eye reads and `disabled` is what a
+    // click and a screen reader read. One without the other is a button that lies.
+    play.disabled = true;
+    learn.disabled = true;
+
+    void (deps.canRun ?? Promise.resolve())
+      .then(() => { learnReady = true; show(i18n.t('splash.loadingOpponent')); })
+      .catch(() => { /* the page itself failed; the opponent's own path still speaks below */ });
+
+    const timer = setTimeout(() => {
+      // ⚠️ THE WAY OUT OF A FAILED LOAD. A splash with no button is a game that never starts, and
+      // "the opponent did not arrive" is a thing to be told rather than trapped by — the board,
+      // the lessons and every setting work perfectly well without one.
+      playReady = true;
+      show(i18n.t('splash.slow'));
+    }, PATIENCE_MS);
     void deps.ready
-      .then(() => reveal(i18n.t('splash.ready')))
-      .catch(() => reveal(i18n.t('splash.failed')))
+      .then(() => { playReady = true; show(i18n.t('splash.ready')); })
+      .catch(() => { playReady = true; show(i18n.t('splash.failed')); })
       .finally(() => clearTimeout(timer));
 
     const enter = (door: Door) => (): void => {

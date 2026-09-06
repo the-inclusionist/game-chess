@@ -656,3 +656,78 @@ describe('[Language] the switch the game never had', () => {
     expect(loadSettings().locale).toBe('es');
   });
 });
+
+describe('[No opponent] APRENDER keeps the teacher without downloading one', () => {
+  /*
+   * ========================= ⚠️ THE CLAIM BEHIND SPLITTING THE TWO DOORS =========================
+   * `APRENDER` is offered before the engine arrives, on the grounds that a lesson never consults
+   * one. The teacher is the part of a lesson that most LOOKS like it would: in a game it IS the
+   * engine's suggestion. In a lesson it is the step's own recorded answer — `show.arrows`, straight
+   * out of the table — and for a tactic it is the solution move the dump shipped.
+   *
+   * So this builds a shell whose opponent NEVER becomes ready, takes a lesson through to the
+   * teacher, and requires the answer to appear anyway. If the lesson teacher ever reached for the
+   * engine, this is where it would hang.
+   */
+  it('unlocks and shows the answer with an opponent that never arrives', async () => {
+    document.body.innerHTML = `
+      <div id="stage-wrap" style="width: 1200px; height: 700px">
+        <div id="stage">
+          <div id="game-region" tabindex="0"></div>
+          <div id="side-column"></div>
+        </div>
+      </div>
+      <div id="sr-status" role="status" aria-live="polite"></div>
+      <div id="sr-alert" role="alert" aria-live="assertive"></div>
+      <svg id="cvd" aria-hidden="true"></svg>
+    `;
+    clear();
+    localStorage.removeItem('incl_chess_learned');
+    saveSettings({ mode: 'two' });
+
+    const stranded = createGameShell({
+      host: document,
+      kind: '2d',
+      view: fakeView,
+      visibleMirror: true,
+      teaches: true,
+      debugName: '__lessonNoEngine',
+      contrastTheme: 'contrast-flat',
+      // ⚠️ Never resolves, never rejects: the shape of a download that is still going. Every method
+      // returns a promise that hangs, so anything reaching for the engine hangs with it — which is
+      // exactly what this test wants to catch.
+      makeOpponent: () => ({
+        ready: () => new Promise(() => {}),
+        requestMove: () => new Promise(() => {}),
+        requestHint: () => new Promise(() => {}),
+        requestReview: () => new Promise(() => {}),
+        setStrength: () => {},
+        cancel: () => {},
+        destroy: () => {},
+      }),
+    });
+
+    expect(stranded.teach()).toBe(true);
+    const deadline = Date.now() + 4000;
+    while (!document.getElementById('lesson-teacher') && Date.now() < deadline) {
+      await new Promise((resolve) => { setTimeout(resolve, 10); });
+    }
+    const box = document.getElementById('lesson-teacher') as HTMLInputElement;
+    expect(box).not.toBeNull();
+
+    // The pawn lesson's move step is the one whose answer is an arrow. Reach it, then earn it.
+    const square = (name: string): Square => ({
+      x: 'abcdefgh'.indexOf(name[0]!), y: 8 - Number(name[1]),
+    });
+    // Answer the notation lesson's first step wrongly three times: the gate is per step.
+    for (const wrong of ['a3', 'b3', 'c3']) {
+      stranded.activate(square(wrong));
+      await new Promise((resolve) => { setTimeout(resolve, 20); });
+    }
+    expect(box.disabled).toBe(false);
+    box.checked = true;
+    box.dispatchEvent(new Event('change', { bubbles: true }));
+    // No hang, no engine, and the lesson is still answerable.
+    expect(document.querySelector('#side-column .lesson-say')?.textContent ?? '').not.toBe('');
+  });
+});

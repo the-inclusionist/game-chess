@@ -86,6 +86,7 @@ export const es: Catalog = {
     'splash.ready': 'Listo para jugar',
     'splash.slow': 'El motor tarda. Puedes empezar; el rival quizá no responda.',
     'splash.failed': 'No se pudo cargar el motor. El tablero funciona; el rival no.',
+    'splash.loadingOpponent': 'Descargando el rival…',
     'splash.play': 'JUGAR',
     'splash.learn': 'APRENDER',
     'hud.strength': 'Fuerza del rival',

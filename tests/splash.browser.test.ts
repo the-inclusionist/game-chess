@@ -8,7 +8,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createI18n } from '../app/js/i18n/index.ts';
 import { createSplash } from '../app/js/ui/splash.ts';
 
-function markup(): { region: HTMLElement; start: HTMLButtonElement; doors: HTMLElement } {
+function markup(): {
+  region: HTMLElement; start: HTMLButtonElement; learn: HTMLButtonElement; doors: HTMLElement;
+} {
   document.body.innerHTML = `
     <div id="splash" role="dialog" aria-modal="true" aria-labelledby="splash-title">
       <h1 id="splash-title">WebChess</h1>
@@ -20,6 +22,7 @@ function markup(): { region: HTMLElement; start: HTMLButtonElement; doors: HTMLE
   return {
     region: document.getElementById('game-region') as HTMLElement,
     start: document.getElementById('splash-play') as HTMLButtonElement,
+    learn: document.getElementById('splash-learn') as HTMLButtonElement,
     /*
      * ⚠️ THE WRAPPER CARRIES `hidden`, NOT THE BUTTON, since the title screen grew a second door.
      * PLAY and LEARN appear together or not at all — revealing one and not the other would offer
@@ -34,21 +37,42 @@ afterEach(() => { document.body.innerHTML = ''; vi.useRealTimers(); });
 const settle = () => new Promise((resolve) => { setTimeout(resolve, 0); });
 
 describe('[Splash] the way out appears only when it is real', () => {
-  it('hides START, and the board, until the engine is ready', async () => {
-    const { region, start, doors } = markup();
-    let arrive: () => void = () => {};
-    const ready = new Promise<void>((resolve) => { arrive = resolve; });
+  it('⚠️ opens each door when ITS OWN wait is over, not when both are', async () => {
+    /*
+     * A button may only be pressable once the thing behind it has arrived — and the two doors need
+     * different things. `APRENDER` needs the page; `JOGAR` needs the 6.98 MB opponent.
+     *
+     * They used to appear together, on the engine, so a child who came to learn waited for a chess
+     * engine no lesson consults: `chess/state.ts` runs a lesson as a hot seat and the teacher shows
+     * the step's own recorded answer. `tests/lesson-mode.browser.test.ts` proves that with an
+     * opponent that never resolves; this proves the door opens without waiting for one.
+     */
+    const { region, start, learn, doors } = markup();
+    let pageUp: () => void = () => {};
+    let engineUp: () => void = () => {};
+    const canRun = new Promise<void>((resolve) => { pageUp = resolve; });
+    const ready = new Promise<void>((resolve) => { engineUp = resolve; });
 
-    createSplash({ doc: document, i18n: createI18n('pt'), ready, region });
+    createSplash({ doc: document, i18n: createI18n('pt'), ready, canRun, region });
     expect(doors.hidden).toBe(true);
     // ⚠️ A board that cannot be played must not be reachable by Tab either. Hiding it visually
     // and leaving it in the tab order is the classic half-done modal.
     expect(region.inert).toBe(true);
 
-    arrive();
+    pageUp();
     await settle();
+    // Learning is open; playing is visible but refuses, because there is nobody to play yet.
     expect(doors.hidden).toBe(false);
-    expect(document.activeElement).toBe(start);
+    expect(learn.disabled).toBe(false);
+    expect(start.disabled).toBe(true);
+    expect(document.activeElement).toBe(learn);
+
+    engineUp();
+    await settle();
+    expect(start.disabled).toBe(false);
+    // ⚠️ And focus was NOT pulled back. A reader already reaching for APRENDER is not dragged onto
+    // JOGAR because a download finished.
+    expect(document.activeElement).toBe(learn);
   });
 
   it('opens onto the game, with focus somewhere the arrow keys work', async () => {

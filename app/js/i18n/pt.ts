@@ -90,6 +90,7 @@ export const pt: Catalog = {
     'splash.ready': 'Pronto para jogar',
     'splash.slow': 'O motor está a demorar. Dá para começar; o adversário pode não responder.',
     'splash.failed': 'Não foi possível carregar o motor. O tabuleiro funciona; o adversário não.',
+    'splash.loadingOpponent': 'Baixando o adversário…',
     'splash.play': 'JOGAR',
     'splash.learn': 'APRENDER',
     'hud.strength': 'Força do adversário',
