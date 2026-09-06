@@ -361,3 +361,64 @@ describe('[Keyboard] the keys work from where the splash leaves you', () => {
     expect(shell.region).toBeTruthy();
   });
 });
+
+describe('[Panel keys] being IN the side panel is not the same as getting into it', () => {
+  /*
+   * ⚠️ THE BUG: `action4` moved focus into the panel, and the very next arrow key moved the
+   * BOARD's cursor and left the reader stranded there. The forwarding rule asked "is focus outside
+   * the grid?", which is true of the panel too — so getting in worked and being in did not.
+   */
+  const press = (code: string, key = code): void => {
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent('keydown', { code, key, bubbles: true, cancelable: true }),
+    );
+  };
+
+  function shellFor() {
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    return createGameShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: '__shellPanel', contrastTheme: 'contrast-flat',
+    });
+  }
+
+  it('⚠️ walks the panel with the arrows, and leaves the board alone', () => {
+    const shell = shellFor();
+    document.getElementById('game-region')!.focus();
+    const cursor = shell.mirror.cursor();
+
+    press('KeyI');
+    const column = document.getElementById('side-column')!;
+    expect(column.contains(document.activeElement)).toBe(true);
+    const first = document.activeElement;
+
+    press('KeyS');
+    expect(column.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).not.toBe(first);
+    // ⚠️ And the board did not move underneath them.
+    expect(shell.mirror.cursor()).toEqual(cursor);
+  });
+
+  it('comes back to the board on action4, and the arrows drive it again', () => {
+    const shell = shellFor();
+    document.getElementById('game-region')!.focus();
+    press('KeyI');
+    press('KeyI');
+    expect(document.getElementById('side-column')!.contains(document.activeElement)).toBe(false);
+
+    const cursor = shell.mirror.cursor();
+    press('KeyD');
+    expect(shell.mirror.cursor()).toEqual({ x: cursor.x + 1, y: cursor.y });
+  });
+
+  it('stops at the ends rather than wrapping, like the board does', () => {
+    shellFor();
+    document.getElementById('game-region')!.focus();
+    press('KeyI');
+    const first = document.activeElement;
+    press('KeyW');
+    expect(document.activeElement).toBe(first);
+  });
+});

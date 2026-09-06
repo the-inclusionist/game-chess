@@ -744,6 +744,29 @@ export function createGameShell(deps: GameShellDeps): GameShell {
    * What the shell does not want, the view is offered. That is also where `cenas.input(intent)`
    * goes the day there are two things to stack — a lesson over a game, a puzzle over a lesson.
    */
+  /**
+   * Moves focus up and down the side panel.
+   *
+   * ⚠️ THE PANEL IS A COLUMN OF CONTROLS AND NOTHING GAVE IT ARROWS. Tab reaches them, but a
+   * player holding a pad has no Tab — and this game's own board is arrow-driven, so a panel that
+   * answered only to Tab would be the one place the controls stopped working. Left and right are
+   * deliberately left alone: a `<select>` uses them to change its value.
+   */
+  function walkPanel(action: string | null): boolean {
+    if (action !== 'up' && action !== 'down') return false;
+    const panel = lessonMenu && !lessonMenu.root.hidden ? lessonMenu.root : hud.root;
+    const stops = [...panel.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href]',
+    )];
+    if (stops.length === 0) return false;
+    const at = stops.indexOf(host.activeElement as HTMLElement);
+    // Clamped at both ends rather than wrapped, for the same reason the board's cursor is: running
+    // into the end of a list should feel like an end, not like a teleport to the other one.
+    const next = at < 0 ? 0 : Math.min(stops.length - 1, Math.max(0, at + (action === 'up' ? -1 : 1)));
+    stops[next]!.focus();
+    return true;
+  }
+
   /* ============================ WHAT START OPENS ============================ */
 
   /**
@@ -875,7 +898,19 @@ export function createGameShell(deps: GameShellDeps): GameShell {
      * Offered here it is heard from anywhere in the stage. `defaultPrevented` is what keeps a key
      * the grid's own listener already took from being taken twice.
      */
-    if (!mirror.root.contains(host.activeElement) && mirror.handleKey(event)) return;
+    /*
+     * ⚠️ ONLY WHEN FOCUS IS ON THE BOARD'S SIDE OF THE STAGE. The first version asked "is focus
+     * outside the grid?", which is TRUE when focus is in the side panel — so `action4` moved the
+     * reader into the lesson list and the very next arrow key moved the board's cursor and left
+     * them there. Getting into the panel worked and being in it did not.
+     */
+    const inPanel = column.contains(host.activeElement);
+    if (!inPanel) {
+      if (!mirror.root.contains(host.activeElement) && mirror.handleKey(event)) return;
+    } else if (walkPanel(action)) {
+      event.preventDefault();
+      return;
+    }
 
     if (action === 'especial') {
       engine.sonar.sonar({ i: 0, x: cursor.x, y: cursor.y, viz: 'normal' });
