@@ -602,3 +602,108 @@ describe('[Camera keys] a modified arrow is not board navigation', () => {
     expect(shell.mirror.cursor()).toEqual({ x: before.x + 1, y: before.y });
   });
 });
+
+describe('[Pause] START opens the menu the settings were moved into', () => {
+  /*
+   * ========================= THE REQUIREMENT, ASSERTED WHERE IT LANDS =========================
+   * "2D/2.5D/3D, Piece drawing, Board colours, colour vision, reduced motion, files and ranks ==>
+   * devem ir para o menu de pausa, acessível nos dois modos via START." Seven things, and they
+   * were moved rather than copied — the HUD still builds and refreshes them, and hands the
+   * container over.
+   *
+   * ⚠️ THAT HAND-OVER IS THE SEAM NOTHING WAS CHECKING. `ui/hud.browser.test.ts` mounts
+   * `hud.settings` itself and asks what is inside it; `ui/pause-menu.browser.test.ts` builds a
+   * dialog with a fixture and asks about focus and Escape. Both pass with the shell never putting
+   * one into the other — and the symptom would be a pause menu with nothing in it but the way out,
+   * which is exactly what the old build looked like before the move.
+   */
+  const press = (code: string, key: string): void => {
+    document.getElementById('stage')!.dispatchEvent(new KeyboardEvent('keydown', {
+      code, key, bubbles: true, cancelable: true,
+    }));
+  };
+
+  /*
+   * ⚠️ THE PIECE SET AND THE OUTLINE ARE THE VIEW'S, NOT THE SHELL'S — `HudViewControls` is a
+   * `Pick` of exactly those, and all three real views supply them. The shared `fakeView` supplies
+   * only `coordinates`, so a shell built on it has no piece-drawing control at all and this test
+   * read that absence as a missing setting. The premise was the fixture's, not the code's.
+   */
+  function shellFor(teaches: boolean) {
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    const view = (ctx: ViewContext): BoardView => {
+      ctx.region.appendChild(ctx.mirror.root);
+      return {
+        hudControls: {
+          coordinates: () => false,
+          onCoordinates: () => {},
+          pieceSets: [{ key: 'outline', label: 'Outline' }, { key: 'solid', label: 'Solid' }],
+          pieceSet: () => 'outline',
+          onPieceSet: () => {},
+          outline: () => false,
+          onOutline: () => {},
+        },
+        applyTheme: () => {},
+        drawPosition: () => {},
+        drawMarks: () => {},
+        travel: () => Promise.resolve(),
+        relayout: () => {},
+        destroy: () => {},
+      };
+    };
+    return createGameShell({
+      host: document, kind: '2d', view, visibleMirror: true,
+      teaches,
+      debugName: '__pauseTest', contrastTheme: 'contrast-flat',
+    });
+  }
+
+  const dialog = (): HTMLElement | null => document.querySelector('[role="dialog"]');
+
+  it('⚠️ carries every display setting the redesign moved there', () => {
+    shellFor(false);
+    document.getElementById('game-region')!.focus();
+    press('KeyH', 'h');
+
+    const open = dialog();
+    expect(open).not.toBeNull();
+    expect(open!.getAttribute('aria-modal')).toBe('true');
+
+    // The seven, by the ids they are actually built with. Named one at a time rather than counted,
+    // so a failure says WHICH one went missing.
+    expect(open!.querySelector('.hud-views'), '2D/2.5D/3D').not.toBeNull();
+    expect(open!.querySelector('#hud-set'), 'piece drawing').not.toBeNull();
+    expect(open!.querySelector('#hud-theme'), 'board colours').not.toBeNull();
+    expect(open!.querySelector('#hud-vision'), 'colour vision').not.toBeNull();
+    expect(open!.querySelector('#hud-motion'), 'reduced motion').not.toBeNull();
+    expect(open!.querySelector('#hud-outline'), 'piece outline').not.toBeNull();
+    expect(open!.querySelector('#hud-coords'), 'files and ranks').not.toBeNull();
+    expect(open!.querySelector('#hud-locale'), 'language').not.toBeNull();
+  });
+
+  it('⚠️ and they are IN the dialog, not merely somewhere on the page', () => {
+    /*
+     * The assertion above would pass if the settings sat in the HUD and the dialog happened to be
+     * an ancestor of nothing at all — so this one asks the other way round, from the control up.
+     * `contains` is what "moved, not copied" actually means.
+     */
+    shellFor(false);
+    document.getElementById('game-region')!.focus();
+    press('KeyH', 'h');
+    const coords = document.getElementById('hud-coords')!;
+    expect(dialog()!.contains(coords)).toBe(true);
+  });
+
+  it('⚠️ opens in a lesson too, which is the only way out of one', () => {
+    // "Apertando START é que aparece o menu para sair das aulas." A pause menu that only worked
+    // while playing would leave a child inside a lesson with no exit that is not the browser's.
+    const shell = shellFor(true);
+    expect(shell.teach()).toBe(true);
+    document.getElementById('game-region')!.focus();
+    press('KeyH', 'h');
+    expect(dialog()).not.toBeNull();
+    expect(dialog()!.querySelector('#hud-coords')).not.toBeNull();
+  });
+});
