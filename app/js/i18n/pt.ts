@@ -179,7 +179,6 @@ export const pt: Catalog = {
     'lesson.step': 'Passo {at} de {of}',
     'lesson.found': '{done} de {of} casas',
     'lesson.finished': 'Aula concluída',
-    'lesson.leave': 'Sair da aula',
     'hud.lessons': 'Aulas',
     /*
      * ⚠️ OS TÍTULOS SÃO MOLDURA, NÃO PROSA, e por isso moram aqui e não em `i18n/teach/`.
@@ -203,6 +202,15 @@ export const pt: Catalog = {
     // de tela anuncie, então "aprendida" ou está no nome ou não existe para quem mais precisa
     // saber quais faltam.
     'hud.lessonDone': '{title} ✔',
+    'lesson.back': '‹ Anterior',
+    'lesson.forward': 'Seguinte ›',
+    'lesson.teacher': 'Professor',
+    // ⚠️ A razão de estar trancado tem de ser dizível: um controlo desativado sem explicação é
+    // um controlo que não faz nada, e quem não o vê acinzentado só sabe que não está disponível.
+    'lesson.teacherLocked': 'Tente três vezes primeiro',
+    'pause.title': 'Pausa',
+    'pause.resume': 'Voltar ao jogo',
+    'pause.leaveLesson': 'Sair da aula',
     'a11y.gridHint': 'Setas navegam, Enter seleciona',
     'a11y.tookBack': 'Lance desfeito. Vez de {side}',
     'a11y.replayed': 'Lance refeito. Vez de {side}',

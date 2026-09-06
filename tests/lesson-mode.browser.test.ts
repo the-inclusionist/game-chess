@@ -62,7 +62,6 @@ beforeEach(() => {
     doc: document,
     i18n: shell.i18n,
     onChoose: (option) => { mode.chose(option); },
-    onLeave: () => { mode.stop(); },
   });
   document.body.appendChild(panel.root);
   mode = createLessonMode({
@@ -334,7 +333,7 @@ describe('[Feedback] a touched square answers back before the lesson moves on', 
        * touch arriving during the pause is a no-op rather than a second advance.
        */
       const panel = createLessonPanel({
-        doc: document, i18n: shell.i18n, onChoose: () => {}, onLeave: () => {},
+        doc: document, i18n: shell.i18n, onChoose: () => {},
       });
       document.body.appendChild(panel.root);
       const slow = createLessonMode({
@@ -353,4 +352,133 @@ describe('[Feedback] a touched square answers back before the lesson moves on', 
       expect(panel.root.querySelector('.lesson-counter')!.textContent).toContain('Passo 2 de 4');
       slow.stop();
     });
+});
+
+describe('[Teacher] help arrives after three tries, and not before', () => {
+  /*
+   * ========================= ⚠️ WHY THE GATE, AND WHY IT IS PER STEP =========================
+   * The teacher shows the answer. Handed over on request it stops being help and becomes the
+   * answer key — so it unlocks after three wrong tries at THE QUESTION IN FRONT OF THE CHILD, and
+   * locks again on the next one. A count that carried across steps would give away the fourth
+   * question because the first three were hard.
+   */
+  it('starts locked, and stays locked while the answers are right', async () => {
+    await mode.start('pawn');
+    expect(mode.teacherReady()).toBe(false);
+    mode.setTeacher(true);
+    // ⚠️ Refused in the MODE, not only greyed out in the menu: a disabled control is a hint to a
+    // person, and the keyboard shortcut reaches this instead.
+    expect(mode.teacher()).toBe(false);
+  });
+
+  it('unlocks on the third wrong answer to the same step', async () => {
+    await mode.start('king');
+    for (const square of ['a1', 'h8']) { shell.activate(at(square)); await settle(); }
+    expect(mode.mistakes()).toBe(2);
+    expect(mode.teacherReady()).toBe(false);
+
+    shell.activate(at('b1'));
+    await settle();
+    expect(mode.mistakes()).toBe(3);
+    expect(mode.teacherReady()).toBe(true);
+    mode.setTeacher(true);
+    expect(mode.teacher()).toBe(true);
+  });
+
+  it('⚠️ shows the answer arrow only once it is on', async () => {
+    /*
+     * The pawn lesson's second step carries `show.arrows: [['e2','e4']]` — which IS the answer. It
+     * must not be on the board before the teacher is.
+     */
+    await mode.start('pawn');
+    await touchAll(['e3', 'e4']);                    // the reach step, answered
+    expect(text('.lesson-say')).toContain('duas casas');
+    expect(document.querySelector('[data-square="e4"]')!.getAttribute('data-lesson')).toBeNull();
+
+    /*
+     * ⚠️ THE PAWN IS PICKED UP ONCE. An illegal move leaves the selection standing, so re-clicking
+     * e2 between tries DESELECTS it — and the next click then lands on an empty square with
+     * nothing held, which is not an answer at all. Written that way this test counted one mistake
+     * and blamed the gate.
+     */
+    shell.activate(at('e2'));
+    for (const bad of ['a3', 'a4', 'a5']) {          // three wrong tries, same held pawn
+      shell.activate(at(bad));
+      await settle();
+    }
+    expect(mode.teacherReady()).toBe(true);
+    mode.setTeacher(true);
+    expect(document.querySelector('[data-square="e4"]')!.getAttribute('data-lesson')).toBe('look');
+  });
+
+  it('⚠️ never hides the square a step is ASKING about', async () => {
+    /*
+     * `show.squares` is the question, not the answer. The notation lesson's third step asks "what
+     * is this square called?" and lights f3 — gating that behind three mistakes would leave a
+     * child staring at a question with its subject missing.
+     */
+    await mode.start('notation');
+    await touchAll(['e4', 'c6']);
+    expect(text('.lesson-say')).toContain('Qual é o nome dela');
+    expect(mode.teacherReady()).toBe(false);
+    expect(mark('f3')).toBe('look');
+  });
+
+  it('locks again on the next step', async () => {
+    await mode.start('king');
+    for (const square of ['a1', 'h8', 'b1']) { shell.activate(at(square)); await settle(); }
+    mode.setTeacher(true);
+    expect(mode.teacher()).toBe(true);
+
+    await mode.forward();
+    expect(mode.teacher()).toBe(false);
+    expect(mode.teacherReady()).toBe(false);
+  });
+});
+
+describe('[Walking] back and forward run through the whole course', () => {
+  it('moves between the steps of a lesson', async () => {
+    await mode.start('notation');
+    await mode.forward();
+    expect(text('.lesson-say')).toContain('Agora toque em c6');
+    await mode.back();
+    expect(text('.lesson-say')).toContain('Toque em e4');
+  });
+
+  it('⚠️ rebuilds the board when it goes back, rather than leaving the last one', async () => {
+    // Going forward the board is already where the previous step left it. Going back, that has
+    // been thrown away — see `teach/position.ts`.
+    await mode.start('pawn');
+    await touchAll(['e3', 'e4']);
+    shell.activate(at('e2'));
+    shell.activate(at('e4'));                        // the pawn really moves
+    await settle();
+    expect(shell.rules().pieceAt(at('e4'))?.type).toBe('p');
+
+    await mode.back();                               // back to the move step
+    await mode.back();                               // back to the reach step
+    expect(shell.rules().pieceAt(at('e2'))?.type).toBe('p');
+    expect(shell.rules().pieceAt(at('e4'))).toBeNull();
+  });
+
+  it('⚠️ wraps forward into the next lesson and back into the previous one', async () => {
+    // The syllabus is one course: the first step of a lesson is preceded by the last step of the
+    // one before it, not by nothing.
+    await mode.start('notation', 3);                 // the last step of the first lesson
+    await mode.forward();
+    expect(mode.active()?.id).toBe('values');
+    expect(mode.stepIndex()).toBe(0);
+
+    await mode.back();
+    expect(mode.active()?.id).toBe('notation');
+    expect(mode.stepIndex()).toBe(3);
+  });
+
+  it('has nowhere to go back from the very first step of the very first lesson', async () => {
+    await mode.start('notation');
+    expect(mode.canBack()).toBe(false);
+    await mode.back();
+    expect(mode.active()?.id).toBe('notation');
+    expect(mode.stepIndex()).toBe(0);
+  });
 });

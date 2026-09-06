@@ -45,6 +45,7 @@ import { squareIndex, type Marker } from '../render/board-geometry.ts';
 import type { HintMove } from '../render/hint-arrows.ts';
 import { BOARD_THEMES, DEFAULT_THEME } from '../ui/board-themes.ts';
 import { createBlunderBar } from '../ui/blunder-bar.ts';
+import { createPauseMenu } from '../ui/pause-menu.ts';
 /*
  * ⚠️ THE TABLE IS STATIC AND THE MACHINERY IS NOT, and the split is deliberate. The HUD has to
  * list eleven lesson names before anyone opens one, so `LESSONS` is imported here — it is data,
@@ -52,7 +53,7 @@ import { createBlunderBar } from '../ui/blunder-bar.ts';
  * when a lesson is actually started, and the PROSE is fetched separately again by the driver. A
  * player who never opens a lesson downloads the names and nothing else.
  */
-import { LESSONS } from '../teach/lessons.ts';
+import { LESSONS, syllabus } from '../teach/lessons.ts';
 import { loadProgress } from '../chess/session.ts';
 import { createGridMirror, type LessonMark, type LessonSquare } from '../ui/grid-mirror.ts';
 import { createHud, type GameMode, type Hud, type ViewKind } from '../ui/hud.ts';
@@ -539,17 +540,25 @@ export function createGameShell(deps: GameShellDeps): GameShell {
    * page's measured weight, which is the whole reason there are three pages at all, is untouched
    * for a player who only ever plays.
    */
+  /** The lesson's own side panel, in the slot the HUD normally fills. */
+  let lessonMenu: import('../ui/lesson-menu.ts').LessonMenu | null = null;
+
+  /** Redraws the lesson menu. Cheap, and called after anything that could change it. */
+  function refreshLessonMenu(): void {
+    lessonMenu?.refresh();
+  }
+
   async function startLesson(id: string): Promise<void> {
-    const [{ createLessonPanel }, { createLessonMode }] = await Promise.all([
+    const [{ createLessonPanel }, { createLessonMode }, { createLessonMenu }] = await Promise.all([
       import('../ui/lesson-panel.ts'),
       import('./lesson-mode.ts'),
+      import('../ui/lesson-menu.ts'),
     ]);
     if (lessonMode) lessonMode.stop();
     const panel = createLessonPanel({
       doc: host,
       i18n,
       onChoose: (option) => lessonMode?.chose(option),
-      onLeave: () => { lessonMode?.stop(); },
     });
     // Under the board, beside the blunder bar and for the same reason: the position stays in view.
     blunderBar.root.parentElement?.insertBefore(panel.root, blunderBar.root);
@@ -561,17 +570,62 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       // Filled at the end of construction; `startLesson` cannot run before that.
       shell: self!,
       panel,
-      say: (text) => { srSay(text); },
+      say: (text) => { srSay(text); refreshLessonMenu(); },
       onLeave: () => {
         panel.destroy();
+        lessonMenu?.destroy();
+        lessonMenu = null;
         lessonMode = null;
+        // ⚠️ THE HUD COMES BACK, and it was HIDDEN rather than destroyed. It is the game's own
+        // panel and the game is still there underneath; rebuilding it would throw away the move
+        // list's scroll position and whatever control the reader had left focus on.
+        hud.root.hidden = false;
         relayout();
         // The tick on a finished lesson appears here, without an event to wire.
         hud.refresh();
       },
     });
+
+    /*
+     * ⚠️ ONE PANEL IN THE SLOT AT A TIME. Almost nothing the HUD shows means anything in a lesson —
+     * whose turn it is, the captures, the move list, the difficulty, the take-back pair — so it
+     * steps aside entirely rather than hiding nine of its twelve controls and pretending.
+     */
+    lessonMenu = createLessonMenu({
+      doc: host,
+      i18n,
+      lessons: () => syllabus().map((l) => ({
+        id: l.id,
+        title: l.title,
+        done: learned().includes(l.id),
+        current: l.id === lessonMode?.active()?.id,
+      })),
+      onPick: (pick) => { void startLesson(pick); },
+      place: () => ({
+        at: (lessonMode?.stepIndex() ?? 0) + 1,
+        of: lessonMode?.active()?.steps.length ?? 1,
+      }),
+      onBack: () => { void lessonMode?.back().then(refreshLessonMenu); },
+      onForward: () => { void lessonMode?.forward().then(refreshLessonMenu); },
+      canBack: () => lessonMode?.canBack() ?? false,
+      canForward: () => lessonMode?.canForward() ?? false,
+      teacher: () => lessonMode?.teacher() ?? false,
+      teacherReady: () => lessonMode?.teacherReady() ?? false,
+      onTeacher: (on) => { lessonMode?.setTeacher(on); refreshLessonMenu(); },
+    });
+    region!.appendChild(lessonMenu.root);
+
     const started = await lessonMode.start(id, resumeStepFor(id));
-    if (!started) { panel.destroy(); lessonMode = null; }
+    if (!started) {
+      panel.destroy();
+      lessonMenu.destroy();
+      lessonMenu = null;
+      lessonMode = null;
+      return;
+    }
+    hud.root.hidden = true;
+    lessonMenu.root.hidden = false;
+    refreshLessonMenu();
   }
 
   /**
@@ -601,7 +655,41 @@ export function createGameShell(deps: GameShellDeps): GameShell {
    * What the shell does not want, the view is offered. That is also where `cenas.input(intent)`
    * goes the day there are two things to stack — a lesson over a game, a puzzle over a lesson.
    */
+  /* ============================ WHAT START OPENS ============================ */
+
+  /**
+   * ⚠️ THE ONLY WAY OUT OF A LESSON, and the only one there should be. It was a button under the
+   * board, which spent a tap target on a panel meant to carry one sentence and put the exit inside
+   * the thing being read.
+   */
+  const pause = createPauseMenu({
+    doc: host,
+    i18n,
+    actions: () => [
+      { label: 'pause.resume', run: () => pause.hide() },
+      ...(lessonMode
+        ? [{
+          label: 'pause.leaveLesson',
+          leaving: true,
+          run: () => { pause.hide(); lessonMode?.stop(); },
+        }]
+        : []),
+    ],
+  });
+  region.appendChild(pause.root);
+
   region.addEventListener('keydown', (event) => {
+    /*
+     * ⚠️ START FIRST, BEFORE ANYTHING ELSE LOOKS AT THE KEY. It has to work while a lesson is
+     * refusing input, while a piece is in flight, and while the menu itself is open — a pause that
+     * only works when the game is idle is a pause you cannot reach when you need it.
+     */
+    if (engine.keyboard.actionOf(event.code, 0) === 'start' || event.key === 'Escape') {
+      pause.toggle();
+      event.preventDefault();
+      return;
+    }
+    if (pause.open) return;
     if (engine.keyboard.actionOf(event.code, 0) === 'especial') {
       engine.sonar.sonar({ i: 0, x: cursor.x, y: cursor.y, viz: 'normal' });
       event.preventDefault();

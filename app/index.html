@@ -353,6 +353,94 @@
    * positioned, so an unpositioned sibling paints underneath it however the source order reads,
    * and half the buttons would simply not be there to click.
    */
+  /*
+   * The lesson side menu, in the same slot the HUD occupies. Only one of the two is ever shown:
+   * almost nothing the HUD carries means anything in a lesson.
+   */
+  /*
+   * ========================= THE PAUSE MENU =========================
+   * Over the region and only the region: the engine's own dialogs and the page chrome stay
+   * reachable, which is what keeps a pause from being a trap.
+   */
+  .pause-menu[hidden] { display: none; }
+  .pause-menu {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(5, 7, 15, 0.88);
+  }
+  .pause-box {
+    display: flex; flex-direction: column; gap: 0.5em;
+    min-width: 55%;
+    padding: 1em;
+    background: #14202b;
+    border: 2px solid #FFB300;
+    border-radius: 3px;
+    font-size: var(--ui-fs, 16px);
+  }
+  .pause-title { margin: 0; font-size: 1.2em; color: #FFB300; }
+  .pause-actions { display: flex; flex-direction: column; gap: 0.35em; }
+  .pause-action {
+    min-height: var(--tap, 44px);
+    padding: 0 0.9em;
+    font: inherit; font-weight: 700;
+    color: #14202b; background: #FFB300;
+    border: 1px solid #000000; border-radius: 2px;
+    cursor: pointer;
+  }
+  /* Leaving is offered as an equal, not as a cancel — but it is not the one Enter lands on. */
+  .pause-leaving { color: #F2EEE4; background: transparent; border-color: #F2EEE4; }
+  .pause-action:hover { background: #FFFFFF; color: #14202b; }
+  .pause-action:focus-visible { outline: 3px solid #FFD97D; outline-offset: 2px; }
+  @media (prefers-contrast: more) {
+    .pause-box { background: #000000; border-color: #FFFFFF; }
+    .pause-title { color: #FFFFFF; }
+    .pause-action { background: #FFFFFF; color: #000000; border-color: #000000; }
+    .pause-leaving { color: #FFFFFF; background: #000000; border-color: #FFFFFF; }
+  }
+
+  .lesson-menu[hidden] { display: none; }
+  .lesson-menu-title { margin: 0; font-size: 1.05em; font-weight: 700; color: #FFB300; }
+  .lesson-menu-steps { margin: 0.1em 0 0; opacity: 0.85; }
+  .lesson-walk { margin: 0.35em 0 0; display: flex; gap: 0.3em; }
+  .lesson-walk button {
+    flex: 1 1 0;
+    min-height: var(--tap, 44px);
+    font: inherit;
+    color: #F2EEE4; background: transparent;
+    border: 1px solid #F2EEE4; border-radius: 2px;
+    cursor: pointer;
+  }
+  .lesson-walk button:disabled { opacity: 0.45; cursor: default; }
+  .lesson-teacher { margin: 0.35em 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.3em; }
+  .lesson-teacher input { width: 1.1em; height: 1.1em; }
+  .lesson-teacher-why[hidden] { display: none; }
+  .lesson-teacher-why { flex: 1 1 100%; font-size: 0.85em; opacity: 0.8; }
+  .lesson-list { margin: 0.4em 0 0; padding: 0; list-style: none; overflow-y: auto; }
+  .lesson-entry {
+    display: block; width: 100%;
+    min-height: var(--tap, 44px);
+    padding: 0 0.4em;
+    font: inherit; text-align: left;
+    color: #c9d1d9; background: transparent;
+    border: 1px solid transparent; border-radius: 2px;
+    cursor: pointer;
+  }
+  /* The lesson being taken. Not colour alone: `aria-current` says it, and the rule is the shape. */
+  .lesson-entry[aria-current] {
+    border-color: #FFB300;
+    color: #FFB300;
+    font-weight: 700;
+  }
+  .lesson-entry:hover { background: #1F2E3C; }
+  .lesson-walk button:focus-visible, .lesson-entry:focus-visible,
+  .lesson-teacher input:focus-visible {
+    outline: 3px solid #FFD97D; outline-offset: 2px;
+  }
+
   .lesson-panel[hidden] { display: none; }
   .lesson-panel {
     position: relative;

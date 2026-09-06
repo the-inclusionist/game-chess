@@ -43,8 +43,6 @@ export interface LessonPanelDeps {
   readonly i18n: I18n;
   /** An option was chosen. Only ever called for a `pick` step. */
   onChoose(option: number): void;
-  /** The reader wants out. A mode with no visible way out is a trap; see `blunder-bar.ts`. */
-  onLeave(): void;
 }
 
 /** Everything the panel draws, as one record. The panel holds no state of its own but the DOM. */
@@ -109,17 +107,13 @@ export function createLessonPanel(deps: LessonPanelDeps): LessonPanel {
   options.className = 'lesson-options';
   options.hidden = true;
 
-  const actions = doc.createElement('p');
-  actions.className = 'lesson-actions';
-  const leave = doc.createElement('button');
-  leave.type = 'button';
-  leave.className = 'lesson-leave';
-  actions.append(leave);
-
-  root.append(heading, counter, say, nudge, options, actions);
-
-  const onLeave = (): void => deps.onLeave();
-  leave.addEventListener('click', onLeave);
+  /*
+   * ⚠️ NO "LEAVE" BUTTON, AND THAT IS A CORRECTION. There was one, and it took a whole tap target
+   * out of a panel whose entire job is to carry ONE sentence a child is reading. Worse, it put the
+   * way out INSIDE the thing being read. Leaving is something you do to the game rather than in
+   * it, so it lives in the pause menu, which START opens in both modes.
+   */
+  root.append(heading, counter, say, nudge, options);
 
   /** The buttons of a `pick` step. Kept so their listeners can be removed. */
   let buttons: { el: HTMLButtonElement; handler: () => void }[] = [];
@@ -205,7 +199,6 @@ export function createLessonPanel(deps: LessonPanelDeps): LessonPanel {
     }
 
     const hasOptions = drawOptions(view.step);
-    leave.textContent = i18n.t('lesson.leave');
     root.hidden = false;
 
     // The one focus move, and only when the step actually changed — a redraw prompted by a wrong
@@ -238,7 +231,6 @@ export function createLessonPanel(deps: LessonPanelDeps): LessonPanel {
     },
 
     destroy() {
-      leave.removeEventListener('click', onLeave);
       clearOptions();
       root.remove();
     },

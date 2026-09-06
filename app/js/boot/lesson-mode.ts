@@ -25,9 +25,10 @@ import type { GameShell } from './game-shell.ts';
 import type { LessonPanel, LessonView } from '../ui/lesson-panel.ts';
 import type { Lesson, SquareName, Step } from '../teach/lesson.ts';
 import { createTutor, type Tutor } from '../teach/tutor.ts';
-import { lessonById } from '../teach/lessons.ts';
+import { lessonById, lessonIndex, syllabus } from '../teach/lessons.ts';
 import { loadTeach } from '../i18n/teach/index.ts';
 import { markLearned, rememberPlace } from '../chess/session.ts';
+import { positionFor } from '../teach/position.ts';
 import { fromAlgebraic, type Square } from '../chess/types.ts';
 import type { LessonSquare } from '../ui/grid-mirror.ts';
 
@@ -57,18 +58,47 @@ export interface LessonMode {
   stop(): void;
   /** The lesson being taken, or null. */
   active(): Lesson | null;
+  /** Which step of it, from zero. */
+  stepIndex(): number;
+  /**
+   * The previous exercise, wrapping into the end of the lesson before it.
+   *
+   * ⚠️ WRAPPING IS WHY THIS IS NOT JUST `tutor.back()`. The syllabus is one course, so the first
+   * step of the bishop lesson is preceded by the last step of the rook lesson, not by nothing.
+   * Only the very first step of the very first lesson has nowhere to go.
+   */
+  back(): Promise<void>;
+  /** The next exercise, wrapping into the start of the lesson after it. */
+  forward(): Promise<void>;
+  canBack(): boolean;
+  canForward(): boolean;
+  /** Whether the teacher is showing the answer. */
+  teacher(): boolean;
+  setTeacher(on: boolean): void;
+  /** Whether the teacher may be switched on yet — three tries at THIS question. */
+  teacherReady(): boolean;
+  /** Wrong answers to the current step. */
+  mistakes(): number;
 }
 
 const squaresOf = (names: readonly SquareName[]): Square[] =>
   names.map(fromAlgebraic).filter((s): s is Square => s !== null);
 
-/** The squares a step wants lit: what it says to look at, plus both ends of every arrow. */
-function litBy(step: Step): Square[] {
-  const names = [
-    ...(step.show?.squares ?? []),
-    ...(step.show?.arrows ?? []).flat(),
-  ];
-  return squaresOf(names);
+/**
+ * The squares a step points at, which are shown WHATEVER the teacher is doing.
+ *
+ * ⚠️ `show.squares` IS THE QUESTION, NOT THE ANSWER, and telling the two apart is what makes the
+ * teacher gate safe. The notation lesson's third step asks "what is this square called?" and
+ * lights f3; hiding that until a child has been wrong three times would leave them staring at a
+ * question with its subject missing. An arrow from e2 to e4, by contrast, simply IS the answer.
+ */
+function askedBy(step: Step): Square[] {
+  return squaresOf(step.show?.squares ?? []);
+}
+
+/** The squares an arrow runs between: the answer, and therefore the teacher's to give. */
+function hintedBy(step: Step): Square[] {
+  return squaresOf((step.show?.arrows ?? []).flat());
 }
 
 /**
@@ -82,6 +112,15 @@ function litBy(step: Step): Square[] {
  * less movement has not asked to be told less.
  */
 const HOLD_MS = 800;
+
+/**
+ * How many wrong answers unlock the teacher.
+ *
+ * ⚠️ COUNTED PER STEP, NOT PER LESSON. The point of the gate is that a child tries the question in
+ * front of them before being shown its answer — a count that carried across steps would hand the
+ * answer to the fourth question because the first three were hard.
+ */
+export const TRIES_BEFORE_TEACHER = 3;
 
 export function createLessonMode(deps: LessonModeDeps): LessonMode {
   const { shell, panel } = deps;
@@ -97,6 +136,14 @@ export function createLessonMode(deps: LessonModeDeps): LessonMode {
   let wrong: Square | null = null;
   /** A pending advance, so a second touch during the hold cannot advance twice. */
   let holding: ReturnType<typeof setTimeout> | null = null;
+  /**
+   * Whether the teacher is showing the answer.
+   *
+   * ⚠️ TURNED OFF BY EVERY CHANGE OF STEP. A toggle that stayed on would show the answer to the
+   * next question before it had been read — and the gate below exists precisely so that the answer
+   * is something a child arrives at after trying, not something the interface hands over.
+   */
+  let teacherOn = false;
 
   /**
    * Everything the board should be showing about this step.
@@ -106,7 +153,11 @@ export function createLessonMode(deps: LessonModeDeps): LessonMode {
    * wins over "look here", which is the more useful of the two once the child has acted.
    */
   function marks(step: Step | null): LessonSquare[] {
-    const out: LessonSquare[] = (step ? litBy(step) : [])
+    const asked = step ? askedBy(step) : [];
+    // ⚠️ Only when the teacher is on, and the teacher only turns on after three tries. See
+    // `teacherReady`: help that arrives before anyone has tried is not help, it is the answer.
+    const hinted = step && teacherOn ? hintedBy(step) : [];
+    const out: LessonSquare[] = [...asked, ...hinted]
       .map((square) => ({ square, mark: 'look' as const }));
     for (const square of right) out.push({ square, mark: 'right' });
     if (wrong) out.push({ square: wrong, mark: 'wrong' });
@@ -132,19 +183,42 @@ export function createLessonMode(deps: LessonModeDeps): LessonMode {
   }
 
   /** Puts a step on the board, then draws it, then says it. */
-  function open(step: Step): void {
-    // ⚠️ Only when the step names one. A step without a FEN continues from where the last one left
-    // the board, which is what makes "take the knight to f3, now to g5" one lesson.
-    if (step.fen) shell.newGame(step.fen, { teaching: true });
+  /**
+   * Puts a step on the board, then draws it, then says it.
+   *
+   * `replay` is for arriving at a step from BEHIND — going back, or jumping into the middle of a
+   * lesson. Forward, the board is already in the state the previous step left it, and rebuilding
+   * would throw that away; see `teach/position.ts` for why backwards cannot do the same.
+   */
+  function open(step: Step, replay = false): void {
+    if (replay && lesson && tutor) {
+      const fen = positionFor(lesson, tutor.stepIndex());
+      if (fen) shell.newGame(fen, { teaching: true });
+    } else if (step.fen) {
+      // ⚠️ Only when the step names one. A step without a FEN continues from where the last one
+      // left the board, which is what makes "take the knight to f3, now to g5" one lesson.
+      shell.newGame(step.fen, { teaching: true });
+    }
     paint();
     panel.show(view());
     deps.say(shell.i18n.t(step.say));
     if (lesson && tutor) rememberPlace(lesson.id, tutor.stepIndex());
   }
 
+  /** Clears everything that belonged to the step being left. */
+  function leaveStep(): void {
+    if (holding) { clearTimeout(holding); holding = null; }
+    right = [];
+    wrong = null;
+    nudge = null;
+    found = null;
+    teacherOn = false;
+  }
+
   function advance(): void {
     right = [];
     wrong = null;
+    teacherOn = false;
     /*
      * ⚠️ THE LAST STEP IS CAPTURED BEFORE ADVANCING PAST IT, and the first version was not.
      * `view()` needs a step to draw and `tutor.step()` is null once the lesson is over, so the
@@ -255,12 +329,54 @@ export function createLessonMode(deps: LessonModeDeps): LessonMode {
       if (tutor) react(tutor.chose(option), null);
     },
 
+    stepIndex: () => tutor?.stepIndex() ?? 0,
+    mistakes: () => tutor?.mistakes() ?? 0,
+    teacher: () => teacherOn,
+    teacherReady: () => (tutor?.mistakes() ?? 0) >= TRIES_BEFORE_TEACHER,
+
+    setTeacher(on) {
+      /*
+       * ⚠️ REFUSED UNTIL THE GATE OPENS, HERE AND NOT ONLY IN THE MENU. A disabled control is a
+       * hint to a person, not a rule: the keyboard shortcut, a stale click and any future caller
+       * all reach this instead. The rule belongs where the state is.
+       */
+      if (on && (tutor?.mistakes() ?? 0) < TRIES_BEFORE_TEACHER) return;
+      teacherOn = on;
+      paint();
+    },
+
+    canBack: () => Boolean(lesson) && !(tutor?.stepIndex() === 0 && lessonIndex(lesson!.id) === 0),
+    canForward: () => Boolean(lesson),
+
+    async back() {
+      if (!lesson || !tutor) return;
+      leaveStep();
+      const step = tutor.back();
+      if (step) { open(step, true); return; }
+      // Off the front of this lesson: the last step of the one before it in the syllabus.
+      const order = syllabus();
+      const at = lessonIndex(lesson.id);
+      const previous = order[at - 1];
+      if (!previous) { open(tutor.step()!, true); return; }
+      await this.start(previous.id, previous.steps.length - 1);
+    },
+
+    async forward() {
+      if (!lesson || !tutor) return;
+      leaveStep();
+      const step = tutor.advance();
+      if (step) { open(step, true); return; }
+      // Off the end: the first step of the next lesson, or back to the list when there is none.
+      const order = syllabus();
+      const next = order[lessonIndex(lesson.id) + 1];
+      if (!next) { this.stop(); return; }
+      await this.start(next.id, 0);
+    },
+
     stop() {
       // ⚠️ A pending hold would advance a lesson that has been closed, into a panel that has been
       // destroyed. Cancelled first, before anything it touches goes away.
-      if (holding) { clearTimeout(holding); holding = null; }
-      right = [];
-      wrong = null;
+      leaveStep();
       shell.watch(null);
       panel.show(null);
       shell.setTaught([]);

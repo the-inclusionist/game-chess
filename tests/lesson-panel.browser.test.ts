@@ -35,7 +35,7 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', withProse = true) {
   const onLeave = vi.fn();
   const i18n = createI18n(locale);
   if (withProse) for (const code of ['pt', 'en', 'es'] as const) i18n.extend(code, TEACH[code]);
-  panel = createLessonPanel({ doc: document, i18n, onChoose, onLeave });
+  panel = createLessonPanel({ doc: document, i18n, onChoose });
   document.body.appendChild(panel.root);
   return { panel, i18n, onChoose, onLeave };
 }
@@ -134,11 +134,17 @@ describe('[Panel] ⚠️ what it refuses to do, which is the whole design', () =
     expect(alert.textContent).toBe('');
   });
 
-  it('offers a way out, because a mode you cannot leave is a trap', () => {
-    const { panel: p, onLeave } = build();
+  it('⚠️ carries NO way out, because the way out is not part of the lesson', () => {
+    /*
+     * There was a "leave the lesson" button here and removing it was a correction. It spent a whole
+     * tap target on a panel whose entire job is to carry ONE sentence a child is reading, and it
+     * put the exit inside the thing being read. Leaving is something done TO the game rather than
+     * in it, so it lives in the pause menu that START opens — in both modes.
+     */
+    const { panel: p } = build();
     p.show(viewOf('rook'));
-    q<HTMLButtonElement>('.lesson-leave').click();
-    expect(onLeave).toHaveBeenCalledTimes(1);
+    expect(p.root.querySelector('.lesson-leave')).toBeNull();
+    expect(p.root.querySelectorAll('button')).toHaveLength(0);
   });
 });
 
@@ -239,8 +245,8 @@ describe('[Panel] a change of language mid-lesson', () => {
 
     i18n.setLocale('en');
     p.refresh();
-    expect(q('.lesson-leave').textContent).toBe('Leave the lesson');
     expect(q('.lesson-counter').textContent).toContain('Step 1 of 2');
+    expect(q('.lesson-title').textContent).toBe('The rook');
     expect(document.activeElement).toBe(anchor);
   });
 
@@ -265,7 +271,6 @@ describe('[Panel] a change of language mid-lesson', () => {
     const { panel: p } = build('pt', false);
     p.show(viewOf('rook'));
     expect(q('.lesson-title').textContent).toBe('A torre');
-    expect(q('.lesson-leave').textContent).toBe('Sair da aula');
     expect(q('.lesson-counter').textContent).toContain('Passo 1 de 2');
     // The half that genuinely still needs the fetch.
     expect(q('.lesson-say').textContent).toBe('teach.rook.reach');
