@@ -62,16 +62,56 @@ same Município review this document already calls for on Hartwig is where it sh
 - **St George** — the English pattern that preceded Staunton, early nineteenth century.
 - **Selenus** — named for *Gustavus Selenus*, the pen name Augustus the Younger, Duke of
   Brunswick-Lüneburg, put on *Das Schach- oder König-Spiel* (1616). Seventeenth century.
-- **Império Sikh** — ⚠️ **the one that is an interpretation rather than a reproduction**, and the
-  code says so where the geometry is. The turned sets of nineteenth-century Punjab are not
-  catalogued the way the European patterns are, and inventing a provenance for a drawing is worse
-  than admitting where it came from. What is drawn is the ARCHITECTURAL vocabulary of the region —
-  a swelling onion dome on a wide plinth, finished with a spire — which is documented, shared with
-  everything built around those sets, and not a claim about any particular object.
+- **Império Sikh** — ⚠️ **the one that is not a historic pattern at all**, and the code says so
+  where the geometry is. There is no catalogued nineteenth-century Punjabi playing pattern in the
+  sense that Régence and Selenus are catalogued. What the name means today is a set carved in
+  Amritsar and sold under it: a **Staunton form**, taller and more slender, whose king carries the
+  **Khanda** where a Staunton king carries a cross. That is what is drawn, and it is drawn from the
+  sellers' own descriptions of the piece shapes rather than from any one object.
 
-None of these drawings traces a photograph. They are proportions expressed as cylinders and cones,
-which is what "out of copyright" answers a question about the OBJECT and not about a picture of it
-is meant to guard against.
+None of these drawings traces a photograph. They are proportions expressed as frusta, cylinders,
+cones and domes — which is what "out of copyright answers a question about the OBJECT and not about
+a picture of it" is meant to guard against.
+
+### The reference the profiles were drawn from
+
+⚠️ Recorded because it was **used**, not because it creates an obligation. Reading a proportion off
+a photograph and expressing it as a stack of turned solids is not a derivative of the photograph:
+the shape belongs to a public-domain design of the eighteenth or nineteenth century, and what the
+photographer holds is copyright in the photograph. The list is here so the next person can check
+the drawing instead of trusting it.
+
+| Pattern | Reference | Licence |
+|---|---|---|
+| Régence | Wikimedia Commons, `File:RegenceChessPcs2.jpg` — the plate from the *Encyclopédie Méthodique* | public domain |
+| Selenus | Wikimedia Commons, `File:Selenus2.jpg` — a set of the Schaakmuseum Max Euwe-Centrum, Amsterdam | public domain |
+| Selenus | Wikimedia Commons, `File:Selenus chess set.jpg` — KADUN workshop | CC BY-SA 3.0 |
+| St George | the pattern's documented piece-by-piece description (ribbed crown and ball finial, large bulb queen, split mitre, four crenellations) | prose, not an image |
+| Staunton | the 1849 Jaques pattern, universally figured | — |
+| Sikh Empire | current sellers' descriptions of the Amritsar set | prose, not an image |
+
+### ⚠️ Why there are no imported 3D models
+
+A search was made, in September 2026, for ready-made 3D models of these five patterns under a
+licence compatible with AGPL-3.0-or-later. **Four of the five have none.**
+
+- **Staunton** — `github.com/clarkerubber/Staunton-Pieces` (STL and SolidWorks, **MIT**) and
+  `github.com/quaternionmedia/scad-chess` (OpenSCAD plus SVG profiles, **CC BY 4.0**) are both
+  usable. The second is a modern generic set rather than the 1849 pattern.
+- **Régence, St George, Selenus, Sikh Empire** — nothing under a compatible licence was found.
+  What exists sits on TurboSquid, CGTrader, MakerWorld and Cults, whose terms are royalty-free
+  proprietary or "personal use": **NC** breaks freedom 0, **ND** forbids the modification the
+  pipeline requires, and "do not redistribute" is incompatible with the whole project.
+
+Compatible would have meant CC0, MIT, BSD, Apache-2.0, CC BY 4.0 with attribution preserved, or
+CC BY-SA 4.0 under its one-way compatibility with GPLv3.
+
+It would not have helped much even so. The pieces are a **shared table** read by two renderers, and
+an imported mesh can only be used by the WebGL one — so a named pattern would look like one thing on
+the flat board and another in 3D, the invariants that keep a piece inside its square would stop
+covering the solid view, and the cost is real: one MIT Staunton king is 948 kB of STL against 45 kB
+for the entire application bundle. These patterns are **turned on a lathe**, and a lathe profile is
+exactly what the table already speaks. The representation was never the problem; the profiles were.
 
 ## The Hartwig chess set — ⚠️ OPEN, AND TIME-SENSITIVE
 

@@ -56,18 +56,87 @@ export interface BoxSpec {
  *
  * ========================= WHY THIS VOCABULARY EXISTS =========================
  * Hartwig needed none of it. Every OTHER European pattern is a shape cut on a lathe, which is to
- * say a stack of circles — and `render/pieces/turned.ts` is three of those patterns. A cone is a
- * circle that changes diameter along its length; a dome is the half-ball that ends most of them.
+ * say a stack of circles — and `render/pieces/turned.ts` is five of those patterns. A taper is the
+ * frustum a lathe mostly leaves; a cone is the same run all the way to a point; a dome is the
+ * half-ball that ends most of them.
  */
 export interface TurnedSpec {
-  readonly shape: 'cylinder' | 'cone' | 'dome';
-  /** Diameter. For a cone this is the WIDE end. */
+  readonly shape: 'cylinder' | 'cone' | 'dome' | 'taper';
+  /** Diameter at the BOTTOM. For a cone this is the WIDE end; for a dome, the flat face. */
   readonly d: number;
+  /**
+   * ========================= THE FRUSTUM, AND WHY IT HAD TO EXIST =========================
+   * A taper's diameter at the TOP. Absent, and meaningless, for every other shape.
+   *
+   * ⚠️ WITHOUT THIS THE VOCABULARY COULD NOT SAY WHAT A LATHE MAKES. A turned chess piece is
+   * mostly FRUSTA — a body that narrows from a wide foot to a neck, a coronet that flares out
+   * again — and the three shapes here before this one could not express one: a cylinder does not
+   * change diameter, and a cone runs all the way to a point. Every historic profile drawn with
+   * only those came out as a stack of drums, which is why the five patterns read as approximations
+   * of each other rather than as themselves.
+   */
+  readonly dTop?: number;
   readonly h: number;
   /** Centre of the part on the vertical. Negative is up, as everywhere else here. */
   readonly y: number;
-  /** A cone or dome pointing down rather than up. */
+  /** A cone or dome pointing down rather than up. Meaningless for a taper, which says both ends. */
   readonly down?: boolean;
+}
+
+/*
+ * ================= WHAT THE FLAT BOARD CAN SHOW, AND WHAT IT CAN ONLY INK =================
+ * The two functions below are the projected renderer's whole concession to its own resolution, and
+ * both were bought with a screenshot rather than reasoned about in advance.
+ *
+ * A square on that board is 29 logical pixels for TILE = 16 world units, so ONE UNIT IS ABOUT 1.8
+ * PIXELS. That number decides both of these.
+ */
+
+/**
+ * The single diameter the flat renderer draws a part at.
+ *
+ * ⚠️ ZDOG HAS NO FRUSTUM. `Cylinder` takes one diameter, `Cone` runs to a point, and there is no
+ * third option — so a taper is drawn at its MEAN and the WebGL board, whose `CylinderGeometry` takes
+ * both radii, draws the true profile. It is the table's one deliberate disagreement.
+ *
+ * The alternative was tried and rejected on screen: stepping the taper through three cylinders puts
+ * a stroked rim between every pair, and each of those rims is a black band a pixel and a half wide
+ * across a piece twenty pixels tall. It made every turned piece a striped cone. `MAX_TAPER_SPAN` is
+ * what keeps the mean honest instead.
+ */
+export function flatDiameter(part: TurnedSpec): number {
+  return part.shape === 'taper' ? (part.d + (part.dTop ?? part.d)) / 2 : part.d;
+}
+
+/**
+ * The widest a taper may open before one cylinder stops standing in for it.
+ *
+ * At the mean, each end is wrong by a quarter of the span in diameter — an eighth in radius —
+ * so a span of 4 units is off by half a unit, which is under a pixel at 1.8 px per unit. Past that
+ * the foot stops looking like a foot, and the drawing has to say the shape in two parts instead.
+ */
+export const MAX_TAPER_SPAN = 4.0;
+
+/**
+ * Is this part so short that an outline round it would be ink rather than an edge?
+ *
+ * ⚠️ THE FAILURE THIS EXISTS TO STOP. Zdog centres a stroke on its path, so an outline of width w
+ * covers w/2 above the part and w/2 below it. A turned set draws at `line: 0.5`, which is 0.75
+ * units — and a collar 0.4 units tall is therefore SHORTER THAN ITS OWN OUTLINE. Ten of those up
+ * a piece and the piece is a black-and-white striped cone with its colour pushed out to a rim,
+ * which is exactly how the first render of these profiles came out.
+ *
+ * The part is still DRAWN. Only its outline is dropped, and what it costs is the edge on a shelf
+ * that is seven tenths of a pixel tall. The neighbours above and below are thick enough to carry
+ * the silhouette across the gap.
+ */
+export function tooThinToOutline(part: TurnedSpec, lineWidth: number): boolean {
+  return part.h < lineWidth * 1.5;
+}
+
+/** The widest a turned part gets, which is the only thing its footprint depends on. */
+export function turnedWidth(t: TurnedSpec): number {
+  return Math.max(t.d, t.dTop ?? 0);
 }
 
 /**
@@ -228,7 +297,7 @@ export function pieceFootprint(spec: PieceSpec): number {
   }
 
   for (const t of spec.turned ?? []) {
-    const r = t.d / 2;
+    const r = turnedWidth(t) / 2;
     minX = Math.min(minX, -r);
     maxX = Math.max(maxX, r);
     minZ = Math.min(minZ, -r);

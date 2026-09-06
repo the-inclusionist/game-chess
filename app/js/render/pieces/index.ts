@@ -8,8 +8,10 @@
 // (only `Shape` does), so hiding a piece means walking its faces.
 //
 // So the layer is rebuilt from the position. That happens on a MOVE, a handful of times a minute,
-// never per frame. Building 32 pieces is roughly 300 Rects; the whole frame with board and markers
-// measured 1.44 ms at 450 shapes, and this brings the total to about 800.
+// never per frame. Counted rather than guessed, a full board of pieces is 92 shapes for Hartwig and
+// 368 to 520 for the turned patterns — Regence is the dearest, because a Regence king carries
+// four disc tiers and a square plinth. The whole frame with board and markers measured 1.44 ms at
+// 450 shapes, so the busiest of these lands near 2 ms with the board on top.
 
 import Zdog, { type Anchor } from 'zdog';
 import type { Piece, Square } from '../../chess/types.ts';
@@ -18,7 +20,7 @@ import {
   DARK_OUTLINE_SCALE, DEFAULT_PALETTE, STROKE, type Palette, type SidePalette,
 } from '../palette.ts';
 import { TILE } from '../resolution.ts';
-import { type PieceSpec } from './geometry.ts';
+import { flatDiameter, tooThinToOutline, type PieceSpec } from './geometry.ts';
 import { DEFAULT_DESIGN, pieceDesign } from './sets.ts';
 
 export interface PiecePlacement {
@@ -132,34 +134,45 @@ export function buildPiece(
    */
   for (const part of spec.turned ?? []) {
     const up = part.down ? -Zdog.TAU / 4 : Zdog.TAU / 4;
-    const place = { translate: { y: part.y }, rotate: { x: up } };
 
-    const draw = (colour: string, filled: boolean, faces: boolean): void => {
+    const draw = (
+      colour: string, filled: boolean, faces: boolean, diameter: number, length: number, y: number,
+    ): void => {
       const common = {
         addTo: anchor,
-        diameter: part.d,
+        diameter,
         stroke: filled ? lineWidth : (options.outlineWidth ?? lineWidth),
         color: colour,
         fill: filled,
         backface: filled ? colours.side : colour,
-        ...place,
+        translate: { y },
+        rotate: { x: up },
       };
       if (part.shape === 'dome') {
         new Zdog.Hemisphere(common);
       } else if (part.shape === 'cone') {
-        new Zdog.Cone({ ...common, length: part.h });
+        new Zdog.Cone({ ...common, length });
       } else {
         new Zdog.Cylinder({
           ...common,
-          length: part.h,
+          length,
           frontFace: faces ? colours.top : colour,
           backFace: faces ? colours.side : colour,
         });
       }
     };
 
-    draw(colours.face, true, true);
-    if (options.outline) draw(options.outline, false, false);
+    const diameter = flatDiameter(part);
+    draw(colours.face, true, true, diameter, part.h, part.y);
+    /*
+     * ⚠️ NOT EVERY PART GETS AN OUTLINE, and the ones that do not are the ones that could only be
+     * ink — see `tooThinToOutline`. A collar shorter than the stroke that would edge it is drawn
+     * solid and left unedged; the silhouette is carried across it by its neighbours.
+     */
+    const width = options.outlineWidth ?? lineWidth;
+    if (options.outline && !tooThinToOutline(part, width)) {
+      draw(options.outline, false, false, diameter, part.h, part.y);
+    }
   }
 
   if (spec.sphere) {

@@ -70,8 +70,21 @@ function material(colour: string, unlit: boolean): THREE.Material {
  * table's `down` means "down on the board", and the board's down is Three's up.
  */
 function partGeometry(
-  part: { shape: 'cylinder' | 'cone' | 'dome'; d: number; h: number },
+  part: { shape: 'cylinder' | 'cone' | 'dome' | 'taper'; d: number; dTop?: number; h: number },
 ): THREE.BufferGeometry {
+  /*
+   * ⚠️ THE FRUSTUM IS EXACT HERE and a single averaged cylinder in the flat renderer, which is
+   * the table's one deliberate disagreement — `flatDiameter` in the table says why at length.
+   * `CylinderGeometry` takes a top radius and a bottom radius, so a lathe profile costs the same
+   * as a drum, and this is the board where that profile is the picture.
+   *
+   * Three's cylinder is NOT rotated by the caller — only cones and domes are — so its first
+   * argument is the end at +y, which in this scene's convention is DOWN. The table's `dTop` is
+   * therefore the SECOND argument.
+   */
+  if (part.shape === 'taper') {
+    return new THREE.CylinderGeometry(part.d / 2, (part.dTop ?? part.d) / 2, part.h, SEGMENTS);
+  }
   if (part.shape === 'cylinder') return new THREE.CylinderGeometry(part.d / 2, part.d / 2, part.h, SEGMENTS);
   if (part.shape === 'cone') return new THREE.ConeGeometry(part.d / 2, part.h, SEGMENTS);
   // A dome is the top half of a sphere: phi from 0 to π/2.
@@ -128,7 +141,8 @@ export function buildPiece3d(
 
   for (const part of spec.turned ?? []) {
     add(partGeometry(part), (mesh) => {
-      if (part.shape === 'cylinder') {
+      // A drum and a frustum both already say which end is which, so neither is ever turned over.
+      if (part.shape === 'cylinder' || part.shape === 'taper') {
         mesh.position.set(0, part.y, 0);
         return;
       }
