@@ -1,0 +1,1315 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/*
+ * ========================= ONE STYLESHEET, NOT THREE COPIES OF ONE =========================
+ * This file was 1,338 lines of CSS inlined in `index.html`, `2d.html` and `3d.html` — and the three
+ * blocks were BYTE-IDENTICAL, all 1,338 lines of each. Measured before moving anything, because
+ * "they are probably the same" is not a reason to merge three files and "they are the same" is.
+ *
+ * The splash rules stay behind, in each page's own `<head>`. That is not an oversight: the title
+ * screen has to paint on the FIRST FRAME, because the opponent behind it is a 6.98 MB download, and
+ * a stylesheet is a second request. Everything else can wait for the request that also brings the
+ * board.
+ *
+ * ========================= WHY THE TOKENS EXIST =========================
+ * The literals below appeared 48, 27, 19, 13, 13 and 10 times respectively, spread through those
+ * three copies — 58 distinct colours in all, none of them named. A palette nobody can enumerate is
+ * a palette that drifts: the eleventh panel gets a slightly different grey because the tenth one's
+ * grey was two hundred lines away and nobody could look it up.
+ *
+ * `SP-the-inclusionist-whackwhack` does this properly and is the model — its `:root` names every
+ * colour WITH the contrast ratio that justified it, so the number is next to the decision rather
+ * than in a test somebody has to go and find.
+ *
+ * ⚠️ THE MEASURED INKS ARE NOT HERE. Board squares, piece fills and marker colours live in
+ * `render/palette.ts`, where their contrast ratios are computed and asserted. Naming them a second
+ * time in CSS would be two places for one number, and the one that drifted would be the one no
+ * test reads. These tokens are CHROME: panels, borders, focus rings, text.
+ */
+:root {
+  color-scheme: dark;
+
+  /* Surfaces, darkest first. The page, the panel, and a panel's own raised rows. */
+  --page: #05070f;
+  --surface: #14202b;
+  --surface-lift: #1b2733;
+  --surface-high: #24344a;
+  --rule: #2b3947;
+
+  /* Text. `--ink` is body; `--ink-dim` is anything a reader does not have to read. */
+  --ink: #c9d1d9;
+  --ink-bright: #F2EEE4;
+  --ink-dim: #A3ABB2;
+
+  /*
+   * The accents. Amber is the teaching mode's, and it is the one colour with a measurement behind
+   * it in another file: see `MARKER_LESSON` in `render/palette.ts`, where it carries a black halo
+   * because no hue clears 3:1 against every square this game draws.
+   */
+  --accent: #FFB300;
+  --focus: #FFD97D;
+  --danger: #FF8B7D;
+  --ok: #7DD3A0;
+
+  /*
+   * ⚠️ FALLBACKS ONLY. `ui/layout` writes both on `#stage` every time it measures — before the
+   * first frame and on every resize. They are here so a page between parse and first layout is
+   * merely plain rather than broken.
+   */
+  --ui-fs: 16px;
+  --tap: 44px;
+}
+
+:root { color-scheme: dark; }
+  body {
+    margin: 0;
+    background: #05070f;
+    color: #c9d1d9;
+    font: 14px/1.5 system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /*
+   * The engine's ui/layout measures THIS element and sizes #game-region from it, locking the
+   * scale to whole PHYSICAL pixels so scanlines stay regular at any device pixel ratio.
+   */
+  /*
+   * ========================= ⚠️ A COLUMN, AND THE WIDTH IS THE POINT =========================
+   * The lesson bar and the blunder bar used to be siblings of this element, so they spanned the
+   * whole BODY — a 1600 px ribbon of 11 px text under a 640 px board. They are now children of
+   * `#below-board`, whose width `ui/layout` sets to the region's, so a panel under the board is
+   * exactly as wide as the board and the side menu together.
+   */
+  /* The 2:1 stage: board on the left, panel on the right, both sized in `ui/layout`. */
+  #stage {
+    display: flex;
+    align-items: stretch;
+    /* Centred: what the board and the panel do not use is margin, not panel. */
+    justify-content: center;
+    position: relative;
+    flex: 0 0 auto;
+  }
+  #side-column { flex: 0 0 auto; min-width: 0; }
+  /*
+   * ⚠️ CENTRED IN THE STAGE. The board region is a whole multiple of 640x360 and the stage is a
+   * whole multiple of 360x180, so at k=3 the region is 360 tall inside 540 — the two families do
+   * not divide into each other, and they are not meant to. What is left over is margin, and margin
+   * split evenly reads as a board on a background rather than a board that has slipped upwards.
+   */
+  #stage > #game-region { align-self: center; }
+  #stage-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+  }
+  /* Width is set in `ui/layout`, from the same measurement that sizes the region. */
+  #below-board {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    /*
+     * ⚠️ The panels inside inherit their type size from here rather than from `body`. At 14 px on a
+     * page whose board is 1280 px wide, `0.82em` came out at eleven pixels — legible to whoever
+     * wrote it and to nobody sitting back from a classroom projector.
+     */
+    font-size: var(--panel-fs, 14px);
+  }
+  #below-board:empty { display: none; }
+
+  /* The region the engine listens to. Keyboard is bound HERE, never on window. */
+
+
+  #game-region {
+    position: relative;
+    outline-offset: 4px;
+  }
+  #game-region:focus-visible { outline: 3px solid var(--focus); }
+
+  /*
+   * The canvas fills whatever ui/layout sized #game-region to. Setting a width here WITHOUT a
+   * matching height is what stretched the board: `max-width: 100vw` clipped the width to 721px
+   * while the height stayed 720, giving 2.25x across and 4x down.
+   */
+  #board-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    /* PixiJS used to paint this as the Application's backgroundColor. Zdog CLEARS its canvas to
+       transparent, so without this the board would float on whatever is behind it. */
+    background: var(--page);
+    image-rendering: pixelated;
+    touch-action: none;   /* the camera owns the drag */
+    /*
+     * ⚠️ NOT `grab`. A grab cursor promises that dragging moves the thing under it, and dragging
+     * does nothing here until the button has been held for two seconds. The board is something you
+     * click squares on; it becomes something you turn only once the hold has fired, and the cursor
+     * says so at exactly that moment and not before.
+     */
+    cursor: pointer;
+  }
+  #board-canvas[data-turning="true"] { cursor: grabbing; }
+
+  /*
+   * The panel sits over the column the board leaves clear: 88 of the 320 logical pixels, which
+   * is 27.5% however the region is scaled. Sizes come from the engine's own --ui-fs and --tap,
+   * so the HUD grows with the board instead of drifting away from it.
+   */
+  /*
+   * ========================= ⚠️ WCAG 2.2 AAA IN THE ORDINARY PALETTES TOO =========================
+   * The high-contrast boards were audited first and the panel passed on them, because there it is
+   * white on black. On every OTHER board the panel keeps its own colours, and audited element by
+   * element it was short in exactly three inks — three, for thirteen failing pieces of text and
+   * five failing control boundaries:
+   *
+   *   var(--ink-dim)  5.70:1  labels, legends, section headings, the checkbox captions   -> var(--ink-dim)  7.54
+   *   #A0ABB5  5.96:1  the score table's caption and column headings              -> #A0ABB5  7.51
+   *   #506C8A  1.51:1  the border of every view link, nav button and side button  -> #506C8A  3.22
+   *
+   * 1.4.6 asks 7:1 of body text and 1.4.11 asks 3:1 of a control's own boundary — and that last
+   * one was the worse miss: at 1.51 those controls had no edge at all against the panel, which is
+   * a button you can only find by knowing where it is.
+   *
+   * ⚠️ ONLY LIGHTNESS MOVED. Hue and saturation are carried across unchanged — 211.6° stays
+   * 208.0° and 211.0° stays 211.0°, the difference being what eight bits per channel can express —
+   * so the panel is the same colour it always was, further from its background. Making it
+   * compliant by turning it grey would have been a different panel.
+   */
+  /*
+   * ⚠️ A COLUMN, NOT AN OVERLAY. It was `position: absolute` over the board's right 27.5%, which
+   * is why it could never be widened: every pixel it gained covered a pixel of board. It is a
+   * sibling of the region now and `ui/layout` gives it whatever the board did not take, so the two
+   * cannot overlap by construction.
+   */
+  .hud {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--ui-fs, 16px) * 0.35);
+    padding: calc(var(--ui-fs, 16px) * 0.3);
+    font-size: var(--ui-fs, 16px);
+    line-height: 1.25;
+    color: var(--ink);
+    background: #111a24;
+    border-left: 1px solid #506C8A;
+
+    /* ========================= THE PANEL SCROLLS =========================
+       It used to be `overflow: hidden`, on the assumption that the move list was the only thing
+       that could grow and that giving IT a scrollbar was enough. Both halves were wrong: the
+       controls below the list are taller than the column at the k=2 floor whatever the list does,
+       so the outline switch was already clipped on an empty board — and once the list started
+       filling, it pushed the difficulty select out of reach as well. Losing a menu because you
+       played twenty moves is a bug, not a layout. */
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  /*
+   * The view switcher, at the top of the panel. Three targets across an 88-logical-pixel column,
+   * so --tap keeps each one 44 CSS px tall (WCAG 2.5.5) and they split the width, which is the
+   * dimension there is none of. The current one is filled rather than merely marked, because
+   * `aria-current` is for the reader and the fill is for the eye.
+   */
+  .hud-views { display: flex; gap: 2px; }
+  .hud-view {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: var(--tap, 44px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75em;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--ink);
+    background: var(--surface-lift);
+    border: 1px solid #506C8A;
+    border-radius: 2px;
+  }
+  .hud-view:hover { background: var(--surface-high); }
+  .hud-view[aria-current="page"] { background: var(--focus); color: var(--surface); border-color: var(--focus); }
+  .hud-view[aria-disabled="true"] { opacity: 0.4; cursor: default; }
+  #game-region[data-contrast="high"] .hud-view {
+    color: #FFFFFF; background: #000000; border-color: #FFFFFF;
+  }
+  #game-region[data-contrast="high"] .hud-view[aria-current="page"] {
+    color: #000000; background: #FFFFFF;
+  }
+
+  .hud h2 {
+    margin: 0; font-size: 0.75em; font-weight: 600;
+    color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .hud p { margin: 0; }
+  .hud-turn { display: flex; align-items: center; gap: 0.4em; font-weight: 600; }
+  .hud-swatch { flex: 0 0 auto; width: 0.8em; height: 0.8em; border: 1px solid #0b0f14; }
+  .hud-swatch[data-side="w"] { background: var(--focus); }
+  .hud-swatch[data-side="b"] { background: #3F2B78; }
+  .hud-captured { min-height: 1.2em; font-size: 1.05em; letter-spacing: -0.04em; }
+  /* Bounded rather than greedy: `flex: 1 1 auto` let the score sheet claim the column and press
+     everything under it against the bottom edge. A fixed window of about eight lines keeps the
+     recent moves in view and leaves the controls where the player last saw them; the rest of the
+     game is one scroll away, inside the list. */
+  .hud-moves {
+    flex: 0 0 auto; max-height: 8.5em; overflow-y: auto; overscroll-behavior: contain;
+    margin: 0; padding-left: 1.7em; font-size: 0.9em;
+    font-variant-numeric: tabular-nums;
+  }
+  .hud-moves:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+  /* Two targets side by side in an 88-logical-pixel column: --tap keeps each at 44 CSS px tall
+     (WCAG 2.5.5) and they split the width, which is the one dimension there is none of. */
+  .hud-hint {
+    width: 100%;
+    min-height: var(--tap, 44px);
+    font: inherit; font-size: 0.78em; font-weight: 600;
+    color: var(--surface); background: #B79BE8;
+    border: 1px solid #7A4FBF; border-radius: 2px;
+    cursor: pointer;
+  }
+  .hud-hint:hover:not(:disabled) { background: #CDBAF0; }
+  .hud-hint:disabled { opacity: 0.5; cursor: default; }
+  /*
+   * ON, and saying so in more than colour: the switch fills in and gains an inset rule, so the
+   * state survives greyscale and every colour-vision correction (1.4.1). `aria-pressed` carries
+   * the same fact to a screen reader, which is where it actually has to be said.
+   */
+  .hud-hint[aria-pressed="true"] {
+    color: #F4EEFF; background: #5A2FA0;
+    box-shadow: inset 0 0 0 2px var(--surface), inset 0 0 0 4px #B79BE8;
+  }
+  .hud-hint[aria-pressed="true"]:hover { background: #6B3CB8; }
+  /*
+   * Searching. A pulse rather than a disabled button, because the switch stays usable while the
+   * answer is on its way — disabling it would move focus off the control the instant it was used.
+   */
+  .hud-hint[data-busy="true"] { animation: hud-hint-busy 1.1s ease-in-out infinite; }
+  @keyframes hud-hint-busy { 50% { opacity: 0.62; } }
+  @media (prefers-reduced-motion: reduce) {
+    .hud-hint[data-busy="true"] { animation: none; opacity: 0.75; }
+  }
+  #game-region[data-contrast="high"] .hud-hint {
+    color: #000000; background: #FFFFFF; border-color: #FFFFFF;
+  }
+
+
+  /*
+   * ========================= THE ADVANTAGE READOUT =========================
+   * A real table, because it is real tabular data — two players, three figures each — and a
+   * screen reader then gets row and column headers for nothing. Tight, because it sits in an
+   * 88-pixel column and is meant to be glanced at rather than studied.
+   */
+  .hud-score {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.68em;
+    color: var(--ink);
+  }
+  .hud-score caption {
+    text-align: left;
+    font-size: 0.95em; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: #A0ABB5;
+    padding-bottom: 0.2em;
+  }
+  .hud-score th, .hud-score td { padding: 0.15em 0.25em; text-align: right; }
+  .hud-score thead th { font-weight: 600; color: #A0ABB5; }
+  .hud-score tbody th { text-align: left; font-weight: 600; }
+  /* Tabular figures, so a column of numbers does not shuffle sideways as the game goes on. */
+  .hud-score td { font-variant-numeric: tabular-nums; }
+  /* ⚠️ Reinforcement only. The sign is already in the text — this is never the only difference. */
+  .hud-score td[data-lead="ahead"] { color: var(--ok); }
+  .hud-score td[data-lead="behind"] { color: #E8A0A0; }
+
+  /*
+   * The engine's mark beside a move. `??` is the notation every chess book uses, so there is
+   * nothing to invent and nothing that depends on colour — the colour here only sorts praise
+   * from criticism at a glance for the people who can use it.
+   */
+  .hud-mark { margin-left: 0.1em; font-weight: 800; }
+  .hud-mark[data-mark="!"], .hud-mark[data-mark="!!"] { color: var(--ok); }
+  .hud-mark[data-mark="?!"] { color: #E8C07D; }
+  .hud-mark[data-mark="?"] { color: #E8A05A; }
+  .hud-mark[data-mark="??"] { color: var(--danger); }
+
+  /*
+   * ========================= PROTECTED MODE, WHEN IT HAS SOMETHING TO SAY =========================
+   * UNDER the board and not over it. A dialog would cover the position, and the position is the
+   * argument — a player deciding whether to take a move back has to be able to look at what the
+   * move did. The game waits for an answer either way, which is what `alertdialog` is for.
+   */
+  /* ⚠️ `display: flex` beats `[hidden]`, which is display:none from the UA sheet at LOWER
+     specificity. Without this line the bar is on screen from the first frame of every game,
+     warning about a blunder nobody played. */
+  /*
+   * ========================= THE LESSON PANEL =========================
+   * Modelled on the blunder bar below it and deliberately calmer: teaching colours, not warning
+   * ones. Same `position: relative; z-index` for the same measured reason — `.hud` is absolutely
+   * positioned, so an unpositioned sibling paints underneath it however the source order reads,
+   * and half the buttons would simply not be there to click.
+   */
+  /*
+   * The lesson side menu, in the same slot the HUD occupies. Only one of the two is ever shown:
+   * almost nothing the HUD carries means anything in a lesson.
+   */
+  /*
+   * ========================= THE PAUSE MENU =========================
+   * Over the region and only the region: the engine's own dialogs and the page chrome stay
+   * reachable, which is what keeps a pause from being a trap.
+   */
+  .pause-menu[hidden] { display: none; }
+  .pause-menu {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(5, 7, 15, 0.88);
+  }
+  .pause-box {
+    display: flex; flex-direction: column; gap: 0.5em;
+    min-width: 55%;
+    padding: 1em;
+    background: var(--surface);
+    border: 2px solid var(--accent);
+    border-radius: 3px;
+    font-size: var(--ui-fs, 16px);
+  }
+  .pause-title { margin: 0; font-size: 1.2em; color: var(--accent); }
+  /*
+   * The six settings, inside the pause menu now. They keep the HUD's own class names — they ARE
+   * the HUD's controls, handed over — so every rule written for them still applies; only the
+   * column they sit in is new.
+   */
+  .hud-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4em;
+    max-height: 55vh;
+    overflow-y: auto;
+    padding-top: 0.5em;
+    border-top: 1px solid var(--rule);
+  }
+  .pause-actions { display: flex; flex-direction: column; gap: 0.35em; }
+  .pause-action {
+    min-height: var(--tap, 44px);
+    padding: 0 0.9em;
+    font: inherit; font-weight: 700;
+    color: var(--surface); background: var(--accent);
+    border: 1px solid #000000; border-radius: 2px;
+    cursor: pointer;
+  }
+  /* Leaving is offered as an equal, not as a cancel — but it is not the one Enter lands on. */
+  .pause-leaving { color: var(--ink-bright); background: transparent; border-color: var(--ink-bright); }
+  .pause-action:hover { background: #FFFFFF; color: var(--surface); }
+  .pause-action:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  @media (prefers-contrast: more) {
+    .pause-box { background: #000000; border-color: #FFFFFF; }
+    .pause-title { color: #FFFFFF; }
+    .pause-action { background: #FFFFFF; color: #000000; border-color: #000000; }
+    .pause-leaving { color: #FFFFFF; background: #000000; border-color: #FFFFFF; }
+  }
+
+  .lesson-menu[hidden] { display: none; }
+  /*
+   * ⚠️ THE COLUMN SCROLLS, AND ONLY THE COLUMN. It now carries the lesson AND the controls AND
+   * eleven lesson names in a panel 27.5% of a 640-pixel board wide. Letting the page scroll
+   * instead would move the BOARD off screen — which is the one thing a lesson cannot do, because
+   * every question in it is asked about the board.
+   */
+  .lesson-menu { overflow-y: auto; }
+  /*
+   * Inside the column the lesson is a SECTION, not a card: it keeps its heading and its rule, and
+   * drops the border and the panel background it needed when it floated under the board.
+   */
+  .lesson-menu .lesson-panel {
+    margin: 0 0 0.5em;
+    padding: 0 0 0.5em;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--rule);
+    border-radius: 0;
+    font-size: inherit;
+  }
+  .lesson-menu .lesson-say { font-weight: 600; }
+  /* The list no longer needs its own scroller: the column is the scroller. */
+  .lesson-menu .lesson-list { overflow-y: visible; }
+  .lesson-menu-title { margin: 0; font-size: 1.05em; font-weight: 700; color: var(--accent); }
+  .lesson-menu-steps { margin: 0.1em 0 0; opacity: 0.85; }
+  .lesson-walk { margin: 0.35em 0 0; display: flex; gap: 0.3em; }
+  .lesson-walk button {
+    flex: 1 1 0;
+    min-height: var(--tap, 44px);
+    font: inherit;
+    color: var(--ink-bright); background: transparent;
+    border: 1px solid var(--ink-bright); border-radius: 2px;
+    cursor: pointer;
+  }
+  .lesson-walk button:disabled { opacity: 0.45; cursor: default; }
+  .lesson-teacher { margin: 0.35em 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.3em; }
+  .lesson-teacher input { width: 1.1em; height: 1.1em; }
+  .lesson-teacher-why[hidden] { display: none; }
+  .lesson-teacher-why { flex: 1 1 100%; font-size: 0.85em; opacity: 0.8; }
+  .lesson-list { margin: 0.4em 0 0; padding: 0; list-style: none; overflow-y: auto; }
+  .lesson-entry {
+    display: block; width: 100%;
+    min-height: var(--tap, 44px);
+    padding: 0 0.4em;
+    font: inherit; text-align: left;
+    color: var(--ink); background: transparent;
+    border: 1px solid transparent; border-radius: 2px;
+    cursor: pointer;
+  }
+  /* The lesson being taken. Not colour alone: `aria-current` says it, and the rule is the shape. */
+  .lesson-entry[aria-current] {
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .lesson-entry:hover { background: #1F2E3C; }
+  .lesson-walk button:focus-visible, .lesson-entry:focus-visible,
+  .lesson-teacher input:focus-visible {
+    outline: 3px solid var(--focus); outline-offset: 2px;
+  }
+
+  .lesson-panel[hidden] { display: none; }
+  .lesson-panel {
+    position: relative;
+    z-index: 3;
+    margin: 0.4em 0 0;
+    padding: 0.55em 0.8em;
+    background: var(--surface);
+    border: 2px solid var(--accent);
+    border-radius: 3px;
+    color: var(--ink-bright);
+  }
+  .lesson-title { margin: 0; font-size: 1.05em; font-weight: 700; color: var(--accent); }
+  .lesson-counter { margin: 0.15em 0 0; font-size: 0.9em; opacity: 0.85; }
+  .lesson-say { margin: 0.4em 0 0; font-weight: 600; line-height: 1.35; }
+  /* The nudge reads as a second voice, not as an error: no red, no icon, no raised volume. */
+  .lesson-nudge[hidden] { display: none; }
+  .lesson-nudge {
+    margin: 0.4em 0 0;
+    padding: 0.35em 0.55em;
+    background: #1F2E3C;
+    border-left: 3px solid var(--ok);
+    line-height: 1.35;
+  }
+  .lesson-options[hidden] { display: none; }
+  .lesson-options { display: flex; flex-wrap: wrap; gap: 0.4em; margin: 0.5em 0 0; }
+  .lesson-option {
+    min-height: var(--tap, 44px);
+    padding: 0 0.9em;
+    font: inherit; font-weight: 700;
+    color: var(--surface); background: var(--accent);
+    border: 1px solid #000000; border-radius: 2px;
+    cursor: pointer;
+  }
+  .lesson-actions { margin: 0.5em 0 0; }
+  .lesson-leave {
+    min-height: var(--tap, 44px);
+    padding: 0 0.9em;
+    font: inherit;
+    color: var(--ink-bright); background: transparent;
+    border: 1px solid var(--ink-bright); border-radius: 2px;
+    cursor: pointer;
+  }
+  .lesson-option:hover, .lesson-leave:hover { background: #FFFFFF; color: var(--surface); }
+  .lesson-option:focus-visible, .lesson-leave:focus-visible {
+    outline: 3px solid var(--focus); outline-offset: 2px;
+  }
+  @media (prefers-contrast: more) {
+    .lesson-panel { background: #000000; border-color: #FFFFFF; color: #FFFFFF; }
+    .lesson-title { color: #FFFFFF; }
+    .lesson-nudge { background: #000000; border-left-color: #FFFFFF; }
+    .lesson-option { background: #FFFFFF; color: #000000; border-color: #000000; }
+    .lesson-leave { color: #FFFFFF; border-color: #FFFFFF; }
+  }
+
+  .blunder-bar[hidden] { display: none; }
+  .blunder-bar {
+    /*
+     * ⚠️ POSITIONED, and that is the whole reason for these two lines. The bar comes after the
+     * board in the document, so it ought to paint on top of it — but `.hud` is
+     * `position: absolute`, and a positioned element paints above every non-positioned one in the
+     * same stacking context whatever the source order says. The bar was being drawn UNDER the
+     * side panel: half of "carry on anyway" was simply not there to click.
+     */
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5em 0.9em;
+    margin: 0.4em 0 0;
+    padding: 0.55em 0.8em;
+    background: #2A1416;
+    border: 2px solid var(--danger);
+    border-radius: 3px;
+    color: #FFD9D4;
+  }
+  .blunder-message { margin: 0; flex: 1 1 14em; font-weight: 600; }
+  .blunder-actions { margin: 0; display: flex; gap: 0.4em; }
+  .blunder-actions button {
+    min-height: var(--tap, 44px);
+    padding: 0 0.9em;
+    font: inherit; font-weight: 700;
+    color: var(--surface); background: #FFD9D4;
+    border: 1px solid var(--danger); border-radius: 2px;
+    cursor: pointer;
+  }
+  /* The reversible choice reads as the primary one; carrying on is offered as an equal, not as a
+     cancel — a player told they made a mistake and given one way forward has been overruled. */
+  .blunder-actions button:last-child { color: #FFD9D4; background: transparent; }
+  .blunder-actions button:hover { background: #FFFFFF; color: var(--surface); }
+  .blunder-actions button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  @media (prefers-contrast: more) {
+    .blunder-bar { background: #000000; border-color: #FFFFFF; color: #FFFFFF; }
+  }
+
+
+  /*
+   * ========================= EACH PLAYER, AT THEIR OWN END OF THE BOARD =========================
+   * Confined to the BOARD's part of the region — `right: 27.5%` is where the panel begins — so
+   * the two blocks sit at the top corners of the board and not of the window. The board is 68.8%
+   * tall and vertically centred, which is what leaves the room they occupy.
+   *
+   * ⚠️ `pointer-events: none`, and never anything else: none of this is interactive, and a strip
+   * that could swallow a click would make the top rank of the board unplayable.
+   */
+  .board-players {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 27.5%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.5em;
+    padding: calc(var(--ui-fs, 16px) * 0.25);
+    pointer-events: none;
+    font-size: calc(var(--ui-fs, 16px) * 0.72);
+    line-height: 1.2;
+  }
+  .player-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15em;
+    min-width: 0;
+    flex: 1 1 0;
+    color: var(--ink);
+  }
+  /* The black player's block reads right to left, so both are anchored to their own board edge. */
+  .player-strip[data-side="b"] { align-items: flex-end; text-align: right; }
+
+  .player-name {
+    margin: 0;
+    font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    font-size: 0.85em; color: #A0ABB5;
+  }
+  .player-row { margin: 0; display: flex; align-items: baseline; gap: 0.4em; min-width: 0; }
+
+  /*
+   * How many mistakes. A count and not a bar: a bar has to be read against its own scale, and a
+   * number a child can say out loud. The colour only reinforces what the digit already says.
+   */
+  .player-mistakes {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+    color: #A0ABB5;
+  }
+  .player-mistakes[data-level="mid"] { color: #E8C07D; }
+  .player-mistakes[data-level="high"] { color: var(--danger); }
+
+  /*
+   * What this player has taken. Wrapping allowed and tracking tightened, because sixteen pawns on
+   * one line would push the strip across the board.
+   */
+  .player-taken {
+    min-width: 0;
+    font-size: 1.1em; line-height: 1;
+    letter-spacing: -0.08em;
+    word-break: break-all;
+    color: #e6edf3;
+  }
+
+  /*
+   * ========================= THE POSITION, BETWEEN THE TWO PLAYERS =========================
+   * One number, in the middle, where neither player owns it: positive for White and negative for
+   * Black, which is what every engine and every broadcast means by an evaluation. It sat at each
+   * end once, and two copies of one fact made it look like a thing each player HAS.
+   */
+  .board-eval {
+    flex: 0 0 auto;
+    margin: 0;
+    align-self: center;
+    font-size: 1.6em; font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    color: #A0ABB5;
+  }
+  .board-eval[data-lead="white"] { color: #F2F6FA; }
+  .board-eval[data-lead="black"] { color: #B79BE8; }
+
+  #game-region[data-contrast="high"] .player-strip,
+  #game-region[data-contrast="high"] .board-eval { color: #FFFFFF; }
+
+
+  /*
+   * ========================= THE WEBGL BOARD =========================
+   * ⚠️ It is NOT laid out like the other two. Those render into the engine's 320×180 and are
+   * upscaled by whole pixels, because a drawing of flat shapes is a pixel image and a fractional
+   * upscale turns its outlines to mush. This canvas is resolution-independent, so it simply fills
+   * the space the panel leaves and renders at the device's own pixels.
+   *
+   * `touch-action: none` because the board is TURNED by dragging on it, and without this a touch
+   * drag scrolls the page instead — on a tablet, which is the machine most likely to be in a
+   * classroom.
+   */
+  .stage-3d {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 72.5%;
+    display: block;
+    touch-action: none;
+  }
+
+  .hud-nav { display: flex; gap: 0.3em; }
+  .hud-nav button {
+    flex: 1 1 0; min-width: 0; min-height: var(--tap, 44px);
+    display: flex; align-items: center; justify-content: center; gap: 0.2em;
+    font: inherit; font-size: 0.75em;
+    color: var(--ink); background: var(--surface-lift);
+    border: 1px solid #506C8A; border-radius: 2px;
+    cursor: pointer;
+  }
+  .hud-nav button:hover:not(:disabled) { background: var(--surface-high); }
+  .hud-nav button:disabled { opacity: 0.45; cursor: default; }
+  .hud-nav-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hud label { display: block; font-size: 0.75em; color: var(--ink-dim); }
+
+  /*
+   * ========================= TWO OR THREE OPTIONS ARE BUTTONS =========================
+   * A `select` hides every option but one until it is opened — the right trade for seven palettes,
+   * the wrong one for two sides or three difficulties, where the whole set fits and showing it
+   * saves a click and a guess about what is behind the arrow.
+   *
+   * Real radios with their labels drawn as buttons, so the platform supplies the grouping, the
+   * arrow-key movement, ONE tab stop for the set, and "2 of 3" to a screen reader. The input is
+   * moved off-screen rather than `display: none`, which would take it out of the accessibility
+   * tree and out of the tab order along with it.
+   */
+  .hud-choice { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px; }
+  .hud-choice legend {
+    width: 100%; padding: 0; margin-bottom: 0.15em;
+    font-size: 0.75em; color: var(--ink-dim);
+  }
+  .hud-choice input {
+    position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  .hud-choice label {
+    flex: 1 1 0; min-width: 0;
+    display: flex; align-items: center; justify-content: center;
+    min-height: var(--tap, 44px);
+    padding: 0 0.2em;
+    font-size: 0.72em; font-weight: 600;
+    color: var(--ink); background: var(--surface-lift);
+    border: 1px solid #506C8A; border-radius: 2px;
+    cursor: pointer;
+    /*
+     * ⚠️ `pre-line`, not `nowrap`. "1 jog. / brancas" is two facts — how many people are playing
+     * and which colour this one takes — and on one line at 0.72em in an 88-pixel column the
+     * second was the half that got the ellipsis. Two short lines fit where one long one did not.
+     */
+    text-align: center; line-height: 1.15; white-space: pre-line;
+  }
+  .hud-choice label:hover { background: var(--surface-high); }
+  .hud-choice input:checked + label {
+    color: var(--surface); background: var(--focus); border-color: var(--focus);
+  }
+  /* The focus ring belongs on the thing that looks like the control, not on the hidden input. */
+  /* 3 px like every other control here. 2 px already met 2.4.13's minimum perimeter; one ring
+     thinner than the rest is a difference that means nothing and reads as an oversight. */
+  .hud-choice input:focus-visible + label { outline: 3px solid var(--focus); outline-offset: 2px; }
+  #game-region[data-contrast="high"] .hud-choice label {
+    color: #FFFFFF; background: #000000; border-color: #FFFFFF;
+  }
+  #game-region[data-contrast="high"] .hud-choice input:checked + label {
+    color: #000000; background: #FFFFFF;
+  }
+  /* --tap is 22*k, which is 44px at the k=2 floor: the WCAG 2.5.5 target size, inherited. */
+  /* --tap is 22*k, which is 44px at the k=2 floor: the WCAG 2.5.5 target size, inherited.
+     The font shrinks but the TARGET does not — "Correção deuteranopia" has to fit in 176px
+     without the control becoming harder to hit. */
+  .hud select {
+    width: 100%; min-height: var(--tap, 44px);
+    font: inherit; font-size: 0.8em;
+    text-overflow: ellipsis;
+  }
+
+  .hud-check { display: inline; font-size: 0.8em; color: var(--ink); margin-left: 0.4em; }
+  .hud input[type="checkbox"] {
+    width: calc(var(--tap, 44px) * 0.4); height: calc(var(--tap, 44px) * 0.4);
+    vertical-align: middle; accent-color: var(--focus);
+  }
+
+
+  /*
+   * ========================= WCAG 2.2 AAA IN THE PANEL =========================
+   * Audited in the browser with the coloured high-contrast board on, element by element, and
+   * three things were short. All three were short in the ordinary palettes too; the audit only
+   * made them visible.
+   *
+   * 1.4.6 CONTRAST (ENHANCED) asks 7:1 of body text. Everything in the panel was above it except
+   * one word: the `legend` of a radio group, at var(--ink-dim) on black — **6.83:1**. Seventeen
+   * hundredths, and the kind of miss that only a measurement finds.
+   *
+   * 2.4.13 FOCUS APPEARANCE asks a focus indicator at least as large as a 2 px perimeter, with
+   * 3:1 against what is next to it. Several controls here had no rule at all and fell back to the
+   * browser's own 1 px ring: the view links, the teacher switch, and every select. One pixel is
+   * not two, whatever its colour.
+   *
+   * ⚠️ The ring is OFFSET rather than merely coloured, and that is what makes one colour enough.
+   * Some of these controls are white when active — a checked side button, the teacher switch when
+   * it is on — so a ring drawn ON them would need to contrast with white AND with the black
+   * panel, which no single colour does. Two pixels out, it always sits on the panel.
+   */
+  .hud a:focus-visible,
+  .hud button:focus-visible,
+  .hud select:focus-visible,
+  .hud input[type="checkbox"]:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+  #game-region[data-contrast="high"] .hud a:focus-visible,
+  #game-region[data-contrast="high"] .hud button:focus-visible,
+  #game-region[data-contrast="high"] .hud select:focus-visible,
+  #game-region[data-contrast="high"] .hud input[type="checkbox"]:focus-visible,
+  #game-region[data-contrast="high"] .hud-choice input:focus-visible + label {
+    outline-color: #FFFFFF;
+  }
+  #game-region[data-contrast="high"] .hud legend { color: #FFFFFF; }
+
+  /*
+   * ⚠️ THE ON STATE OF THE TEACHER SWITCH WAS SURVIVING BY ACCIDENT. `[aria-pressed="true"]`
+   * paints it violet on white, and `#game-region[data-contrast="high"] .hud-hint` overrides both
+   * of those — an id beats two classes — so in high contrast the pressed and unpressed buttons
+   * were the same black-on-white. What still told them apart was the inset ring, which that rule
+   * happens not to set: a state visible only because nobody thought to overwrite it.
+   *
+   * Said on purpose now, in this palette's own inks: a heavy black ring inside the white button,
+   * 21:1 against it, plus `aria-pressed` for anyone who is not looking.
+   */
+  #game-region[data-contrast="high"] .hud-hint[aria-pressed="true"] {
+    color: #000000; background: #FFFFFF;
+    box-shadow: inset 0 0 0 4px #000000, inset 0 0 0 7px #FFFFFF;
+  }
+
+  /* The panel switches with the board: same surface, same eye. */
+  #game-region[data-contrast="high"] .hud {
+    background: #000000; color: #FFFFFF; border-left-color: #FFFFFF;
+  }
+  #game-region[data-contrast="high"] .hud h2,
+  #game-region[data-contrast="high"] .hud label { color: #FFFFFF; }
+  #game-region[data-contrast="high"] .hud-nav button {
+    color: #FFFFFF; background: #000000; border-color: #FFFFFF;
+  }
+  #game-region[data-contrast="high"] .hud-swatch[data-side="w"] { background: #FFFFFF; }
+  #game-region[data-contrast="high"] .hud-swatch[data-side="b"] { background: #000000; border-color: #FFFFFF; }
+
+  /*
+   * The board coordinates. Real DOM text over the canvas, because Zdog has no text primitive —
+   * see ui/coordinates.ts for why that is a gain rather than a workaround.
+   *
+   * `pointer-events: none` matters: the letters sit ON the board, and the board is dragged to turn
+   * the camera. A label that swallowed a pointerdown would put a dead spot on the very edge a
+   * player reaches for.
+   */
+  .coords {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    font-size: calc(var(--ui-fs, 16px) * 0.62);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: #6f6552;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  }
+  .coords-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    line-height: 1;
+    will-change: transform;
+  }
+  #game-region[data-contrast="high"] .coords { color: #FFFFFF; text-shadow: none; }
+
+  /*
+   * ========================= THE CONTRAST TABLE =========================
+   * In the space the board leaves before the panel begins, which is where it was asked for and
+   * also where it belongs: it is about the board. Six columns of numbers cannot be read in the
+   * 88-logical-pixel column the panel gets, and putting them there would have meant shrinking them
+   * until the person who most needs them could not read them.
+   */
+  /*
+   * ========================= ?debug=true ONLY =========================
+   * ⚠️ This table is a MAINTAINER'S instrument now. It answers "did that ink change break
+   * anything" — a question asked while working on the game and never while playing it. Every
+   * palette here clears the floor on every pair that touches, so there is nothing left for it to
+   * warn a player about, and six columns of numbers over the board is a poor way to say that
+   * everything is fine.
+   */
+  /*
+   * ========================= THE CONTRAST TABLE =========================
+   * In the space the board leaves before the panel begins, which is where it was asked for and
+   * also where it belongs: it is about the board. Six columns of numbers cannot be read in the
+   * 88-logical-pixel column the panel gets, and putting them there would have meant shrinking them
+   * until the person who most needs them could not read them.
+   */
+  .theme-report {
+    position: absolute;
+    top: 50%;
+    right: 28.5%;
+    transform: translateY(-50%);
+    max-width: 64%;
+    max-height: 92%;
+    overflow: auto;
+    box-sizing: border-box;
+    padding: calc(var(--ui-fs, 16px) * 0.4);
+    font-size: calc(var(--ui-fs, 16px) * 0.56);
+    color: #e6e1d6;
+    background: rgba(10, 14, 20, 0.94);
+    border: 1px solid #506C8A;
+    border-radius: 3px;
+    z-index: 6;
+  }
+  .theme-report h2 {
+    margin: 0 0 0.4em; font-size: 1em; font-weight: 700;
+    color: var(--focus); text-transform: none; letter-spacing: 0;
+  }
+  .theme-report table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .theme-report th, .theme-report td { padding: 0.14em 0.4em; text-align: right; white-space: nowrap; }
+  .theme-report th[scope="row"] { text-align: left; font-weight: 400; color: #b9c2cc; }
+  .theme-report th[scope="col"] { font-weight: 700; border-bottom: 1px solid #506C8A; }
+  .theme-report th[aria-current] { color: var(--focus); }
+  /* The column being chosen, so the eye lands on it without having to match a name to a heading. */
+  .theme-report [data-current] { background: rgba(255, 217, 125, 0.14); }
+  /*
+   * Colour is the extra; the character in the cell is the signal. Three states, and they are
+   * meant to be told apart at a glance — which is the point of a table nobody reads row by row:
+   * PASSED is quiet, ALLOWED BELOW THE FLOOR is amber, and BELOW THE FLOOR ON A BOUNDARY THAT
+   * ACTUALLY TOUCHES is the only loud one.
+   */
+  .theme-report [data-state="pass"] { color: #9fe0a8; }
+  .theme-report [data-state="carried"] { color: #E8C25A; }
+  .theme-report [data-state="short"] { color: #FF8B6B; font-weight: 700; }
+  .theme-report-floor { margin: 0.5em 0 0; color: var(--ink-dim); max-width: 32em; }
+  #game-region[data-contrast="high"] .theme-report {
+    background: #000000; color: #FFFFFF; border-color: #FFFFFF;
+  }
+  #game-region[data-contrast="high"] .theme-report h2,
+  #game-region[data-contrast="high"] .theme-report th[aria-current] { color: #FFFFFF; }
+  #game-region[data-contrast="high"] .theme-report-floor,
+  #game-region[data-contrast="high"] .theme-report th[scope="row"] { color: #FFFFFF; }
+  /*
+   * ⚠️ THE CELLS KEEP THEIR THREE TONES IN HIGH CONTRAST TOO. There was one rule here that painted
+   * every cell `#FFFFFF`, on the reasoning that white on black is the safest thing there is — and
+   * it turned the one table in this game whose whole job is to show you where to look into a wall
+   * of identical white numbers. Safety that removes the signal is not safety.
+   *
+   * These three all clear 3:1 against the black the report sits on by a wide margin (white 21,
+   * amber 13.7, salmon 8.9), so nothing is given up. And the character in each cell still carries
+   * the state on its own, for anyone the colour does not reach.
+   */
+  #game-region[data-contrast="high"] .theme-report [data-state="pass"] { color: #FFFFFF; }
+  #game-region[data-contrast="high"] .theme-report [data-state="carried"] { color: var(--focus); }
+  #game-region[data-contrast="high"] .theme-report [data-state="short"] { color: #FF9E80; }
+
+  /*
+   * ========================= THE ENGINE'S THINKING, UNDER THE BOARD =========================
+   * Outside `#game-region`, because the panel inside it is 88 logical pixels wide and this is four
+   * numbers that change several times a second. Under the board because that is what it is about.
+   *
+   * `role="status"` with `aria-live="off"`: readable on demand, silent by default. A UCI engine
+   * sends `info` many times a second, and announcing that would drown the move announcements that
+   * actually matter.
+   */
+  .thinking {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 1.2em;
+    max-width: 100%;
+    margin: 0.4em auto 0;
+    padding: 0 0.6em;
+    font-size: 0.78rem;
+    color: var(--ink-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .thinking h2 {
+    margin: 0; font-size: 1em; font-weight: 700; color: var(--ink);
+    text-transform: none; letter-spacing: 0;
+  }
+  .thinking-state { color: var(--ink-dim); }
+  .thinking-state[data-busy="true"] { color: var(--focus); }
+  .thinking dl { display: flex; flex-wrap: wrap; gap: 0 1em; margin: 0; }
+  .thinking dt { color: #6f7b87; }
+  .thinking dt::after { content: ' '; }
+  .thinking dd { margin: 0 0 0 0.35em; color: #e6e1d6; }
+  .thinking dt, .thinking dd { display: inline; }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+
+  kbd { font: inherit; border: 1px solid #30363d; border-radius: 3px; padding: 0 4px; }
+  p.hint { color: #6e7681; margin: 0; padding: 10px; text-align: center; font-size: 12px; flex: 0 0 auto; }
+
+  /*
+   * ========================= THE CHESS GLYPHS, SERVED FROM HERE =========================
+   * Three faces, each cut to the TWELVE codepoints a board needs — U+2654 to U+265F — and nothing
+   * else from any of them. 8,608 bytes for all three, against 3.6 MB of originals: smaller than
+   * one screenshot of the board they draw. `app/public/vendor/fonts/NOTICE.md` records what was
+   * done to each and carries the three OFL texts.
+   *
+   * Downloaded at BUILD time and served from this origin, never fetched from a CDN — which is the
+   * engine's existing practice and not a preference. The destination is a school, so the board has
+   * to work with no network; the user is a child, so nobody's IP address should reach a third
+   * party to draw a rook.
+   *
+   * `unicode-range` keeps each file to the block it was cut for: a browser will not even fetch one
+   * until a chess character needs it, and any other character falls straight through to the rest
+   * of the stack.
+   *
+   * ⚠️ `HandwrittenChess` is Pecita, and is not called Pecita here. "Pecita" is a Reserved Font
+   * Name under the OFL and a subset is a Modified Version, which may not carry it. The panel still
+   * offers the set under the designer's name, because that names the DESIGN a player is choosing
+   * rather than the font software.
+   */
+  @font-face {
+    font-family: 'Noto Sans Symbols 2';
+    src: url('/vendor/fonts/symbols2-chess.woff2') format('woff2');
+    unicode-range: U+2654-265F;
+    font-display: block;
+  }
+  @font-face {
+    font-family: 'STIX Two Math';
+    src: url('/vendor/fonts/stixmath-chess.woff2') format('woff2');
+    unicode-range: U+2654-265F;
+    font-display: block;
+  }
+  @font-face {
+    font-family: 'HandwrittenChess';
+    src: url('/vendor/fonts/pecita-chess.woff2') format('woff2');
+    unicode-range: U+2654-265F;
+    font-display: block;
+  }
+
+  /*
+   * ========================= THE 2D BOARD =========================
+   * The grid mirror with its `sr-only` taken off. Eight rows of eight real buttons, so everything
+   * that made it work for a screen reader — roving tabindex, aria-selected, arrows clamped at the
+   * edges, one funnel to onActivate — is what makes it work for a pointer too.
+   *
+   * Sized in `em` off --ui-fs so the whole board grows with the engine's own type scale, which is
+   * what a low-vision reader is already adjusting.
+   */
+  /*
+   * ========================= BOTH BOARDS SIT ON THE SAME POINT =========================
+   * The flat board used to be a block in normal flow with a small margin, so it sat near the top
+   * left of the region while the projected board sat in the middle of the column the panel leaves
+   * — and switching view made the board jump across the screen.
+   *
+   * The numbers below are MEASURED from the projected board rather than guessed: its corners,
+   * read back through the same projection picking uses, centre on 34.91% of the region's width and
+   * 50% of its height, and it stands 68.8% of the region tall. The flat board is placed on that
+   * centre at that height, so the two are the same board seen two ways rather than two boards.
+   */
+  /*
+   * ⚠️ CENTRED, AND IT USED TO BE AT 34.91%. The board was pushed left so the panel overlaying the
+   * right 27.5% would not cover it. The panel is a sibling now, so the board has the whole region
+   * and simply sits in the middle of it — the same correction `CAMERA.offsetX` got.
+   */
+  .board-2d {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: grid;
+    grid-template-rows: repeat(8, 1fr);
+    height: 94%;
+    aspect-ratio: 1;
+    border: 2px solid var(--piece-halo, #3a2a14);
+    box-sizing: border-box;
+  }
+  .board-2d [role="row"] { display: grid; grid-template-columns: repeat(8, 1fr); }
+
+  /*
+   * Playing black turns the board round. The rotation is on the ELEMENT and not on the DOM order:
+   * the grid keeps its rows, its columns, its reading order and its arrow keys, and only the
+   * picture turns. Each piece and each coordinate is turned back so it is not upside down — which
+   * is what a real board does too, since the men do not rotate when you sit on the other side.
+   */
+  .board-2d[data-flipped="true"] { transform: translate(-50%, -50%) rotate(180deg); }
+  .board-2d[data-flipped="true"] .cell-piece,
+  .board-2d[data-flipped="true"] .cell-coord { transform: rotate(180deg); }
+  /*
+   * ⚠️ NO RULE FOR THE SILHOUETTE HERE, and its absence is the fix. `::before` is a CHILD of
+   * `.cell-piece`, which the line above already turns back — so it inherits that turn. Adding
+   * another 180° to it made the halo a full turn from the board and therefore half a turn from the
+   * glyph it belongs to: an upside-down piece sitting behind a right-way-up one, which is exactly
+   * what "the shadows are inverted when you play black" looks like.
+   */
+
+  .board-2d [role="gridcell"] {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+  }
+  /* From `ui/board-themes.ts`: Wikipedia's diagram colours or XBoard's, by name and by value. */
+  .board-2d [role="gridcell"][data-shade="light"] { background: var(--square-light, #ffce9e); }
+  .board-2d [role="gridcell"][data-shade="dark"]  { background: var(--square-dark, #d18b47); }
+  .board-2d [role="gridcell"]:focus-visible {
+    outline: 3px solid #0E7C86;
+    outline-offset: -3px;
+    z-index: 2;
+  }
+  .board-2d [role="gridcell"][aria-selected="true"] { box-shadow: inset 0 0 0 3px #1B4F8A; }
+
+  /*
+   * Never colour alone (WCAG 1.4.1). A legal move is a DOT, a capture is a RING, and both squares
+   * also say so in their label — "lance possível", "captura possível". The shape is the signal;
+   * the colour only makes it easier to find.
+   */
+  .board-2d [role="gridcell"][data-mark]::after {
+    content: '';
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .board-2d [role="gridcell"][data-mark="move"]::after {
+    width: 26%; height: 26%; background: #2E7D5B;
+  }
+  .board-2d [role="gridcell"][data-mark="capture"]::after {
+    width: 78%; height: 78%; border: 3px solid #B3341F;
+  }
+  .board-2d [role="gridcell"][data-check] { background: #B3341F; }
+
+  /*
+   * ========================= THE LESSON MARK IS A THIRD FORM, ON ::before =========================
+   * The rule above is the reason this is not a third value of `data-mark`: the two COINCIDE. A
+   * child picks the taught piece up while the square they were told to look at is still lit, so
+   * "look here" and "you may capture here" have to be sayable at the same time. `::after` is the
+   * dot and the ring; this takes `::before`, which nothing else on a cell uses.
+   *
+   * A filled INNER SQUARE, so the form differs from both — a dot is round and small, a ring is
+   * round and large, and this is square. That is 1.4.1 satisfied by shape rather than by hue, and
+   * `a11y.cellLesson` says the same thing in words for whoever is not looking.
+   *
+   * ⚠️ THE BLACK BORDER IS WHAT SATISFIES 1.4.11, and it is measured — see the long note in
+   * `render/palette.ts`. No hue clears 3:1 against both the light square and the high-contrast
+   * dark grey; black clears every square this game draws, with 3.04 on the worst. The amber only
+   * has to read against the black, where it has 11.70. Dropping the border to tidy the look
+   * removes the accessibility of the mark, silently.
+   */
+  .board-2d [role="gridcell"][data-lesson]::before {
+    content: '';
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: 52%; height: 52%;
+    background: #FFB300;
+    border: 2px solid #000000;
+    pointer-events: none;
+  }
+  /*
+   * ⚠️ FILLED FOR RIGHT, HOLLOW FOR WRONG, and the fill is doing the work. Blue and red measure
+   * 1.06:1 against each other — see `render/palette.ts` — so a reader going by lightness sees one
+   * mark where there are two, and a reader going by nothing sees none. The label carries it too
+   * ("certo" / "errado"): never colour alone.
+   */
+  .board-2d [role="gridcell"][data-lesson="right"]::before { background: #4DA3FF; }
+  .board-2d [role="gridcell"][data-lesson="wrong"]::before {
+    background: transparent;
+    border: 4px solid #FF6B5E;
+    box-shadow: 0 0 0 2px #000000, inset 0 0 0 2px #000000;
+  }
+
+  /*
+   * ========================= A HINT IS AN ARROW =========================
+   * The first version marked only the destination, which is half a sentence: "play to d4" is not
+   * advice until you know which piece. The second marked both ends, and then had to invent a way
+   * of saying which end belonged to which move — a hue per move, plus a non-colour twin for it,
+   * because three pieces can all be able to take on d4 and three marks there name none of them.
+   *
+   * An arrow does not encode the pairing. It draws it. Nothing to decode, no legend, and no
+   * meaning carried by colour alone (1.4.1) — direction is a shape.
+   *
+   * The overlay is the whole board rather than one drawing per cell, because an arrow crosses
+   * squares. `pointer-events: none` so it never takes a click meant for the square underneath,
+   * which is the whole reason 2.5.7 and 2.1.1 stay satisfied: the arrow is only ever a picture.
+   */
+  .board-2d .hint-arrows {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  /*
+   * ========================= A SILHOUETTE BEHIND THE PIECE =========================
+   * The 1px stroke is right INSIDE a piece — it separates the crown from the collar and the horse
+   * from its base — and too weak AROUND it: against a board of similar tone the piece has no edge,
+   * only its own fill ending. What it needs outside is one heavy unbroken line, and what it needs
+   * inside is the thin one. Those are different jobs, so they are two draws.
+   *
+   * `::before` repeats the glyph from `data-glyph` with a much heavier stroke, behind the real one.
+   * `isolation: isolate` makes `.cell-piece` a stacking context, so `z-index: -1` puts the copy
+   * behind the glyph and still in FRONT of the square — which is the whole trick.
+   *
+   * ⚠️ THE RIM IS DARK FOR BOTH SIDES, and the arithmetic forces it. A rim has to clear 3:1
+   * against BOTH squares to be an edge at all: against Wikipedia's #ffce9e and #d18b47 that means
+   * luminance at or below 0.075, so near-black — a light rim would need luminance above 2.1, which
+   * does not exist. A dark rim gives 14.57 against the light square and 7.50 against the dark. It
+   * is invisible against a black piece's own fill, and that does not matter: what it is edging is
+   * the BOARD.
+   */
+  .cell-piece {
+    position: relative;
+    isolation: isolate;
+    font-family: var(--piece-font, serif);
+    font-size: calc(var(--ui-fs, 16px) * 1.5);
+    line-height: 1;
+    user-select: none;
+  }
+  .cell-piece[data-glyph]::before {
+    content: attr(data-glyph);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: -1;
+    color: var(--piece-halo, #17110a);
+    pointer-events: none;
+
+    /*
+     * ⚠️ NOT `-webkit-text-stroke`, and the reason is the one an illustrator knows by hand: a
+     * stroke joins its segments with a MITRE, and a mitre at an acute angle runs out to a spike.
+     * A knight's ear and a crown's points are exactly those angles, so a heavy text-stroke grew
+     * thorns off the silhouette. CSS has no `stroke-linejoin` for text to round them off with.
+     *
+     * So the rim is a DILATION instead: the same glyph drawn at twelve angles around a circle,
+     * each copy hard (zero blur) and in the rim colour. The union of a shape with copies of itself
+     * displaced around a circle is that shape grown by the radius, with round corners by
+     * construction — there is no join to mitre. Twelve steps is 30° apart, which at this radius
+     * leaves no scallop the eye can find.
+     *
+     * The radius is in `em`, so it grows with the piece when a reader enlarges the type.
+     */
+    --rim: 0.085em;
+    --rim-far: calc(var(--rim) * 0.866);
+    --rim-near: calc(var(--rim) * 0.5);
+    text-shadow:
+      var(--rim) 0 0 var(--piece-halo, #17110a),
+      var(--rim-far) var(--rim-near) 0 var(--piece-halo, #17110a),
+      var(--rim-near) var(--rim-far) 0 var(--piece-halo, #17110a),
+      0 var(--rim) 0 var(--piece-halo, #17110a),
+      calc(var(--rim-near) * -1) var(--rim-far) 0 var(--piece-halo, #17110a),
+      calc(var(--rim-far) * -1) var(--rim-near) 0 var(--piece-halo, #17110a),
+      calc(var(--rim) * -1) 0 0 var(--piece-halo, #17110a),
+      calc(var(--rim-far) * -1) calc(var(--rim-near) * -1) 0 var(--piece-halo, #17110a),
+      calc(var(--rim-near) * -1) calc(var(--rim-far) * -1) 0 var(--piece-halo, #17110a),
+      0 calc(var(--rim) * -1) 0 var(--piece-halo, #17110a),
+      var(--rim-near) calc(var(--rim-far) * -1) 0 var(--piece-halo, #17110a),
+      var(--rim-far) calc(var(--rim-near) * -1) 0 var(--piece-halo, #17110a);
+  }
+  /*
+   * White and black with the opposite ink around them — the convention every printed diagram and
+   * every 2D interface uses, and the one a learner has already met. ⚠️ Measured in
+   * `ui/board-themes.ts`: a white piece's FILL clears 3:1 against neither square in either
+   * standard. What identifies it is the black outline, at 14.57 against a light Wikipedia square —
+   * which is why the stroke here is a real rim and not a hairline.
+   */
+  .cell-piece[data-side="w"] {
+    color: var(--piece-white, #FFFFFF);
+    -webkit-text-stroke: 1px var(--piece-white-rim, #000000);
+    paint-order: stroke fill;
+  }
+  .cell-piece[data-side="b"] {
+    color: var(--piece-black, #000000);
+    -webkit-text-stroke: 1px var(--piece-black-rim, #FFFFFF);
+    paint-order: stroke fill;
+  }
+
+  /*
+   * The coordinates. On a flat board they need no projection at all: the file letter belongs in
+   * the bottom row and the rank number in the first column, which is a corner of a cell rather
+   * than a point that has to be extrapolated from a camera. `ui/coordinates` exists because Zdog
+   * has no text primitive; here the cells are text already.
+   */
+  /*
+   * The travelling piece. Position: fixed against the viewport, because it has to cross cells and
+   * a cell is `overflow` clipped by nothing but is still a grid item — a child of one cell cannot
+   * be drawn over another. Removed the moment it lands.
+   */
+  .cell-flight {
+    position: fixed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 5;
+    font-family: var(--piece-font, serif);
+    line-height: 1;
+  }
+
+  .board-2d [role="gridcell"] .cell-coord {
+    position: absolute;
+    font-size: calc(var(--ui-fs, 16px) * 0.5);
+    font-weight: 700;
+    /* The theme's own rim ink, which is already the one tone measured to read on both of its
+       squares — 5.42 at worst across all six themes. */
+    color: var(--piece-halo, #3a2a14);
+    pointer-events: none;
+  }
+  .board-2d [role="gridcell"] .cell-coord[data-kind="file"] { right: 3%; bottom: 1%; }
+  .board-2d [role="gridcell"] .cell-coord[data-kind="rank"] { left: 4%; top: 1%; }
+  #game-region:not([data-coords="on"]) .cell-coord { display: none; }
+
+  /*
+   * ⚠️ THE SQUARES ARE NOT WRITTEN HERE ANY MORE, and the two lines that used to write them are
+   * the reason a measured palette change did nothing at all on screen. They hardcoded #8F8F8F and
+   * #5A5A5A — a THIRD copy of a pair that also lives in `ui/board-themes.ts` and
+   * `render/palette.ts` — and being a stylesheet rule they simply won, so the board went on
+   * showing 2.13:1 while every test and every comment said 4.23.
+   *
+   * `prefers-contrast: more` already selects the `contrast-flat` THEME, and a theme decides every
+   * ink through custom properties. One source, and the switch chooses which source.
+   */
+  #game-region[data-contrast="high"] .board-2d { border-color: #FFFFFF; }
+  /*
+   * ⚠️ NO PIECE COLOURS HERE ANY MORE. High contrast on the flat board is a THEME —
+   * `contrast-flat` in `ui/board-themes.ts` — because the two high-contrast palettes differ in
+   * their pieces and not in their squares, and a stylesheet rule per mode is how this board went
+   * on wearing the projected board's yellow long after that stopped making sense. The switch
+   * selects a theme; the theme decides every ink.
+   */
+  #game-region[data-contrast="high"] .cell-coord { color: #FFFFFF; }
