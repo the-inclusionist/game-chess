@@ -2,8 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import { createRules } from '../app/js/chess/rules.ts';
 import {
-  clear, describe as describeGame, load, loadSettings, patchSettings, restore, resume,
-  save, saveSettings,
+  clear, describe as describeGame, load, loadProgress, loadSettings, markLearned, patchSettings,
+  rememberPlace, restore, resume, save, saveProgress, saveSettings,
 } from '../app/js/chess/session.ts';
 import { fromAlgebraic, type Square } from '../app/js/chess/types.ts';
 
@@ -200,5 +200,99 @@ describe('[Session] the choices that must not reset when the view changes', () =
     clear(store);
     expect(load(store)).toBeNull();
     expect(loadSettings(store)).toEqual({ theme: 'xboard', mode: 'b' });
+  });
+});
+
+describe('[Progress] the one thing that is meant to outlive the tab', () => {
+  /*
+   * ⚠️ THE ARGUMENT FOR `sessionStorage` INVERTS HERE, and that is the whole reason this section
+   * exists rather than another key on the record above. A half-finished GAME resurrected days
+   * later on a shared school machine, in front of whoever sat down next, is a feature nobody asked
+   * for. A list of lessons finished is the thing the child came back FOR.
+   */
+  it('starts empty, and stays empty when the browser refuses storage', () => {
+    // A private window, site data refused, a full quota: none of them is a reason a child cannot
+    // take a lesson. They just do not get to keep it.
+    expect(loadProgress(fakeStore())).toEqual({ done: [] });
+    expect(loadProgress(null)).toEqual({ done: [] });
+    expect(() => { markLearned('rook', null); }).not.toThrow();
+    expect(() => { rememberPlace('rook', 1, null); }).not.toThrow();
+  });
+
+  it('remembers a finished lesson, and does not file it twice', () => {
+    const store = fakeStore();
+    markLearned('notation', store);
+    markLearned('rook', store);
+    markLearned('notation', store);
+    expect(loadProgress(store).done).toEqual(['notation', 'rook']);
+  });
+
+  it('remembers where a lesson was left without disturbing what was finished', () => {
+    const store = fakeStore();
+    markLearned('notation', store);
+    rememberPlace('rook', 2, store);
+    expect(loadProgress(store)).toEqual({ done: ['notation'], at: { lesson: 'rook', step: 2 } });
+  });
+
+  it('⚠️ forgets the place when the lesson it was in is finished', () => {
+    // A finished lesson resumed at its last step would reopen on the question that had just been
+    // answered, which reads as the game having lost the answer.
+    const store = fakeStore();
+    rememberPlace('rook', 1, store);
+    markLearned('rook', store);
+    expect(loadProgress(store)).toEqual({ done: ['rook'] });
+  });
+
+  it('keeps the game and the lessons in different places', () => {
+    /*
+     * They are different storages in the app, but a test can hand both the same object — and if
+     * they shared a key, one would silently overwrite the other and only the second reader would
+     * find out.
+     */
+    const store = fakeStore();
+    save(opened(), store);
+    saveSettings({ theme: 'dark' }, store);
+    markLearned('rook', store);
+    expect(loadProgress(store).done).toEqual(['rook']);
+    expect(loadSettings(store).theme).toBe('dark');
+    expect(load(store)?.played).toHaveLength(3);
+    expect(store.size).toBe(3);
+  });
+
+  it('trusts nothing it reads back', () => {
+    /*
+     * ⚠️ THIS RECORD SURVIVES AN UPDATE OF THE GAME, so its shape is not this version's to assume.
+     * A `done` that has become a string, or a step that has become a float or a negative, would
+     * otherwise reach the tutor as an index into `Lesson.steps` — and the failure a child sees is
+     * a lesson that opens on nothing.
+     */
+    const bad = [
+      'not json at all', '"a string"', 'null', '[]', '42',
+      '{"done":"rook"}', '{"done":[1,2,3]}', '{"done":["rook",7,"king"]}',
+      '{"done":[],"at":{"lesson":"rook"}}',
+      '{"done":[],"at":{"lesson":"rook","step":1.5}}',
+      '{"done":[],"at":{"lesson":"rook","step":-1}}',
+      '{"done":[],"at":{"lesson":7,"step":1}}',
+      '{"done":[],"at":"rook"}',
+    ];
+    for (const raw of bad) {
+      const store = fakeStore();
+      store.setItem('incl_chess_learned', raw);
+      const progress = loadProgress(store);
+      expect(`${raw} -> at: ${JSON.stringify(progress.at)}`).toBe(`${raw} -> at: undefined`);
+      expect(`${raw} -> done: ${progress.done.every((id) => typeof id === 'string')}`)
+        .toBe(`${raw} -> done: true`);
+    }
+    // The one that is merely partly wrong keeps the part that is right.
+    const store = fakeStore();
+    store.setItem('incl_chess_learned', '{"done":["rook",7,"king"]}');
+    expect(loadProgress(store).done).toEqual(['rook', 'king']);
+  });
+
+  it('round-trips a whole record', () => {
+    const store = fakeStore();
+    const progress = { done: ['notation', 'values'], at: { lesson: 'pawn', step: 0 } };
+    saveProgress(progress, store);
+    expect(loadProgress(store)).toEqual(progress);
   });
 });

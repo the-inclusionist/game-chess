@@ -244,3 +244,109 @@ export function loadSettings(store: SessionStore | null = defaultStore()): ViewS
     return {};
   }
 }
+
+
+/* ============================ WHAT A CHILD COMES BACK FOR ============================ */
+
+/**
+ * ========================= ⚠️ THIS ONE IS `localStorage`, AND THE REASON INVERTS =========================
+ * The argument at the top of this file for `sessionStorage` is a good one and it does not carry
+ * here — it turns around and points the other way.
+ *
+ * A half-finished GAME resurrected days later on a shared school machine, in front of whoever sat
+ * down next, is a feature nobody asked for. A list of lessons finished is the opposite: it is the
+ * thing the child came back for. It carries no position, no moves and no name; it says nothing
+ * about who they are; and losing it every time a tab closes makes a course impossible to finish.
+ *
+ * So two channels, two answers, and the difference IS the point. Nothing else joins this one — not
+ * the position, not the moves, not a name.
+ */
+const PROGRESS_KEY = 'incl_chess_learned';
+
+/**
+ * What has been learned, and where the reader had got to.
+ *
+ * `at` is what makes a lesson resumable across a reload — including the emergency route the plan
+ * kept for a step that changes the position, which reloads the page rather than swapping the rules
+ * object. Its `step` is an index into `Lesson.steps`, and `teach/tutor.ts` treats one that has run
+ * off the end as a start rather than a fault, because storage outlives a lesson being shortened.
+ */
+export interface Progress {
+  /** Lesson ids, finished. Order is the order they were finished in. */
+  readonly done: readonly string[];
+  /** Where a lesson was left, if one was. */
+  readonly at?: { readonly lesson: string; readonly step: number };
+}
+
+/**
+ * Storage that outlives the tab, or nothing at all if the browser will not give it.
+ *
+ * ⚠️ THE WRITE PROBE IS NOT PARANOIA — see `defaultStore()`: some browsers hand over an object that
+ * throws only on first use, so asking whether the property exists proves nothing. A private
+ * window, site data refused, or a full quota all fail here, and none of them is a reason a child
+ * cannot take a lesson. They simply do not get to keep it.
+ */
+export function durableStore(): SessionStore | null {
+  try {
+    const store = window.localStorage;
+    const probe = '__incl_probe';
+    store.setItem(probe, '1');
+    store.removeItem(probe);
+    return store;
+  } catch {
+    return null;
+  }
+}
+
+export function loadProgress(store: SessionStore | null = durableStore()): Progress {
+  if (!store) return { done: [] };
+  try {
+    const raw = store.getItem(PROGRESS_KEY);
+    if (!raw) return { done: [] };
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return { done: [] };
+    const { done, at } = parsed as Progress;
+    // ⚠️ EVERY FIELD IS CHECKED, because this record survives an update of the game. A `done` that
+    // has become a string, or an `at.step` that has become a float, would otherwise reach the
+    // tutor as an index — and the failure would be a lesson that opens on nothing.
+    return {
+      done: Array.isArray(done) ? done.filter((id): id is string => typeof id === 'string') : [],
+      ...(at && typeof at.lesson === 'string' && Number.isInteger(at.step) && at.step >= 0
+        ? { at: { lesson: at.lesson, step: at.step } }
+        : {}),
+    };
+  } catch {
+    return { done: [] };
+  }
+}
+
+/**
+ * Replaces the whole record.
+ *
+ * ⚠️ REPLACES — the same warning `saveSettings` carries, and for the same reason. The two callers
+ * below are what the game actually does; this stays because starting from nothing is a real
+ * operation and because saying so is better than a second function that quietly shadows it.
+ */
+export function saveProgress(progress: Progress, store: SessionStore | null = durableStore()): void {
+  if (!store) return;
+  try { store.setItem(PROGRESS_KEY, JSON.stringify(progress)); } catch { /* see save() */ }
+}
+
+/** Remembers where a lesson was left, without disturbing what has been finished. */
+export function rememberPlace(
+  lesson: string, step: number, store: SessionStore | null = durableStore(),
+): void {
+  saveProgress({ ...loadProgress(store), at: { lesson, step } }, store);
+}
+
+/**
+ * Files a lesson as finished and forgets the place in it.
+ *
+ * ⚠️ THE PLACE IS DROPPED ON PURPOSE. A finished lesson resumed at its last step would reopen on
+ * the question that had just been answered — which reads as the game having lost the answer.
+ * Recorded once: a lesson finished twice does not appear twice.
+ */
+export function markLearned(lesson: string, store: SessionStore | null = durableStore()): void {
+  const { done } = loadProgress(store);
+  saveProgress({ done: done.includes(lesson) ? done : [...done, lesson] }, store);
+}
