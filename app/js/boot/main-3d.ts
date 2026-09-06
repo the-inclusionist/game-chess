@@ -43,13 +43,14 @@ import { type Side, type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale } from '../i18n/index.ts';
 import { squareCenter } from '../render/board-geometry.ts';
 import { ROTATE_HOLD_MS } from '../render/camera.ts';
-import { DEFAULT_DESIGN, PIECE_DESIGNS, pieceDesign } from '../render/pieces/sets.ts';
+import { DEFAULT_DESIGN, PIECE_DESIGNS } from '../render/pieces/sets.ts';
 import { projectedPalette } from '../render/palette.ts';
 import { BOARD_THEMES, boardTheme, DEFAULT_THEME } from '../ui/board-themes.ts';
 import { createFrameTicker } from '../render/frame-ticker.ts';
 import { TILE } from '../render/resolution.ts';
 import { createScene3d } from '../render3d/scene.ts';
 import { buildPiece3d, disposePiece3d } from '../render3d/pieces.ts';
+import { specs3dFor } from '../render3d/geometry3d.ts';
 import * as THREE from 'three';
 
 /** How far a pointer may wander during the hold before it counts as a drag rather than a press. */
@@ -149,12 +150,25 @@ export function boot3d(host: Document = document): void {
       disposePiece3d(child as THREE.Group);
     }
     const palette = projectedPalette(boardTheme(themeKey));
-    const specs = pieceDesign(designKey).specs;
+    // ⚠️ The 3D table, not the shared one. Two Hartwig pieces in the shared table are the
+    // design as a PAINTER'S ALGORITHM can draw it rather than as Hartwig described it — see
+    // `render3d/geometry3d.ts`. Neither constraint exists here.
+    const specs = specs3dFor(designKey);
     for (const { piece, square } of rules.placements()) {
+      /*
+       * ⚠️ NO OUTLINE HERE, and that is the point of this view. The flat and projected boards draw
+       * one because they have no light: a Zdog piece is a set of coloured shapes sorted by depth,
+       * and without a line around it there is nothing to say where one solid stops and the next
+       * begins. This scene has three lights and real perspective, which do that job properly —
+       * an inverted hull on top of them adds a black rim that reads as a drawing convention
+       * carried over from a renderer that needed it.
+       *
+       * The capability stays in `render3d/pieces.ts`, tested, because it is one argument away.
+       */
       const group = buildPiece3d(
         specs[piece.type],
         piece.side === 'w' ? palette.lightPieces : palette.darkPieces,
-        { outline: true, unlit: unlit() },
+        { unlit: unlit() },
       );
       const { x, z } = squareCenter(square, TILE);
       group.position.set(x, 0, z);

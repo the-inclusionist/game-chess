@@ -11,10 +11,14 @@
 // context, and there is no renderer in this file.
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { pieceFootprint, pieceHeight } from '../app/js/render/pieces/geometry.ts';
+import {
+  PIECE_SPECS, pieceFootprint, pieceHeight, restsOnBoard,
+} from '../app/js/render/pieces/geometry.ts';
 import { PIECE_DESIGNS, pieceDesign } from '../app/js/render/pieces/sets.ts';
 import { LIGHT_PIECES } from '../app/js/render/palette.ts';
 import { buildPiece3d, disposePiece3d } from '../app/js/render3d/pieces.ts';
+import { HARTWIG_3D, specs3dFor } from '../app/js/render3d/geometry3d.ts';
+import { TILE } from '../app/js/render/resolution.ts';
 import type { PieceType } from '../app/js/chess/types.ts';
 
 const ALL: PieceType[] = ['p', 'n', 'b', 'r', 'q', 'k'];
@@ -96,5 +100,54 @@ describe('[3D] high contrast is not lit', () => {
     expect((flat.children[0] as THREE.Mesh).material).toBeInstanceOf(THREE.MeshBasicMaterial);
     disposePiece3d(lit);
     disposePiece3d(flat);
+  });
+});
+
+describe('[3D] Hartwig as he described it', () => {
+  it('builds the knight from FOUR cubes, which the flat board cannot', () => {
+    // ⚠️ Hartwig: "the knight moves at right angles in a hook over four squares: FOUR CUBES
+    // combined at right angles." The shared table uses two boxes because four cubes share three
+    // internal faces, coplanar faces tie in a painter's sort, and the hook comes apart as the
+    // camera turns. A depth buffer resolves that per pixel and does not care.
+    expect(PIECE_SPECS.n.boxes).toHaveLength(2);
+    expect(HARTWIG_3D.n.boxes).toHaveLength(4);
+    for (const box of HARTWIG_3D.n.boxes) {
+      expect(`${box.w} ${box.h} ${box.d}`).toBe(`${box.w} ${box.w} ${box.w}`);
+    }
+  });
+
+  it('builds the bishop as two slabs THROUGH one another, which is what a cross cut from a cube is', () => {
+    // The shared table uses three boxes that touch and never overlap, because interpenetration is
+    // unrenderable by a painter's algorithm: one whole face wins and the cross becomes a notched
+    // block. Here the two slabs simply cross.
+    expect(PIECE_SPECS.b.boxes).toHaveLength(3);
+    const [a, b] = HARTWIG_3D.b.boxes;
+    expect(HARTWIG_3D.b.boxes).toHaveLength(2);
+    // Crossed: one long on its width, the other long on its depth, both turned 45°.
+    expect(a.w).toBeGreaterThan(a.d);
+    expect(b.d).toBeGreaterThan(b.w);
+    expect(a.rotY).toBeCloseTo(Math.PI / 4, 6);
+    expect(b.rotY).toBeCloseTo(Math.PI / 4, 6);
+    // And they really do overlap, which is the whole difference.
+    expect(Math.abs((a.x ?? 0) - (b.x ?? 0))).toBeLessThan(0.01);
+    expect(Math.abs((a.z ?? 0) - (b.z ?? 0))).toBeLessThan(0.01);
+  });
+
+  it('keeps every promise the shared table makes, for every piece', () => {
+    // The override changes how a piece is CONSTRUCTED, never how big it is or where it stands.
+    for (const type of ALL) {
+      expect(`${type} ${restsOnBoard(HARTWIG_3D[type])}`).toBe(`${type} true`);
+      expect(pieceHeight(HARTWIG_3D[type])).toBeCloseTo(pieceHeight(PIECE_SPECS[type]), 6);
+      expect(pieceFootprint(HARTWIG_3D[type])).toBeLessThan(TILE);
+    }
+  });
+
+  it('leaves every other design alone, because none of them was bent', () => {
+    // A stack of coaxial cylinders is already what a lathe makes; nothing about the turned
+    // patterns was shaped to suit a sort order.
+    for (const design of PIECE_DESIGNS) {
+      if (design.key === 'hartwig') continue;
+      expect(specs3dFor(design.key)).toBe(design.specs);
+    }
   });
 });
