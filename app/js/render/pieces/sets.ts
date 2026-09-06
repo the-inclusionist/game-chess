@@ -19,13 +19,29 @@ export interface PieceDesign {
   /** i18n key for the name shown in the panel. */
   readonly name: string;
   readonly specs: Readonly<Record<PieceType, PieceSpec>>;
+  /**
+   * How thick this drawing's line is, as a multiple of `STROKE`.
+   *
+   * ========================= ⚠️ WHY HARTWIG IS THE ONE THAT KEEPS THE FULL LINE =========================
+   * A Hartwig piece is between one and four flat faces at this size, and the line is what makes
+   * each face an edge rather than a change of shade: it IS the drawing. A turned piece is the
+   * opposite — a stack of six to nine circles, so the same line is drawn six to nine times over a
+   * shape that is barely twenty pixels tall, and the piece silts up into a dark blob with the
+   * colour pushed out to a rim.
+   *
+   * ⚠️ It scales the SOLID's stroke as well as the outline's, and it has to. Zdog centres a
+   * stroke on its path, so a filled shape already reaches `stroke/2` past its own surface; an
+   * outline narrower than that sits INSIDE the silhouette and stops being an edge at all. Halving
+   * one without the other does not thin the line, it hides it.
+   */
+  readonly line: number;
 }
 
 export const PIECE_DESIGNS: readonly PieceDesign[] = [
-  { key: 'hartwig', name: 'design.hartwig', specs: PIECE_SPECS },
-  { key: 's1849', name: 'design.s1849', specs: SET_1849 },
-  { key: 'regence', name: 'design.regence', specs: SET_REGENCE },
-  { key: 'stgeorge', name: 'design.stgeorge', specs: SET_ST_GEORGE },
+  { key: 'hartwig', name: 'design.hartwig', specs: PIECE_SPECS, line: 1 },
+  { key: 's1849', name: 'design.s1849', specs: SET_1849, line: 0.5 },
+  { key: 'regence', name: 'design.regence', specs: SET_REGENCE, line: 0.5 },
+  { key: 'stgeorge', name: 'design.stgeorge', specs: SET_ST_GEORGE, line: 0.5 },
 ];
 
 export const DEFAULT_DESIGN = 'hartwig';

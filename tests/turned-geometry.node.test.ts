@@ -102,3 +102,26 @@ describe('[Designs] the three differ where a player can actually see it', () => 
     }
   });
 });
+
+describe('[Designs] how much line each drawing gets', () => {
+  it('gives Hartwig the full line and every turned pattern half of it', () => {
+    // ⚠️ A Hartwig piece is between one and four flat faces at this size, and the line is what
+    // makes each face an EDGE rather than a change of shade: it is the drawing. A turned piece is
+    // a stack of six to nine circles, so the same line is drawn six to nine times over a shape
+    // barely twenty pixels tall, and the piece silts up into a dark blob with its colour pushed
+    // out to a rim.
+    expect(pieceDesign('hartwig').line).toBe(1);
+    for (const key of ['s1849', 'regence', 'stgeorge']) {
+      expect(`${key} ${pieceDesign(key).line}`).toBe(`${key} 0.5`);
+    }
+  });
+
+  it('never lets a line fall below where it stops being an edge', () => {
+    // Zdog centres a stroke on its path, so a filled shape already reaches stroke/2 past its own
+    // surface. Below half, an outline sits ENTIRELY inside the silhouette and draws nothing —
+    // which is why the solid's stroke is scaled with the outline rather than apart from it.
+    for (const design of PIECE_DESIGNS) {
+      expect(`${design.key} ${design.line >= 0.5}`).toBe(`${design.key} true`);
+    }
+  });
+});

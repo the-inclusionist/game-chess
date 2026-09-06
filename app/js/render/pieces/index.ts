@@ -77,6 +77,11 @@ export interface BuildOptions {
    * inside the silhouette instead of edging it.
    */
   readonly outlineWidth?: number;
+  /**
+   * How thick this drawing's line is, as a multiple of `STROKE`. Scales the SOLID's stroke and the
+   * outline together — see `line` in `pieces/sets.ts` for why they cannot be scaled apart.
+   */
+  readonly line?: number;
 }
 
 export function buildPiece(
@@ -86,6 +91,7 @@ export function buildPiece(
   options: BuildOptions = {},
 ): Anchor {
   const anchor = new Zdog.Anchor({ addTo: parent });
+  const lineWidth = STROKE * (options.line ?? 1);
 
   for (const box of spec.boxes) {
     new Zdog.Box({
@@ -95,7 +101,7 @@ export function buildPiece(
       depth: box.d,
       translate: { x: box.x ?? 0, y: box.y ?? 0, z: box.z ?? 0 },
       rotate: { x: box.rotX ?? 0, y: box.rotY ?? 0, z: box.rotZ ?? 0 },
-      stroke: STROKE,
+      stroke: lineWidth,
       color: colours.stroke,
       topFace: colours.top,
       bottomFace: colours.side,
@@ -132,7 +138,7 @@ export function buildPiece(
       const common = {
         addTo: anchor,
         diameter: part.d,
-        stroke: filled ? STROKE : (options.outlineWidth ?? STROKE),
+        stroke: filled ? lineWidth : (options.outlineWidth ?? lineWidth),
         color: colour,
         fill: filled,
         backface: filled ? colours.side : colour,
@@ -171,7 +177,7 @@ export function buildPiece(
     // The two halves take DIFFERENT colours, and that is the whole reason this beats the flat disc
     // it replaced: a single-colour sphere reads as a circle from every angle. Lit from above is the
     // same convention the box faces already use.
-    const half = { diameter: spec.sphere.diameter, stroke: STROKE, translate: { y: spec.sphere.y } };
+    const half = { diameter: spec.sphere.diameter, stroke: lineWidth, translate: { y: spec.sphere.y } };
     new Zdog.Hemisphere({
       ...half, addTo: anchor, rotate: { x: Zdog.TAU / 4 },
       color: colours.top, backface: colours.face,
@@ -184,7 +190,7 @@ export function buildPiece(
 
   if (options.outline) {
     const line = options.outline;
-    const width = options.outlineWidth ?? STROKE;
+    const width = options.outlineWidth ?? lineWidth;
     for (const box of spec.boxes) {
       new Zdog.Box({
         addTo: anchor,
@@ -233,17 +239,20 @@ export function createPiecesLayer(
   let palette = initial;
   let outline = outlined;
   let placed = 0;
-  let specs = pieceDesign(design).specs;
+  let drawing = pieceDesign(design);
+  let specs = drawing.specs;
   let current: readonly PiecePlacement[] = [];
 
-  const opts = (piece: Piece): BuildOptions => (outline
-    ? {
-      outline: sideColours(piece, palette).stroke,
-      // The dark side gets half the line — see DARK_OUTLINE_SCALE in `render/palette.ts` for the
-      // reasoning, which is an intuition under test rather than a settled measurement.
-      ...(piece.side === 'b' ? { outlineWidth: STROKE * DARK_OUTLINE_SCALE } : {}),
-    }
-    : {});
+  const opts = (piece: Piece): BuildOptions => {
+    // ⚠️ The DRAWING chooses the line, not the palette. A Hartwig piece is a handful of flat
+    // faces and the line is what makes each one an edge; a turned piece is a stack of six to nine
+    // circles, where the same line is drawn six to nine times over twenty pixels and silts the
+    // piece up into a blob. See `line` in `pieces/sets.ts`.
+    const line = drawing.line * (piece.side === 'b' ? DARK_OUTLINE_SCALE : 1);
+    return outline
+      ? { outline: sideColours(piece, palette).stroke, line, outlineWidth: STROKE * line }
+      : { line };
+  };
 
   return {
     anchor: layer,
@@ -283,7 +292,8 @@ export function createPiecesLayer(
     },
 
     setDesign(key) {
-      specs = pieceDesign(key).specs;
+      drawing = pieceDesign(key);
+      specs = drawing.specs;
       this.setPosition(current);
     },
   };
