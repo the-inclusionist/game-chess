@@ -88,7 +88,7 @@ export const pt: Catalog = {
     'splash.title': 'Xadrez na web',
     'splash.loading': 'A carregar o motor de xadrez…',
     'splash.ready': 'Pronto para jogar',
-    'splash.slow': 'O motor está a demorar. Dá para começar; o adversário pode não responder.',
+    'splash.slow': 'O motor está demorando. Dá para começar; o adversário pode não responder.',
     'splash.failed': 'Não foi possível carregar o motor. O tabuleiro funciona; o adversário não.',
     'splash.downloading': 'Baixando o adversário… {percent}%',
     'splash.play': 'JOGAR',
@@ -249,8 +249,8 @@ export const pt: Catalog = {
     'lesson.back': '‹ Anterior',
     'lesson.forward': 'Seguinte ›',
     'lesson.teacher': 'Professor',
-    // ⚠️ A razão de estar trancado tem de ser dizível: um controlo desativado sem explicação é
-    // um controlo que não faz nada, e quem não o vê acinzentado só sabe que não está disponível.
+    // ⚠️ A razão de estar trancado tem que ser dizível: um controle desativado sem explicação é
+    // um controle que não faz nada, e quem não o vê acinzentado só sabe que não está disponível.
     'lesson.teacherLocked': 'Tente três vezes primeiro',
     'pause.title': 'Pausa',
     'pause.resume': 'Voltar ao jogo',

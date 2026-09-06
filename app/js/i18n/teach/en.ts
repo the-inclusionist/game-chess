@@ -172,4 +172,7 @@ export const en: TeachStrings = {
   'teach.book.opera.n25': 'Take away the defender. The rook eats the knight that was holding it together.',
   'teach.book.opera.n31': 'The queen for nothing. The mate is already there; she is only in the way.',
   'teach.book.opera.n33': 'Mate, with two pieces, against an army that never left home.',
+  'teach.book.nudge':
+    'That is not the move that was played. Read the note again: it says what this move '
+    + 'was trying to do.',
 };

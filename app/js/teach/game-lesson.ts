@@ -107,6 +107,18 @@ export function gameLesson(game: AnnotatedGame): Lesson | null {
        * is no underlying reason to name, and inventing one would be putting words in their mouth.
        */
       task: { kind: 'play', want: { san: move.san } },
+      /*
+       * ⚠️ ONE NUDGE FOR EVERY BOOK STEP, and writing nine of them would have been the wrong kind
+       * of work. A lesson's nudge is the second half of its explanation and a puzzle's names the
+       * THEME — both say something the step itself did not. A book has already said everything it
+       * has to say: the note is right there, and the only true thing left to add is that this was
+       * not the move, and that the answer is in the sentence they just read.
+       *
+       * It is not optional politeness. Without it a wrong move is answered by taking the move back
+       * and saying NOTHING, which is the one kind of feedback a child cannot learn from — and
+       * every lesson and every tactic in the game already says something here.
+       */
+      nudge: 'teach.book.nudge',
       // The teacher's answer, locked behind three tries like every other lesson's.
       show: { arrows: [[toAlgebraic(move.from), toAlgebraic(move.to)]] },
     });

@@ -147,7 +147,7 @@ export const pt: TeachStrings = {
     'Os reis estão frente a frente com uma casa no meio: isso é a oposição. Quem a tem é quem NÃO '
     + 'precisa jogar. As brancas jogam. Quem tem a oposição?',
   'teach.opposition.who.nudge':
-    'Quem joga tem de sair da frente. A oposição é de quem espera.',
+    'Quem joga tem que sair da frente. A oposição é de quem espera.',
   'teach.opposition.white': 'As brancas',
   'teach.opposition.black': 'As pretas',
   'teach.opposition.take':
@@ -175,4 +175,7 @@ export const pt: TeachStrings = {
   'teach.book.opera.n25': 'Tire quem defende. A torre come o cavalo que segurava tudo.',
   'teach.book.opera.n31': 'A dama de graça. O mate já está lá; ela só está atrapalhando.',
   'teach.book.opera.n33': 'Mate, com duas peças, contra um exército que nunca saiu de casa.',
+  'teach.book.nudge':
+    'Não foi este o lance da partida. Leia a nota de novo: ela diz o que este lance estava '
+    + 'tentando fazer.',
 };

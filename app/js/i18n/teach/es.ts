@@ -175,4 +175,7 @@ export const es: TeachStrings = {
   'teach.book.opera.n25': 'Quita al defensor. La torre se come al caballo que lo sostenía todo.',
   'teach.book.opera.n31': 'La dama regalada. El mate ya está ahí; ella solo estorba.',
   'teach.book.opera.n33': 'Mate, con dos piezas, contra un ejército que nunca salió de casa.',
+  'teach.book.nudge':
+    'Esa no es la jugada de la partida. Lee otra vez la nota: dice qué estaba '
+    + 'intentando esta jugada.',
 };

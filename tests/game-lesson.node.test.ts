@@ -91,6 +91,21 @@ describe('[Book] the Opera Game becomes a lesson', () => {
     }
   });
 
+  it('⚠️ says something when the move is wrong, rather than taking it back in silence', () => {
+    /*
+     * Every lesson and every tactic in the game answers a wrong move with a sentence. A book step
+     * built without one took the move back and said NOTHING — the success path was tested end to
+     * end and looked complete, because a missing nudge is only visible from the FAILURE path.
+     *
+     * One sentence for all of them, and that is the right shape here: a lesson's nudge is the
+     * second half of its explanation and a puzzle's names the theme, but a book has already said
+     * everything it has to say. The only thing left to add is that this was not the move.
+     */
+    for (const step of opera.steps) {
+      expect(`${wants(step)}: ${step.nudge}`).toBe(`${wants(step)}: teach.book.nudge`);
+    }
+  });
+
   it('draws the teacher an arrow along the move it is asking for', () => {
     // Not a second source of truth: it comes from the same `MoveResult`. Asserted because a hint
     // that points somewhere else is worse than no hint, and this is the one place it could drift.
