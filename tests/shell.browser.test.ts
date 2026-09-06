@@ -21,6 +21,7 @@ import { createGameShell } from '../app/js/boot/game-shell.ts';
 import type { BoardView, ViewContext } from '../app/js/boot/view.ts';
 import { clear, saveSettings } from '../app/js/chess/session.ts';
 import { toAlgebraic, type Square } from '../app/js/chess/types.ts';
+import type { EngineMove } from '../app/js/chess/engine/client.ts';
 
 function fixture(): void {
   document.body.innerHTML = `
@@ -705,5 +706,129 @@ describe('[Pause] START opens the menu the settings were moved into', () => {
     press('KeyH', 'h');
     expect(dialog()).not.toBeNull();
     expect(dialog()!.querySelector('#hud-coords')).not.toBeNull();
+  });
+});
+
+describe('[Opponent] the reply lands on the board, which is the defect that survived', () => {
+  /*
+   * ========================= THE PLAN NAMED THIS EXACTLY =========================
+   * "não há como testar o caminho do oponente sem baixar 6,98 MB de Stockfish, que é exatamente
+   * por que o defeito 1 sobreviveu." Defect 1 was the solid board's opponent never moving: it
+   * applied the reply with two `activate` calls, and `activate` answers every call made during the
+   * `thinking` phase with `ignored/busy` — which is the entire point of that phase. The search ran,
+   * found `e7e5`, scored it, and the move was dropped in silence.
+   *
+   * `makeOpponent` was added so this could be tested. One test used it, to prove that a LESSON
+   * never blocks on an engine — a fake whose every method hangs for ever. The path it was actually
+   * added for, a reply arriving and being played, was still not exercised by anything.
+   *
+   * ⚠️ AND IT CANNOT BE CAUGHT ANYWHERE ELSE. `state.ts` is right to refuse `activate` while
+   * thinking; the view is right to draw what it is given. Only the seam between them is wrong, and
+   * only from here does anybody look at it.
+   */
+  const at = (name: string): Square => ({
+    x: 'abcdefgh'.indexOf(name[0]!), y: 8 - Number(name[1]),
+  });
+
+  /** An engine that answers with one named move, or refuses. */
+  function engine(reply: { from: string; to: string } | null | 'reject') {
+    return () => ({
+      ready: () => Promise.resolve({ minElo: 1320, maxElo: 3190 }),
+      requestMove: () => (reply === 'reject'
+        ? Promise.reject(new Error('the worker died'))
+        : Promise.resolve(reply === null ? null : {
+          move: { from: at(reply.from), to: at(reply.to), promotion: null },
+          // ⚠️ TYPED RATHER THAN CAST. The first version of this fake said `as never`, which hid
+          // that it was answering with an `options` field this contract does not have and missing
+          // the two it does. A cast on a fixture lets it drift from the interface it is standing
+          // in for, and the test then proves something about a shape nothing else uses.
+          score: 12, nodes: 1000, depth: 8, ties: [], lines: [],
+        })),
+      // Neither is asked for here, and both are typed rather than left as `Promise<unknown>`:
+      // a fake that satisfies the interface is a fake the compiler keeps honest.
+      requestHint: () => new Promise<EngineMove | null>(() => {}),
+      requestReview: () => new Promise<EngineMove | null>(() => {}),
+      setStrength: () => {},
+      cancel: () => {},
+      destroy: () => {},
+    });
+  }
+
+  function shellFor(reply: { from: string; to: string } | null | 'reject', record: Recorded) {
+    fixture();
+    clear();
+    // Player is White, so the engine has Black and is asked the moment White has moved.
+    saveSettings({ mode: 'w' });
+    return createGameShell({
+      host: document, kind: '2d', view: fakeView(record), visibleMirror: true,
+      makeOpponent: engine(reply),
+      debugName: '__opponentTest', contrastTheme: 'contrast-flat',
+    });
+  }
+
+  /** Waits for the reply to have reached the board. */
+  const settled = async (test: () => boolean): Promise<void> => {
+    const deadline = Date.now() + 3000;
+    while (!test() && Date.now() < deadline) {
+      await new Promise((resolve) => { setTimeout(resolve, 10); });
+    }
+  };
+
+  it('⚠️ plays the reply even though the phase refuses every activate', async () => {
+    const record: Recorded = { legs: [], hidden: [] };
+    const shell = shellFor({ from: 'e7', to: 'e5' }, record);
+
+    shell.activate(at('e2'));
+    shell.activate(at('e4'));
+    await settled(() => shell.rules().history().length >= 2);
+
+    expect(shell.rules().history().map((m) => m.san)).toEqual(['e4', 'e5']);
+    // And the board is the reader's, not the engine's: the piece TRAVELLED rather than appearing.
+    expect(record.legs).toContain('e7e5');
+  });
+
+  it('⚠️ announces it, because the reply is the move nobody was watching for', async () => {
+    const record: Recorded = { legs: [], hidden: [] };
+    const shell = shellFor({ from: 'b8', to: 'c6' }, record);
+
+    shell.activate(at('e2'));
+    shell.activate(at('e4'));
+    await settled(() => shell.rules().history().length >= 2);
+
+    // A sentence, not raw notation: `boot/narration.ts` exists because "Nc6" teaches nobody.
+    const said = document.getElementById('sr-status')!.textContent ?? '';
+    expect(said).not.toBe('');
+    expect(said.toLowerCase()).toContain('c6');
+  });
+
+  it('⚠️ says so when the engine fails, rather than thinking for ever', async () => {
+    /*
+     * The other half of the same seam. Saying nothing would leave the game on "thinking" for good,
+     * and a child waiting for a reply cannot tell that apart from a game that is broken — so the
+     * failure is ASSERTIVE, which is one of the two places in this game that is allowed to be.
+     */
+    const record: Recorded = { legs: [], hidden: [] };
+    const shell = shellFor('reject', record);
+
+    shell.activate(at('e2'));
+    shell.activate(at('e4'));
+    await settled(() => (document.getElementById('sr-alert')!.textContent ?? '') !== '');
+
+    expect(document.getElementById('sr-alert')!.textContent).not.toBe('');
+    // And the board is left in a state the player can act from, rather than mid-thought.
+    expect(shell.rules().history()).toHaveLength(1);
+  });
+
+  it('a reply of null leaves the position alone rather than guessing', async () => {
+    // The engine says "no move" in a position it cannot search. Nothing should be played.
+    const record: Recorded = { legs: [], hidden: [] };
+    const shell = shellFor(null, record);
+
+    shell.activate(at('e2'));
+    shell.activate(at('e4'));
+    await new Promise((resolve) => { setTimeout(resolve, 100); });
+
+    expect(shell.rules().history().map((m) => m.san)).toEqual(['e4']);
+    expect(record.legs).not.toContain('e7e5');
   });
 });
