@@ -9,7 +9,12 @@ import Zdog, { type Anchor, type Rect, type Shape } from 'zdog';
 import { SAME_LEVEL_CP } from '../chess/engine/same-level.ts';
 import type { Square } from '../chess/types.ts';
 import type { HintMove } from './hint-arrows.ts';
-import { isLightSquare, squareCenter, squareFromIndex, squareIndex } from './board-geometry.ts';
+import {
+  isLightSquare, squareCenter, squareFromIndex, squareIndex, type Marker,
+} from './board-geometry.ts';
+
+// Re-exported so every existing importer keeps working; the union itself lives in the leaf.
+export type { Marker } from './board-geometry.ts';
 import {
   DEFAULT_PALETTE, MARKER_CAPTURE, MARKER_CHECK,
   hintHue, MARKER_CURSOR, MARKER_MOVE, MARKER_SELECTED,
@@ -27,24 +32,6 @@ export const SQUARE_COUNT = 64;
  */
 const MARKER_LIFT = -0.5;
 
-/**
- * ========================= SHAPE, NOT ONLY COLOUR =========================
- * WCAG 1.4.1: colour must never be the only carrier of meaning. So the three markers that
- * co-occur during a turn are told apart by FORM:
- *
- *   · `move`     — a filled dot in the middle of an empty destination
- *   · `capture`  — an outline ring around the square, with no dot
- *   · `selected` — outline AND dot together
- *
- * `check` is the exception, and it is an honest one: it is an outline like `capture`, on a square
- * that is never simultaneously a capture target for the side in check. Its primary channel is not
- * visual at all — it goes out through `srAlert`, assertively.
- *
- * `cursor` is where the KEYBOARD is. The DOM grid that carries the board for a screen reader is
- * visually hidden, so a sighted person navigating by keyboard would otherwise have focus sitting
- * somewhere invisible. This marker is that focus, drawn on the board.
- */
-export type Marker = 'cursor' | 'selected' | 'move' | 'capture' | 'check';
 
 export interface BoardView {
   /** The subtree to add to the scene. */

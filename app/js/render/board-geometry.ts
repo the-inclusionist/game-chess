@@ -39,3 +39,32 @@ export function squareCenter(s: Square, tile: number): { x: number; z: number } 
     z: (s.y - (RANKS - 1) / 2) * tile,
   };
 }
+
+/*
+ * ================= ⚠️ THE ⚠️ERS LIVE HERE, NOT BESIDE THE THING THAT DRAWS THEM =================
+ * `render/board.ts` imports Zdog, and Zdog is 146 KB that the flat board never loads. The shell
+ * that drives all three views has to name a marker to hand one to a view, and naming it from
+ * `board.ts` would put a `import type` one careless keystroke away from becoming a value import —
+ * which does not fail, does not warn, and quietly puts a renderer in a bundle built to avoid one.
+ *
+ * This module imports `chess/types.ts` and nothing else. It cannot carry Zdog in by accident.
+ */
+
+/**
+ * ========================= SHAPE, NOT ONLY COLOUR =========================
+ * WCAG 1.4.1: colour must never be the only carrier of meaning. So the three markers that
+ * co-occur during a turn are told apart by FORM:
+ *
+ *   · `move`     — a filled dot in the middle of an empty destination
+ *   · `capture`  — an outline ring around the square, with no dot
+ *   · `selected` — outline AND dot together
+ *
+ * `check` is the exception, and it is an honest one: it is an outline like `capture`, on a square
+ * that is never simultaneously a capture target for the side in check. Its primary channel is not
+ * visual at all — it goes out through `srAlert`, assertively.
+ *
+ * `cursor` is where the KEYBOARD is. The DOM grid that carries the board for a screen reader is
+ * visually hidden, so a sighted person navigating by keyboard would otherwise have focus sitting
+ * somewhere invisible. This marker is that focus, drawn on the board.
+ */
+export type Marker = 'cursor' | 'selected' | 'move' | 'capture' | 'check';
