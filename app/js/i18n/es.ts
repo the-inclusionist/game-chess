@@ -214,6 +214,7 @@ export const es: Catalog = {
     'teach.castling.title': 'El enroque',
     'teach.square.title': 'La regla del cuadrado',
     'teach.opposition.title': 'La oposición',
+    'teach.book.opera.title': 'La partida de la ópera',
     'hud.startLesson': 'Empezar',
     'hud.lessonDone': '{title} ✔',
     'lesson.back': '‹ Anterior',

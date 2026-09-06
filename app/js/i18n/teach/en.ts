@@ -151,4 +151,25 @@ export const en: TeachStrings = {
     + 'Play it.',
   'teach.opposition.take.nudge':
     'Walk the king forward, on the same file, until one square is left between them.',
+
+  /* --------------------------- the book: a game played through --------------------------- */
+  'teach.book.opera.n5':
+    'White opens the centre. Every move so far has developed a piece or opened a line, and that is '
+    + 'the entire plan.',
+  'teach.book.opera.n6':
+    'Black pins the knight, but has still not brought a single piece into play. Pinning is not '
+    + 'developing.',
+  'teach.book.opera.n11':
+    'The bishop points at f7, the weakest square the other side has: only the king defends it.',
+  'teach.book.opera.n17':
+    'A second pin: the bishop holds the knight against the queen. Black now has two pieces that '
+    + 'cannot move at all.',
+  'teach.book.opera.n19':
+    'A knight for a pawn. Morphy is not counting material, he is counting time.',
+  'teach.book.opera.n23':
+    'Castling takes the king off the centre and drops the rook on the d-file, where the pinned '
+    + 'knight stands. One move, two jobs.',
+  'teach.book.opera.n25': 'Take away the defender. The rook eats the knight that was holding it together.',
+  'teach.book.opera.n31': 'The queen for nothing. The mate is already there; she is only in the way.',
+  'teach.book.opera.n33': 'Mate, with two pieces, against an army that never left home.',
 };

@@ -16,6 +16,9 @@
 // documented behaviour of `t()`, correct in every other respect, and useless to a child.
 import { describe, expect, it } from 'vitest';
 import { LESSONS } from '../app/js/teach/lessons.ts';
+import { GAMES } from '../app/js/teach/games.ts';
+import { gameLesson } from '../app/js/teach/game-lesson.ts';
+import type { Lesson } from '../app/js/teach/lesson.ts';
 import { availableLocales, createI18n } from '../app/js/i18n/index.ts';
 import { loadTeach } from '../app/js/i18n/teach/index.ts';
 import type { LocaleCode } from '../app/js/i18n/types.ts';
@@ -30,7 +33,18 @@ import type { LocaleCode } from '../app/js/i18n/types.ts';
  */
 function keysAsked(): readonly string[] {
   const keys: string[] = [];
-  for (const lesson of LESSONS) {
+  /*
+   * ⚠️ THE BOOKS ARE IN HERE TOO, and they are the reason this reads a FUNCTION rather than a
+   * table. An annotated game's sentences are named inside its PGN — `{book.opera.n17}` — where no
+   * catalogue test could ever have seen them, and where a mistyped key would reach a child as
+   * `book.opera.n71` on the screen. Building the lesson is what makes the demand readable, and it
+   * costs one PGN parse.
+   */
+  const asked: readonly Lesson[] = [
+    ...LESSONS,
+    ...GAMES.map((game) => gameLesson(game)).filter((l): l is Lesson => l !== null),
+  ];
+  for (const lesson of asked) {
     keys.push(lesson.title);
     for (const step of lesson.steps) {
       keys.push(step.say);

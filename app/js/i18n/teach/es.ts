@@ -155,4 +155,24 @@ export const es: TeachStrings = {
     'Ahora hay dos casillas entre los reyes y nadie tiene la oposición. Una jugada la toma. Hazla.',
   'teach.opposition.take.nudge':
     'Avanza el rey por la misma columna hasta que quede una casilla entre los dos.',
+
+  /* --------------------------- the book: a game played through --------------------------- */
+  'teach.book.opera.n5':
+    'Las blancas abren el centro. Cada jugada hasta aquí desarrolló una pieza o abrió una línea: '
+    + 'ese es todo el plan.',
+  'teach.book.opera.n6':
+    'Las negras clavan el caballo, pero todavía no sacaron ninguna pieza. Clavar no es desarrollar.',
+  'teach.book.opera.n11':
+    'El alfil apunta a f7, la casilla más débil del otro lado: solo el rey la defiende.',
+  'teach.book.opera.n17':
+    'Otra clavada: el alfil sujeta al caballo contra la dama. Las negras ya tienen dos piezas que '
+    + 'no pueden moverse.',
+  'teach.book.opera.n19':
+    'Un caballo por un peón. Morphy no cuenta material, cuenta tiempo.',
+  'teach.book.opera.n23':
+    'El enroque saca al rey del centro y pone la torre en la columna d, donde está el caballo '
+    + 'clavado. Una jugada, dos trabajos.',
+  'teach.book.opera.n25': 'Quita al defensor. La torre se come al caballo que lo sostenía todo.',
+  'teach.book.opera.n31': 'La dama regalada. El mate ya está ahí; ella solo estorba.',
+  'teach.book.opera.n33': 'Mate, con dos piezas, contra un ejército que nunca salió de casa.',
 };

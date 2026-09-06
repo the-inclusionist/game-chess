@@ -15,6 +15,7 @@ import { createLessonPanel } from '../app/js/ui/lesson-panel.ts';
 import type { BoardView, ViewContext } from '../app/js/boot/view.ts';
 import { clear, loadProgress, loadSettings, saveSettings } from '../app/js/chess/session.ts';
 import { LESSONS } from '../app/js/teach/lessons.ts';
+import { GAMES } from '../app/js/teach/games.ts';
 import { fromAlgebraic, type Square } from '../app/js/chess/types.ts';
 
 const at = (name: string): Square => {
@@ -782,10 +783,13 @@ describe('[Tactics] a puzzle is a lesson, all the way through the column', () =>
      * What is worth pinning is the SHAPE: every lesson, then five themes, in that order. Two
      * hundred puzzle names would bury the course above them.
      */
-    expect(names).toHaveLength(LESSONS.length + 5);
-    expect(names.slice(LESSONS.length)).toEqual([
+    expect(names).toHaveLength(LESSONS.length + 5 + GAMES.length);
+    expect(names.slice(LESSONS.length, LESSONS.length + 5)).toEqual([
       'Mate em 1', 'Garfo', 'Peça pendurada', 'Cravada', 'Mate em 2',
     ]);
+    // And the books last, for the reason the column gives: a game played through is what comes
+    // after the moves and the tactics, not beside them.
+    expect(names.slice(LESSONS.length + 5)).toEqual(['A partida da ópera']);
   });
 
   it('⚠️ opens a real tactic, and it is solvable and finishable', async () => {
@@ -818,5 +822,37 @@ describe('[Tactics] a puzzle is a lesson, all the way through the column', () =>
     // ⚠️ Filed under its namespaced id, so a tactic can never be mistaken for a lesson.
     expect(loadProgress(localStorage).done.some((d) => d.startsWith('puzzle:'))).toBe(true);
     expect(press).toBeTruthy();
+  });
+
+  it('⚠️ opens the book, and its first step asks for the move the note is about', async () => {
+    /*
+     * The wiring, end to end, through the same column and the same driver. What this catches that
+     * `game-lesson.node.test.ts` cannot: the `find` hook resolving a `book:` id, the prose being
+     * fetched before the panel draws, and the step's position actually reaching the board.
+     *
+     * ⚠️ AND IT READS THE NOTE, NOT THE KEY. `teach.book.opera.n5` on screen is the documented
+     * behaviour of `t()` and is exactly what a book whose prose never loaded would show.
+     */
+    expect(shell.teach()).toBe(true);
+    await waitFor(() => entries().length > 0);
+    entries().find((b) => b.textContent === 'A partida da ópera')!.click();
+
+    await waitFor(() => (document.querySelector('#side-column .lesson-say')?.textContent ?? '')
+      .includes('centro'));
+    expect(document.querySelector('#side-column .lesson-title')!.textContent)
+      .toBe('A partida da ópera');
+
+    // 3.d4, the first annotated move: the position is White's ninth half-move to make, and the
+    // board has to be in it rather than in the opening.
+    const square = (name: string): Square => ({
+      x: 'abcdefgh'.indexOf(name[0]!), y: 8 - Number(name[1]),
+    });
+    shell.activate(square('d2'));
+    shell.activate(square('d4'));
+    await waitFor(() => (document.querySelector('#side-column .lesson-counter')?.textContent ?? '')
+      .includes('2'));
+    // The second note, on Black's reply — which is the both-sides decision showing up on screen.
+    expect(document.querySelector('#side-column .lesson-say')!.textContent)
+      .toContain('prendem o cavalo');
   });
 });

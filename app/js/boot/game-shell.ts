@@ -58,6 +58,13 @@ import { LESSONS, lessonById, syllabus } from '../teach/lessons.ts';
 import { isPuzzleId, puzzleId, puzzleLesson } from '../teach/puzzle-lesson.ts';
 import { loadPuzzles, type PuzzleSet } from '../puzzles/puzzle.ts';
 /*
+ * ⚠️ STATIC, AND FOR ONCE THAT NEEDS NO DEFENCE. The books are PGN text measured in hundreds
+ * of bytes — the weight of an annotated game is its PROSE, and that is already behind the
+ * lazy teach catalogue with every other sentence. There is no JSON here to make lazy.
+ */
+import { GAMES, gameById } from '../teach/games.ts';
+import { bookId, gameLesson, isBookId } from '../teach/game-lesson.ts';
+/*
  * ⚠️ IMPORTED NORMALLY; the 230 kB of names is behind the dynamic import INSIDE `loadOpenings`.
  * The bundler said so the last time this was done the other way round for the puzzles
  * (`INEFFECTIVE_DYNAMIC_IMPORT`): a lazy import of a module something else already needs splits
@@ -799,6 +806,17 @@ export function createGameShell(deps: GameShellDeps): GameShell {
        * `Lesson` and cannot tell the two apart, which is the whole point of the converter.
        */
       find: async (wanted) => {
+        /*
+         * ⚠️ A BOOK NEEDS NO FETCH AT ALL, which is why it is answered before the puzzle branch
+         * rather than beside it: the game is text in the bundle and the converter is synchronous.
+         * Routing it through the same hook anyway is what keeps the driver unable to tell a
+         * syllabus lesson, a tactic and a book apart.
+         */
+        if (isBookId(wanted)) {
+          currentTheme = null;
+          const game = gameById(wanted.slice('book:'.length));
+          return game ? gameLesson(game) : null;
+        }
         if (!isPuzzleId(wanted)) { currentTheme = null; return lessonById(wanted); }
         const set = await puzzleSet();
         const puzzle = set.puzzles.find((p) => puzzleId(p) === wanted);
@@ -855,6 +873,17 @@ export function createGameShell(deps: GameShellDeps): GameShell {
             && puzzles.puzzles.filter((p) => p.theme === theme)
               .every((p) => learned().includes(puzzleId(p))),
           current: currentTheme === theme,
+        })),
+        /*
+         * ⚠️ LAST, BECAUSE A BOOK IS WHAT COMES AFTER. The syllabus teaches the moves and the
+         * tactics drill one idea at a time; playing a whole game through with somebody explaining
+         * it only pays once both of those are somewhere in reach.
+         */
+        ...GAMES.map((game) => ({
+          id: bookId(game),
+          title: game.title,
+          done: learned().includes(bookId(game)),
+          current: bookId(game) === lessonMode?.active()?.id,
         })),
       ],
       onPick: (pick) => { void openFromMenu(pick); },

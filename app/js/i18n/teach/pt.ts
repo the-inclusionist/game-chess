@@ -154,4 +154,25 @@ export const pt: TeachStrings = {
     'Agora há duas casas entre os reis, e ninguém tem a oposição. Um lance a toma. Jogue-o.',
   'teach.opposition.take.nudge':
     'Ande com o rei para a frente, na mesma coluna, até sobrar uma casa entre os dois.',
+
+  /* --------------------------- the book: a game played through --------------------------- */
+  'teach.book.opera.n5':
+    'As brancas abrem o centro. Cada lance até aqui desenvolveu uma peça ou abriu uma linha: esse '
+    + 'é o plano inteiro.',
+  'teach.book.opera.n6':
+    'As pretas prendem o cavalo, mas ainda não tiraram nenhuma peça do lugar. Prender não é '
+    + 'desenvolver.',
+  'teach.book.opera.n11':
+    'O bispo aponta para f7, a casa mais fraca do outro lado: só o rei a defende.',
+  'teach.book.opera.n17':
+    'Outro prego: o bispo prende o cavalo contra a dama. As pretas agora têm duas peças que não '
+    + 'podem sair do lugar.',
+  'teach.book.opera.n19':
+    'Um cavalo por um peão. Morphy não está contando material, está contando tempo.',
+  'teach.book.opera.n23':
+    'O roque tira o rei do centro e joga a torre na coluna d, onde está o cavalo preso. Um lance, '
+    + 'dois serviços.',
+  'teach.book.opera.n25': 'Tire quem defende. A torre come o cavalo que segurava tudo.',
+  'teach.book.opera.n31': 'A dama de graça. O mate já está lá; ela só está atrapalhando.',
+  'teach.book.opera.n33': 'Mate, com duas peças, contra um exército que nunca saiu de casa.',
 };

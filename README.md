@@ -57,6 +57,13 @@ are `play` (`app/js/puzzles/`); the two endgame lessons are generated from geome
 re-computed in the test instead of trusted — the one number in a syllabus that can be typed in
 wrongly and still pass everything.
 
+And a book is the same shape a third time (`app/js/teach/game-lesson.ts`): an annotated game is a
+list of steps whose asked-for move is the one the master played and whose sentence is the note on
+it. Only the ANNOTATED moves become steps — the annotator's choice of where to stop is what a book
+is — and the student plays both sides, because that is how a game is studied. The one shipped today
+is Morphy's Opera Game with our own notes; the moves of a game are facts, the notes are not, and
+`docs/LICENSES.md` says which books are old enough for theirs to be usable.
+
 ⚠️ **Four of the thirteen lessons were unplayable when first written**, and no amount of reading
 would have found it: two lone kings, king and bishop, and king and knight are insufficient material,
 so `isGameOver()` was already true and the board refused every square before the first step. Each of
@@ -215,7 +222,7 @@ app/index.html         2.5D          app/2d.html   2D          app/3d.html   3D
 app/css/board.css      one stylesheet, after three byte-identical copies of it
 app/js/chess/          rules, state machine, negamax engine + Worker, session — no renderer, no DOM
 app/js/declaration/    the engine's seven fields, said in chess
-app/js/teach/          the syllabus as data: lesson shapes, the 13 lessons, the tutor, positions
+app/js/teach/          the syllabus as data: lesson shapes, the 13 lessons, the tutor, the books
 app/js/puzzles/        a Lichess tactic, expressed as a lesson
 app/js/endgame/        the square rule and the opposition, as arithmetic — nobody's prose
 app/js/openings/       naming the line a game began with

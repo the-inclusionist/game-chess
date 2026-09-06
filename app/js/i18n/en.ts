@@ -213,6 +213,7 @@ export const en: Catalog = {
     'teach.castling.title': 'Castling',
     'teach.square.title': 'The rule of the square',
     'teach.opposition.title': 'The opposition',
+    'teach.book.opera.title': 'The Opera Game',
     'hud.startLesson': 'Start',
     'hud.lessonDone': '{title} ✔',
     'lesson.back': '‹ Previous',

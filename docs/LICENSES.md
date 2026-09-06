@@ -210,6 +210,36 @@ Najdorf. `tests/openings.node.test.ts` plays every one of the 2,833 lines throug
 a line that cannot be played is a name that can never appear — and it would fail silently, by
 simply never matching.
 
+## The annotated games — the score is a fact, the notes are ours
+
+`app/js/teach/games.ts` carries games as PGN and turns them into lessons. The distinction that
+makes the whole stage possible is between the two halves of an annotated game:
+
+- **The moves are facts.** Morphy played 10.Nxb5 at the Paris opera in 1858. That is an event, not
+  an expression of anybody's, and a score sheet can come from any source without permission — the
+  same reasoning the tactics section applies to a FEN.
+- **The notes are expression, and copyright attaches to them.** What a master *said about* a move
+  is the thing a chess book actually is.
+
+⚠️ **So the notes shipped today are ours, written for this repository, AGPL like the rest of it.**
+The Opera Game (Morphy against the Duke of Brunswick and Count Isouard, Paris 1858) was chosen for
+exactly that reason: it is the game beginners are taught first almost everywhere, and using it
+needs no permission and no opinion — the mechanism could therefore ship while the book is still
+being chosen.
+
+**Still open, and it is an editorial decision rather than a legal one:** the plan names
+Capablanca's *Chess Fundamentals* (1921) as the first real title. It is safe to use — Capablanca
+died in 1942, so it entered the public domain in Brazil in 2013, and he wrote it in English
+himself, which means there is no translator's separate term to clear. What is undecided is *which*
+chapters, and who writes the pt-BR and es beside his English, since those translations would be new
+work of ours. `gameLesson()` takes his games unchanged the day that is settled.
+
+⚠️ **Two books that look usable and are not**, recorded so nobody re-derives the mistake: Edward
+Lasker's *Chess Strategy* (1915) is by the OTHER Lasker, who died in 1981 and is protected in
+Brazil until **2052** — it sits on Project Gutenberg only because the United States counts
+publication + 95 years for works before 1929. And the English editions of Tarrasch and of Emanuel
+Lasker carry translators and editors with terms of their own; only the German originals are clear.
+
 ## The original project
 
 `juliangarnier/3D-Hartwig-chess-set` (MIT) is the **inspiration and the reference for feature
