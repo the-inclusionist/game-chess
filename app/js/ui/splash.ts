@@ -30,9 +30,19 @@ export interface SplashDeps {
   onStart?(): void;
 }
 
+/**
+ * Which door was taken.
+ *
+ * ⚠️ THE TITLE SCREEN IS WHERE THE TWO MODES DIVERGE, and that is why it answers with a value
+ * rather than resolving empty. "START" asked a child to begin something without saying what it
+ * was; offering PLAY and LEARN says there are two things here, and lets somebody who came to
+ * learn arrive at a lesson instead of at a game they must then find their way out of.
+ */
+export type Door = 'play' | 'learn';
+
 export interface Splash {
-  /** Resolves when the player presses START, or immediately if there was no splash to press. */
-  readonly done: Promise<void>;
+  /** Resolves with the door taken, or immediately with `play` if there was no splash. */
+  readonly done: Promise<Door>;
 }
 
 /**
@@ -47,14 +57,19 @@ const PATIENCE_MS = 30_000;
 export function createSplash(deps: SplashDeps): Splash {
   const { doc, i18n, region } = deps;
   const root = doc.getElementById('splash');
-  const start = doc.getElementById('splash-start');
+  const doors = doc.getElementById('splash-doors');
+  const play = doc.getElementById('splash-play');
+  const learn = doc.getElementById('splash-learn');
   const status = doc.getElementById('splash-status');
 
   // The markup lives in the HTML so it paints before this bundle has even parsed — which is the
   // whole point of it. A page that had to boot in order to say "loading" would show the board
   // first, and the board is the lie being avoided.
-  if (!root || !(start instanceof HTMLButtonElement) || !status) {
-    return { done: Promise.resolve() };
+  if (!root || !status || !doors
+    || !(play instanceof HTMLButtonElement) || !(learn instanceof HTMLButtonElement)) {
+    // ⚠️ `play` is the answer when there is no splash at all, because that is what a game with no
+    // title screen is: already begun. Answering `learn` would open a lesson nobody asked for.
+    return { done: Promise.resolve('play') };
   }
 
   // ========================= NOT ON THE WAY BETWEEN VIEWS =========================
@@ -74,21 +89,22 @@ export function createSplash(deps: SplashDeps): Splash {
 
   if (switching) {
     root.remove();
-    return { done: Promise.resolve() };
+    return { done: Promise.resolve('play') };
   }
 
   root.setAttribute('aria-label', i18n.t('splash.title'));
   status.textContent = i18n.t('splash.loading');
-  start.textContent = i18n.t('splash.start');
+  play.textContent = i18n.t('splash.play');
+  learn.textContent = i18n.t('splash.learn');
   region.inert = true;
 
-  const done = new Promise<void>((resolve) => {
+  const done = new Promise<Door>((resolve) => {
     const reveal = (message: string): void => {
       status.textContent = message;
-      start.hidden = false;
+      doors.hidden = false;
       // Focus the way out as soon as there is one. Without this a keyboard player is left on
-      // whatever the browser chose while the button did not exist.
-      start.focus();
+      // whatever the browser chose while the buttons did not exist.
+      play.focus();
     };
 
     const timer = setTimeout(() => reveal(i18n.t('splash.slow')), PATIENCE_MS);
@@ -97,15 +113,17 @@ export function createSplash(deps: SplashDeps): Splash {
       .catch(() => reveal(i18n.t('splash.failed')))
       .finally(() => clearTimeout(timer));
 
-    start.addEventListener('click', () => {
+    const enter = (door: Door) => (): void => {
       region.inert = false;
       root.remove();
       // Into the game, not merely out of the splash: the element that just held focus is gone,
       // and focus with nowhere to go falls to the body, where the arrow keys do nothing.
       region.focus();
       deps.onStart?.();
-      resolve();
-    }, { once: true });
+      resolve(door);
+    };
+    play.addEventListener('click', enter('play'), { once: true });
+    learn.addEventListener('click', enter('learn'), { once: true });
   });
 
   return { done };

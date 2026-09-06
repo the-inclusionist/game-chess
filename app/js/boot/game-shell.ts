@@ -146,6 +146,15 @@ export interface GameShell {
   watch(observer: ActivationObserver | null): void;
   /** Takes one ply back and redraws. Returns whether anything moved. */
   undoLast(): boolean;
+  /**
+   * Opens the teaching mode where the reader left off.
+   *
+   * ⚠️ NOT "THE FIRST LESSON". A child who finished four lessons yesterday and is sent back to
+   * notation today has been told their work did not count. So: the lesson they were in the middle
+   * of, else the first one they have not finished, else the start. Answers false where the page
+   * cannot teach.
+   */
+  teach(): boolean;
 }
 
 /** The mirror's vocabulary is the board's, under two different names. One table, stated once. */
@@ -280,7 +289,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   });
   opponent.setStrength(elo);
 
-  createSplash({
+  const splash = createSplash({
     doc: host,
     i18n,
     region,
@@ -292,6 +301,16 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       // the button should say so rather than open onto a board with no opponent.
       if (results[0].status === 'rejected') throw results[0].reason;
     }),
+  });
+
+  /*
+   * ⚠️ THE DOOR IS ACTED ON AFTER CONSTRUCTION, NOT DURING IT. `teach()` reaches `startLesson`,
+   * which reaches `self` — the object this function has not returned yet. The promise settles on a
+   * click, which is always later, so the ordering is safe; wiring it any earlier would be the
+   * temporal-dead-zone fault this file has already paid for twice.
+   */
+  void splash.done.then((door) => {
+    if (door === 'learn') self?.teach();
   });
 
   /**
@@ -1099,6 +1118,19 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     rules: () => rules,
     game: () => game,
     activate: onActivate, walkHistory, askOpponent, newGame, setTaught,
+
+    teach() {
+      if (!deps.teaches) return false;
+      const { at, done } = loadProgress();
+      const order = syllabus();
+      const resume = at && order.some((l) => l.id === at.lesson) ? at.lesson : null;
+      const next = order.find((l) => !done.includes(l.id))?.id;
+      const id = resume ?? next ?? order[0]?.id;
+      if (!id) return false;
+      void startLesson(id);
+      return true;
+    },
+
     watch(next) { observer = next; },
     undoLast() {
       // One ply. `takeBack()` is two against an opponent and one in a hot seat, and a lesson is

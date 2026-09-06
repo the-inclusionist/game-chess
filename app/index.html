@@ -113,7 +113,9 @@
    * Bigger than the 44 px floor, because it is the only control on the screen and the first thing
    * a child touches. Nothing here depends on hover: the focus ring is the platform's own, widened.
    */
-  #splash-start {
+  #splash-doors[hidden] { display: none; }
+  #splash-doors { display: flex; gap: 0.6em; flex-wrap: wrap; justify-content: center; margin: 0; }
+  #splash-play, #splash-learn {
     margin-top: 0.4em;
     min-height: 3.2em;
     min-width: 11em;
@@ -127,8 +129,13 @@
     border-radius: 3px;
     cursor: pointer;
   }
-  #splash-start:hover { background: #CDBAF0; }
-  #splash-start:focus-visible { outline: 4px solid #FFD97D; outline-offset: 3px; }
+  #splash-play:hover, #splash-learn:hover { background: #CDBAF0; }
+  #splash-play:focus-visible, #splash-learn:focus-visible {
+    outline: 4px solid #FFD97D; outline-offset: 3px;
+  }
+  /* LEARN is offered as an equal, not as a secondary: a child who came to learn is not a
+     fallback case. Different fill so the two are told apart by more than their words. */
+  #splash-learn { color: #F2EEE4; background: transparent; border: 2px solid #F2EEE4; }
 
   #game-region {
     position: relative;
@@ -1302,7 +1309,16 @@
   <h1 id="splash-title">WebChess</h1>
   <p id="splash-by">by prof. Jos&eacute; Rocha</p>
   <p id="splash-status" role="status" aria-live="polite"></p>
-  <button id="splash-start" type="button" hidden>START</button>
+  <!--
+    ⚠️ TWO DOORS, NOT ONE START. "START" asked a child to begin something without saying what;
+    a title screen that offers PLAY and LEARN says there are two things here and lets somebody
+    who came to learn arrive at a lesson rather than at a game they must then find their way out
+    of. Both are hidden until the engine is ready, and one of them takes focus then.
+  -->
+  <p id="splash-doors" hidden>
+    <button id="splash-play" type="button">JOGAR</button>
+    <button id="splash-learn" type="button">APRENDER</button>
+  </p>
 </div>
 
 <!-- MARCACAO EXIGIDA by createGame: #game-region, #sr-status, #sr-alert.
