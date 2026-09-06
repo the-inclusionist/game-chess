@@ -64,6 +64,9 @@ is — and the student plays both sides, because that is how a game is studied. 
 is Morphy's Opera Game with our own notes; the moves of a game are facts, the notes are not, and
 `docs/LICENSES.md` says which books are old enough for theirs to be usable.
 
+The reasoning behind all of this — why a lesson is a table, why a puzzle has an opponent and a book
+does not, and what the model cost to get right — is [`docs/design-teaching.md`](docs/design-teaching.md).
+
 ⚠️ **Four of the thirteen lessons were unplayable when first written**, and no amount of reading
 would have found it: two lone kings, king and bishop, and king and knight are insufficient material,
 so `isGameOver()` was already true and the board refused every square before the first step. Each of
