@@ -177,3 +177,74 @@ export const SET_ST_GEORGE: Readonly<Record<PieceType, PieceSpec>> = {
       { shape: 'cylinder', d: 6.6, h: 1.1 }, { shape: 'dome', d: 5.2, h: 2.6 }]),
   },
 };
+
+/* ============================ SELENUS ============================ */
+// Named for Gustavus Selenus — the pen name Augustus the Younger, Duke of Brunswick-Lüneburg, put
+// on *Das Schach- oder König-Spiel* in 1616 — and the German pattern that stood for two centuries
+// before Staunton. A long thin stem carrying a CORONET of stacked discs, and the number of tiers
+// is what names the piece: one for a pawn, four for a king. It is the only pattern here whose
+// identity is countable rather than proportional, which is exactly what survives at twenty pixels.
+
+const SEL = (parts: readonly Part[], boxes: readonly BoxSpec[] = []): PieceSpec => ({
+  boxes: [...boxes],
+  turned: stack([{ shape: 'cylinder', d: 9.0, h: 1.2 }, { shape: 'cone', d: 8.0, h: 1.3, down: true },
+    ...parts]),
+});
+
+export const SET_SELENUS: Readonly<Record<PieceType, PieceSpec>> = {
+  p: SEL([{ shape: 'cylinder', d: 2.6, h: 3.4 }, { shape: 'cylinder', d: 5.0, h: 0.9 },
+    { shape: 'dome', d: 3.2, h: 1.6 }]),
+  r: SEL([{ shape: 'cylinder', d: 2.8, h: 4.4 }, { shape: 'cylinder', d: 6.0, h: 1.0 },
+    { shape: 'cylinder', d: 5.6, h: 2.6 }]),
+  b: SEL([{ shape: 'cylinder', d: 2.6, h: 6.0 }, { shape: 'cylinder', d: 5.2, h: 0.9 },
+    { shape: 'cone', d: 4.6, h: 2.4 }, { shape: 'dome', d: 1.8, h: 0.9 }]),
+  n: {
+    boxes: knightHead(-10.4, 4.2),
+    turned: stack([{ shape: 'cylinder', d: 9.0, h: 1.2 },
+      { shape: 'cone', d: 8.0, h: 1.3, down: true },
+      { shape: 'cylinder', d: 2.6, h: 7.0 }, { shape: 'cylinder', d: 4.8, h: 0.9 }]),
+  },
+  q: SEL([{ shape: 'cylinder', d: 2.8, h: 9.2 }, { shape: 'cylinder', d: 5.8, h: 0.9 },
+    { shape: 'cylinder', d: 4.8, h: 0.9 }, { shape: 'cylinder', d: 3.8, h: 0.9 },
+    { shape: 'dome', d: 3.0, h: 1.5 }]),
+  k: SEL([{ shape: 'cylinder', d: 3.0, h: 9.6 }, { shape: 'cylinder', d: 6.2, h: 0.9 },
+    { shape: 'cylinder', d: 5.2, h: 0.9 }, { shape: 'cylinder', d: 4.2, h: 0.9 },
+    { shape: 'cylinder', d: 3.2, h: 0.9 }, { shape: 'dome', d: 2.6, h: 1.3 }]),
+};
+
+/* ============================ SIKH EMPIRE ============================ */
+// ⚠️ READ FROM THE ARCHITECTURE, not copied from a catalogued set. The turned sets of nineteenth
+// century Punjab are not documented the way the European patterns are, and inventing a provenance
+// for a drawing is worse than admitting where it came from. What IS documented, and what the
+// pieces of that region share with everything built around them, is the vocabulary: a swelling
+// ONION DOME on a wide plinth, finished with a slender spire.
+//
+// So that is the whole pattern here — bulb and spire, growing in both directions with rank. It is
+// the only set on this board whose finial is a point rather than a ball, which is what makes it
+// tell apart from St George at a glance despite both being bulbous.
+
+const SIK = (parts: readonly Part[], boxes: readonly BoxSpec[] = []): PieceSpec => ({
+  boxes: [...boxes],
+  turned: stack([{ shape: 'cylinder', d: 11.2, h: 1.3 }, { shape: 'cone', d: 10.2, h: 1.4, down: true },
+    ...parts]),
+});
+
+export const SET_SIKH: Readonly<Record<PieceType, PieceSpec>> = {
+  p: SIK([{ shape: 'cone', d: 5.4, h: 1.4, down: true }, { shape: 'dome', d: 5.4, h: 2.7 },
+    { shape: 'cone', d: 1.8, h: 1.6 }]),
+  r: SIK([{ shape: 'cylinder', d: 5.6, h: 3.7 }, { shape: 'cylinder', d: 7.4, h: 1.0 },
+    { shape: 'dome', d: 6.4, h: 3.2 }]),
+  b: SIK([{ shape: 'cylinder', d: 3.0, h: 3.6 }, { shape: 'cone', d: 6.0, h: 1.6, down: true },
+    { shape: 'dome', d: 6.0, h: 3.0 }, { shape: 'cone', d: 1.8, h: 2.0 }]),
+  n: {
+    boxes: knightHead(-10.2, 4.4),
+    turned: stack([{ shape: 'cylinder', d: 11.2, h: 1.3 },
+      { shape: 'cone', d: 10.2, h: 1.4, down: true },
+      { shape: 'cylinder', d: 3.2, h: 6.6 }, { shape: 'cylinder', d: 4.6, h: 0.9 }]),
+  },
+  q: SIK([{ shape: 'cylinder', d: 3.2, h: 5.0 }, { shape: 'cone', d: 7.0, h: 1.8, down: true },
+    { shape: 'dome', d: 7.0, h: 3.5 }, { shape: 'cone', d: 2.2, h: 2.6 }]),
+  k: SIK([{ shape: 'cylinder', d: 3.4, h: 5.6 }, { shape: 'cone', d: 7.6, h: 2.0, down: true },
+    { shape: 'dome', d: 7.6, h: 3.8 }, { shape: 'cylinder', d: 2.0, h: 1.2 },
+    { shape: 'cone', d: 2.4, h: 3.0 }]),
+};

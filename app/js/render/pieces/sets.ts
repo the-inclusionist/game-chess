@@ -12,7 +12,9 @@
 
 import type { PieceType } from '../../chess/types.ts';
 import { PIECE_SPECS, type PieceSpec } from './geometry.ts';
-import { SET_1849, SET_REGENCE, SET_ST_GEORGE } from './turned.ts';
+import {
+  SET_1849, SET_REGENCE, SET_SELENUS, SET_SIKH, SET_ST_GEORGE,
+} from './turned.ts';
 
 export interface PieceDesign {
   readonly key: string;
@@ -42,6 +44,8 @@ export const PIECE_DESIGNS: readonly PieceDesign[] = [
   { key: 's1849', name: 'design.s1849', specs: SET_1849, line: 0.5 },
   { key: 'regence', name: 'design.regence', specs: SET_REGENCE, line: 0.5 },
   { key: 'stgeorge', name: 'design.stgeorge', specs: SET_ST_GEORGE, line: 0.5 },
+  { key: 'selenus', name: 'design.selenus', specs: SET_SELENUS, line: 0.5 },
+  { key: 'sikh', name: 'design.sikh', specs: SET_SIKH, line: 0.5 },
 ];
 
 export const DEFAULT_DESIGN = 'hartwig';

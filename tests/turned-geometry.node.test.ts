@@ -15,10 +15,11 @@ import type { PieceType } from '../app/js/chess/types.ts';
 const ALL: PieceType[] = ['p', 'n', 'b', 'r', 'q', 'k'];
 
 describe('[Designs] every drawing keeps the promises Hartwig makes', () => {
-  it('offers Hartwig plus the three European patterns, Hartwig first', () => {
+  it('offers Hartwig plus five historic patterns, Hartwig first', () => {
     // ⚠️ The default is and stays Hartwig: it is the set this game is a reimplementation OF, and
     // the only one whose shapes are the movement of the pieces rather than a decoration on them.
-    expect(PIECE_DESIGNS.map((d) => d.key)).toEqual(['hartwig', 's1849', 'regence', 'stgeorge']);
+    expect(PIECE_DESIGNS.map((d) => d.key))
+      .toEqual(['hartwig', 's1849', 'regence', 'stgeorge', 'selenus', 'sikh']);
     expect(DEFAULT_DESIGN).toBe('hartwig');
   });
 
@@ -122,6 +123,42 @@ describe('[Designs] how much line each drawing gets', () => {
     // which is why the solid's stroke is scaled with the outline rather than apart from it.
     for (const design of PIECE_DESIGNS) {
       expect(`${design.key} ${design.line >= 0.5}`).toBe(`${design.key} true`);
+    }
+  });
+});
+
+describe('[Designs] Selenus counts and Sikh points', () => {
+  it('gives Selenus a coronet that grows tier by tier with the piece', () => {
+    // ⚠️ THE ONLY PATTERN HERE WHOSE IDENTITY IS COUNTABLE rather than proportional: a Selenus
+    // piece is named by how many discs its crown has, and at twenty pixels a count survives where
+    // a proportion is a guess. One for a pawn, four for a king.
+    const discs = (type: PieceType): number => {
+      const parts = pieceDesign('selenus').specs[type].turned ?? [];
+      // The crown is the run of thin cylinders above the stem: anything short and wide.
+      return parts.filter((t) => t.shape === 'cylinder' && t.h < 1.2 && t.d > 3).length;
+    };
+    expect(discs('p')).toBe(1);
+    expect(discs('q')).toBe(3);
+    expect(discs('k')).toBe(4);
+    expect(discs('k')).toBeGreaterThan(discs('q'));
+    expect(discs('q')).toBeGreaterThan(discs('p'));
+  });
+
+  it('finishes every Sikh piece in a POINT where St George finishes in a ball', () => {
+    // Both patterns are bulbous, so the finial is what tells them apart at a glance: an onion
+    // dome carries a spire, and a St George body carries a ball.
+    for (const type of ['p', 'b', 'q', 'k'] as PieceType[]) {
+      const sikh = pieceDesign('sikh').specs[type].turned ?? [];
+      const george = pieceDesign('stgeorge').specs[type].turned ?? [];
+      expect(`${type} ${sikh[sikh.length - 1].shape}`).toBe(`${type} cone`);
+      expect(`${type} ${george[george.length - 1].shape}`).toBe(`${type} dome`);
+    }
+  });
+
+  it('gives Sikh the widest plinth of the six, as its architecture does', () => {
+    const foot = (key: string): number => (pieceDesign(key).specs.k.turned ?? [])[0].d;
+    for (const key of ['s1849', 'regence', 'stgeorge', 'selenus']) {
+      expect(`${key} ${foot('sikh') >= foot(key)}`).toBe(`${key} true`);
     }
   });
 });

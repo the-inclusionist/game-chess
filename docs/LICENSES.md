@@ -45,6 +45,34 @@ repository is a consumer of the engine and inherits its position.
 | `chess.js` | BSD-2-Clause | Rules, legality, FEN, algebraic notation. |
 | `vite`, `vitest`, `typescript`, `playwright` | MIT / Apache-2.0 | Build and test only; not shipped. |
 
+## The historic piece patterns — names, and what they cover
+
+The projected board offers five patterns besides Hartwig, and each is named for a historic design.
+What follows is the reasoning behind using those names. ⚠️ **It is not a legal opinion**, and the
+same Município review this document already calls for on Hartwig is where it should be confirmed.
+
+- **Staunton** — the design is 1849, attributed to Nathaniel Cooke and registered by Jaques of
+  London; the British registered design lapsed in the 1850s. The pattern has been manufactured
+  freely for over a century and a half, and the FIDE Laws of Chess require pieces "of the Staunton
+  pattern", which is the opposite of a name under anyone's control. What Jaques holds is a mark on
+  **Jaques**, not on the shape. The drawing here is in any case a stack of circles read from the
+  silhouette, not a reproduction of any manufacturer's model.
+- **Régence** — the French pattern of the eighteenth and nineteenth centuries, named for the Café
+  de la Régence. No proprietor.
+- **St George** — the English pattern that preceded Staunton, early nineteenth century.
+- **Selenus** — named for *Gustavus Selenus*, the pen name Augustus the Younger, Duke of
+  Brunswick-Lüneburg, put on *Das Schach- oder König-Spiel* (1616). Seventeenth century.
+- **Império Sikh** — ⚠️ **the one that is an interpretation rather than a reproduction**, and the
+  code says so where the geometry is. The turned sets of nineteenth-century Punjab are not
+  catalogued the way the European patterns are, and inventing a provenance for a drawing is worse
+  than admitting where it came from. What is drawn is the ARCHITECTURAL vocabulary of the region —
+  a swelling onion dome on a wide plinth, finished with a spire — which is documented, shared with
+  everything built around those sets, and not a claim about any particular object.
+
+None of these drawings traces a photograph. They are proportions expressed as cylinders and cones,
+which is what "out of copyright" answers a question about the OBJECT and not about a picture of it
+is meant to guard against.
+
 ## The Hartwig chess set — ⚠️ OPEN, AND TIME-SENSITIVE
 
 The piece geometry reproduces **Josef Hartwig's Bauhaus chess set, model XVI (1923–1924)**.
