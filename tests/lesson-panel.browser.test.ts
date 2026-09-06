@@ -250,20 +250,24 @@ describe('[Panel] a change of language mid-lesson', () => {
     expect(q('.lesson-counter').textContent).toContain('Aula concluída');
   });
 
-  it('⚠️ shows raw keys when the lesson prose has not been fetched, and the FRAME still reads', () => {
+  it('⚠️ reads the frame AND the title without the prose, and only the step text goes raw', () => {
     /*
-     * THE DEBT THIS PANEL HANDS TO THE SHELL, written down as a test rather than as a hope. The
-     * prose is a dynamic import, so a panel opened before it lands says `teach.rook.title` — which
-     * is `t()` behaving exactly as documented and useless to a child. The shell must `loadTeach`
-     * before it shows a lesson.
+     * THE DEBT THIS PANEL HANDS TO THE SHELL, and it got smaller once the running page was looked
+     * at. The prose is a dynamic import, so a panel opened before it lands shows raw keys for the
+     * STEP — `t()` behaving exactly as documented, and useless to a child. The shell must
+     * `loadTeach` before it opens a lesson, and `boot/lesson-mode.ts` does.
      *
-     * The frame is the half that always works, and that is not luck: it lives in the main
-     * catalogue precisely so the panel is never entirely unreadable.
+     * The title is no longer part of that. It moved to the main catalogue because the HUD lists
+     * eleven lesson names at BOOT, long before any prose is fetched — and with the titles next
+     * door the menu read `teach.notation.title` eleven times over on the real page. No test caught
+     * that; looking at it did.
      */
     const { panel: p } = build('pt', false);
     p.show(viewOf('rook'));
-    expect(q('.lesson-title').textContent).toBe('teach.rook.title');
+    expect(q('.lesson-title').textContent).toBe('A torre');
     expect(q('.lesson-leave').textContent).toBe('Sair da aula');
     expect(q('.lesson-counter').textContent).toContain('Passo 1 de 2');
+    // The half that genuinely still needs the fetch.
+    expect(q('.lesson-say').textContent).toBe('teach.rook.reach');
   });
 });

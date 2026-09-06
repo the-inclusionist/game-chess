@@ -30,6 +30,13 @@ export function boot2d(host: Document = document): void {
   createGameShell({
     host,
     kind: '2d',
+    /*
+     * ⚠️ THIS PAGE TEACHES; `3d.html` DOES NOT, AND THAT IS SAID RATHER THAN FUDGED.
+     * `render3d/scene.ts` has no marker channel at all — no selection, no legal targets, nothing —
+     * so a lesson that said "look at these squares" would silently show nothing there. Offering a
+     * mode whose main instruction does nothing is worse than not offering it. See the debt list.
+     */
+    teaches: true,
     view: createFlatView,
     // ⚠️ The grid is the BOARD on this page, not a mirror of one. Same object, same labels, same
     // roving tabindex — it simply keeps its pixels instead of being `sr-only` behind a canvas.

@@ -71,13 +71,37 @@ describe('[Reach] every sentence a lesson asks for exists in all three languages
   });
 
   it('says something in each, rather than an empty string that would announce silence', () => {
-    // `srSay('')` is not an announcement, it is a pause. A blank value passes a key-presence check
-    // and fails the child.
+    /*
+     * `srSay('')` is not an announcement, it is a pause. A blank value passes a key-presence check
+     * and fails the child.
+     *
+     * ⚠️ THROUGH `t()`, NOT THROUGH THE FILE, because a lesson's strings now come from TWO places.
+     * The prose is here; the TITLES are in the main catalogue, because the HUD lists eleven lesson
+     * names at boot and the prose is a dynamic import — verified in the browser, where the menu
+     * read `teach.notation.title` eleven times over.
+     */
     for (const locale of availableLocales()) {
-      const strings = CATALOGUES.get(locale)!;
+      const i18n = createI18n(locale);
+      i18n.extend(locale, CATALOGUES.get(locale)!);
       for (const key of keysAsked()) {
-        expect(`${locale} ${key} blank: ${strings[key]!.trim().length === 0}`)
+        expect(`${locale} ${key} blank: ${i18n.t(key).trim().length === 0}`)
           .toBe(`${locale} ${key} blank: false`);
+      }
+    }
+  });
+
+  it('⚠️ keeps the lesson TITLES in the main catalogue, where the menu can reach them', () => {
+    /*
+     * The split is prose versus chrome, and a title is chrome: the HUD draws the lesson menu at
+     * boot, before anybody has opened a lesson, and the prose is fetched only when one is opened.
+     * With the titles next door the menu listed raw keys — found by looking at the running page,
+     * not by any test, which is why this one now exists.
+     */
+    for (const locale of availableLocales()) {
+      const bare = createI18n(locale);
+      for (const lesson of LESSONS) {
+        expect(`${locale} ${lesson.id}: ${bare.t(lesson.title) === lesson.title}`)
+          .toBe(`${locale} ${lesson.id}: false`);
       }
     }
   });
@@ -106,15 +130,15 @@ describe('[Extend] added strings do not disturb the catalogue that was already t
     const i18n = createI18n('pt');
     for (const [locale, strings] of CATALOGUES) i18n.extend(locale, strings);
 
-    const inPortuguese = i18n.t('teach.rook.title');
+    const inPortuguese = i18n.t('teach.rook.play');
     i18n.setLocale('en');
-    const inEnglish = i18n.t('teach.rook.title');
+    const inEnglish = i18n.t('teach.rook.play');
     i18n.setLocale('es');
-    const inSpanish = i18n.t('teach.rook.title');
+    const inSpanish = i18n.t('teach.rook.play');
 
-    expect(inPortuguese).toBe('A torre');
-    expect(inEnglish).toBe('The rook');
-    expect(inSpanish).toBe('La torre');
+    expect(inPortuguese).toBe('Leve a torre até d8.');
+    expect(inEnglish).toBe('Take the rook to d8.');
+    expect(inSpanish).toBe('Lleva la torre hasta d8.');
   });
 
   it('falls back to Portuguese for a locale whose lessons have not been fetched yet', () => {
@@ -123,7 +147,7 @@ describe('[Extend] added strings do not disturb the catalogue that was already t
     // language they just left.
     const i18n = createI18n('en');
     i18n.extend('pt', CATALOGUES.get('pt')!);
-    expect(i18n.t('teach.rook.title')).toBe('A torre');
+    expect(i18n.t('teach.rook.play')).toBe('Leve a torre até d8.');
   });
 
   it('never lets an added string shadow one the game itself depends on', () => {
@@ -155,9 +179,9 @@ describe('[Extend] added strings do not disturb the catalogue that was already t
 describe('[Loading] the prose is fetched, not bundled', () => {
   it('hands back a different object for each language', async () => {
     const [pt, en, es] = await Promise.all([loadTeach('pt'), loadTeach('en'), loadTeach('es')]);
-    expect(pt['teach.king.title']).toBe('O rei');
-    expect(en['teach.king.title']).toBe('The king');
-    expect(es['teach.king.title']).toBe('El rey');
+    expect(pt['teach.king.slow']).toBe('Mova o rei para qualquer casa vizinha.');
+    expect(en['teach.king.slow']).toBe('Move the king to any neighbouring square.');
+    expect(es['teach.king.slow']).toBe('Mueve el rey a cualquier casilla vecina.');
   });
 
   it('⚠️ does not resolve the fallback for the caller', () => {

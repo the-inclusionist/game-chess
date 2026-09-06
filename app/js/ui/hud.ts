@@ -95,6 +95,18 @@ export interface HudDeps {
    * Asks the engine what it would play. Absent on a board with no engine, which is the two-player
    * mode: there is nobody to ask.
    */
+  /**
+   * The lessons this page can open, in the order they should be taken, with what is already
+   * learned marked.
+   *
+   * ⚠️ ABSENT ON THE SOLID PAGE, AND SAID RATHER THAN FUDGED. `render3d/scene.ts` has no marker
+   * channel at all — no selection, no legal targets, nothing — so a lesson that said "look at
+   * these squares" would silently show nothing there. Offering the mode and having half of it do
+   * nothing is worse than not offering it, so the composition root of `3d.html` passes neither of
+   * these two and the control does not exist.
+   */
+  lessons?(): readonly { readonly id: string; readonly title: string; readonly done: boolean }[];
+  onLesson?(id: string): void;
   onHint?(): void;
   hintBusy?(): boolean;
   /**
@@ -482,6 +494,20 @@ export function createHud(deps: HudDeps): Hud {
   // What it answers with goes on the BOARD —
   // marks on the squares — and into the live region, because a player who cannot see the marks is
   // exactly the player a hint is for.
+  // --- the lessons ------------------------------------------------------------
+  // A select and a verb, like the strength control below it, rather than eleven buttons: the HUD
+  // is 88 logical pixels wide and a list of lessons would be most of it.
+  const lessonBox = doc.createElement('p');
+  lessonBox.className = 'hud-field';
+  const lessonLabel = doc.createElement('label');
+  const lessonSelect = doc.createElement('select');
+  lessonSelect.id = 'hud-lesson';
+  lessonLabel.htmlFor = lessonSelect.id;
+  const lessonButton = doc.createElement('button');
+  lessonButton.type = 'button';
+  lessonButton.className = 'hud-lesson-start';
+  lessonBox.append(lessonLabel, lessonSelect, lessonButton);
+
   const hintBox = doc.createElement('p');
   const hintButton = doc.createElement('button');
   hintButton.type = 'button';
@@ -490,6 +516,7 @@ export function createHud(deps: HudDeps): Hud {
   hintBox.appendChild(hintButton);
 
   root.append(turn, movesBox);
+  if (deps.lessons) root.appendChild(lessonBox);
   if (deps.onHint) root.appendChild(hintBox);
   if (deps.onMode) root.appendChild(modeGroup.box);
   if (deps.scoreboard) root.appendChild(deps.scoreboard);
@@ -514,6 +541,9 @@ export function createHud(deps: HudDeps): Hud {
 
   function onHintClick(): void { deps.onHint?.(); }
   hintButton.addEventListener('click', onHintClick);
+
+  function onLessonClick(): void { deps.onLesson?.(lessonSelect.value); }
+  lessonButton.addEventListener('click', onLessonClick);
 
   function onVisionChange(): void { deps.onVision(visionSelect.value); }
   visionSelect.addEventListener('change', onVisionChange);
@@ -701,6 +731,30 @@ export function createHud(deps: HudDeps): Hud {
     }
 
     if (deps.onHint) {
+      if (deps.lessons) {
+        lessonLabel.textContent = i18n.t('hud.lessons');
+        lessonButton.textContent = i18n.t('hud.startLesson');
+        const chosen = lessonSelect.value;
+        const list = deps.lessons();
+        lessonSelect.replaceChildren(...list.map((lesson) => {
+          const option = doc.createElement('option');
+          option.value = lesson.id;
+          /*
+           * ⚠️ THE TICK IS A CHARACTER IN THE TEXT, not a colour and not an icon. An `<option>`
+           * cannot carry a marker of its own that a screen reader will read, so "learned" has to
+           * be part of the name or it is not there at all for the reader who most needs to know
+           * which lessons are left. WCAG 1.4.1, in the one place where the platform gives no
+           * other channel.
+           */
+          option.textContent = lesson.done
+            ? i18n.t('hud.lessonDone', { title: i18n.t(lesson.title) })
+            : i18n.t(lesson.title);
+          return option;
+        }));
+        // Keep the reader's choice across a refresh; otherwise every redraw of the HUD would
+        // silently reset the select to the first lesson under their hand.
+        if (list.some((l) => l.id === chosen)) lessonSelect.value = chosen;
+      }
       hintButton.textContent = i18n.t('hud.hint');
       hintButton.disabled = false;
       const on = deps.hintsOn?.();
@@ -754,6 +808,7 @@ export function createHud(deps: HudDeps): Hud {
     destroy() {
       for (const { input } of modeGroup.options) input.removeEventListener('change', onModeInput);
       hintButton.removeEventListener('click', onHintClick);
+      lessonButton.removeEventListener('click', onLessonClick);
       strengthSelect.removeEventListener('change', onStrengthChange);
       protectedInput.removeEventListener('change', onProtectedChange);
       visionSelect.removeEventListener('change', onVisionChange);

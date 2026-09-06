@@ -20,7 +20,6 @@ import type { TeachStrings } from './index.ts';
 
 export const pt: TeachStrings = {
   /* ------------------------------- reading the board ------------------------------- */
-  'teach.notation.title': 'Lendo o tabuleiro',
   'teach.notation.files':
     'Cada coluna tem uma letra, de a até h. Cada linha tem um número, de 1 a 8. O nome de uma '
     + 'casa é a letra com o número. Toque em e4.',
@@ -34,7 +33,6 @@ export const pt: TeachStrings = {
   'teach.notation.together.nudge': 'São duas casas, e a ordem não importa.',
 
   /* ------------------------------- what a piece is worth ------------------------------- */
-  'teach.values.title': 'Quanto vale cada peça',
   'teach.values.pawn': 'Na hora de trocar peças, cada uma vale um tanto. Quanto vale um peão?',
   'teach.values.one': '1 ponto',
   'teach.values.three': '3 pontos',
@@ -49,7 +47,6 @@ export const pt: TeachStrings = {
     'O rei nunca é capturado. Sem ele não há jogo, então nenhum número serve.',
 
   /* ------------------------------- how each piece moves ------------------------------- */
-  'teach.pawn.title': 'O peão',
   'teach.pawn.reach':
     'O peão anda para a frente, uma casa por vez. Na primeira vez que sai do lugar, pode andar '
     + 'duas. Marque onde este peão pode chegar.',
@@ -61,7 +58,6 @@ export const pt: TeachStrings = {
   'teach.pawn.capture.nudge':
     'A casa da frente está livre, mas não é lá que se captura. Olhe na diagonal.',
 
-  'teach.rook.title': 'A torre',
   'teach.rook.reach':
     'A torre anda em linha reta, pela coluna e pela linha, quantas casas quiser. Marque tudo '
     + 'onde ela pode chegar.',
@@ -69,7 +65,6 @@ export const pt: TeachStrings = {
     'Suba, desça, vá para a esquerda e para a direita, cada lado até a borda.',
   'teach.rook.play': 'Leve a torre até d8.',
 
-  'teach.bishop.title': 'O bispo',
   'teach.bishop.reach':
     'O bispo anda só na diagonal, quantas casas quiser. Marque tudo onde ele pode chegar.',
   'teach.bishop.reach.nudge': 'Quatro diagonais saem desta casa. Siga cada uma até a borda.',
@@ -81,7 +76,6 @@ export const pt: TeachStrings = {
   'teach.bishop.colour.nudge':
     'Uma diagonal nunca muda de cor. O bispo passa a partida inteira na cor em que começou.',
 
-  'teach.knight.title': 'O cavalo',
   'teach.knight.reach':
     'O cavalo anda em L: duas casas para um lado e uma virando. Marque as oito casas onde ele '
     + 'pode chegar.',
@@ -89,7 +83,6 @@ export const pt: TeachStrings = {
   'teach.knight.jumps': 'Agora o cavalo está cercado. Marque onde ele pode chegar assim mesmo.',
   'teach.knight.jumps.nudge': 'O cavalo é a única peça que pula. Nada no caminho o segura.',
 
-  'teach.queen.title': 'A dama',
   'teach.queen.reach':
     'A dama anda em linha reta e na diagonal, quantas casas quiser. Marque tudo onde ela pode '
     + 'chegar.',
@@ -99,14 +92,12 @@ export const pt: TeachStrings = {
   'teach.queen.rookKnight': 'Torre e cavalo',
   'teach.queen.twoRooks': 'Duas torres',
 
-  'teach.king.title': 'O rei',
   'teach.king.reach':
     'O rei anda uma casa por vez, em qualquer direção. Marque onde ele pode chegar.',
   'teach.king.reach.nudge': 'São oito casas: todas as vizinhas, em volta.',
   'teach.king.slow': 'Mova o rei para qualquer casa vizinha.',
 
   /* ------------------------------- the three special rules ------------------------------- */
-  'teach.promotion.title': 'A promoção',
   'teach.promotion.reach':
     'Um peão que chega à última linha vira outra peça. Marque a casa onde este peão chega.',
   'teach.promotion.reach.nudge': 'É uma casa só: a da frente, na última linha.',
@@ -114,7 +105,6 @@ export const pt: TeachStrings = {
   'teach.promotion.play.nudge':
     'O peão pode virar dama, torre, bispo ou cavalo. A dama é quase sempre a melhor escolha.',
 
-  'teach.enpassant.title': 'A captura en passant',
   'teach.enpassant.reach':
     'O peão preto acabou de saltar duas casas e passou bem ao lado do peão branco. Marque onde o '
     + 'peão branco pode chegar.',
@@ -125,7 +115,6 @@ export const pt: TeachStrings = {
   'teach.enpassant.play.nudge':
     'Este direito dura um lance só. Jogando outra coisa agora, ele se perde para sempre.',
 
-  'teach.castling.title': 'O roque',
   'teach.castling.reach':
     'O rei e a torre podem trocar de lugar num lance só. Marque onde este rei pode chegar.',
   'teach.castling.reach.nudge':

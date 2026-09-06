@@ -23,6 +23,13 @@ export function boot(host: Document = document): void {
   createGameShell({
     host,
     kind: '2.5d',
+    /*
+     * ⚠️ THIS PAGE TEACHES; `3d.html` DOES NOT, AND THAT IS SAID RATHER THAN FUDGED.
+     * `render3d/scene.ts` has no marker channel at all — no selection, no legal targets, nothing —
+     * so a lesson that said "look at these squares" would silently show nothing there. Offering a
+     * mode whose main instruction does nothing is worse than not offering it. See the debt list.
+     */
+    teaches: true,
     view: createZdogView,
     debugName: '__chess',
     // ⚠️ `contrast-solid` HERE and `contrast-flat` on the flat board, and that is the whole reason

@@ -45,6 +45,15 @@ import { squareIndex, type Marker } from '../render/board-geometry.ts';
 import type { HintMove } from '../render/hint-arrows.ts';
 import { BOARD_THEMES, DEFAULT_THEME } from '../ui/board-themes.ts';
 import { createBlunderBar } from '../ui/blunder-bar.ts';
+/*
+ * ⚠️ THE TABLE IS STATIC AND THE MACHINERY IS NOT, and the split is deliberate. The HUD has to
+ * list eleven lesson names before anyone opens one, so `LESSONS` is imported here — it is data,
+ * a few kilobytes of FENs and square sets. The panel, the tutor and the driver are fetched only
+ * when a lesson is actually started, and the PROSE is fetched separately again by the driver. A
+ * player who never opens a lesson downloads the names and nothing else.
+ */
+import { LESSONS } from '../teach/lessons.ts';
+import { loadProgress } from '../chess/session.ts';
 import { createGridMirror } from '../ui/grid-mirror.ts';
 import { createHud, type GameMode, type Hud, type ViewKind } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
@@ -64,6 +73,14 @@ export interface GameShellDeps {
   readonly visibleMirror?: boolean;
   /** `__chess` | `__chess2d` | `__chess3d`, kept distinct because console habits are real. */
   readonly debugName: string;
+  /**
+   * Whether this page offers the teaching mode.
+   *
+   * ⚠️ FALSE ON THE SOLID PAGE, and said rather than fudged: `render3d/scene.ts` has no marker
+   * channel at all, so a lesson that said "look at these squares" would show nothing there.
+   * Offering a mode whose main instruction silently does nothing is worse than not offering it.
+   */
+  readonly teaches?: boolean;
   /**
    * Which palette `prefers-contrast: more` picks on THIS page.
    *
@@ -426,6 +443,20 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       hintBusy: () => hinting,
     }),
 
+    /*
+     * ⚠️ THE LIST IS REBUILT ON EVERY `hud.refresh()`, which is what makes a finished lesson show
+     * its tick without anybody wiring an event. `loadProgress` reads `localStorage`, and the whole
+     * cost is eleven string comparisons.
+     */
+    ...(deps.teaches
+      ? {
+        lessons: () => LESSONS.map((lesson) => ({
+          id: lesson.id, title: lesson.title, done: learned().includes(lesson.id),
+        })),
+        onLesson: (id: string) => { void startLesson(id); },
+      }
+      : {}),
+
     ...view.hudControls,
 
     canTakeBack: () => !walking && game.canTakeBack(),
@@ -450,6 +481,86 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   wrap?.parentElement?.insertBefore(thinking.root, wrap.nextSibling);
   // Above the thinking panel: it is the thing being waited on, not commentary.
   wrap?.parentElement?.insertBefore(blunderBar.root, thinking.root);
+
+  /* ============================ THE TEACHING MODE ============================ */
+
+  /**
+   * Which lessons are already finished. Re-read rather than cached: it lives in `localStorage`.
+   *
+   * ⚠️ A `function` DECLARATION, NOT A `const` ARROW, AND THIS EXACT LINE WAS THE BUG. The HUD's
+   * deps call this, `createHud` runs its own `refresh()` while it is being built, and that happens
+   * ABOVE here — so as a `const` the binding was still in its temporal dead zone and both roots
+   * died with `ReferenceError: Cannot access 'learned' before initialization`.
+   *
+   * `tsc` sees nothing: the reference is in scope and correctly typed. `tests/boot.browser.test.ts`
+   * caught it, which is the third time that file has paid for itself in this way.
+   */
+  function learned(): readonly string[] {
+    return loadProgress().done;
+  }
+
+  /** The panel and the driver, once somebody has actually asked for a lesson. */
+  let lessonMode: import('./lesson-mode.ts').LessonMode | null = null;
+  /**
+   * This shell, handed to the lesson driver.
+   *
+   * ⚠️ AN EXPLICIT SLOT RATHER THAN A REFERENCE TO THE `const` BELOW. Naming the returned object
+   * from a function defined above it works — the function only runs after construction — but this
+   * repository has already paid for that reasoning twice: `tests/boot.browser.test.ts` exists
+   * because two temporal-dead-zone `ReferenceError`s in `main.ts` passed `tsc`, 375 tests and the
+   * build. A slot that is visibly filled before it can be read costs one line and argues nothing.
+   */
+  let self: GameShell | null = null;
+
+  /**
+   * Opens a lesson, fetching everything it needs first.
+   *
+   * ⚠️ THREE DYNAMIC IMPORTS AND NONE OF THEM IS AN ACCIDENT. The panel, the driver and the tutor
+   * are only reachable from here, and the driver fetches the prose again on its own — so the flat
+   * page's measured weight, which is the whole reason there are three pages at all, is untouched
+   * for a player who only ever plays.
+   */
+  async function startLesson(id: string): Promise<void> {
+    const [{ createLessonPanel }, { createLessonMode }] = await Promise.all([
+      import('../ui/lesson-panel.ts'),
+      import('./lesson-mode.ts'),
+    ]);
+    if (lessonMode) lessonMode.stop();
+    const panel = createLessonPanel({
+      doc: host,
+      i18n,
+      onChoose: (option) => lessonMode?.chose(option),
+      onLeave: () => { lessonMode?.stop(); },
+    });
+    // Under the board, beside the blunder bar and for the same reason: the position stays in view.
+    blunderBar.root.parentElement?.insertBefore(panel.root, blunderBar.root);
+    lessonMode = createLessonMode({
+      // Filled at the end of construction; `startLesson` cannot run before that.
+      shell: self!,
+      panel,
+      say: (text) => { srSay(text); },
+      onLeave: () => {
+        panel.destroy();
+        lessonMode = null;
+        // The tick on a finished lesson appears here, without an event to wire.
+        hud.refresh();
+      },
+    });
+    const started = await lessonMode.start(id, resumeStepFor(id));
+    if (!started) { panel.destroy(); lessonMode = null; }
+  }
+
+  /**
+   * Where to pick a lesson up.
+   *
+   * ⚠️ ONLY FOR THE LESSON THE READER WAS ACTUALLY IN. `Progress.at` names one lesson, so opening
+   * a different one has to start at the top rather than at whatever step number happened to be
+   * stored — which would drop a child into the middle of a lesson they had never seen.
+   */
+  function resumeStepFor(id: string): number | undefined {
+    const { at } = loadProgress();
+    return at && at.lesson === id ? at.step : undefined;
+  }
   paletteHigh = themeKey.startsWith('contrast-');
   region.dataset.contrast = paletteHigh ? 'high' : '';
 
@@ -865,7 +976,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     syncMarks();
   }
 
-  return {
+  self = {
     region, i18n, mirror, hud, view, opponent,
     rules: () => rules,
     game: () => game,
@@ -879,4 +990,5 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       return moved;
     },
   };
+  return self;
 }

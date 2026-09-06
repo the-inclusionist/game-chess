@@ -16,7 +16,6 @@ import type { TeachStrings } from './index.ts';
 
 export const es: TeachStrings = {
   /* ------------------------------- reading the board ------------------------------- */
-  'teach.notation.title': 'Leer el tablero',
   'teach.notation.files':
     'Cada columna tiene una letra, de la a a la h. Cada fila tiene un número, del 1 al 8. El '
     + 'nombre de una casilla es la letra con el número. Toca e4.',
@@ -30,7 +29,6 @@ export const es: TeachStrings = {
   'teach.notation.together.nudge': 'Son dos casillas, y el orden no importa.',
 
   /* ------------------------------- what a piece is worth ------------------------------- */
-  'teach.values.title': 'Cuánto vale cada pieza',
   'teach.values.pawn': 'Al cambiar piezas, cada una vale algo. ¿Cuánto vale un peón?',
   'teach.values.one': '1 punto',
   'teach.values.three': '3 puntos',
@@ -45,7 +43,6 @@ export const es: TeachStrings = {
     'El rey nunca se captura. Sin él no hay partida, así que ningún número sirve.',
 
   /* ------------------------------- how each piece moves ------------------------------- */
-  'teach.pawn.title': 'El peón',
   'teach.pawn.reach':
     'El peón avanza de a una casilla. La primera vez que sale de su sitio puede avanzar dos. '
     + 'Marca adónde puede llegar este peón.',
@@ -57,14 +54,12 @@ export const es: TeachStrings = {
   'teach.pawn.capture.nudge':
     'La casilla de adelante está libre, pero ahí no se captura. Mira en diagonal.',
 
-  'teach.rook.title': 'La torre',
   'teach.rook.reach':
     'La torre se mueve en línea recta, por su columna y por su fila, todas las casillas que '
     + 'quiera. Marca todo adonde puede llegar.',
   'teach.rook.reach.nudge': 'Sube, baja, ve a la izquierda y a la derecha, cada lado hasta el borde.',
   'teach.rook.play': 'Lleva la torre hasta d8.',
 
-  'teach.bishop.title': 'El alfil',
   'teach.bishop.reach':
     'El alfil se mueve solo en diagonal, todas las casillas que quiera. Marca todo adonde puede '
     + 'llegar.',
@@ -77,7 +72,6 @@ export const es: TeachStrings = {
   'teach.bishop.colour.nudge':
     'Una diagonal nunca cambia de color. El alfil pasa toda la partida en el color donde empezó.',
 
-  'teach.knight.title': 'El caballo',
   'teach.knight.reach':
     'El caballo se mueve en L: dos casillas hacia un lado y una girando. Marca las ocho casillas '
     + 'adonde puede llegar.',
@@ -85,7 +79,6 @@ export const es: TeachStrings = {
   'teach.knight.jumps': 'Ahora el caballo está rodeado. Marca adónde puede llegar igual.',
   'teach.knight.jumps.nudge': 'El caballo es la única pieza que salta. Nada en el camino lo detiene.',
 
-  'teach.queen.title': 'La dama',
   'teach.queen.reach':
     'La dama se mueve en línea recta y en diagonal, todas las casillas que quiera. Marca todo '
     + 'adonde puede llegar.',
@@ -95,14 +88,12 @@ export const es: TeachStrings = {
   'teach.queen.rookKnight': 'Torre y caballo',
   'teach.queen.twoRooks': 'Dos torres',
 
-  'teach.king.title': 'El rey',
   'teach.king.reach':
     'El rey se mueve de a una casilla, en cualquier dirección. Marca adónde puede llegar.',
   'teach.king.reach.nudge': 'Son ocho casillas: todas las vecinas, alrededor.',
   'teach.king.slow': 'Mueve el rey a cualquier casilla vecina.',
 
   /* ------------------------------- the three special rules ------------------------------- */
-  'teach.promotion.title': 'La promoción',
   'teach.promotion.reach':
     'Un peón que llega a la última fila se convierte en otra pieza. Marca la casilla adonde llega '
     + 'este peón.',
@@ -111,7 +102,6 @@ export const es: TeachStrings = {
   'teach.promotion.play.nudge':
     'El peón puede volverse dama, torre, alfil o caballo. La dama casi siempre es lo mejor.',
 
-  'teach.enpassant.title': 'La captura al paso',
   'teach.enpassant.reach':
     'El peón negro acaba de saltar dos casillas y pasó justo al lado del peón blanco. Marca '
     + 'adónde puede llegar el peón blanco.',
@@ -123,7 +113,6 @@ export const es: TeachStrings = {
   'teach.enpassant.play.nudge':
     'Este derecho dura una sola jugada. Si juegas otra cosa ahora, se pierde para siempre.',
 
-  'teach.castling.title': 'El enroque',
   'teach.castling.reach':
     'El rey y la torre pueden cambiar de lugar en una sola jugada. Marca adónde puede llegar este '
     + 'rey.',

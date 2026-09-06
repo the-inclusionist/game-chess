@@ -177,6 +177,29 @@ export const pt: Catalog = {
     'lesson.found': '{done} de {of} casas',
     'lesson.finished': 'Aula concluída',
     'lesson.leave': 'Sair da aula',
+    'hud.lessons': 'Aulas',
+    /*
+     * ⚠️ OS TÍTULOS SÃO MOLDURA, NÃO PROSA, e por isso moram aqui e não em `i18n/teach/`.
+     * O HUD desenha o menu de aulas no arranque, antes de qualquer aula ser aberta — e a prosa é
+     * import dinâmico. Verificado no navegador: com os títulos lá, o menu listava
+     * `teach.notation.title` onze vezes.
+     */
+    'teach.notation.title': 'Lendo o tabuleiro',
+    'teach.values.title': 'Quanto vale cada peça',
+    'teach.pawn.title': 'O peão',
+    'teach.rook.title': 'A torre',
+    'teach.bishop.title': 'O bispo',
+    'teach.knight.title': 'O cavalo',
+    'teach.queen.title': 'A dama',
+    'teach.king.title': 'O rei',
+    'teach.promotion.title': 'A promoção',
+    'teach.enpassant.title': 'A captura en passant',
+    'teach.castling.title': 'O roque',
+    'hud.startLesson': 'Começar',
+    // ⚠️ O visto vai no TEXTO da opção. Um `<option>` não carrega marca própria que um leitor
+    // de tela anuncie, então "aprendida" ou está no nome ou não existe para quem mais precisa
+    // saber quais faltam.
+    'hud.lessonDone': '{title} ✔',
     'a11y.gridHint': 'Setas navegam, Enter seleciona',
     'a11y.tookBack': 'Lance desfeito. Vez de {side}',
     'a11y.replayed': 'Lance refeito. Vez de {side}',
