@@ -148,6 +148,40 @@ could take, for whoever reviews it:
 Recorded here rather than assumed, because the deliverable is municipally-owned software
 destined for public schools.
 
+## The tactics — Lichess puzzle database (CC0-1.0)
+
+`app/data/puzzles.json` holds 200 puzzles drawn from
+[the Lichess puzzle database](https://database.lichess.org/), which its publishers place under
+**CC0 1.0** — a public-domain dedication, with no conditions whatsoever. That is what makes it
+usable inside an AGPL project without a compatibility argument: there is nothing to be compatible
+with. Verified at the source page, not inferred from a mirror.
+
+Each puzzle keeps its Lichess id and `GameUrl`, so any one of them can be traced back to the game
+it was taken from. Nothing about a player is copied: no names, no ratings of people, no accounts.
+
+**Regenerating the file** — the dump is 304 MB and is not in this repository:
+
+```
+curl -O https://database.lichess.org/lichess_db_puzzle.csv.zst
+node scripts/build-puzzles.mjs lichess_db_puzzle.csv.zst
+```
+
+⚠️ **The file shipped today was built from a 32 MB byte-range PREFIX of that dump, not from the
+whole of it** — the dump is ordered by puzzle id, so a prefix is a fair sample, and 33,179 rows was
+already more than enough to fill five themes. The `sampled` field in the JSON says so, and
+`--allow-truncated` is what the script requires before it will accept a cut-short stream. Running
+the two commands above, without the flag, reads the whole file and supersedes it.
+
+⚠️ **Two things about that dump that are not obvious and cost time to find:**
+
+- Its `FEN` is the position **before** the opponent's move, and the first token of `Moves` is that
+  opponent move. Taking the FEN at face value produces puzzles that are wrong with nothing
+  detecting it. `tests/puzzles.node.test.ts` settles it by requiring a `mateIn1` to be checkmate
+  after exactly one move.
+- The file opens with a zstd **skippable frame**, which Node's own decompressor refuses
+  (`ZSTD_error_prefix_unknown`) even though the `zstd` command reads it without comment. The
+  script steps over it.
+
 ## The original project
 
 `juliangarnier/3D-Hartwig-chess-set` (MIT) is the **inspiration and the reference for feature

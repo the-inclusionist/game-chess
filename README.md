@@ -110,6 +110,21 @@ rules, and `step(dt)`, which drives one frame by hand. A hidden browser pane nev
 `requestAnimationFrame`, so without that an animation can only be advanced by taking a screenshot,
 and cannot be verified at all.
 
+## Regenerating the tactics
+
+`app/data/puzzles.json` is checked in — 200 curated puzzles from the Lichess database (CC0-1.0),
+so a child on a school connection never waits on a third-party download. The 304 MB dump it comes
+from is not in this repository. To rebuild it:
+
+```bash
+curl -O https://database.lichess.org/lichess_db_puzzle.csv.zst
+node scripts/build-puzzles.mjs lichess_db_puzzle.csv.zst
+```
+
+The curation — which themes, which rating band, how many — is at the top of the script, with the
+reasoning. `docs/LICENSES.md` records the licence and two traps the dump sets for whoever reads it
+next.
+
 ## Layout
 
 ```
