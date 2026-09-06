@@ -47,6 +47,13 @@ export interface Scene3d {
   resize(width: number, height: number): void;
   /** Turns the camera around the board. `yaw` in radians, `pitch` clamped above the board. */
   orbit(yaw: number, pitch: number): void;
+  /**
+   * Moves the camera along its own line of sight, in wheel notches: positive is further away.
+   *
+   * ⚠️ THE DISTANCE, NOT THE FIELD OF VIEW. Narrowing the lens would flatten the board's
+   * perspective as it magnified it, which is the one thing this view exists to show.
+   */
+  dolly(notches: number): void;
   look(): { yaw: number; pitch: number };
   /** The square under a point in canvas coordinates, or null. */
   pick(x: number, y: number, width: number, height: number): Square | null;
@@ -60,6 +67,20 @@ const RADIUS = BOARD_SPAN * 1.35;
 const PITCH_MIN = 0.20;
 const PITCH_MAX = 1.35;
 
+/*
+ * ========================= HOW FAR THE WHEEL MAY GO =========================
+ * Both ends are chosen against what the board still IS at that distance, not against a round
+ * number. Nearer than 0.45 the near rank leaves the frame and the player is looking at four
+ * squares with no way to know which four; further than 2.2 a piece is a few pixels tall and the
+ * six silhouettes stop being distinguishable, which is the whole design.
+ *
+ * The step is a FACTOR, not an amount: a notch has to feel the same close up and far away, and a
+ * fixed number of units is a nudge at one end and a jump at the other.
+ */
+const ZOOM_NEAREST = 0.45;
+const ZOOM_FARTHEST = 2.2;
+const ZOOM_STEP = 1.1;
+
 export function createScene3d(options: Scene3dOptions): Scene3d {
   const scene = new THREE.Scene();
   const renderer = new THREE.WebGLRenderer({ canvas: options.canvas, antialias: true });
@@ -72,12 +93,13 @@ export function createScene3d(options: Scene3dOptions): Scene3d {
 
   let yaw = options.flipped ? Math.PI : 0;
   let pitch = 0.85;
+  let radius = RADIUS;
 
   const place = (): void => {
-    const horizontal = Math.cos(pitch) * RADIUS;
+    const horizontal = Math.cos(pitch) * radius;
     camera.position.set(
       Math.sin(yaw) * horizontal,
-      -Math.sin(pitch) * RADIUS,
+      -Math.sin(pitch) * radius,
       Math.cos(yaw) * horizontal,
     );
     camera.lookAt(0, 0, 0);
@@ -172,6 +194,14 @@ export function createScene3d(options: Scene3dOptions): Scene3d {
       // puts the camera under the table, where the board is a thin line and every piece is
       // upside down — and getting back is not obvious to anybody.
       pitch = Math.min(PITCH_MAX, Math.max(PITCH_MIN, pitch + byPitch));
+      place();
+    },
+
+    dolly(notches) {
+      radius = Math.min(
+        RADIUS * ZOOM_FARTHEST,
+        Math.max(RADIUS * ZOOM_NEAREST, radius * ZOOM_STEP ** notches),
+      );
       place();
     },
 

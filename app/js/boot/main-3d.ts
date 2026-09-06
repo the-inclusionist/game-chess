@@ -518,10 +518,33 @@ export function boot3d(host: Document = document): void {
 
   canvas.addEventListener('pointermove', (event) => {
     if (!holding || !turning) return;
-    // Both axes inverted: dragging left turns the board as if the table were being pushed left.
-    scene.orbit((last.x - event.clientX) * 0.008, (last.y - event.clientY) * 0.006);
+    /*
+     * ⚠️ THE VIEWER WALKS AROUND THE BOARD — the opposite model to the projected view's
+     * camera, where dragging pushes the TABLE (`render/camera.ts` says so at length, and it stays
+     * as it is). Both models are defensible and they are exact opposites; which one reads depends
+     * on whether the scene has real perspective. This one does, so the drag moves the eye.
+     */
+    scene.orbit((event.clientX - last.x) * 0.008, (event.clientY - last.y) * 0.006);
     last = { x: event.clientX, y: event.clientY };
   });
+
+  /*
+   * ========================= THE WHEEL ZOOMS, BUT ONLY WHILE PRESSED =========================
+   * A bare wheel over the canvas has to keep scrolling the page — the board fills the viewport on
+   * a small screen, and a page you cannot scroll past is worse than a board you cannot zoom. So
+   * the zoom is part of the same gesture as the turn: hold the button, then wheel.
+   *
+   * ⚠️ `turning` is set here rather than waited for. Wheeling while pressed is already an
+   * unambiguous camera gesture, so it does two things at once: it hands the rest of this press
+   * over to the camera, and it stops the release from being read as a click on a square — which
+   * it otherwise would be, since the pointer never moved.
+   */
+  canvas.addEventListener('wheel', (event) => {
+    if (!holding) return;
+    event.preventDefault();
+    turning = true;
+    scene.dolly(Math.sign(event.deltaY));
+  }, { passive: false });
 
   const release = (event: PointerEvent): void => {
     window.clearTimeout(holdTimer);
