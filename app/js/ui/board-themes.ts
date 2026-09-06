@@ -39,9 +39,11 @@
 //
 //  · EVERY rim clears 3:1 against BOTH squares — 5.42 at worst. That is what makes a piece have an
 //    edge on any of these boards, and it is why the rim exists: the light fills do not.
-//  · Only the two high-contrast themes clear 3:1 on the FILLS. The other four are carried by the
+//  · Only the two high-contrast themes clear 3:1 on the FILLS. The other five are carried by the
 //    rim, which is how the printed convention has always worked and what WCAG 1.4.11 actually
-//    asks — that the boundary be perceivable, not the fill.
+//    asks — that the boundary be perceivable, not the fill. (⚠️ It said FOUR until `cb-safe` was
+//    added, which is how a count in a comment goes wrong: the new theme was measured, and the
+//    sentence that totals the measurements was not.)
 //  · ⚠️ AND EVERY BOARD'S TWO SQUARES CLEAR 3:1 AGAINST EACH OTHER. They share an edge along
 //    their whole length — the largest boundary on the board — and every palette here was failing
 //    it: chessboard.js 2.29, Wikipedia 1.94, XBoard 1.60, José 2.50, high contrast 2.13. A board
