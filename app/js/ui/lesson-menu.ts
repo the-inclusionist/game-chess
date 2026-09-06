@@ -16,6 +16,18 @@
 //
 // The tick on a finished lesson is a CHARACTER IN THE TEXT rather than an icon or a colour, for the
 // same reason it was in the dropdown: it has to survive being read aloud. WCAG 1.4.1.
+//
+// ========================= ⚠️ MEASURED, AND CURRENTLY TOO NARROW =========================
+// This column inherits `.hud`'s 27.5% of the board, which is 176 px against a 640-px region. With
+// the lesson in it, the content measures 875 px tall in 357 px of height — the sentence alone
+// takes 173 — so it scrolls, and a child reads a lesson through a slot.
+//
+// It scrolls rather than clipping, and the lesson is FIRST so the sentence is the part you do not
+// have to scroll for. That is a floor, not a fix. The fix is the 2:1 stage: a board region that is
+// only the board, with this column beside it rather than overlaid on it, which needs the camera
+// offset that reserves the right 27.5% of the canvas to go to zero on the projected and solid
+// pages. That is measured camera work with its own tests, and it is deliberately not being done
+// halfway.
 
 import type { I18n } from '../i18n/index.ts';
 
