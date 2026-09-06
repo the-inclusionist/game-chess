@@ -279,3 +279,85 @@ describe('[Taught] the shell can point at squares', () => {
     expect(cell.getAttribute('data-lesson')).toBeNull();
   });
 });
+
+describe('[Keyboard] the keys work from where the splash leaves you', () => {
+  /*
+   * ========================= ⚠️ THE BUG THIS PINS =========================
+   * `ui/grid-mirror.ts` listens on its OWN root, so it only ever heard keys pressed while focus was
+   * already inside the grid. The splash leaves focus on `#game-region` — the grid's PARENT — so
+   * pressing START and then a direction key did nothing at all, every time, until a square happened
+   * to be clicked first. Every key looked correctly mapped, and the mapping was never the problem.
+   */
+  const at = (name: string): Square => ({
+    x: 'abcdefgh'.indexOf(name[0]!), y: 8 - Number(name[1]),
+  });
+
+  function shellFor() {
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    return createGameShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: '__shellKeys', contrastTheme: 'contrast-flat',
+    });
+  }
+
+  /** The engine's SOLO scheme, which is what a player has before remapping anything. */
+  const press = (code: string, key = code): void => {
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent('keydown', { code, key, bubbles: true, cancelable: true }),
+    );
+  };
+
+  it('⚠️ moves the cursor with focus on the REGION, not only on a cell', () => {
+    const shell = shellFor();
+    document.getElementById('game-region')!.focus();
+    expect(document.activeElement?.id).toBe('game-region');
+
+    const start = shell.mirror.cursor();
+    press('KeyD');
+    expect(shell.mirror.cursor()).toEqual({ x: start.x + 1, y: start.y });
+    press('KeyW');
+    expect(shell.mirror.cursor()).toEqual({ x: start.x + 1, y: start.y - 1 });
+  });
+
+  it('confirms and cancels from there too', () => {
+    const shell = shellFor();
+    document.getElementById('game-region')!.focus();
+    shell.mirror.focusSquare(at('e2'));
+    document.getElementById('game-region')!.focus();
+
+    press('KeyJ');
+    expect(shell.game().selection()).toEqual(at('e2'));
+    press('KeyK');
+    expect(shell.game().selection()).toBeNull();
+  });
+
+  it('⚠️ does not take a key twice when focus IS inside the grid', () => {
+    /*
+     * The other half of the fix. The grid's own listener still runs first when focus is on a cell,
+     * so the shell checks `defaultPrevented` before offering the key on — otherwise every press
+     * would move two squares.
+     */
+    const shell = shellFor();
+    shell.mirror.focusSquare(at('e2'));
+    press('KeyD');
+    expect(shell.mirror.cursor()).toEqual(at('f2'));
+  });
+
+  it('opens the pause on H and on Enter, which the engine scheme does not bind', () => {
+    // Asked of the running page: `KeyU`, `KeyJ`, `KeyK` and `KeyI` all resolve through the engine,
+    // and `KeyH` and `Enter` both come back null. So the pause key is named rather than resolved.
+    const shell = shellFor();
+    document.getElementById('game-region')!.focus();
+    press('KeyH');
+    expect(document.querySelector<HTMLElement>('.pause-menu')!.hidden).toBe(false);
+    press('Escape', 'Escape');
+    expect(document.querySelector<HTMLElement>('.pause-menu')!.hidden).toBe(true);
+
+    document.getElementById('game-region')!.focus();
+    press('Enter', 'Enter');
+    expect(document.querySelector<HTMLElement>('.pause-menu')!.hidden).toBe(false);
+    expect(shell.region).toBeTruthy();
+  });
+});

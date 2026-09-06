@@ -132,6 +132,18 @@ export interface GridMirror {
    * from whoever is teaching, and it is remembered until it is replaced.
    */
   setTaught(marks: readonly LessonSquare[]): void;
+  /**
+   * Offers a key to the board. Returns whether the board took it.
+   *
+   * ⚠️ THIS EXISTS BECAUSE THE LISTENER WAS IN THE WRONG PLACE. It lives on this grid's own root,
+   * so it only ever saw keys pressed while focus was already INSIDE the grid — and the splash
+   * leaves focus on `#game-region`, the grid's parent. A player who pressed START and then a
+   * direction key got nothing at all, every time, until they happened to click a square first.
+   *
+   * The composition root offers unclaimed keys here from the stage, which is where the whole game
+   * can be heard.
+   */
+  handleKey(event: KeyboardEvent): boolean;
   /** Swaps the board colours. Also nothing a screen reader hears. */
   setTheme(key: string): void;
   themeKey(): string;
@@ -422,6 +434,11 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
   };
 
   function onKeyDown(event: KeyboardEvent): void {
+    handleKey(event);
+  }
+
+  /** Returns whether the board did something with it. */
+  function handleKey(event: KeyboardEvent): boolean {
     // Clamped at the edges rather than wrapped. A board has corners, and a player who runs into
     // one should feel the edge instead of being teleported to the far file.
     const DELTA: Record<string, [number, number]> = {
@@ -435,7 +452,7 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
         true,
       );
       event.preventDefault();
-      return;
+      return true;
     }
 
     /*
@@ -453,16 +470,20 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
     if (action === 'action2') {
       deps.onActivate(cursor);
       event.preventDefault();
-      return;
+      return true;
     }
 
     if (event.key === 'Home') {
       setCursor({ x: 0, y: event.ctrlKey ? 0 : cursor.y }, true);
       event.preventDefault();
-    } else if (event.key === 'End') {
+      return true;
+    }
+    if (event.key === 'End') {
       setCursor({ x: FILES - 1, y: event.ctrlKey ? RANKS - 1 : cursor.y }, true);
       event.preventDefault();
+      return true;
     }
+    return false;
   }
 
   function onClick(event: MouseEvent): void {
@@ -488,6 +509,8 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
 
   return {
     root,
+
+    handleKey,
 
     setTaught(marks) {
       taught = new Map(marks.map((m) => [squareIndex(m.square), m.mark]));

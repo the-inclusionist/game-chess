@@ -779,8 +779,26 @@ export function createGameShell(deps: GameShellDeps): GameShell {
      * refusing input, while a piece is in flight, and while the menu itself is open — a pause that
      * only works when the game is idle is a pause you cannot reach when you need it.
      */
+    /*
+     * ⚠️ NOTHING ACTS ON A KEY SOMETHING ELSE ALREADY TOOK. The pause menu's own focus trap runs
+     * on the document in the CAPTURE phase, so on Escape it closes the menu — and then this
+     * listener, bubbling afterwards, saw the same Escape and TOGGLED IT BACK OPEN. Escape opened
+     * the pause perfectly and could not close it.
+     *
+     * The same guard covers the board: its grid handles a key first when focus is inside it, and
+     * without this every press would be acted on twice.
+     */
+    if (event.defaultPrevented) return;
+
     const action = engine.keyboard.actionOf(event.code, 0);
-    if (action === 'start' || event.key === 'Escape') {
+    /*
+     * ⚠️ `start` IS NOT IN THE ENGINE'S SOLO KEYBOARD SCHEME. Asked of the running page: `KeyU`,
+     * `KeyJ`, `KeyK` and `KeyI` all resolve, and `KeyH` and `Enter` both come back NULL. So the
+     * pause key is named here rather than resolved — H and Enter, which is what a player is told,
+     * plus Escape because every dialog on every platform answers to it.
+     */
+    if (action === 'start' || event.code === 'KeyH' || event.key === 'Enter'
+      || event.key === 'Escape') {
       pause.toggle();
       event.preventDefault();
       return;
@@ -847,6 +865,17 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       event.preventDefault();
       return;
     }
+
+    /*
+     * ⚠️ THE BOARD IS OFFERED THE KEY LAST, AND THAT IS THE BUG THIS FIXES. `ui/grid-mirror.ts`
+     * listens on its own root, so it only ever heard keys pressed while focus was already INSIDE
+     * the grid — and the splash leaves focus on `#game-region`, its parent. Press START, then a
+     * direction: nothing happened, every time, until a square happened to be clicked first.
+     *
+     * Offered here it is heard from anywhere in the stage. `defaultPrevented` is what keeps a key
+     * the grid's own listener already took from being taken twice.
+     */
+    if (!mirror.root.contains(host.activeElement) && mirror.handleKey(event)) return;
 
     if (action === 'especial') {
       engine.sonar.sonar({ i: 0, x: cursor.x, y: cursor.y, viz: 'normal' });

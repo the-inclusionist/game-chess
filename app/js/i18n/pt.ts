@@ -180,6 +180,28 @@ export const pt: Catalog = {
     'lesson.step': 'Passo {at} de {of}',
     'lesson.found': '{done} de {of} casas',
     'lesson.finished': 'Aula concluída',
+    /*
+     * ⚠️ IN THE MAIN CATALOGUE, NOT IN `i18n/teach/`. The split there is prose against chrome, and
+     * these are FIFTEEN FIXED STRINGS for five themes — they do not grow when a puzzle is added,
+     * two hundred tactics share them, and the column lists the five names at boot. The lazy
+     * catalogue is also checked for having nothing spare, and a puzzle key is not asked for by any
+     * lesson in the table.
+     */
+    'puzzle.theme.mateIn1': 'Mate em 1',
+    'puzzle.theme.mateIn2': 'Mate em 2',
+    'puzzle.theme.fork': 'Garfo',
+    'puzzle.theme.pin': 'Cravada',
+    'puzzle.theme.hangingPiece': 'Peça pendurada',
+    'puzzle.say.mateIn1': 'Dê xeque-mate num lance.',
+    'puzzle.say.mateIn2': 'Dê xeque-mate em dois lances. Comece pelo primeiro.',
+    'puzzle.say.fork': 'Ataque duas peças ao mesmo tempo.',
+    'puzzle.say.pin': 'Prenda uma peça: ela não pode sair sem expor outra maior.',
+    'puzzle.say.hangingPiece': 'Há uma peça sem defesa. Capture-a.',
+    'puzzle.nudge.mateIn1': 'Procure um xeque de que o rei não escape.',
+    'puzzle.nudge.mateIn2': 'O primeiro lance costuma ser um xeque, ou um sacrifício.',
+    'puzzle.nudge.fork': 'O cavalo e a dama são os que mais atacam duas peças de uma vez.',
+    'puzzle.nudge.pin': 'Torre, bispo e dama prendem, porque atacam em linha.',
+    'puzzle.nudge.hangingPiece': 'Conte quem ataca e quem defende cada peça do adversário.',
     'hud.language': 'Idioma',
     'hud.lessons': 'Aulas',
     /*
