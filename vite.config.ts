@@ -49,6 +49,28 @@ export default defineConfig({
           root: import.meta.dirname,
           environment: 'node',
           include: ['tests/**/*.node.test.{js,ts}'],
+          /*
+           * ================= ⚠️ THE EXHAUSTIVE TESTS DO NOT FIT A UNIT TEST'S BUDGET =================
+           * Vitest defaults to five seconds, which assumes a test is a millisecond thing. Several
+           * here are not, deliberately: they check a SHIPPED ARTEFACT against the rules, in full,
+           * because a generated file is exactly the kind of thing that goes wrong quietly.
+           *
+           * Measured on this machine, node project alone:
+           *
+           *   openings — every one of the 2,833 lines is playable        4426 ms
+           *   puzzle-lesson — every step's move is legal where it is     3175 ms
+           *   teach-i18n — every sentence resolves in three languages     557 ms
+           *   endgame — the square rule raced over ~12,000 positions      433 ms
+           *
+           * The first was inside 12% of the default. It failed whenever the browser project's
+           * chromium ran beside it and took the CPU — reported as `Test timed out`, in a test
+           * nobody had touched, on a commit that had nothing to do with it.
+           *
+           * ⚠️ RAISED RATHER THAN TRIMMED, and the numbers are written down so the next reader can
+           * tell drift from noise. Making these tests cheaper means checking less of the data,
+           * which is the one thing they exist to do.
+           */
+          testTimeout: 20_000,
         },
       },
       {

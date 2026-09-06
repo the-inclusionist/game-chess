@@ -105,6 +105,28 @@ const settle = async (): Promise<void> => {
   await new Promise((resolve) => { setTimeout(resolve, 0); });
 };
 
+/**
+ * Waits until a lesson opened through the SHELL is actually running.
+ *
+ * ========================= ⚠️ A CONTROL EXISTING IS NOT THE FEATURE BEING READY =========================
+ * Three tests waited on `#lesson-teacher` and then acted. `game-shell.ts` mounts the lesson menu
+ * BEFORE it awaits `lessonMode.start()` — correctly, because the panel needs a slot to mount into
+ * — so the checkbox exists while the tutor is still null, and anything done in that window is
+ * counted by nobody. It failed only when the dynamic imports were slow, which is to say only in a
+ * full run and never alone.
+ *
+ * The step's SENTENCE is the readable proof that the driver has the lesson: it is written by
+ * `panel.show(view())`, which cannot run before `start()` has built the tutor.
+ */
+async function untilTeaching(): Promise<void> {
+  const step = (): string => document.querySelector('#side-column .lesson-say')?.textContent ?? '';
+  const deadline = Date.now() + 4000;
+  while (step() === '' && Date.now() < deadline) {
+    await new Promise((resolve) => { setTimeout(resolve, 10); });
+  }
+  expect(step()).not.toBe('');
+}
+
 /** Answers a whole step's `mark` set, in order. */
 async function touchAll(names: readonly string[]): Promise<void> {
   for (const name of names) { shell.activate(at(name)); await settle(); }
@@ -517,23 +539,7 @@ describe('[Actions] the four buttons reach the lesson', () => {
    */
   const teaching = async (): Promise<void> => {
     expect(shell.teach()).toBe(true);
-    /*
-     * The shell's OWN panel, scoped to the column, and waited on until it has a sentence in it.
-     *
-     * A CONTROL EXISTING IS NOT THE FEATURE BEING READY, and waiting on `#lesson-teacher` was
-     * exactly that mistake: `game-shell.ts` mounts the lesson menu BEFORE it awaits
-     * `lessonMode.start()`, because the panel needs a slot to mount into. Correct there, and it
-     * left this helper returning while the tutor was still null — so the touches meant to earn the
-     * teacher were counted by nobody, and the test failed only when the dynamic imports were slow
-     * enough, which is to say only in a full run and never alone.
-     */
-    const step = (): string =>
-      document.querySelector('#side-column .lesson-say')?.textContent ?? '';
-    const deadline = Date.now() + 3000;
-    while (step() === '' && Date.now() < deadline) {
-      await new Promise((resolve) => { setTimeout(resolve, 10); });
-    }
-    expect(step()).not.toBe('');
+    await untilTeaching();
     expect(document.getElementById('lesson-teacher')).not.toBeNull();
   };
 
@@ -631,10 +637,7 @@ describe('[Language] the switch the game never had', () => {
 
   it('⚠️ translates the lesson being taken, without losing the step', async () => {
     expect(shell.teach()).toBe(true);
-    const deadline = Date.now() + 3000;
-    while (!document.getElementById('lesson-teacher') && Date.now() < deadline) {
-      await new Promise((resolve) => { setTimeout(resolve, 10); });
-    }
+    await untilTeaching();
     /*
      * ⚠️ THE SHELL'S OWN MODE USES THE REAL 800 ms HOLD. Every other test here injects zero, so
      * `settle()` is enough for them; this one goes through `shell.teach()` and has to wait for the
@@ -724,10 +727,7 @@ describe('[No opponent] a lesson never blocks on the engine', () => {
     });
 
     expect(stranded.teach()).toBe(true);
-    const deadline = Date.now() + 4000;
-    while (!document.getElementById('lesson-teacher') && Date.now() < deadline) {
-      await new Promise((resolve) => { setTimeout(resolve, 10); });
-    }
+    await untilTeaching();
     const box = document.getElementById('lesson-teacher') as HTMLInputElement;
     expect(box).not.toBeNull();
 
