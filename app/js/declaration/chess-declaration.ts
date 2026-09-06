@@ -33,8 +33,20 @@ import type { Square } from '../chess/types.ts';
 import type { I18n } from '../i18n/index.ts';
 
 export interface DeclarationDeps {
-  readonly rules: Rules;
-  readonly state: GameState;
+  /**
+   * ⚠️ ACCESSORS, NOT OBJECTS, AND THAT IS WHAT KEEPS THE FOCUS ON THE BOARD.
+   *
+   * A lesson step with a new position is a new `Rules` and a new `GameState` — `chess/rules.ts`
+   * only takes a FEN at construction, and giving it a `setFen` would make `startFen()` lie about
+   * the game `session.describe()` rebuilds from. So the shell swaps the objects, and everything
+   * downstream has to ask rather than remember.
+   *
+   * Held as a value, this consumer would have to be TORN DOWN AND REBUILT on every step that
+   * changes the board — which throws away the focused cell and the roving tabindex, and dumps a
+   * keyboard reader at the top of the page once per step.
+   */
+  rules(): Rules;
+  state(): GameState;
   readonly i18n: I18n;
   /** Where the keyboard cursor sits when nothing is selected. */
   cursor(): Square;
@@ -79,14 +91,14 @@ export function createChessDeclaration(deps: DeclarationDeps): GameDeclaration {
 
     roleAt(at: Spot): Role {
       const square = at as Square;
-      const piece = rules.pieceAt(square);
-      if (!piece) return rules.isAttackedBy(square, theirs) ? 'hazard' : 'free';
+      const piece = rules().pieceAt(square);
+      if (!piece) return rules().isAttackedBy(square, theirs) ? 'hazard' : 'free';
       if (piece.side === mine) return 'structure';
       return piece.type === 'k' ? 'goal' : 'key';
     },
 
     nameAt(at: Spot): Speakable | null {
-      const piece = rules.pieceAt(at as Square);
+      const piece = rules().pieceAt(at as Square);
       return piece ? i18n.describePiece(piece) : null;
     },
 
@@ -94,11 +106,11 @@ export function createChessDeclaration(deps: DeclarationDeps): GameDeclaration {
       // One human. A second player index is not "no focus yet", it is a player who does not
       // exist, and null is the contract's own way of saying so.
       if (playerIndex !== 0) return null;
-      return { id: 'cursor', at: state.selection() ?? deps.cursor(), heading: 'none' };
+      return { id: 'cursor', at: state().selection() ?? deps.cursor(), heading: 'none' };
     },
 
     objectiveOf(): Objective {
-      const outcome = state.outcome();
+      const outcome = state().outcome();
       return {
         name: { text: i18n.t('objective.checkmate'), gender: 'm', plural: false },
         have: outcome?.kind === 'checkmate' && outcome.winner === mine ? 1 : 0,
@@ -114,13 +126,13 @@ export function createChessDeclaration(deps: DeclarationDeps): GameDeclaration {
      * is exactly the position at checkmate.
      */
     targetsOf(playerIndex: number): readonly Spot[] {
-      if (playerIndex !== 0 || rules.turn() !== mine) return [];
-      const selected = state.selection();
-      if (selected) return state.legalTargets();
+      if (playerIndex !== 0 || rules().turn() !== mine) return [];
+      const selected = state().selection();
+      if (selected) return state().legalTargets();
 
       const seen = new Set<number>();
       const out: Spot[] = [];
-      for (const move of rules.allMoves()) {
+      for (const move of rules().allMoves()) {
         const key = move.to.y * 8 + move.to.x;
         if (seen.has(key)) continue;
         seen.add(key);

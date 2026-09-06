@@ -291,7 +291,7 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
       // The rules have ALREADY applied the move — forwards or backwards — so a travelling piece is
       // standing on the square it is flying TO. It is left out of the static set and drawn
       // separately, in flight.
-      const placements = rules.placements()
+      const placements = rules().placements()
         .filter((p) => !hidden.some((s) => s.x === p.square.x && s.y === p.square.y));
       pieces.setPosition(placements);
       pieces.setTravelling(travelling);

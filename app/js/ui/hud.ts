@@ -37,8 +37,20 @@ export interface HudDeps {
   /** The view this page shows. Omit and the switcher is left out entirely. */
   readonly view?: ViewKind;
   readonly i18n: I18n;
-  readonly rules: Rules;
-  readonly state: GameState;
+  /**
+   * ⚠️ ACCESSORS, NOT OBJECTS, AND THAT IS WHAT KEEPS THE FOCUS ON THE BOARD.
+   *
+   * A lesson step with a new position is a new `Rules` and a new `GameState` — `chess/rules.ts`
+   * only takes a FEN at construction, and giving it a `setFen` would make `startFen()` lie about
+   * the game `session.describe()` rebuilds from. So the shell swaps the objects, and everything
+   * downstream has to ask rather than remember.
+   *
+   * Held as a value, this consumer would have to be TORN DOWN AND REBUILT on every step that
+   * changes the board — which throws away the focused cell and the roving tabindex, and dumps a
+   * keyboard reader at the top of the page once per step.
+   */
+  rules(): Rules;
+  state(): GameState;
   /** A key from the engine's VIZ_MODES, or 'normal'. */
   vision(): string;
   onVision(key: string): void;
@@ -277,7 +289,7 @@ export function createHud(deps: HudDeps): Hud {
   // board, which is where every chess program has settled on putting them.
   //
   // Not duplicated — MOVED. Two copies of one tally is two things to keep in step, and it was
-  // already being rebuilt from `rules.history()` on every refresh, so the move cost nothing.
+  // already being rebuilt from `rules().history()` on every refresh, so the move cost nothing.
 
   // --- move list -------------------------------------------------------------
   const movesBox = doc.createElement('section');
@@ -325,7 +337,7 @@ export function createHud(deps: HudDeps): Hud {
   // ========================= NO HIGH-CONTRAST SWITCH =========================
   // There was a checkbox here and it was a second door onto one state: the palette list already
   // contains both high-contrast answers, so the switch and the list could disagree and had to be
-  // kept in step by hand. One control, one state. `prefers-contrast: more` still selects a
+  // kept in step by hand. One control, one state(). `prefers-contrast: more` still selects a
   // high-contrast palette at boot — a preference someone has already expressed to their system is
   // not something to make them express again.
 
@@ -606,7 +618,7 @@ export function createHud(deps: HudDeps): Hud {
    * already the notation every chess book on earth uses, so there is nothing to invent.
    */
   function fillMoves(): void {
-    const history = rules.history();
+    const history = rules().history();
     movesList.replaceChildren();
     for (let i = 0; i < history.length; i += 2) {
       const item = doc.createElement('li');
@@ -643,7 +655,7 @@ export function createHud(deps: HudDeps): Hud {
       if (pending) el.title = i18n.t('view.soon');
     }
 
-    const side = rules.turn();
+    const side = rules().turn();
     swatch.dataset.side = side;
     turnText.textContent = i18n.t(`turn.${side}`);
     // The heading says what the colour block means, so the block is decoration and not the signal.
@@ -729,7 +741,7 @@ export function createHud(deps: HudDeps): Hud {
     coordsLabel.textContent = i18n.t('hud.coordinates');
     coordsInput.checked = deps.coordinates();
 
-    const outcome = state.outcome();
+    const outcome = state().outcome();
     root.dataset.outcome = outcome ? outcome.kind : '';
   }
 

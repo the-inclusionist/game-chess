@@ -31,7 +31,7 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   const onTakeBack = vi.fn(() => { state.takeBack(); hud!.refresh(); });
   const onReplay = vi.fn(() => { state.replay(); hud!.refresh(); });
   hud = createHud({
-    doc: document, i18n: createI18n(locale), rules, state,
+    doc: document, i18n: createI18n(locale), rules: () => rules, state: () => state,
     vision: () => vision, onVision,
     reducedMotion: () => motion, onReducedMotion,
     outline: () => outline, onOutline,

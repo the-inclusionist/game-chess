@@ -19,7 +19,7 @@ function build(fen?: string, locale: 'pt' | 'en' | 'es' = 'pt', playerSide: 'w' 
   const i18n = createI18n(locale);
   let cursor: Square = sq('e2');
   const declaration = createChessDeclaration({
-    rules, state, i18n, playerSide, cursor: () => cursor,
+    rules: () => rules, state: () => state, i18n, playerSide, cursor: () => cursor,
   });
   return { rules, state, i18n, declaration, setCursor: (s: Square) => { cursor = s; } };
 }

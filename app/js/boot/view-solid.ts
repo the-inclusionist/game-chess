@@ -94,7 +94,7 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
     // as a PAINTER'S ALGORITHM can draw it rather than as Hartwig described it — see
     // `render3d/geometry3d.ts`. Neither constraint exists here.
     const specs = specs3dFor(designKey);
-    for (const { piece, square } of rules.placements()) {
+    for (const { piece, square } of rules().placements()) {
       if (hidden.some((s) => s.x === square.x && s.y === square.y)) continue;
       /*
        * ⚠️ NO OUTLINE HERE, and that is the point of this view. The flat and projected boards draw

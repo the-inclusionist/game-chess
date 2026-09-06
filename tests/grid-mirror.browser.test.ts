@@ -24,7 +24,7 @@ function build(fen?: string, locale: 'pt' | 'en' | 'es' = 'pt') {
     mirror?.refresh();
   });
   mirror = createGridMirror({
-    doc: document, i18n: createI18n(locale), rules, state, onActivate,
+    doc: document, i18n: createI18n(locale), rules: () => rules, state: () => state, onActivate,
   });
   document.body.appendChild(mirror.root);
   return { rules, state, onActivate, mirror };
@@ -251,7 +251,7 @@ describe('[Activation] the keyboard uses the same door as the pointer', () => {
     const state = createGameState({ rules, opponent: false });
     const onCursor = vi.fn();
     mirror = createGridMirror({
-      doc: document, i18n: createI18n('pt'), rules, state, onActivate: () => {}, onCursor,
+      doc: document, i18n: createI18n('pt'), rules: () => rules, state: () => state, onActivate: () => {}, onCursor,
     });
     document.body.appendChild(mirror.root);
     mirror.focusSquare(sq('f6'));
@@ -265,7 +265,7 @@ function shown() {
   const rules = createRules();
   const state = createGameState({ rules, opponent: false });
   mirror = createGridMirror({
-    doc: document, i18n: createI18n('pt'), rules, state, onActivate: () => {}, visible: true,
+    doc: document, i18n: createI18n('pt'), rules: () => rules, state: () => state, onActivate: () => {}, visible: true,
   });
   document.body.appendChild(mirror.root);
   return mirror;
@@ -360,7 +360,7 @@ describe('[Lesson] "look here" is a shape AND a word, never a colour', () => {
     const rules = createRules(fen);
     const state = createGameState({ rules, opponent: false });
     mirror = createGridMirror({
-      doc: document, i18n: createI18n(locale), rules, state, visible: true, onActivate: () => {},
+      doc: document, i18n: createI18n(locale), rules: () => rules, state: () => state, visible: true, onActivate: () => {},
     });
     document.body.appendChild(mirror.root);
     return { rules, state, mirror };

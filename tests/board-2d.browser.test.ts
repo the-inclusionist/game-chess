@@ -26,7 +26,7 @@ function build(visible = true, fen?: string) {
   const state = createGameState({ rules, opponent: false });
   const onActivate = vi.fn((square: Square) => { state.activate(square); mirror?.refresh(); });
   mirror = createGridMirror({
-    doc: document, i18n: createI18n('pt'), rules, state, visible, onActivate,
+    doc: document, i18n: createI18n('pt'), rules: () => rules, state: () => state, visible, onActivate,
   });
   document.body.appendChild(mirror.root);
   return { rules, state, mirror: mirror!, onActivate };

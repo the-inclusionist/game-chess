@@ -108,13 +108,25 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   // The three views are three pages, so a navigation throws away every object in memory. The score
   // sheet is written to the tab's own storage after anything that changes it and read back here,
   // which is why switching from 2D to 2.5D continues the game rather than starting one.
-  const rules = resume();
+  /*
+   * ⚠️ `let`, NOT `const`, AND THAT IS THE WHOLE OF `newGame`. `chess/rules.ts` only takes a FEN
+   * at construction: giving it a `setFen` would make `startFen()` lie about the game
+   * `session.describe()` rebuilds from, and `GameState` would need a `resync()` because it holds
+   * `phase`, `selection` and the move in flight. Two modules would grow a life cycle to serve one
+   * mode.
+   *
+   * Swapping the objects instead is not a chess operation at all — it is the capability
+   * `chooseMode` has been faking with `location.reload()` since it was written. Everything
+   * downstream is handed an ACCESSOR, so nothing has to be torn down and rebuilt when a lesson
+   * changes the board, and the focused cell survives the step.
+   */
+  let rules = resume();
   const remembered = loadSettings();
   // Three modes rather than two sides: one player as white, one as black, or two people sharing
   // the board — the case the state machine already had and nothing in the panel could reach.
   const mode: GameMode = remembered.mode ?? 'w';
   const playerSide: Side = mode === 'b' ? 'b' : 'w';
-  const game = createGameState({ rules, playerSide, opponent: mode !== 'two' });
+  let game = createGameState({ rules, playerSide, opponent: mode !== 'two' });
 
   let searching = false;
   /** A walk is in flight: the board must not accept a move played on top of it. */
@@ -248,7 +260,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
    * whole audience those fields exist for.
    */
   const declaration = createChessDeclaration({
-    rules, state: game, i18n, playerSide, cursor: () => cursor,
+    rules: () => rules, state: () => game, i18n, playerSide, cursor: () => cursor,
   });
   const engine = createGame({
     declaration,
@@ -265,8 +277,8 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   const mirror = createGridMirror({
     doc: host,
     i18n,
-    rules,
-    state: game,
+    rules: () => rules,
+    state: () => game,
     ...(deps.visibleMirror ? { visible: true, set: remembered.set, theme: themeKey } : {}),
     onActivate: (square) => onActivate(square),
     onCursor: (square) => { cursor = square; syncMarks(); },
@@ -277,8 +289,8 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     doc: host,
     region,
     i18n,
-    rules,
-    state: game,
+    rules: () => rules,
+    state: () => game,
     mirror,
     playerSide,
     prefs,
@@ -291,8 +303,8 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     doc: host,
     view: deps.kind,
     i18n,
-    rules,
-    state: game,
+    rules: () => rules,
+    state: () => game,
 
     // ⚠️ A maintainer's instrument, behind `?debug=true`.
     debug: /[?&]debug=true/.test(location.search),

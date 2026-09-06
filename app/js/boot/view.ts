@@ -51,8 +51,13 @@ export interface ViewContext {
   readonly doc: Document;
   readonly region: HTMLElement;
   readonly i18n: I18n;
-  readonly rules: Rules;
-  readonly state: GameState;
+  /**
+   * ⚠️ ACCESSORS. A lesson step with a new position is a new `Rules` and a new `GameState` — see
+   * the note in `ui/grid-mirror.ts` — so a view that remembered either would keep drawing the
+   * board the lesson has already left.
+   */
+  rules(): Rules;
+  state(): GameState;
   /**
    * ⚠️ THE SHELL BUILDS THIS, not the view, because all three pages have one. On the flat page it
    * IS the board, with its `sr-only` taken off; on the other two it is the accessible mirror

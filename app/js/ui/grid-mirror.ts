@@ -54,8 +54,20 @@ import { SAME_LEVEL_CP } from '../chess/engine/same-level.ts';
 export interface GridMirrorDeps {
   readonly doc: Document;
   readonly i18n: I18n;
-  readonly rules: Rules;
-  readonly state: GameState;
+  /**
+   * ⚠️ ACCESSORS, NOT OBJECTS, AND THAT IS WHAT KEEPS THE FOCUS ON THE BOARD.
+   *
+   * A lesson step with a new position is a new `Rules` and a new `GameState` — `chess/rules.ts`
+   * only takes a FEN at construction, and giving it a `setFen` would make `startFen()` lie about
+   * the game `session.describe()` rebuilds from. So the shell swaps the objects, and everything
+   * downstream has to ask rather than remember.
+   *
+   * Held as a value, this consumer would have to be TORN DOWN AND REBUILT on every step that
+   * changes the board — which throws away the focused cell and the roving tabindex, and dumps a
+   * keyboard reader at the top of the page once per step.
+   */
+  rules(): Rules;
+  state(): GameState;
   /** The same handler a click uses. */
   onActivate(square: Square): void;
   /** Called when the keyboard cursor moves, so the board can draw it. */
@@ -295,16 +307,16 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
 
   function labelFor(square: Square): string {
     const where = toAlgebraic(square);
-    const piece = rules.pieceAt(square);
+    const piece = rules().pieceAt(square);
     const base = piece
       ? i18n.t('square.occupied', { square: where, piece: i18n.describePiece(piece).text })
       : i18n.t('square.empty', { square: where });
 
     const extras: string[] = [];
-    if (state.legalTargets().some((t) => sameSquare(t, square))) {
+    if (state().legalTargets().some((t) => sameSquare(t, square))) {
       extras.push(piece ? i18n.t('a11y.cellCapture') : i18n.t('a11y.cellMove'));
     }
-    const check = state.kingInCheck();
+    const check = state().kingInCheck();
     if (check && sameSquare(check, square)) extras.push(i18n.t('a11y.cellCheck'));
     /*
      * ⚠️ THE HALF OF THE LESSON MARK THAT IS NOT A COLOUR, and the rule of this file is literal:
@@ -322,9 +334,9 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
   }
 
   function refresh(): void {
-    const selected = state.selection();
-    const targets = state.legalTargets();
-    const check = state.kingInCheck();
+    const selected = state().selection();
+    const targets = state().legalTargets();
+    const check = state().kingInCheck();
 
     for (let i = 0; i < CELL_COUNT; i++) {
       const square = squareFromIndex(i);
@@ -335,7 +347,7 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
       cell.tabIndex = sameSquare(square, cursor) ? 0 : -1;
 
       if (!visible) continue;
-      const piece = rules.pieceAt(square);
+      const piece = rules().pieceAt(square);
       const glyph = glyphs[i];
       const drawn = piece ? set.glyph[piece.side][piece.type] : '';
       glyph.textContent = drawn;
