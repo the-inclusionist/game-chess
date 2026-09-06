@@ -197,18 +197,63 @@ describe('[Reviewer] a game that was already going', () => {
     await settle();
 
     expect(reviewer.markAt(2)).toBe('??');
-    // Nothing is ever said about the moves played before anybody was watching.
+    /*
+     * ⚠️ AND THE EARLIER PLIES ARE UNMARKED HERE ONLY BECAUSE THIS STUB HAS NOTHING TO SAY ABOUT
+     * THEM — not because they are refused. That used to be the rule and is not any more; the next
+     * test is the one that shows them being filled in.
+     */
     expect(reviewer.markAt(0)).toBeNull();
     expect(reviewer.markAt(1)).toBeNull();
   });
 
-  it('counts a ply it will never see as already judged', async () => {
-    // Otherwise protected mode waits for ever for a verdict on a move played before it existed.
+  it('⚠️ GOES BACK AND MARKS THE MOVES IT DID NOT WATCH', () => {
+    /*
+     * THE CORRECTION THE PLAN ASKED FOR BY NAME. Numbering from `base` fixed a real off-by-N — the
+     * score sheet that opened `1. e4??` — and its cost was that everything played before the page
+     * loaded went permanently unmarked. Reload mid-game and every annotation vanished; a book
+     * loaded whole would arrive with none at all.
+     *
+     * The deliberate fix is to make the earlier positions KNOWN rather than to renumber around
+     * them: `rules.positions()` replays them, so `pump` can evaluate them like any other. It works
+     * NEWEST FIRST, so the move somebody is waiting on is still judged before the backfill.
+     */
+    const rules = createRules();
+    rules.move(sq('e2'), sq('e4'));
+    rules.move(sq('e7'), sq('e5'));
+
+    const start = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
+    const afterE4 = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR';
+    // Black throws the game away with 1... e5, on these numbers.
+    const { engine, asked } = stub({ [start]: 0, [afterE4]: 0, [AFTER_E5]: 900 });
+    const reviewer = createReviewer({ rules, engine });
+    reviewer.observe();
+
+    return settle().then(() => {
+      // Every position of the game was asked about, including the two nobody watched.
+      expect(asked.length).toBeGreaterThanOrEqual(3);
+      expect(reviewer.markAt(1)).toBe('??');
+      // And the ply numbering did NOT slip back: the blunder is Black's first move, ply 1.
+      expect(reviewer.markAt(0)).toBeNull();
+    });
+  });
+
+  it('⚠️ says a ply is unjudged until it really has been', async () => {
+    /*
+     * This used to answer TRUE for anything older than the reviewer, because nothing was ever
+     * going to mark those plies and protected mode would have waited for ever. Now everything gets
+     * marked, so the honest answer is whether it has been.
+     *
+     * Nobody waits longer for it: the only caller asks about the ply just played, and `pump` works
+     * newest first for exactly that reason.
+     */
     const rules = createRules();
     rules.move(sq('e2'), sq('e4'));
     const { engine } = stub({});
     const reviewer = createReviewer({ rules, engine });
+    expect(reviewer.judged(0)).toBe(false);
+
+    reviewer.observe();
+    await settle();
     expect(reviewer.judged(0)).toBe(true);
-    expect(reviewer.judged(1)).toBe(false);
   });
 });

@@ -106,9 +106,25 @@ export function createReviewer(deps: ReviewerDeps): Reviewer {
    * So the positions below are numbered from here, and `base` is what turns one into the other.
    * Moves played before the page loaded are never marked, which is honest: nothing watched them.
    */
-  const base = rules.history().length;
-  /** Positions from `base` onwards, index 0 being the one before the first move seen. */
-  let fens: string[] = [rules.fen()];
+  /**
+   * ⚠️ ZERO NOW, AND IT USED TO BE `rules.history().length`. The reason it existed was real: a game
+   * is restored from the score sheet on every reload and every change of view, so `history()` can
+   * already be four moves long the first time this runs, and numbering the positions from zero put
+   * the mark for the move just played beside the FIRST move of the game — a score sheet that
+   * opened with `1. e4??` and blamed the player for it.
+   *
+   * The fix was to stop counting from zero. The COST of that fix was that everything before the
+   * page loaded went permanently unmarked: reload mid-game and every annotation vanished, and a
+   * book loaded whole would arrive with none at all. The plan called that out as needing "correção
+   * deliberada, não de contorno".
+   *
+   * The deliberate correction is to make the earlier positions KNOWN rather than to renumber
+   * around them. `rules.positions()` replays them, so index and ply are the same number again and
+   * `base` has nothing left to do.
+   */
+  const base = 0;
+  /** Every position of the game, index 0 being the one before the first move. */
+  let fens: string[] = [...rules.positions()];
   const seen = new Map<string, Seen>();
   const marks = new Map<number, ReviewedMove>();
   let inFlight: string | null = null;
@@ -195,9 +211,15 @@ export function createReviewer(deps: ReviewerDeps): Reviewer {
 
     markAt: (ply) => marks.get(ply)?.mark ?? null,
 
-    // ⚠️ A ply BEFORE this reviewer started is judged as far as anybody here is concerned: it
-    // will never be marked, and anything waiting for it would wait for ever.
-    judged: (ply) => ply < base || marks.has(ply),
+    /*
+     * ⚠️ NO LONGER "ANYTHING OLD COUNTS AS JUDGED". It used to, because nothing was ever going to
+     * mark those plies; now everything will, so the honest answer is whether it HAS been.
+     *
+     * Nothing waits longer for it. The only caller is protected mode, which asks about the ply
+     * just played — and `pump` works NEWEST FIRST precisely because that is the one somebody is
+     * waiting on. The backfill happens behind it, one position at a time, on the same queue.
+     */
+    judged: (ply) => marks.has(ply),
 
     evaluation() {
       const current = seen.get(fens[fens.length - 1]);

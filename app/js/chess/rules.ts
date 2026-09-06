@@ -96,6 +96,15 @@ export interface Rules {
    */
   pgn(): string;
   /**
+   * Every position this game has been in: the start, then one after each ply.
+   *
+   * ⚠️ THIS EXISTS SO A REVIEWER CAN JUDGE MOVES IT DID NOT WATCH. A game is restored from the
+   * score sheet on every reload and every change of view, and a book arrives whole — in both cases
+   * the history is already there and the positions behind it were nobody's to see. Replaying is
+   * the only way to get them, and doing it HERE keeps `chess.js` in the one module that knows it.
+   */
+  positions(): readonly string[];
+  /**
    * The comment on the position AFTER `ply` moves, or null.
    *
    * ⚠️ INDEXED BY PLY RATHER THAN BY MOVE, because that is what a comment is attached to: PGN puts
@@ -287,6 +296,21 @@ export function createRules(fen?: string, notes?: ReadonlyMap<string, string>): 
     fen: () => game.fen(),
     startFen: () => start,
     history: () => played,
+
+    positions() {
+      // Built on a throwaway, so asking cannot disturb the board anybody is looking at.
+      const walk = new Chess(start);
+      const out = [walk.fen()];
+      for (const move of played) {
+        walk.move({
+          from: toAlgebraic(move.from),
+          to: toAlgebraic(move.to),
+          ...(move.promotion ? { promotion: move.promotion } : {}),
+        });
+        out.push(walk.fen());
+      }
+      return out;
+    },
 
     pgn() {
       /*
