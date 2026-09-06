@@ -732,3 +732,68 @@ describe('[No opponent] a lesson never blocks on the engine', () => {
     expect(document.querySelector('#side-column .lesson-say')?.textContent ?? '').not.toBe('');
   });
 });
+
+describe('[Tactics] a puzzle is a lesson, all the way through the column', () => {
+  /*
+   * ⚠️ THE CLAIM THE CONVERTER EARNS. `teach/puzzle-lesson.ts` turns a Lichess tactic into a
+   * `Lesson`, and the whole point of that is that NOTHING downstream needed changing. So this
+   * drives one through the same door, the same panel and the same column a lesson uses — and
+   * finishes it, which is the part that proves the ply offset survived the trip.
+   */
+  const press = (code: string): void => {
+    document.getElementById('game-region')!
+      .dispatchEvent(new KeyboardEvent('keydown', { code, key: code, bubbles: true, cancelable: true }));
+  };
+
+  const waitFor = async (test: () => boolean, ms = 4000): Promise<void> => {
+    const deadline = Date.now() + ms;
+    while (!test() && Date.now() < deadline) {
+      await new Promise((resolve) => { setTimeout(resolve, 15); });
+    }
+    expect(test()).toBe(true);
+  };
+
+  const entries = (): HTMLButtonElement[] =>
+    [...document.querySelectorAll<HTMLButtonElement>('#side-column .lesson-entry')];
+
+  it('offers five themes under the eleven lessons, not two hundred puzzles', async () => {
+    expect(shell.teach()).toBe(true);
+    await waitFor(() => entries().length > 0);
+    const names = entries().map((b) => b.textContent);
+    // Eleven lessons and five themes. Two hundred names would bury the course above them.
+    expect(names).toHaveLength(16);
+    expect(names.slice(11)).toEqual([
+      'Mate em 1', 'Garfo', 'Peça pendurada', 'Cravada', 'Mate em 2',
+    ]);
+  });
+
+  it('⚠️ opens a real tactic, and it is solvable and finishable', async () => {
+    expect(shell.teach()).toBe(true);
+    await waitFor(() => entries().length > 0);
+    entries()[11]!.click();                                  // Mate em 1
+
+    await waitFor(() => (document.querySelector('#side-column .lesson-say')?.textContent ?? '')
+      .includes('xeque-mate'));
+    expect(document.querySelector('#side-column .lesson-title')!.textContent).toBe('Mate em 1');
+
+    // A mate in one is one step, and the solution is the move the dump shipped.
+    const set = await (await import('../app/js/puzzles/puzzle.ts')).loadPuzzles();
+    const id = shell.game() && document.querySelector('.lesson-entry[aria-current]');
+    expect(id).not.toBeNull();
+    const mate = set.puzzles.find((p) => p.theme === 'mateIn1')!;
+    const square = (name: string): Square => ({
+      x: 'abcdefgh'.indexOf(name[0]!), y: 8 - Number(name[1]),
+    });
+    const move = mate.solution[0]!;
+
+    shell.activate(square(move.slice(0, 2)));
+    shell.activate(square(move.slice(2, 4)));
+    // The hold, then the end of a one-step lesson.
+    await waitFor(() => (document.querySelector('#side-column .lesson-counter')?.textContent ?? '')
+      .includes('concluída'));
+
+    // ⚠️ Filed under its namespaced id, so a tactic can never be mistaken for a lesson.
+    expect(loadProgress(localStorage).done.some((d) => d.startsWith('puzzle:'))).toBe(true);
+    expect(press).toBeTruthy();
+  });
+});

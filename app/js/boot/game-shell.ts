@@ -54,7 +54,9 @@ import { createPauseMenu } from '../ui/pause-menu.ts';
  * when a lesson is actually started, and the PROSE is fetched separately again by the driver. A
  * player who never opens a lesson downloads the names and nothing else.
  */
-import { LESSONS, syllabus } from '../teach/lessons.ts';
+import { LESSONS, lessonById, syllabus } from '../teach/lessons.ts';
+import { isPuzzleId, puzzleId, puzzleLesson } from '../teach/puzzle-lesson.ts';
+import { loadPuzzles, type PuzzleSet } from '../puzzles/puzzle.ts';
 import { loadProgress } from '../chess/session.ts';
 import { createGridMirror, type LessonMark, type LessonSquare } from '../ui/grid-mirror.ts';
 import { createHud, type GameMode, type Hud, type ViewKind } from '../ui/hud.ts';
@@ -612,6 +614,60 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     blunderBar.refresh();
   }
 
+  /* ============================ THE TACTICS ============================ */
+  /*
+   * `teach/puzzle-lesson.ts` turns a Lichess puzzle into a `Lesson`, so everything the teaching
+   * mode already does works on one unchanged — the tutor judges it, the panel draws it, the column
+   * lists it, back and forward walk it, the teacher unlocks after three tries. What is left for
+   * this file is only finding WHICH.
+   */
+
+  /** The five themes, in the order a beginner meets them. Names come from the main catalogue. */
+  const PUZZLE_THEMES = ['mateIn1', 'fork', 'hangingPiece', 'pin', 'mateIn2'] as const;
+  /** A menu id that is NOT a puzzle id: it names a theme, and picking it opens the next one. */
+  const themeEntry = (theme: string): string => `theme:${theme}`;
+
+  /**
+   * The set, once.
+   *
+   * ⚠️ NOT AT BOOT. 59 KB fetched the first time anybody asks for a tactic and never again —
+   * somebody who only plays should not carry two hundred positions, which is the same argument
+   * that keeps the lesson prose and the renderer off the flat page.
+   *
+   * ⚠️ AND THE LAZY THING IS THE JSON, NOT THIS MODULE. `loadPuzzles` is imported normally, because
+   * `teach/puzzle-lesson.ts` already needs `isStudentMove` from the same file and drags it into
+   * this graph regardless — a dynamic import here split nothing and the bundler said so
+   * (`INEFFECTIVE_DYNAMIC_IMPORT`). The two hundred positions are behind the dynamic import INSIDE
+   * `loadPuzzles`, which is the one that was ever doing the work.
+   */
+  let puzzles: PuzzleSet | null = null;
+  async function puzzleSet(): Promise<PuzzleSet> {
+    if (!puzzles) puzzles = await loadPuzzles();
+    return puzzles;
+  }
+
+  /** The theme of the tactic being solved, so the column can mark which entry is open. */
+  let currentTheme: string | null = null;
+
+  /**
+   * Opens whatever the column was pointing at: a lesson, or the next unsolved tactic of a theme.
+   *
+   * ⚠️ THE NEXT UNSOLVED ONE, NOT THE FIRST. A child who has done four mates-in-one and comes back
+   * wants the fifth; being handed the first again says their work did not count, which is the same
+   * reason APRENDER resumes rather than restarting.
+   */
+  async function openFromMenu(pick: string): Promise<void> {
+    if (!pick.startsWith('theme:')) { await startLesson(pick); return; }
+    const theme = pick.slice('theme:'.length);
+    const set = await puzzleSet();
+    const done = learned();
+    const inTheme = set.puzzles.filter((p) => p.theme === theme);
+    // All solved: start the theme again rather than refusing. A tactic is worth repeating, and a
+    // menu entry that does nothing is worse than one that repeats itself.
+    const next = inTheme.find((p) => !done.includes(puzzleId(p))) ?? inTheme[0];
+    if (next) await startLesson(puzzleId(next));
+  }
+
   /* ============================ THE TEACHING MODE ============================ */
 
   /**
@@ -683,6 +739,18 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       shell: self!,
       panel,
       say: (text) => { srSay(text); refreshLessonMenu(); },
+      /*
+       * ⚠️ A PUZZLE IS RESOLVED HERE RATHER THAN IN THE DRIVER, because resolving one means
+       * fetching a file — which is the composition root's business. The driver only ever sees a
+       * `Lesson` and cannot tell the two apart, which is the whole point of the converter.
+       */
+      find: async (wanted) => {
+        if (!isPuzzleId(wanted)) { currentTheme = null; return lessonById(wanted); }
+        const set = await puzzleSet();
+        const puzzle = set.puzzles.find((p) => puzzleId(p) === wanted);
+        currentTheme = puzzle?.theme ?? null;
+        return puzzle ? puzzleLesson(puzzle) : null;
+      },
       onLeave: () => {
         panel.destroy();
         lessonPanel = null;
@@ -709,13 +777,33 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       doc: host,
       i18n,
       lesson: panel.root,
-      lessons: () => syllabus().map((l) => ({
-        id: l.id,
-        title: l.title,
-        done: learned().includes(l.id),
-        current: l.id === lessonMode?.active()?.id,
-      })),
-      onPick: (pick) => { void startLesson(pick); },
+      lessons: () => [
+        ...syllabus().map((l) => ({
+          id: l.id,
+          title: l.title,
+          done: learned().includes(l.id),
+          current: l.id === lessonMode?.active()?.id,
+        })),
+        /*
+         * ⚠️ ONE ENTRY PER THEME, NOT ONE PER PUZZLE. Two hundred names would bury the eleven
+         * lessons above them and turn a course into a phone book. A theme opens the next tactic in
+         * it that has not been solved, which is what a list of two hundred was only ever a slow
+         * way of doing.
+         *
+         * `done` stays false until the set has been fetched, because until then nobody knows how
+         * many there are — and claiming a theme is finished before counting it would be a tick
+         * that lied.
+         */
+        ...PUZZLE_THEMES.map((theme) => ({
+          id: themeEntry(theme),
+          title: `puzzle.theme.${theme}`,
+          done: puzzles !== null
+            && puzzles.puzzles.filter((p) => p.theme === theme)
+              .every((p) => learned().includes(puzzleId(p))),
+          current: currentTheme === theme,
+        })),
+      ],
+      onPick: (pick) => { void openFromMenu(pick); },
       place: () => ({
         at: (lessonMode?.stepIndex() ?? 0) + 1,
         of: lessonMode?.active()?.steps.length ?? 1,
