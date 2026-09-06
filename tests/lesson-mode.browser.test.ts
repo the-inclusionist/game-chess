@@ -56,6 +56,10 @@ beforeEach(() => {
   left = 0;
   shell = createGameShell({
     host: document, kind: '2d', view: fakeView, visibleMirror: true,
+    // ⚠️ The shell only knows a lesson is running when IT started one. The tests above build the
+    // mode by hand, which is right for testing the driver and wrong for testing the wiring — so
+    // the keyboard tests at the bottom go through `shell.teach()` instead.
+    teaches: true,
     debugName: '__lessonTest', contrastTheme: 'contrast-flat',
   });
   const panel = createLessonPanel({
@@ -480,5 +484,86 @@ describe('[Walking] back and forward run through the whole course', () => {
     await mode.back();
     expect(mode.active()?.id).toBe('notation');
     expect(mode.stepIndex()).toBe(0);
+  });
+});
+
+describe('[Actions] the four buttons reach the lesson', () => {
+  /*
+   * The engine's SOLO defaults: `action1` KeyU, `action2` KeyJ/Space, `action3` KeyK, `action4`
+   * KeyI, `start` on its own key. They are physical `KeyboardEvent.code`s rather than letters,
+   * because the printed letter moves with the ABNT2/US layout and the position does not.
+   */
+  const press = (code: string): void => {
+    // ⚠️ `key` AS WELL AS `code`. The engine resolves intents from the physical `code`, but the
+    // pause menu also answers to `Escape` by name — a synthetic event carrying only `code` has an
+    // empty `key`, and the first version of these tests dispatched an Escape that matched neither.
+    document.getElementById('game-region')!.dispatchEvent(
+      new KeyboardEvent('keydown', { code, key: code, bubbles: true, cancelable: true }),
+    );
+  };
+
+  /**
+   * Opens a lesson the way the title screen does, so the SHELL knows one is running.
+   *
+   * ⚠️ WAITS ON THE CONDITION, NOT ON A COUNT OF TICKS. `startLesson` fetches the panel, the
+   * driver and the menu as dynamic imports and then fetches the lesson prose — under the dev
+   * server the first of those is a real round trip, so "two macrotasks" was a guess that happened
+   * to be wrong. Polling for the thing being waited for cannot be wrong.
+   */
+  const teaching = async (): Promise<void> => {
+    expect(shell.teach()).toBe(true);
+    const deadline = Date.now() + 3000;
+    while (!document.getElementById('lesson-teacher') && Date.now() < deadline) {
+      await new Promise((resolve) => { setTimeout(resolve, 10); });
+    }
+    expect(document.getElementById('lesson-teacher')).not.toBeNull();
+  };
+
+  it('⚠️ action1 toggles the teacher, and the gate still refuses it', async () => {
+    // The key reaches the STATE, not the checkbox — which is why the gate had to live in the mode
+    // rather than only in the menu's `disabled` attribute.
+    await teaching();
+    const box = (): HTMLInputElement => document.getElementById('lesson-teacher') as HTMLInputElement;
+    press('KeyU');
+    expect(box().checked).toBe(false);
+
+    for (const square of ['a3', 'b3', 'c3']) { shell.activate(at(square)); await settle(); }
+    press('KeyU');
+    expect(box().checked).toBe(true);
+    press('KeyU');
+    expect(box().checked).toBe(false);
+  });
+
+  it('action3 puts a held piece down', async () => {
+    await mode.start('rook');
+    shell.activate(at('d5'));
+    expect(shell.game().selection()).not.toBeNull();
+    press('KeyK');
+    expect(shell.game().selection()).toBeNull();
+  });
+
+  it('⚠️ action4 moves between the board and the side menu, and back', async () => {
+    /*
+     * The board is a roving-tabindex grid, so Tab leaves it in one press — but coming back lands on
+     * whichever cell holds the tab stop, and getting from a lesson's list to the board and back is
+     * otherwise a trip through everything in between.
+     */
+    await teaching();
+    const menu = document.querySelector('.lesson-menu')!;
+    expect(menu.contains(document.activeElement)).toBe(false);
+
+    press('KeyI');
+    expect(menu.contains(document.activeElement)).toBe(true);
+
+    press('KeyI');
+    expect(menu.contains(document.activeElement)).toBe(false);
+    expect((document.activeElement as HTMLElement).dataset.square).toBeDefined();
+  });
+
+  it('start opens the pause menu, and the way out of a lesson is in it', async () => {
+    await teaching();
+    press('Escape');
+    const actions = [...document.querySelectorAll('.pause-action')].map((b) => b.textContent);
+    expect(actions).toContain('Sair da aula');
   });
 });

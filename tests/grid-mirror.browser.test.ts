@@ -427,3 +427,77 @@ describe('[Lesson] "look here" is a shape AND a word, never a colour', () => {
     expect(cellAt('e4').dataset.lesson).toBe('look');
   });
 });
+
+describe('[Actions] confirm is an ACTION, not a button press', () => {
+  /*
+   * ========================= ⚠️ WHY THIS IS HANDLED AT ALL =========================
+   * A cell is a real `<button>`, so Enter and Space already activate it. Left at that, `action2`
+   * bound to a gamepad face button — or to any key that is not Enter or Space — would do nothing
+   * on the board while working everywhere else in the game. The whole point of the engine's
+   * intent layer is that the binding is the player's to change.
+   */
+  function withActions(fen?: string) {
+    const rules = createRules(fen);
+    const state = createGameState({ rules, opponent: false });
+    const onActivate = vi.fn((square: Square) => { state.activate(square); mirror?.refresh(); });
+    mirror = createGridMirror({
+      doc: document,
+      i18n: createI18n('pt'),
+      rules: () => rules,
+      state: () => state,
+      onActivate,
+      // The engine's SOLO defaults, which is what a player has before they remap anything.
+      resolveAction: (code) => ({
+        ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+        KeyJ: 'action2', Space: 'action2',
+      }[code] ?? null),
+    });
+    document.body.appendChild(mirror.root);
+    return { rules, state, onActivate, mirror };
+  }
+
+  const key = (code: string, target: Element): void => {
+    target.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true, cancelable: true }));
+  };
+
+  it('activates the square under the cursor', () => {
+    const { onActivate } = withActions();
+    key('KeyJ', cellAt('e2'));
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    expect(onActivate.mock.calls[0]![0]).toEqual(sq('e2'));
+  });
+
+  it('⚠️ activates ONCE on Space, not twice', () => {
+    /*
+     * THE FAULT THIS TEST EXISTS FOR. The engine binds `action2` to KeyJ AND Space, and Space also
+     * activates a `<button>` natively. Without `preventDefault` every Space would go through both
+     * paths — on a lesson's `mark` step that is a square touched twice, which the set forgives; on
+     * a `play` step it is a move, and then a second move.
+     */
+    const { onActivate } = withActions();
+    const cell = cellAt('e2');
+    const event = new KeyboardEvent('keydown', { code: 'Space', bubbles: true, cancelable: true });
+    cell.dispatchEvent(event);
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    // The native click is suppressed, which is what keeps the second one from arriving.
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('follows the cursor rather than the focused element', () => {
+    // The two agree in practice, and the cursor is the one that is true: it is what the board
+    // draws and what the 2.5D and 3D pages read.
+    const { onActivate } = withActions();
+    key('ArrowUp', cellAt('e2'));
+    key('KeyJ', document.activeElement!);
+    expect(onActivate.mock.calls[0]![0]).toEqual(sq('e3'));
+  });
+
+  it('leaves Enter to the button, which has always worked', () => {
+    // Enter is not bound to `action2` in the engine's defaults, so it reaches the board the way it
+    // always has — through the element. Asserted so that adding it to the table later is a
+    // decision rather than an accident that starts double-activating.
+    const { onActivate } = withActions();
+    cellAt('e2').click();
+    expect(onActivate).toHaveBeenCalledTimes(1);
+  });
+});

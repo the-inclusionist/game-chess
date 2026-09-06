@@ -709,13 +709,76 @@ export function createGameShell(deps: GameShellDeps): GameShell {
      * refusing input, while a piece is in flight, and while the menu itself is open — a pause that
      * only works when the game is idle is a pause you cannot reach when you need it.
      */
-    if (engine.keyboard.actionOf(event.code, 0) === 'start' || event.key === 'Escape') {
+    const action = engine.keyboard.actionOf(event.code, 0);
+    if (action === 'start' || event.key === 'Escape') {
       pause.toggle();
       event.preventDefault();
       return;
     }
+    /*
+     * ========================= THE FOUR ACTIONS =========================
+     * `action2` (confirm) is the board's and lives in `ui/grid-mirror.ts`, because that is what
+     * knows where the cursor is. The other three are the shell's, because each of them is about
+     * the game rather than about a square.
+     */
+    if (action === 'action3') {
+      // ⚠️ CANCEL CLOSES THE MENU FIRST, before the guard below. A cancel that only worked when
+      // nothing was open would be missing the one moment anybody presses it.
+      if (pause.open) { pause.hide(); event.preventDefault(); return; }
+      // Otherwise it puts the held piece down — activating the selected square again is how
+      // `chess/state.ts` already spells "deselect", so there is nothing new to teach it.
+      const held = game.selection();
+      if (held) { onActivate(held); event.preventDefault(); }
+      return;
+    }
     if (pause.open) return;
-    if (engine.keyboard.actionOf(event.code, 0) === 'especial') {
+
+    if (action === 'action1') {
+      /*
+       * The teacher, in both modes. In a lesson it shows the step's own answer, and refuses until
+       * three tries have been spent — `setTeacher` enforces that itself, which is why this can ask
+       * plainly rather than checking first. In a game it is the engine's suggestion.
+       */
+      if (lessonMode) {
+        lessonMode.setTeacher(!lessonMode.teacher());
+        refreshLessonMenu();
+      } else if (mode !== 'two') {
+        hintsOn = !hintsOn;
+        prefs.save({ hints: hintsOn });
+        if (!hintsOn) clearHints();
+        hud.refresh();
+        refreshHints();
+      }
+      event.preventDefault();
+      return;
+    }
+
+    if (action === 'action4') {
+      /*
+       * ⚠️ THE ONE KEY THAT MAKES THE SIDE PANEL REACHABLE WITHOUT TABBING PAST SIXTY-FOUR CELLS.
+       * The board is a roving-tabindex grid, so Tab leaves it in one press — but coming BACK lands
+       * on whichever cell holds the tab stop, and getting from a lesson's list to the board and
+       * back is otherwise a trip through everything between them.
+       */
+      const panel = lessonMenu && !lessonMenu.root.hidden ? lessonMenu.root : hud.root;
+      const inPanel = panel.contains(host.activeElement);
+      if (inPanel) mirror.focusSquare(cursor);
+      /*
+       * ⚠️ THE FIRST ENABLED ONE, and the first version left off `:not([disabled])`. The lesson
+       * menu's first control is "previous", which is disabled at the very first step of the very
+       * first lesson — so pressing this at the one moment a reader is most likely to press it did
+       * NOTHING, silently, and left them on the board wondering whether the key existed.
+       */
+      else {
+        panel.querySelector<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href]',
+        )?.focus();
+      }
+      event.preventDefault();
+      return;
+    }
+
+    if (action === 'especial') {
       engine.sonar.sonar({ i: 0, x: cursor.x, y: cursor.y, viz: 'normal' });
       event.preventDefault();
       return;

@@ -438,6 +438,24 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
       return;
     }
 
+    /*
+     * ========================= ⚠️ CONFIRM, AND WHY IT MUST `preventDefault` =========================
+     * A cell is a real `<button>`, so Enter and Space activate it without any help from here — and
+     * the engine's default binding for `action2` is `KeyJ` AND `Space`. Handling the action without
+     * suppressing the default would make every Space activate the square TWICE: once through this
+     * and once through the button. On a lesson's `mark` step that is a square touched twice, which
+     * the set forgives; on a `play` step it is a move and then a second move.
+     *
+     * Handling it at all is what makes the action REMAPPABLE. Left to the button alone, `action2`
+     * bound to a gamepad face button or to any key that is not Enter or Space would do nothing on
+     * the board while working everywhere else.
+     */
+    if (action === 'action2') {
+      deps.onActivate(cursor);
+      event.preventDefault();
+      return;
+    }
+
     if (event.key === 'Home') {
       setCursor({ x: 0, y: event.ctrlKey ? 0 : cursor.y }, true);
       event.preventDefault();
