@@ -26,6 +26,13 @@ export function boot3d(host: Document = document): void {
     host,
     kind: '3d',
     view: createSolidView,
+    /*
+     * ⚠️ THIS PAGE TEACHES NOW, AND IT DID NOT. It was left out because `render3d/scene.ts` had no
+     * marker channel at all — a lesson saying "look at these squares" would have shown nothing, and
+     * offering a mode whose main instruction silently does nothing is worse than not offering it.
+     * The scene has marks now, so the reason is gone.
+     */
+    teaches: true,
     debugName: '__chess3d',
     // Solids, not glyphs: the same squares as the flat board's high contrast, different pieces.
     contrastTheme: 'contrast-solid',

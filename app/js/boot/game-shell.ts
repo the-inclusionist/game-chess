@@ -87,9 +87,10 @@ export interface GameShellDeps {
   /**
    * Whether this page offers the teaching mode.
    *
-   * ⚠️ FALSE ON THE SOLID PAGE, and said rather than fudged: `render3d/scene.ts` has no marker
-   * channel at all, so a lesson that said "look at these squares" would show nothing there.
-   * Offering a mode whose main instruction silently does nothing is worse than not offering it.
+   * ⚠️ TRUE ON ALL THREE NOW. It was false on the solid page while `render3d/scene.ts` had no
+   * marker channel, because a lesson saying "look at these squares" would have shown nothing. The
+   * flag stays rather than being deleted: a view added later starts unable to draw a mark, and
+   * should say so rather than offer a mode that half works.
    */
   readonly teaches?: boolean;
   /**

@@ -17,6 +17,11 @@
 
 import * as THREE from 'three';
 import { TILE } from '../render/resolution.ts';
+import type { Marker } from '../render/board-geometry.ts';
+import {
+  MARKER_CAPTURE, MARKER_CHECK, MARKER_CURSOR, MARKER_LESSON, MARKER_LESSON_HALO,
+  MARKER_LESSON_RIGHT, MARKER_LESSON_WRONG, MARKER_MOVE, MARKER_SELECTED,
+} from '../render/palette.ts';
 import { squareCenter } from '../render/board-geometry.ts';
 import type { Square } from '../chess/types.ts';
 
@@ -55,6 +60,15 @@ export interface Scene3d {
    */
   dolly(notches: number): void;
   look(): { yaw: number; pitch: number };
+  /**
+   * The marks the game wants on the board: selection, legal moves, check, the cursor, a lesson.
+   *
+   * ⚠️ THIS VIEW HAD NONE OF THIS UNTIL NOW, and it was a gap rather than a decision — recorded in
+   * `boot/view-solid.ts` and in the plan. A player here could not see which square was selected or
+   * where the piece they were holding could go; those three facts reached them only through the
+   * screen reader's labels, which is to say only if they were using one.
+   */
+  setMarkers(markers: ReadonlyMap<number, Marker>): void;
   /** The square under a point in canvas coordinates, or null. */
   pick(x: number, y: number, width: number, height: number): Square | null;
   /** Repaints the board. The pieces are rebuilt by their own layer, not here. */
@@ -173,6 +187,74 @@ export function createScene3d(options: Scene3dOptions): Scene3d {
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
 
+  /*
+   * ========================= THE MARKS, IN THE SAME VOCABULARY THE OTHER BOARDS USE =========================
+   * `render/board-geometry.ts` sets the rule and it is not this file's to reinvent: the marks that
+   * co-occur in a turn are told apart by SHAPE, never by colour alone. A filled disc is a move, a
+   * ring is a capture, both together is the selection — so a colour-blind player, or one on a
+   * washed-out projector, reads the same board as everybody else.
+   *
+   * Built on demand and thrown away, the way the projected board's lesson marks are: a turn lights
+   * a handful of squares, and sixty-four hidden meshes would be a standing cost in a scene that is
+   * re-rendered every frame.
+   */
+  const marks = new THREE.Group();
+  scene.add(marks);
+
+  /** Just clear of the board's top face, which is at y = 1. Any less and they z-fight. */
+  const MARK_Y = 1.05;
+
+  const flatMaterial = (colour: string): THREE.Material => new THREE.MeshBasicMaterial({
+    color: colour,
+    // ⚠️ UNLIT AND DOUBLE-SIDED WHATEVER THE BOARD IS. A mark is a diagram drawn ON the position,
+    // not an object in it: shading one would make "is that square lit?" depend on where the camera
+    // happens to be standing.
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.92,
+  });
+
+  const lay = (mesh: THREE.Mesh, cx: number, cz: number): THREE.Mesh => {
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(cx, MARK_Y, cz);
+    marks.add(mesh);
+    return mesh;
+  };
+
+  const disc = (cx: number, cz: number, r: number, colour: string): void => {
+    lay(new THREE.Mesh(new THREE.CircleGeometry(r, 24), flatMaterial(colour)), cx, cz);
+  };
+  const ring = (cx: number, cz: number, r: number, colour: string): void => {
+    lay(new THREE.Mesh(new THREE.RingGeometry(r * 0.82, r, 24), flatMaterial(colour)), cx, cz);
+  };
+  const square = (cx: number, cz: number, side: number, colour: string): void => {
+    lay(new THREE.Mesh(new THREE.PlaneGeometry(side, side), flatMaterial(colour)), cx, cz);
+  };
+
+  const LESSON_INK: Record<'lesson' | 'lessonRight' | 'lessonWrong', string> = {
+    lesson: MARKER_LESSON, lessonRight: MARKER_LESSON_RIGHT, lessonWrong: MARKER_LESSON_WRONG,
+  };
+
+  function drawMark(kind: Marker, cx: number, cz: number): void {
+    if (kind === 'lesson' || kind === 'lessonRight' || kind === 'lessonWrong') {
+      /*
+       * ⚠️ THE BLACK HALO IS WHAT SATISFIES 1.4.11 — measured in `render/palette.ts`, where no hue
+       * clears 3:1 against every square this game draws. And `lessonWrong` is a RING while the
+       * other two are filled, because blue and red measure 1.06:1 against each other: to a reader
+       * going by lightness they are one mark unless the shape differs.
+       */
+      square(cx, cz, TILE * 0.60, MARKER_LESSON_HALO);
+      if (kind === 'lessonWrong') ring(cx, cz, TILE * 0.30, LESSON_INK[kind]);
+      else square(cx, cz, TILE * 0.52, LESSON_INK[kind]);
+      return;
+    }
+    if (kind === 'move' || kind === 'selected') disc(cx, cz, TILE * 0.16, MARKER_MOVE);
+    if (kind === 'capture') ring(cx, cz, TILE * 0.42, MARKER_CAPTURE);
+    if (kind === 'selected') ring(cx, cz, TILE * 0.42, MARKER_SELECTED);
+    if (kind === 'check') ring(cx, cz, TILE * 0.42, MARKER_CHECK);
+    if (kind === 'cursor') ring(cx, cz, TILE * 0.46, MARKER_CURSOR);
+  }
+
   return {
     scene,
     camera,
@@ -180,6 +262,22 @@ export function createScene3d(options: Scene3dOptions): Scene3d {
 
     render() {
       renderer.render(scene, camera);
+    },
+
+    setMarkers(wanted) {
+      // Thrown away and rebuilt. Geometries and materials are disposed, because a scene rendered
+      // every frame will not forgive a leak of one mesh per move.
+      for (const child of [...marks.children]) {
+        marks.remove(child);
+        const mesh = child as THREE.Mesh;
+        mesh.geometry?.dispose();
+        (mesh.material as THREE.Material | undefined)?.dispose();
+      }
+      for (const [index, kind] of wanted) {
+        if (index < 0 || index >= 64) continue;
+        const { x: cx, z: cz } = squareCenter({ x: index % 8, y: Math.floor(index / 8) }, TILE);
+        drawMark(kind, cx, cz);
+      }
     },
 
     resize(width, height) {

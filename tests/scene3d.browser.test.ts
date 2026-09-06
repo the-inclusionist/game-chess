@@ -86,3 +86,76 @@ describe('[3D] the wheel moves the camera, within limits', () => {
     scene.destroy();
   });
 });
+
+describe('[Marks] the solid board can finally say what it is doing', () => {
+  /*
+   * ⚠️ THIS VIEW SHOWED NOTHING AT ALL until now — not the selection, not the legal moves, not
+   * check. A player here learned those three facts only from the screen reader's labels, which is
+   * to say only if they were using one, and it is why the teaching mode was switched off on this
+   * page. Recorded as a debt in the plan; this is it being paid.
+   */
+  const marksIn = (s: ReturnType<typeof createScene3d>): number => {
+    let count = 0;
+    s.scene.traverse((node) => {
+      // The marks are the flat unlit meshes laid on the board; the board and pieces are neither.
+      const mesh = node as { isMesh?: boolean; rotation?: { x: number } };
+      if (mesh.isMesh && Math.abs((mesh.rotation?.x ?? 0) + Math.PI / 2) < 1e-6) count += 1;
+    });
+    return count;
+  };
+
+  it('draws nothing when nothing is marked, and clears back to nothing', () => {
+    const scene = createScene3d({ canvas: document.createElement('canvas') });
+    expect(marksIn(scene)).toBe(0);
+
+    scene.setMarkers(new Map([[28, 'selected']]));
+    expect(marksIn(scene)).toBeGreaterThan(0);
+
+    scene.setMarkers(new Map());
+    expect(marksIn(scene)).toBe(0);
+  });
+
+  it('⚠️ tells a move from a capture by SHAPE, not only by colour', () => {
+    /*
+     * The rule `render/board-geometry.ts` sets, and it is not this view's to reinvent: a filled
+     * disc is a move, a ring is a capture, both together is the selection. One mesh against two is
+     * how that is visible in a test.
+     */
+    const scene = createScene3d({ canvas: document.createElement('canvas') });
+    scene.setMarkers(new Map([[28, 'move']]));
+    const move = marksIn(scene);
+    scene.setMarkers(new Map([[28, 'capture']]));
+    const capture = marksIn(scene);
+    scene.setMarkers(new Map([[28, 'selected']]));
+    const selected = marksIn(scene);
+
+    expect(move).toBe(1);
+    expect(capture).toBe(1);
+    // Selection is the two of them together, which is what makes it a third readable state.
+    expect(selected).toBe(2);
+  });
+
+  it('gives a lesson mark its halo, which is what carries its contrast', () => {
+    // No hue clears 3:1 against every square this game draws — see `render/palette.ts` — so the
+    // black halo behind it is the thing satisfying 1.4.11, and a count of one would mean it went.
+    const scene = createScene3d({ canvas: document.createElement('canvas') });
+    scene.setMarkers(new Map([[28, 'lesson']]));
+    expect(marksIn(scene)).toBe(2);
+  });
+
+  it('draws every square it is given, and ignores an index nobody has', () => {
+    const scene = createScene3d({ canvas: document.createElement('canvas') });
+    scene.setMarkers(new Map([[0, 'move'], [63, 'move'], [64, 'move'], [-1, 'move']]));
+    expect(marksIn(scene)).toBe(2);
+  });
+
+  it('survives a whole game of marking without leaking meshes', () => {
+    // Rebuilt every move in a scene rendered every frame: a mesh left behind each time is a leak
+    // that only shows up after somebody has been playing for a while.
+    const scene = createScene3d({ canvas: document.createElement('canvas') });
+    for (let i = 0; i < 40; i += 1) {
+      scene.setMarkers(new Map([[i % 64, 'selected'], [(i + 1) % 64, 'move']]));
+    }
+    expect(marksIn(scene)).toBe(3);
+  });
+});

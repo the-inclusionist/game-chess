@@ -110,11 +110,10 @@ export interface HudDeps {
    * The lessons this page can open, in the order they should be taken, with what is already
    * learned marked.
    *
-   * ⚠️ ABSENT ON THE SOLID PAGE, AND SAID RATHER THAN FUDGED. `render3d/scene.ts` has no marker
-   * channel at all — no selection, no legal targets, nothing — so a lesson that said "look at
-   * these squares" would silently show nothing there. Offering the mode and having half of it do
-   * nothing is worse than not offering it, so the composition root of `3d.html` passes neither of
-   * these two and the control does not exist.
+   * ⚠️ ABSENT WHERE A PAGE CANNOT DRAW A LESSON MARK. That was the solid page until
+   * `render3d/scene.ts` grew a marker channel; all three teach now. The gate stays, because a page
+   * that could not show "look at this square" should not offer a mode whose main instruction is
+   * exactly that.
    */
   lessons?(): readonly { readonly id: string; readonly title: string; readonly done: boolean }[];
   onLesson?(id: string): void;

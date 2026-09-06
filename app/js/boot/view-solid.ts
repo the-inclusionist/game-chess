@@ -218,14 +218,14 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
 
     drawPosition: (hidden) => { drawPieces(hidden); },
 
-    drawMarks: (_markers, hints) => {
+    drawMarks: (markers, hints) => {
       /*
-       * ⚠️ THE MARKERS ARE DROPPED, and that is a gap rather than a decision. `render3d/scene.ts`
-       * has no marker channel: this board cannot show which square is selected, which squares a
-       * piece can reach, or which king is in check. It is older than the shell — the other two
-       * views have had it all along — and it is recorded rather than hidden, because a player here
-       * currently learns those three facts only from the screen reader's labels.
+       * ⚠️ THESE USED TO BE DROPPED. `render3d/scene.ts` had no marker channel, so this board could
+       * not show which square was selected, where the piece being held could go, or which king was
+       * in check — three facts a player here learned only from the screen reader's labels, which is
+       * to say only if they were using one. It is why lessons were switched off on this page.
        */
+      scene.setMarkers(markers);
       clearArrows();
       for (const hint of hints) {
         const from = squareCenter(hint.from, TILE);
