@@ -37,7 +37,7 @@ import { STUMBLES_BEFORE_HELP } from '../chess/protection.ts';
 import { isBlunder } from '../chess/review.ts';
 import { createReviewer, type ReviewedMove } from '../chess/reviewer.ts';
 import { loadSettings, patchSettings, resume, save as saveGame } from '../chess/session.ts';
-import { createGameState } from '../chess/state.ts';
+import { createGameState, type Activation } from '../chess/state.ts';
 import { createRules, type MoveResult } from '../chess/rules.ts';
 import { type Side, type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale } from '../i18n/index.ts';
@@ -82,6 +82,16 @@ export interface GameShellDeps {
   readonly makeOpponent?: (options: { onThought(t: Thought): void }) => StockfishClient;
 }
 
+/**
+ * Told what the board did, after the board has finished doing it.
+ *
+ * ⚠️ AFTER THE FLIGHT, NOT BEFORE, for a move — which is the pedagogy and not a technicality. A
+ * lesson answers a wrong move by taking it back, and `ui/blunder-bar.ts` already argued why the
+ * wrong thing has to HAPPEN first: somebody being told their move was wrong needs to have seen it.
+ * Handing this over before the piece has landed would undo a move the child never saw.
+ */
+export type ActivationObserver = (square: Square, result: Activation) => void;
+
 export interface GameShell {
   readonly region: HTMLElement;
   readonly i18n: ReturnType<typeof createI18n>;
@@ -111,6 +121,13 @@ export interface GameShell {
   newGame(fen?: string, options?: { readonly teaching?: boolean }): void;
   /** The squares a lesson is pointing at. Empty clears them. */
   setTaught(squares: readonly Square[]): void;
+  /**
+   * Watches every activation, or stops watching when given null. One watcher, because there is one
+   * lesson at a time and a list would only invite a second thing to answer the board.
+   */
+  watch(observer: ActivationObserver | null): void;
+  /** Takes one ply back and redraws. Returns whether anything moved. */
+  undoLast(): boolean;
 }
 
 export function createGameShell(deps: GameShellDeps): GameShell {
@@ -167,6 +184,8 @@ export function createGameShell(deps: GameShellDeps): GameShell {
    * matters and the last place anybody would look.
    */
   let teaching = false;
+  /** Who is being told what the board did. A lesson, or nobody. */
+  let observer: ActivationObserver | null = null;
 
   let motionReduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   let paletteHigh = window.matchMedia?.('(prefers-contrast: more)').matches ?? false;
@@ -692,6 +711,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     if (result.kind !== 'moved') {
       syncPosition();
       announceActivation(i18n, rules, result);
+      observer?.(square, result);
       return;
     }
 
@@ -703,7 +723,9 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     syncPosition([move.to], move.piece);
     announceActivation(i18n, rules, result);
     announceOutcome(i18n, game.outcome());
-    void fly(move.from, move.to).then(() => { askOpponent(); });
+    // ⚠️ THE OBSERVER WAITS FOR THE PIECE TO LAND. See `ActivationObserver`: a lesson undoes a
+    // wrong move, and undoing one the child never saw teaches nothing.
+    void fly(move.from, move.to).then(() => { askOpponent(); observer?.(square, result); });
   }
 
   /**
@@ -816,7 +838,13 @@ export function createGameShell(deps: GameShellDeps): GameShell {
    */
   function newGame(fen?: string, options: { readonly teaching?: boolean } = {}): void {
     teaching = options.teaching ?? false;
-    rules = createRules(fen);
+    /*
+     * ⚠️ NO FEN MEANS "THE PLAYER'S OWN GAME", NOT "A FRESH BOARD", and the difference is a game
+     * thrown away. The only caller that omits it is a lesson handing the board back, and what it
+     * wants back is the position the player was in — which lives in the tab's storage and is what
+     * `resume()` reads. A standard opening would silently discard a game in progress.
+     */
+    rules = fen === undefined ? resume() : createRules(fen);
     game = createGameState({ rules, playerSide, opponent: !teaching && mode !== 'two' });
     setTaught([]);
     syncPosition();
@@ -842,5 +870,13 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     rules: () => rules,
     game: () => game,
     activate: onActivate, walkHistory, askOpponent, newGame, setTaught,
+    watch(next) { observer = next; },
+    undoLast() {
+      // One ply. `takeBack()` is two against an opponent and one in a hot seat, and a lesson is
+      // always a hot seat — so this is the unit a wrong answer costs.
+      const moved = game.takeBack();
+      if (moved) syncPosition();
+      return moved;
+    },
   };
 }
