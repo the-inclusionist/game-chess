@@ -152,4 +152,20 @@ describe('[Boot] the solid composition root composes too', () => {
       .filter((cell) => !/vazia|empty|vacía/.test(cell.getAttribute('aria-label') ?? ''));
     expect(occupied).toHaveLength(32);
   });
+
+  it('hides the canvas from the screen reader and keeps the mirror ahead of it', () => {
+    /*
+     * ⚠️ BOTH OF THESE FAILED BEFORE THE SHELL, and the 2.5D describe above has asserted them
+     * since it was written. That asymmetry IS the fault: a reader arriving on this page met an
+     * unlabelled canvas before the board it could use, because the third copy of the wiring had
+     * quietly lost two lines the other two had.
+     */
+    fixture();
+    boot3d(document);
+    const region = document.getElementById('game-region')!;
+    const canvas = region.querySelector('canvas')!;
+    expect(canvas.getAttribute('aria-hidden')).toBe('true');
+    const grid = region.querySelector('[role="grid"]')!;
+    expect(grid.compareDocumentPosition(canvas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });
