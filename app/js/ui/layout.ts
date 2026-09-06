@@ -50,8 +50,20 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
   if (!wrap || !region) return null;
 
   const dpr = host.win.devicePixelRatio || 1;
+  /*
+   * ⚠️ WHAT IS UNDER THE BOARD COMES OUT OF THE BOARD'S HEIGHT. The lesson bar and the blunder bar
+   * are inside the stage now, so measuring the wrap alone would size a region that does not fit
+   * beside them and push one off the bottom of the screen. Measured rather than assumed, because
+   * the bar's height depends on how long the step's sentence is.
+   *
+   * The reserve is read BEFORE the region is resized, so it is the height the panels have with the
+   * width they currently have. A relayout follows any change to the panels, which is what keeps
+   * that from drifting.
+   */
+  const below = host.doc.getElementById('below-board');
+  const reserved = below ? below.getBoundingClientRect().height : 0;
   const availW = wrap.clientWidth || MIN_REGION_W;
-  const availH = wrap.clientHeight || (MIN_REGION_W * 9) / 16;
+  const availH = Math.max(120, (wrap.clientHeight || (MIN_REGION_W * 9) / 16) - reserved);
 
   // The scale is locked in REAL pixels, not CSS ones. That is ADR-001, corrected 2026-07-04: each
   // art pixel must be a whole number of PHYSICAL pixels, or the scanlines come out uneven at any
@@ -74,6 +86,26 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
   region.style.setProperty('--ui-fs', `${8 * ui}px`);
   region.style.setProperty('--tap', `${22 * ui}px`);
   region.style.setProperty('--hud-fs', `${Math.max(9, Math.round(180 * ui * 0.052))}px`);
+
+  if (below) {
+    // Exactly the board and the side menu together — the panels under the board are neither wider
+    // nor narrower than the thing they are talking about.
+    below.style.width = `${width}px`;
+    /*
+     * ⚠️ TYPE SIZED AGAINST THE STAGE, WITH A FLOOR. A lesson sentence is prose to be read, not a
+     * HUD label to be glanced at, so it tracks the board rather than staying at whatever `body`
+     * happens to say — and it never goes below 13 px, because the smallest stage is still a stage
+     * somebody has to read from.
+     */
+    below.style.setProperty(
+      '--panel-fs',
+      // Floor and ceiling both: 13 px because the smallest stage is still one somebody reads from,
+      // and 20 px because a lesson sentence that grows without limit on a projector stops being a
+      // caption under a board and becomes the thing the board is under.
+      `${Math.min(20, Math.max(13, Math.round(width * 0.022)))}px`,
+    );
+    below.style.setProperty('--tap', `${22 * ui}px`);
+  }
 
   return { width, height, scaleDevice };
 }

@@ -483,9 +483,23 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     // nothing else would say so. The engine keeps a `problems` list for exactly this shape of gap.
     console.warn('[chess] #stage-wrap has no parent: the thinking panel has nowhere to go');
   }
-  wrap?.parentElement?.insertBefore(thinking.root, wrap.nextSibling);
-  // Above the thinking panel: it is the thing being waited on, not commentary.
-  wrap?.parentElement?.insertBefore(blunderBar.root, thinking.root);
+  /*
+   * ========================= ⚠️ UNDER THE BOARD, NOT UNDER THE PAGE =========================
+   * These used to be siblings of `#stage-wrap`, which made them as wide as the BODY: an 11 px
+   * ribbon of text stretched across a 1600 px window under a 640 px board. `#below-board` lives
+   * INSIDE the stage and `ui/layout` gives it the region's exact width, so a panel under the board
+   * is as wide as the board and the side menu together and no wider.
+   *
+   * It is built here rather than in the three HTML files because it has no content of its own —
+   * markup that exists only to be filled in by this module belongs to this module.
+   */
+  const below = host.createElement('div');
+  below.id = 'below-board';
+  wrap?.appendChild(below);
+  below.appendChild(blunderBar.root);
+  // Below the blunder bar: a warning about the move just played is more urgent than the engine's
+  // running commentary.
+  below.appendChild(thinking.root);
 
   /* ============================ THE TEACHING MODE ============================ */
 
@@ -539,6 +553,10 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     });
     // Under the board, beside the blunder bar and for the same reason: the position stays in view.
     blunderBar.root.parentElement?.insertBefore(panel.root, blunderBar.root);
+    // ⚠️ The panel takes height out of the board's share, so the stage has to be measured again —
+    // both when it arrives and when it goes. Without this the board keeps the size it had when
+    // there was nothing under it and the panel hangs off the bottom of the screen.
+    relayout();
     lessonMode = createLessonMode({
       // Filled at the end of construction; `startLesson` cannot run before that.
       shell: self!,
@@ -547,6 +565,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       onLeave: () => {
         panel.destroy();
         lessonMode = null;
+        relayout();
         // The tick on a finished lesson appears here, without an event to wire.
         hud.refresh();
       },

@@ -21,13 +21,35 @@
    * The engine's ui/layout measures THIS element and sizes #game-region from it, locking the
    * scale to whole PHYSICAL pixels so scanlines stay regular at any device pixel ratio.
    */
+  /*
+   * ========================= ⚠️ A COLUMN, AND THE WIDTH IS THE POINT =========================
+   * The lesson bar and the blunder bar used to be siblings of this element, so they spanned the
+   * whole BODY — a 1600 px ribbon of 11 px text under a 640 px board. They are now children of
+   * `#below-board`, whose width `ui/layout` sets to the region's, so a panel under the board is
+   * exactly as wide as the board and the side menu together.
+   */
   #stage-wrap {
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 0;
   }
+  /* Width is set in `ui/layout`, from the same measurement that sizes the region. */
+  #below-board {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    /*
+     * ⚠️ The panels inside inherit their type size from here rather than from `body`. At 14 px on a
+     * page whose board is 1280 px wide, `0.82em` came out at eleven pixels — legible to whoever
+     * wrote it and to nobody sitting back from a classroom projector.
+     */
+    font-size: var(--panel-fs, 14px);
+  }
+  #below-board:empty { display: none; }
 
   /* The region the engine listens to. Keyboard is bound HERE, never on window. */
 
@@ -341,7 +363,6 @@
     border: 2px solid #FFB300;
     border-radius: 3px;
     color: #F2EEE4;
-    font-size: 0.82em;
   }
   .lesson-title { margin: 0; font-size: 1.05em; font-weight: 700; color: #FFB300; }
   .lesson-counter { margin: 0.15em 0 0; font-size: 0.9em; opacity: 0.85; }
@@ -407,7 +428,6 @@
     border: 2px solid #FF8B7D;
     border-radius: 3px;
     color: #FFD9D4;
-    font-size: 0.82em;
   }
   .blunder-message { margin: 0; flex: 1 1 14em; font-weight: 600; }
   .blunder-actions { margin: 0; display: flex; gap: 0.4em; }
