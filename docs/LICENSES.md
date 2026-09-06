@@ -182,6 +182,34 @@ the two commands above, without the flag, reads the whole file and supersedes it
   (`ZSTD_error_prefix_unknown`) even though the `zstd` command reads it without comment. The
   script steps over it.
 
+## The opening names — Lichess ECO tables (CC0-1.0)
+
+`app/data/openings.json` names the opening a game has walked into. It is built from
+[`lichess-org/chess-openings`](https://github.com/lichess-org/chess-openings), which its publishers
+place under **CC0 1.0** — the same public-domain dedication as the puzzle database, with no
+conditions at all.
+
+⚠️ **The names are theirs and are not translated.** "Ruy Lopez" is what it is called in Portuguese,
+in Spanish and in English; the ones that genuinely differ between languages differ in ways a
+learner meets in books that are themselves in one language or another. Inventing our own spellings
+of three thousand of them would make this game the only place they read that way, which is the
+opposite of what a name is for. Only the LABEL around the name is translated.
+
+**Regenerating the file:**
+
+```
+mkdir -p eco && cd eco
+for v in a b c d e; do curl -O "https://raw.githubusercontent.com/lichess-org/chess-openings/master/$v.tsv"; done
+cd .. && node scripts/build-openings.mjs eco
+```
+
+⚠️ **Truncated at twelve plies** — six moves each side — which keeps 2,833 of the 3,810 lines and
+takes the file from 351 kB to 229 kB. It costs nothing when a game goes deeper: the lookup takes
+the LONGEST KNOWN PREFIX, so somebody twenty moves into a Najdorf is still told they are in a
+Najdorf. `tests/openings.node.test.ts` plays every one of the 2,833 lines through the rules, because
+a line that cannot be played is a name that can never appear — and it would fail silently, by
+simply never matching.
+
 ## The original project
 
 `juliangarnier/3D-Hartwig-chess-set` (MIT) is the **inspiration and the reference for feature

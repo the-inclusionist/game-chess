@@ -205,6 +205,7 @@ export const pt: Catalog = {
     'puzzle.nudge.fork': 'O cavalo e a dama são os que mais atacam duas peças de uma vez.',
     'puzzle.nudge.pin': 'Torre, bispo e dama prendem, porque atacam em linha.',
     'puzzle.nudge.hangingPiece': 'Conte quem ataca e quem defende cada peça do adversário.',
+    'hud.opening': 'Abertura: {name}',
     'hud.language': 'Idioma',
     'hud.lessons': 'Aulas',
     /*

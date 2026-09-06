@@ -57,6 +57,13 @@ import { createPauseMenu } from '../ui/pause-menu.ts';
 import { LESSONS, lessonById, syllabus } from '../teach/lessons.ts';
 import { isPuzzleId, puzzleId, puzzleLesson } from '../teach/puzzle-lesson.ts';
 import { loadPuzzles, type PuzzleSet } from '../puzzles/puzzle.ts';
+/*
+ * ⚠️ IMPORTED NORMALLY; the 230 kB of names is behind the dynamic import INSIDE `loadOpenings`.
+ * The bundler said so the last time this was done the other way round for the puzzles
+ * (`INEFFECTIVE_DYNAMIC_IMPORT`): a lazy import of a module something else already needs splits
+ * nothing.
+ */
+import { loadOpenings, nameOpening, type OpeningBook } from '../openings/opening.ts';
 import { loadProgress } from '../chess/session.ts';
 import { createGridMirror, type LessonMark, type LessonSquare } from '../ui/grid-mirror.ts';
 import { createHud, type GameMode, type Hud, type ViewKind } from '../ui/hud.ts';
@@ -237,6 +244,18 @@ export function createGameShell(deps: GameShellDeps): GameShell {
    * matters and the last place anybody would look.
    */
   let teaching = false;
+
+  /*
+   * ⚠️ DECLARED HERE, ABOVE THE HUD, AND THAT IS THE FOURTH TIME THIS FILE HAS TAUGHT THE LESSON.
+   * `createHud` runs its own `refresh()` while it is being built, so anything its deps read must
+   * already exist — and a `let` further down is in its temporal dead zone at that moment. The
+   * previous three were `learned`, and two `ReferenceError`s in `main.ts` that
+   * `tests/boot.browser.test.ts` was written for. `tsc` sees nothing wrong with any of them: the
+   * reference is in scope and correctly typed.
+   */
+  let openings: OpeningBook | null = null;
+  let openingName: string | null = null;
+  let openingPlies = -1;
   /** Who is being told what the board did. A lesson, or nobody. */
   let observer: ActivationObserver | null = null;
 
@@ -543,6 +562,8 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     locale: () => i18n.getLocale(),
     onLocale: (code) => { void changeLocale(code); },
 
+    opening: () => openingName,
+
     ...view.hudControls,
 
     canTakeBack: () => !walking && game.canTakeBack(),
@@ -612,6 +633,37 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     players.refresh();
     thinking.refresh?.();
     blunderBar.refresh();
+  }
+
+  /* ============================ NAMING THE OPENING ============================ */
+
+  /**
+   * The opening the game is in, or null.
+   *
+   * ⚠️ FETCHED ON THE FIRST MOVE, NOT AT BOOT. It is 230 kB of names, and a game that has not
+   * started cannot be in an opening — so the download is paid for by the first person who plays,
+   * and never by somebody who opened the page and left.
+   *
+   * ⚠️ AND IT IS A CACHED STRING RATHER THAN A LOOKUP PER FRAME. `hud.refresh()` runs on every
+   * change; walking twelve prefixes of a growing move list each time is work nobody asked for, and
+   * the answer only changes when a move does.
+   */
+  function refreshOpening(): void {
+    const history = rules.history();
+    if (history.length === 0) { openingName = null; openingPlies = -1; return; }
+    if (!openings) {
+      // One fetch, ever. When it lands, ask again and redraw — the game will have moved on by then
+      // and that is fine, because the answer is computed from the history as it is at that moment.
+      void loadOpenings().then((book) => {
+        openings = book;
+        refreshOpening();
+        hud.refresh();
+      }).catch(() => { /* a name that never arrives is a line that never appears. Nothing else. */ });
+      return;
+    }
+    if (openingPlies === history.length) return;
+    openingPlies = history.length;
+    openingName = nameOpening(history.map((m) => m.san), openings)?.name ?? null;
   }
 
   /* ============================ THE TACTICS ============================ */
@@ -1203,6 +1255,9 @@ export function createGameShell(deps: GameShellDeps): GameShell {
      * here the code looks unconditionally correct, and here is the last place anybody will look.
      */
     if (!teaching) saveGame(rules);
+    // ⚠️ BEFORE the HUD is asked for it. `refreshOpening` recomputes only when the ply count has
+    // changed, so this is a comparison rather than a lookup on most calls.
+    refreshOpening();
     players.refresh();
     reviewer.observe();
     refreshHints();

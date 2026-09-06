@@ -184,6 +184,7 @@ export const en: Catalog = {
     'puzzle.nudge.fork': 'The knight and the queen attack two pieces at once most often.',
     'puzzle.nudge.pin': 'Rook, bishop and queen pin, because they attack in a line.',
     'puzzle.nudge.hangingPiece': 'Count who attacks and who defends each of their pieces.',
+    'hud.opening': 'Opening: {name}',
     'hud.language': 'Language',
     'hud.lessons': 'Lessons',
     'teach.notation.title': 'Reading the board',

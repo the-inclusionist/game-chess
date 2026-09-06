@@ -125,6 +125,17 @@ The curation — which themes, which rating band, how many — is at the top of 
 reasoning. `docs/LICENSES.md` records the licence and two traps the dump sets for whoever reads it
 next.
 
+## Regenerating the opening names
+
+`app/data/openings.json` is checked in — 2,833 openings from the Lichess ECO tables (CC0-1.0),
+used to name the line a game has walked into. To rebuild it:
+
+```bash
+mkdir -p eco && cd eco
+for v in a b c d e; do curl -O "https://raw.githubusercontent.com/lichess-org/chess-openings/master/$v.tsv"; done
+cd .. && node scripts/build-openings.mjs eco
+```
+
 ## Layout
 
 ```

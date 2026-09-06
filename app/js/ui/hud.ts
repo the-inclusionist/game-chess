@@ -56,6 +56,13 @@ export interface HudDeps {
   locales?: readonly { readonly code: string; readonly name: string }[];
   locale?(): string;
   onLocale?(code: string): void;
+  /**
+   * The opening the game is in, already named, or null.
+   *
+   * ⚠️ A STRING RATHER THAN THE BOOK. The HUD does not fetch 230 kB of opening names and does not
+   * know what an ECO code is; whoever owns the game looks it up and hands over the answer.
+   */
+  opening?(): string | null;
   vision(): string;
   onVision(key: string): void;
   reducedMotion(): boolean;
@@ -243,6 +250,15 @@ export function createHud(deps: HudDeps): Hud {
    * rather than translated, for the same reason: a reader looking for their language is looking
    * for the word they know, not for this game's word for it.
    */
+  /*
+   * ⚠️ BESIDE THE MOVE LIST, NOT IN THE SETTINGS. It is a fact about the game in progress — the
+   * same kind of thing as whose turn it is — and it changes as the game does. The settings are for
+   * choices; this is a readout.
+   */
+  const openingBox = doc.createElement('p');
+  openingBox.className = 'hud-opening';
+  openingBox.hidden = true;
+
   const localeBox = doc.createElement('p');
   localeBox.className = 'hud-field';
   const localeLabel = doc.createElement('label');
@@ -568,7 +584,7 @@ export function createHud(deps: HudDeps): Hud {
   hintButton.className = 'hud-hint';
   hintBox.appendChild(hintButton);
 
-  root.append(turn, movesBox);
+  root.append(turn, openingBox, movesBox);
   if (deps.lessons) root.appendChild(lessonBox);
   if (deps.onHint) root.appendChild(hintBox);
   if (deps.onMode) root.appendChild(modeGroup.box);
@@ -815,6 +831,12 @@ export function createHud(deps: HudDeps): Hud {
         localeLabel.textContent = i18n.t('hud.language');
         localeSelect.value = deps.locale?.() ?? '';
       }
+      const opening = deps.opening?.() ?? null;
+      openingBox.hidden = opening === null;
+      // ⚠️ The NAME is not translated; the label around it is. See `openings/opening.ts`: "Ruy
+      // Lopez" is what it is called in all three languages, and inventing our own spellings of
+      // three thousand of them would make this game the only place they read that way.
+      openingBox.textContent = opening === null ? '' : i18n.t('hud.opening', { name: opening });
       hintButton.textContent = i18n.t('hud.hint');
       hintButton.disabled = false;
       const on = deps.hintsOn?.();
