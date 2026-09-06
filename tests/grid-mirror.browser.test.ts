@@ -346,3 +346,84 @@ describe('[GridMirror] a hint is an arrow', () => {
     expect(layer?.getAttribute('aria-hidden')).toBe('true');
   });
 });
+
+describe('[Lesson] "look here" is a shape AND a word, never a colour', () => {
+  /*
+   * ⚠️ `visible: true`, AND THAT IS NOT BOILERPLATE. `refresh()` writes every visual attribute
+   * behind an `if (!visible) continue`, because on the projected and solid pages this grid is the
+   * hidden mirror and has no pixels to spend. Written against the hidden one, three of the tests
+   * below failed while the LABEL test passed — which is the split working exactly as designed: the
+   * word is the accessibility channel and belongs to both, the shape is the visual half and
+   * belongs only to the board a person is looking at.
+   */
+  const board = (fen?: string, locale: 'pt' | 'en' | 'es' = 'pt') => {
+    const rules = createRules(fen);
+    const state = createGameState({ rules, opponent: false });
+    mirror = createGridMirror({
+      doc: document, i18n: createI18n(locale), rules, state, visible: true, onActivate: () => {},
+    });
+    document.body.appendChild(mirror.root);
+    return { rules, state, mirror };
+  };
+  /*
+   * ========================= ⚠️ THE 1.4.1 CLAIM, ASSERTED RATHER THAN DESCRIBED =========================
+   * The rule this file already lives by is literal: never colour alone — a legal move is a marked
+   * cell AND a named one. A teaching highlight that existed only as an amber square would break
+   * that in the one mode whose entire purpose is to teach, and it would be nothing at all to the
+   * reader who needs the lesson read to them.
+   */
+  it('marks the squares it is told, and only those', () => {
+    const { mirror: m } = board();
+    m.setTaught([sq('e4'), sq('d5')]);
+    expect(cellAt('e4').dataset.lesson).toBe('true');
+    expect(cellAt('d5').dataset.lesson).toBe('true');
+    expect(cellAt('e5').dataset.lesson).toBeUndefined();
+  });
+
+  it('says so in the label, in the reader\'s own language', () => {
+    const { mirror: m } = build(undefined, 'en');
+    m.setTaught([sq('e4')]);
+    expect(labelOf('e4')).toContain('the lesson points here');
+    expect(labelOf('e5')).not.toContain('the lesson points here');
+  });
+
+  it('⚠️ says BOTH when a square is a lesson mark and a legal move at once', () => {
+    /*
+     * THE CASE THE SEPARATE ATTRIBUTE EXISTS FOR. A child picks the taught piece up while the
+     * square they were told to look at is still lit, so the two coincide by design. One attribute
+     * holding one value would have made the game silence the lesson, or the lesson silence the
+     * game — and a square that is "look here" and "you can move here" is more useful saying both.
+     */
+    const { state, mirror: m } = board();
+    m.setTaught([sq('e4')]);
+    state.activate(sq('e2'));
+    m.refresh();
+    expect(cellAt('e4').dataset.lesson).toBe('true');
+    expect(cellAt('e4').dataset.mark).toBe('move');
+    const label = labelOf('e4');
+    expect(label).toContain('lance possível');
+    expect(label).toContain('nesta casa');
+  });
+
+  it('replaces the set rather than adding to it, and an empty set clears it', () => {
+    const { mirror: m } = board();
+    m.setTaught([sq('e4')]);
+    m.setTaught([sq('d5')]);
+    expect(cellAt('e4').dataset.lesson).toBeUndefined();
+    expect(cellAt('d5').dataset.lesson).toBe('true');
+    m.setTaught([]);
+    expect(cellAt('d5').dataset.lesson).toBeUndefined();
+    expect(labelOf('d5')).not.toContain('nesta casa');
+  });
+
+  it('survives a refresh driven by the game, because it is not derived from the game', () => {
+    // Selection, legal targets and check are read back out of `state` on every refresh, so they
+    // are right by construction. "Look at this square" is not a fact about the position at all —
+    // nothing in `chess/` knows it — so it has to be remembered until it is replaced.
+    const { state, mirror: m } = board();
+    m.setTaught([sq('e4')]);
+    state.activate(sq('g1'));
+    m.refresh();
+    expect(cellAt('e4').dataset.lesson).toBe('true');
+  });
+});

@@ -159,6 +159,7 @@ export const es: Catalog = {
     'a11y.cellMove': 'jugada posible',
     'a11y.cellCapture': 'captura posible',
     'a11y.cellCheck': 'en jaque',
+    'a11y.cellLesson': 'la lección señala esta casilla',
     'a11y.gridHint': 'Flechas navegan, Enter selecciona',
     'a11y.tookBack': 'Jugada deshecha. Turno de {side}',
     'a11y.replayed': 'Jugada rehecha. Turno de {side}',

@@ -89,6 +89,39 @@ export const MARKER_SELECTED = '#1B4F8A';
 export const MARKER_CHECK = '#B3341F';
 /** Where the keyboard is. Distinct from selection: the cursor is looking, the selection is held. */
 export const MARKER_CURSOR = '#0E7C86';
+
+/*
+ * ========================= ⚠️ THE LESSON MARK, AND WHAT MEASURING THE OTHERS FOUND =========================
+ * The plan for this mark said "3:1 against `squareLight` and `squareDark`, in the default palette
+ * and in the high-contrast one". THAT IS NOT ACHIEVABLE BY A HUE, and measuring it is what showed
+ * why — the same wall `HINT_RAMP` above hit, arrived at from the other side.
+ *
+ * A colour clearing 3:1 against `#DCD6C8` needs luminance at most 0.193. Clearing 3:1 against the
+ * high-contrast dark grey `#5A5A5A` needs at least 0.407, OR at most 0.0007 — which is black.
+ * There is no overlap. The only single ink that clears every square this game draws is black, and
+ * `HIGH_CONTRAST_PALETTE` reached that conclusion independently for the piece strokes.
+ *
+ * ⚠️ AND THE SAME MEASUREMENT SAYS THE FIVE EXISTING MARKERS DO NOT CLEAR IT EITHER, against any
+ * dark square: move 1.38, capture and check 1.13, selected 1.20, cursor 1.37, the best hint 1.21.
+ * That is recorded here rather than quietly inherited or quietly asserted — a test that pinned
+ * those numbers would be locking in a gap and calling it a specification. It is a real debt and it
+ * belongs to the game, not to this mode.
+ *
+ * So the lesson mark carries its boundary the way the arrows are supposed to: a BLACK HALO behind
+ * it, which does clear 3:1 against all four squares (14.50, 5.81, 9.14, and 3.04 on the worst).
+ * The amber then only has to read against the halo, where it has 11.70 — so the inner square is a
+ * shape and not a black blob. Both numbers are asserted in `tests/palette.node.test.ts`.
+ *
+ * The hue is amber because the other six are taken — green, red, blue, teal and violet — and a
+ * seventh state that borrowed one of them would look like something the player had done.
+ */
+export const MARKER_LESSON = '#FFB300';
+
+/**
+ * The ink that actually satisfies 1.4.11 for the lesson mark. Black, because the arithmetic above
+ * leaves nothing else — not a stylistic choice, and not one to lighten for looks.
+ */
+export const MARKER_LESSON_HALO = '#000000';
 /**
  * Where the engine would play. A HUE of its own, because it is not one of the player's own states:
  * a hint is an opinion from outside the game, and giving it the selection blue or the move green

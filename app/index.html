@@ -900,6 +900,34 @@
   .board-2d [role="gridcell"][data-check] { background: #B3341F; }
 
   /*
+   * ========================= THE LESSON MARK IS A THIRD FORM, ON ::before =========================
+   * The rule above is the reason this is not a third value of `data-mark`: the two COINCIDE. A
+   * child picks the taught piece up while the square they were told to look at is still lit, so
+   * "look here" and "you may capture here" have to be sayable at the same time. `::after` is the
+   * dot and the ring; this takes `::before`, which nothing else on a cell uses.
+   *
+   * A filled INNER SQUARE, so the form differs from both — a dot is round and small, a ring is
+   * round and large, and this is square. That is 1.4.1 satisfied by shape rather than by hue, and
+   * `a11y.cellLesson` says the same thing in words for whoever is not looking.
+   *
+   * ⚠️ THE BLACK BORDER IS WHAT SATISFIES 1.4.11, and it is measured — see the long note in
+   * `render/palette.ts`. No hue clears 3:1 against both the light square and the high-contrast
+   * dark grey; black clears every square this game draws, with 3.04 on the worst. The amber only
+   * has to read against the black, where it has 11.70. Dropping the border to tidy the look
+   * removes the accessibility of the mark, silently.
+   */
+  .board-2d [role="gridcell"][data-lesson]::before {
+    content: '';
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: 52%; height: 52%;
+    background: #FFB300;
+    border: 2px solid #000000;
+    pointer-events: none;
+  }
+
+  /*
    * ========================= A HINT IS AN ARROW =========================
    * The first version marked only the destination, which is half a sentence: "play to d4" is not
    * advice until you know which piece. The second marked both ends, and then had to invent a way

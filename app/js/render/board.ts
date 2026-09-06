@@ -16,7 +16,7 @@ import {
 // Re-exported so every existing importer keeps working; the union itself lives in the leaf.
 export type { Marker } from './board-geometry.ts';
 import {
-  DEFAULT_PALETTE, MARKER_CAPTURE, MARKER_CHECK,
+  DEFAULT_PALETTE, MARKER_CAPTURE, MARKER_CHECK, MARKER_LESSON, MARKER_LESSON_HALO,
   hintHue, MARKER_CURSOR, MARKER_MOVE, MARKER_SELECTED,
   type Palette, SQUARE_STROKE,
 } from './palette.ts';
@@ -57,7 +57,13 @@ export interface BoardView {
   setPalette(palette: Palette): void;
 }
 
-const OUTLINE_COLOUR: Record<Marker, string> = {
+/**
+ * ⚠️ `Exclude<..., 'lesson'>` RATHER THAN `Record<Marker, …>`, and it is doing work: a lesson mark
+ * has no ring at all, so giving it a ring colour here would be an entry nothing could ever read.
+ * Written this way, `tsc` refuses the day somebody removes the early return in `setMarkers` — the
+ * lookup stops compiling instead of quietly drawing the wrong shape.
+ */
+const OUTLINE_COLOUR: Record<Exclude<Marker, 'lesson'>, string> = {
   cursor: MARKER_CURSOR,
   move: MARKER_MOVE,
   capture: MARKER_CAPTURE,
@@ -122,11 +128,52 @@ export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE):
    */
   const hintAnchor = new Zdog.Anchor({ addTo: anchor });
 
+  /*
+   * ⚠️ ON DEMAND, FOR THE REASON THE HINT ANCHOR GIVES ABOVE, and more so. A lesson lights two or
+   * three squares at a time; keeping two hidden shapes on all sixty-four would add 128 to a graph
+   * Zdog re-flattens and re-sorts every frame, to draw at most six of them. Built when asked and
+   * emptied otherwise.
+   */
+  const lessonAnchor = new Zdog.Anchor({ addTo: anchor });
+
+  /**
+   * The lesson mark: an inner filled square inside a black halo.
+   *
+   * ⚠️ THE HALO IS WHAT SATISFIES 1.4.11 — see the long note in `palette.ts`. No hue clears 3:1
+   * against both the light square and the high-contrast dark grey, so the boundary is carried by
+   * black and the amber only has to read against the black. Removing the halo to tidy this up
+   * removes the accessibility of the mark, silently.
+   *
+   * And the FORM is what satisfies 1.4.1: a filled inner square is not the ring that `selected`
+   * and `capture` draw, so a square that is both "look here" and "you may capture here" still says
+   * two distinguishable things.
+   */
+  function drawLesson(index: number): void {
+    const { x, z } = squareCenter(squareFromIndex(index), TILE);
+    for (const [size, colour] of [
+      [TILE * 0.60, MARKER_LESSON_HALO],
+      [TILE * 0.52, MARKER_LESSON],
+    ] as const) {
+      new Zdog.Rect({
+        addTo: lessonAnchor,
+        width: size,
+        height: size,
+        translate: { x, y: MARKER_LIFT, z },
+        rotate: { x: Zdog.TAU / 4 },
+        stroke: SQUARE_STROKE,
+        color: colour,
+        fill: true,
+        backface: true,
+      });
+    }
+  }
+
   function hideAll(): void {
     for (let i = 0; i < SQUARE_COUNT; i++) {
       dots[i].visible = false;
       outlines[i].visible = false;
     }
+    lessonAnchor.children = [];
   }
 
   return {
@@ -149,6 +196,11 @@ export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE):
       hideAll();
       for (const [index, kind] of markers) {
         if (index < 0 || index >= SQUARE_COUNT) continue;
+        // ⚠️ A lesson mark is neither a dot nor a ring, so it leaves both of those alone. That is
+        // what lets the game speak over it: the map holds one kind per square, and `syncMarkers`
+        // writes the lesson first so a square that is also a legal target ends up saying the more
+        // useful of the two.
+        if (kind === 'lesson') { drawLesson(index); continue; }
         const showDot = kind === 'move' || kind === 'selected';
         const showOutline = kind !== 'move';
         dots[index].visible = showDot;

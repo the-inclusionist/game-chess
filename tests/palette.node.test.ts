@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_PALETTE, HIGH_CONTRAST_PALETTE,
+  DEFAULT_PALETTE, HIGH_CONTRAST_PALETTE, MARKER_CAPTURE, MARKER_CHECK, MARKER_CURSOR,
+  MARKER_HINT, MARKER_LESSON, MARKER_LESSON_HALO, MARKER_MOVE, MARKER_SELECTED,
 } from '../app/js/render/palette.ts';
 
 // ========================= WHY THIS TEST EXISTS =========================
@@ -37,6 +38,62 @@ describe('[Contrast] the measuring instrument agrees with the standard', () => {
 
   it('does not care which colour is named first', () => {
     expect(contrast('#001040', '#8F8F8F')).toBeCloseTo(contrast('#8F8F8F', '#001040'), 6);
+  });
+});
+
+describe('[Contrast] the lesson mark, which is the one marker that was measured', () => {
+  /*
+   * ========================= ⚠️ THE PLAN ASKED FOR SOMETHING IMPOSSIBLE =========================
+   * It said the lesson mark should clear 3:1 against `squareLight` and `squareDark`, in the
+   * default palette and in the high-contrast one. Measuring it is what showed there is no such
+   * colour — the same wall `HINT_RAMP` hit, reached from the other side.
+   *
+   * Clearing 3:1 against `#DCD6C8` needs luminance at most 0.193. Clearing it against the
+   * high-contrast `#5A5A5A` needs at least 0.407, or else at most 0.0007, which is black. The two
+   * ranges do not overlap. So the boundary is carried by a black halo, and the amber only has to
+   * be legible against the halo — which is exactly what `HIGH_CONTRAST_PALETTE` concluded for the
+   * piece strokes, independently.
+   */
+  const SQUARES: [string, string][] = [
+    ['casa clara', DEFAULT_PALETTE.squareLight],
+    ['casa escura', DEFAULT_PALETTE.squareDark],
+    ['casa clara, alto contraste', HIGH_CONTRAST_PALETTE.squareLight],
+    ['casa escura, alto contraste', HIGH_CONTRAST_PALETTE.squareDark],
+  ];
+
+  it('⚠️ puts the HALO at 3:1 against every square this game can draw', () => {
+    // The halo is the boundary, so the halo is what 1.4.11 is about. The worst case is 3.04, on
+    // the high-contrast dark grey — which is why this ink is black and not merely dark.
+    for (const [name, square] of SQUARES) {
+      const ratio = contrast(MARKER_LESSON_HALO, square);
+      expect(`${name}: ${ratio >= 3}`).toBe(`${name}: true`);
+    }
+  });
+
+  it('keeps the amber legible against its own halo, so the mark is a shape and not a blob', () => {
+    expect(contrast(MARKER_LESSON, MARKER_LESSON_HALO)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('⚠️ does not pretend the hue itself carries the boundary', () => {
+    /*
+     * Asserted rather than merely written down, because it is the thing a later reader will try to
+     * "fix" by deleting the halo. The amber fails against three of the four squares, and that is
+     * fine ONLY because the halo is there.
+     */
+    const failures = SQUARES.filter(([, square]) => contrast(MARKER_LESSON, square) < 3);
+    expect(failures.length).toBeGreaterThan(0);
+  });
+
+  it('does not reuse a hue the game has already spent', () => {
+    // Six states are taken — move, capture, check, selected, cursor, hint — and a seventh that
+    // borrowed one would look like something the player had done rather than something the lesson
+    // is saying.
+    const taken = [
+      MARKER_MOVE, MARKER_CAPTURE, MARKER_CHECK, MARKER_SELECTED, MARKER_CURSOR, MARKER_HINT,
+    ];
+    for (const other of taken) {
+      expect(`${other} vs lesson: ${other === MARKER_LESSON}`).toBe(`${other} vs lesson: false`);
+    }
   });
 });
 

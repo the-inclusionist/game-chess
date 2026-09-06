@@ -158,6 +158,7 @@ export const en: Catalog = {
     'a11y.cellMove': 'move available',
     'a11y.cellCapture': 'capture available',
     'a11y.cellCheck': 'in check',
+    'a11y.cellLesson': 'the lesson points here',
     'a11y.gridHint': 'Arrows navigate, Enter selects',
     'a11y.tookBack': 'Move taken back. {side} to play',
     'a11y.replayed': 'Move played forward. {side} to play',

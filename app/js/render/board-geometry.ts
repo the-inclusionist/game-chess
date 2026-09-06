@@ -66,5 +66,12 @@ export function squareCenter(s: Square, tile: number): { x: number; z: number } 
  * `cursor` is where the KEYBOARD is. The DOM grid that carries the board for a screen reader is
  * visually hidden, so a sighted person navigating by keyboard would otherwise have focus sitting
  * somewhere invisible. This marker is that focus, drawn on the board.
+ *
+ * `lesson` is the teaching mode's "look here", and it needed a THIRD FORM rather than a third
+ * colour — an inner filled square, smaller than the ring, so it reads as a different shape at any
+ * size and in any palette. The reason is the rule above rather than an exception to it: a lesson
+ * highlight COINCIDES with `selected` and with `move`, because the child picks the taught piece up
+ * while the square they were told to look at is still lit. A second ring in another colour would
+ * be a 1.4.1 failure in the one mode whose whole purpose is to teach.
  */
-export type Marker = 'cursor' | 'selected' | 'move' | 'capture' | 'check';
+export type Marker = 'cursor' | 'selected' | 'move' | 'capture' | 'check' | 'lesson';

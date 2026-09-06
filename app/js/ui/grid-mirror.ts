@@ -90,6 +90,15 @@ export interface GridMirror {
    * whoever asked — an arrow alone would be a hint only for the players who can see it.
    */
   setHints(moves: readonly HintMove[]): void;
+  /**
+   * The squares a lesson is pointing at. Replaces the previous set; an empty one clears it.
+   *
+   * ⚠️ TOLD, NOT DERIVED, unlike every other mark this board draws. Selection, legal target and
+   * check are read back out of the game, so they are always right by construction. "Look at this
+   * square" is not a fact about the position — nothing in `chess/` knows it — so it has to come
+   * from whoever is teaching, and it is remembered until it is replaced.
+   */
+  setTaught(squares: readonly Square[]): void;
   /** Swaps the board colours. Also nothing a screen reader hears. */
   setTheme(key: string): void;
   themeKey(): string;
@@ -273,6 +282,17 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
   // focus to land rather than the far corner.
   let cursor: Square = { x: 4, y: 6 };
 
+  /**
+   * Squares a lesson is pointing at, by index.
+   *
+   * ⚠️ HELD HERE RATHER THAN DERIVED FROM THE GAME, which is what makes it different from every
+   * other mark in `refresh()`. Selection, legal target and check are all READ back out of
+   * `state`, so redrawing them is free and always right. "Look at this square" is not a fact about
+   * the position at all — nothing in `chess/` knows it — so it is told, and it is remembered until
+   * it is told again.
+   */
+  let taught: ReadonlySet<number> = new Set();
+
   function labelFor(square: Square): string {
     const where = toAlgebraic(square);
     const piece = rules.pieceAt(square);
@@ -286,6 +306,17 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
     }
     const check = state.kingInCheck();
     if (check && sameSquare(check, square)) extras.push(i18n.t('a11y.cellCheck'));
+    /*
+     * ⚠️ THE HALF OF THE LESSON MARK THAT IS NOT A COLOUR, and the rule of this file is literal:
+     * never colour alone — a legal move is a marked cell AND a named one. A highlight that existed
+     * only as an amber square would be a 1.4.1 failure in the mode whose entire purpose is to
+     * teach, and it would be invisible to the reader who needs the lesson read to them.
+     *
+     * ⚠️ AND THE PHRASE MUST NOT AGREE WITH A PIECE. `i18n/pt.ts` carries gender for the piece noun
+     * and for nothing else, so this is "nesta casa" and never "{piece} marcada" — the same
+     * constraint the teaching catalogues satisfy by naming their pieces in full.
+     */
+    if (taught.has(squareIndex(square))) extras.push(i18n.t('a11y.cellLesson'));
 
     return extras.length ? `${base}, ${extras.join(', ')}` : base;
   }
@@ -322,6 +353,13 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
       // Never colour alone: a legal move is a marked cell AND a named one — the label already
       // carries "lance possível". This is the visual half of the same fact.
       const legal = targets.some((t) => sameSquare(t, square));
+      // ⚠️ THE LESSON MARK IS A SEPARATE ATTRIBUTE, not a third value of `mark`, because the two
+      // COINCIDE: a child picks the taught piece up while the square they were told to look at is
+      // still lit, so "look here" and "you may capture here" have to be sayable at once. One
+      // attribute holding one value would have made the game silence the lesson, or the reverse.
+      if (taught.has(i)) cell.dataset.lesson = 'true';
+      else delete cell.dataset.lesson;
+
       const mark = legal ? (piece ? 'capture' : 'move') : '';
       if (mark) cell.dataset.mark = mark;
       else delete cell.dataset.mark;
@@ -397,6 +435,11 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
 
   return {
     root,
+
+    setTaught(squares) {
+      taught = new Set(squares.map(squareIndex));
+      refresh();
+    },
 
     setHints(moves) {
       drawArrows(moves);

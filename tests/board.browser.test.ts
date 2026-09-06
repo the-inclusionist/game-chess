@@ -159,6 +159,43 @@ describe('[Markers] shape carries the meaning, not only colour', () => {
     return walk(board.anchor as unknown as { children?: unknown[] });
   };
 
+  it('draws the lesson mark on demand and leaves nothing behind', () => {
+    /*
+     * ⚠️ THE SAME BARGAIN THE HINT ARROWS MAKE, and more so. A lesson lights two or three squares
+     * at a time; two hidden shapes on all sixty-four would add 128 to a graph Zdog re-flattens and
+     * re-sorts every frame, to draw at most six of them.
+     *
+     * TWO shapes per square, not one: the amber and the black halo behind it. The halo is what
+     * satisfies 1.4.11 — no hue clears 3:1 against both the light square and the high-contrast
+     * dark grey — so a count of one here would mean the mark had quietly lost its contrast.
+     */
+    const { board } = build();
+    const before = shapeCount(board);
+
+    board.setMarkers(markersFor([[sq('e4'), 'lesson'], [sq('d5'), 'lesson']]));
+    expect(shapeCount(board)).toBe(before + 4);
+
+    board.clearMarkers();
+    expect(shapeCount(board)).toBe(before);
+  });
+
+  it('⚠️ lets a lesson mark and a legal move share a square', () => {
+    /*
+     * The reason the lesson is a third FORM rather than a third colour. A child picks the taught
+     * piece up while the square they were told to look at is still lit, so the two coincide by
+     * design — and the marker map holds one kind per square, so the two channels have to be
+     * different shapes drawn from different places.
+     */
+    const { stage: s, board } = build();
+    board.setMarkers(markersFor([[sq('e4'), 'lesson']]));
+    s.render();
+    const lessonOnly = imageSignature(s);
+
+    board.setMarkers(markersFor([[sq('e4'), 'lesson'], [sq('e2'), 'move']]));
+    s.render();
+    expect(imageSignature(s)).not.toBe(lessonOnly);
+  });
+
   it('draws an arrow per suggested move, and nothing at all without one', () => {
     const { board } = build();
     const before = shapeCount(board);

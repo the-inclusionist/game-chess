@@ -163,6 +163,10 @@ export const pt: Catalog = {
     'a11y.cellMove': 'lance possível',
     'a11y.cellCapture': 'captura possível',
     'a11y.cellCheck': 'em xeque',
+    // ⚠️ NÃO CONCORDA COM A PEÇA. "nesta casa", nunca "{piece} marcada" — o catálogo carrega
+    // gênero só para o substantivo da peça, e uma frase que exigisse concordância pediria uma
+    // segunda tabela de gênero. Onde a frase exigiria, reescreva a frase.
+    'a11y.cellLesson': 'a aula aponta nesta casa',
     'a11y.gridHint': 'Setas navegam, Enter seleciona',
     'a11y.tookBack': 'Lance desfeito. Vez de {side}',
     'a11y.replayed': 'Lance refeito. Vez de {side}',
