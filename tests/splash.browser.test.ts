@@ -16,6 +16,7 @@ function markup(): {
       <h1 id="splash-title">WebChess</h1>
       <p id="splash-by">by prof. José Rocha</p>
       <p id="splash-status" role="status"></p>
+      <progress id="splash-progress" max="1" value="0"></progress>
       <p id="splash-doors" hidden><button id="splash-play" type="button">JOGAR</button><button id="splash-learn" type="button">APRENDER</button></p>
     </div>
     <div id="game-region" tabindex="0"></div>`;
@@ -37,42 +38,69 @@ afterEach(() => { document.body.innerHTML = ''; vi.useRealTimers(); });
 const settle = () => new Promise((resolve) => { setTimeout(resolve, 0); });
 
 describe('[Splash] the way out appears only when it is real', () => {
-  it('⚠️ opens each door when ITS OWN wait is over, not when both are', async () => {
+  it('⚠️ keeps BOTH doors shut, and disabled, until everything has arrived', async () => {
     /*
-     * A button may only be pressable once the thing behind it has arrived — and the two doors need
-     * different things. `APRENDER` needs the page; `JOGAR` needs the 6.98 MB opponent.
+     * An earlier version split these — opening `APRENDER` before the engine, on the grounds that a
+     * lesson runs as a hot seat and never consults one. That was wrong about what study IS:
+     * Capablanca's exercises let the student play the position ON from where it is set, and a
+     * board you can only answer one question on is not the book.
      *
-     * They used to appear together, on the engine, so a child who came to learn waited for a chess
-     * engine no lesson consults: `chess/state.ts` runs a lesson as a hot seat and the teacher shows
-     * the step's own recorded answer. `tests/lesson-mode.browser.test.ts` proves that with an
-     * opponent that never resolves; this proves the door opens without waiting for one.
+     * ⚠️ HIDDEN AND DISABLED, BOTH, which is the half that survived from that attempt. `hidden` is
+     * what the eye reads and `disabled` is what a click and a screen reader read; a button that is
+     * only one of the two is a button that lies.
      */
     const { region, start, learn, doors } = markup();
-    let pageUp: () => void = () => {};
-    let engineUp: () => void = () => {};
-    const canRun = new Promise<void>((resolve) => { pageUp = resolve; });
-    const ready = new Promise<void>((resolve) => { engineUp = resolve; });
+    let arrive: () => void = () => {};
+    const ready = new Promise<void>((resolve) => { arrive = resolve; });
 
-    createSplash({ doc: document, i18n: createI18n('pt'), ready, canRun, region });
+    createSplash({ doc: document, i18n: createI18n('pt'), ready, region });
     expect(doors.hidden).toBe(true);
+    expect(start.disabled).toBe(true);
+    expect(learn.disabled).toBe(true);
     // ⚠️ A board that cannot be played must not be reachable by Tab either. Hiding it visually
     // and leaving it in the tab order is the classic half-done modal.
     expect(region.inert).toBe(true);
 
-    pageUp();
+    arrive();
     await settle();
-    // Learning is open; playing is visible but refuses, because there is nobody to play yet.
     expect(doors.hidden).toBe(false);
-    expect(learn.disabled).toBe(false);
-    expect(start.disabled).toBe(true);
-    expect(document.activeElement).toBe(learn);
-
-    engineUp();
-    await settle();
     expect(start.disabled).toBe(false);
-    // ⚠️ And focus was NOT pulled back. A reader already reaching for APRENDER is not dragged onto
-    // JOGAR because a download finished.
-    expect(document.activeElement).toBe(learn);
+    expect(learn.disabled).toBe(false);
+    expect(document.activeElement).toBe(start);
+  });
+
+  it('⚠️ says how far the download has got, in words as well as in a bar', async () => {
+    /*
+     * Seven megabytes on a school connection is a long time to look at something that only says it
+     * is busy — "busy" and "stuck" look identical, and the second is what a child concludes. The
+     * percentage goes into the SAME live region the loading message uses, because a `<progress>`
+     * announces its value only when a screen reader is asked to look.
+     */
+    const { region } = markup();
+    const splash = createSplash({
+      doc: document, i18n: createI18n('pt'), ready: new Promise(() => {}), region,
+    });
+    const bar = document.getElementById('splash-progress') as HTMLProgressElement;
+    expect(bar.hidden).toBe(false);
+
+    splash.setProgress(0.42);
+    expect(bar.value).toBeCloseTo(0.42, 5);
+    expect(document.getElementById('splash-status')!.textContent).toContain('42');
+
+    // Clamped: a `content-length` that disagrees with what arrives must not drive it past the end.
+    splash.setProgress(1.8);
+    expect(bar.value).toBe(1);
+  });
+
+  it('puts the bar away once there is a way in', async () => {
+    // A full bar left on screen reads as a thing still happening.
+    const { region } = markup();
+    let arrive: () => void = () => {};
+    const ready = new Promise<void>((resolve) => { arrive = resolve; });
+    createSplash({ doc: document, i18n: createI18n('pt'), ready, region });
+    arrive();
+    await settle();
+    expect((document.getElementById('splash-progress') as HTMLProgressElement).hidden).toBe(true);
   });
 
   it('opens onto the game, with focus somewhere the arrow keys work', async () => {

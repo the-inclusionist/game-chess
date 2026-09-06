@@ -90,7 +90,7 @@ export const pt: Catalog = {
     'splash.ready': 'Pronto para jogar',
     'splash.slow': 'O motor está a demorar. Dá para começar; o adversário pode não responder.',
     'splash.failed': 'Não foi possível carregar o motor. O tabuleiro funciona; o adversário não.',
-    'splash.loadingOpponent': 'Baixando o adversário…',
+    'splash.downloading': 'Baixando o adversário… {percent}%',
     'splash.play': 'JOGAR',
     'splash.learn': 'APRENDER',
     'hud.strength': 'Força do adversário',
@@ -145,6 +145,8 @@ export const pt: Catalog = {
     'theme.short.contrast2': 'A&A',
     'theme.xboard':    'XBoard',
     'theme.jose':      'José',
+    'theme.cbsafe': 'Seguro para daltonismo',
+    'theme.short.cbsafe': 'DALT',
     'theme.contrast1': 'Preto & Branco',
     'theme.contrast2': 'Azul & Amarelo',
 

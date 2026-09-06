@@ -85,7 +85,7 @@ export const en: Catalog = {
     'splash.ready': 'Ready to play',
     'splash.slow': 'The engine is taking a while. You can start; the opponent may not answer.',
     'splash.failed': 'The engine could not be loaded. The board works; the opponent does not.',
-    'splash.loadingOpponent': 'Downloading the opponent…',
+    'splash.downloading': 'Downloading the opponent… {percent}%',
     'splash.play': 'PLAY',
     'splash.learn': 'LEARN',
     'hud.strength': 'Opponent strength',
@@ -140,6 +140,8 @@ export const en: Catalog = {
     'theme.short.contrast2': 'B&Y',
     'theme.xboard':    'XBoard',
     'theme.jose':      'José',
+    'theme.cbsafe': 'Colour-blind safe',
+    'theme.short.cbsafe': 'CB',
     'theme.contrast1': 'Black & White',
     'theme.contrast2': 'Blue & Yellow',
 

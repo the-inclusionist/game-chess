@@ -244,6 +244,52 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
    * 2.14 on the coloured palette. Neither is a boundary anybody looks at, because the silhouette
    * is drawn between them at 9.14:1.
    */
+  /*
+   * ========================= ⚠️ A COLOUR-BLIND-SAFE BOARD, AND WHY IT IS BLUE-GREY =========================
+   * The honest first answer is that this project was already close: `render/palette.ts` argues that
+   * the two sides are told apart by LUMINANCE and not by hue, "because hue pairs each fail under
+   * one deficiency or another — red/green under protanopia and deuteranopia, blue/yellow under
+   * tritanopia — while a luminance separation survives all of them".
+   *
+   * So this board is not a different idea; it is that idea taken all the way. What the wooden
+   * boards keep is a WARM hue that carries some of the work, and warm hues are exactly the ones a
+   * protanope loses. `xboard`'s green-and-yellow pair is the clearest case: two hues a deuteranope
+   * reads as one, held apart only by whatever lightness they happen to differ by.
+   *
+   * SIMULATED, not assumed. Each pair was run through the standard dichromacy matrices and the
+   * square-against-square ratio recomputed in each:
+   *
+   *                     normal   protan  deutan  tritan
+   *   this board         4.25     4.17    4.40    4.25
+   *
+   * It barely moves, which is the point: nothing here is carried by hue, so nothing here is lost
+   * when a hue is. The blue-grey is chosen over a plain grey because a board still has to look like
+   * a board — and blue is the hue that survives red-green deficiency, which is by far the commonest.
+   *
+   * ⚠️ AND THE MARKERS ARE NOT THIS THEME'S TO FIX. Move-green and capture-red would be one colour
+   * to a deuteranope; they are told apart by FORM — a dot against a ring — and `board-geometry.ts`
+   * makes that argument. A theme that recoloured them would be solving, badly, a problem that was
+   * already solved properly.
+   */
+  {
+    // Measured: squares 4.25 (4.17/4.40/4.25 simulated), silhouette 16.75 and 3.94, pieces 21.
+    key: 'cb-safe',
+    light: '#E3E6E8',
+    dark: '#4F6E8C',
+    ...INK,
+    rim: '#000000',
+    /*
+     * The projected board's constraint is the one `brown` states at length: Zdog draws no
+     * silhouette, so the STROKE is the outermost ink and it owes 3:1 to both squares. Black clears
+     * them at 16.75 and 3.94. The dark filling then moved to `#5A5A5A`, the darkest grey still
+     * keeping 3:1 from that black stroke (3.04) — and it holds 6.90 from the white piece, which is
+     * the distinction a chess player cannot afford to lose.
+     */
+    solidStroke: { light: '#000000', dark: '#000000' },
+    solid: { dark: ['#5A5A5A', '#5A5A5A', '#5A5A5A'] },
+    name: 'theme.cbsafe',
+    short: 'theme.short.cbsafe',
+  },
   {
     // Read by lightness. Squares 3.00, silhouette 9.14 and 3.04, pieces 21.
     key: 'contrast-flat',

@@ -31,6 +31,7 @@ import { VIZ_FILTER } from '@the-inclusionist/engine/render/viz-modes.js';
 import { createChessDeclaration } from '../declaration/chess-declaration.ts';
 import type { Suggestion } from '../chess/engine/client.ts';
 import { createStockfishClient, type StockfishClient } from '../chess/engine/stockfish-client.ts';
+import { preloadEngine } from '../chess/engine/preload.ts';
 import { DEFAULT_ELO, STRENGTH_LADDER } from '../chess/engine/strength.ts';
 import type { Thought } from '../chess/engine/uci.ts';
 import { STUMBLES_BEFORE_HELP } from '../chess/protection.ts';
@@ -312,15 +313,41 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     i18n,
     region,
     /*
-     * ⚠️ TWO WAITS, BECAUSE THE TWO DOORS NEED DIFFERENT THINGS. A button may only be pressable
-     * once the thing behind it has arrived — and `APRENDER` does not need the 6.98 MB opponent.
-     * `chess/state.ts` runs a lesson as a hot seat, so nothing is ever asked to reply, and the
-     * teacher shows the step's OWN recorded answer rather than an engine suggestion. Proved with
-     * an opponent that never resolves in `tests/lesson-mode.browser.test.ts`.
+     * ⚠️ ONE WAIT, SHARED, and an earlier version split it — opening `APRENDER` before the engine
+     * on the grounds that a lesson runs as a hot seat. That was wrong about what study IS:
+     * Capablanca's exercises let the student play the position ON from where it is set, and a
+     * board you can only answer one question on is not the book. Seven megabytes is also very
+     * little to organise a loading strategy around.
+     *
+     * What changed instead is that the wait became VISIBLE — see `preloadEngine` below.
      */
-    canRun: host.fonts?.ready ?? Promise.resolve(),
-    ready: opponent.ready(),
+    ready: Promise.allSettled([
+      opponent.ready(),
+      host.fonts?.ready ?? Promise.resolve(),
+    ]).then((results) => {
+      // A rejected font is cosmetic; a rejected engine means the buttons should say so rather than
+      // open onto a board with no opponent.
+      if (results[0].status === 'rejected') throw results[0].reason;
+    }),
   });
+
+  /*
+   * ⚠️ FETCHED WHERE THE PROGRESS CAN BE SEEN. The worker downloads the engine from inside itself,
+   * so the page had no byte count to show and the splash could only say "loading" — for as long as
+   * 7.3 MB takes, which on a school connection is a screen that looks broken. This warms the HTTP
+   * cache with a fetch we can read, and the worker's own request then comes out of it.
+   *
+   * Not awaited: `opponent.ready()` is still what the doors wait on. This only reports.
+   */
+  /*
+   * ⚠️ ONLY WHERE THERE IS A BAR TO FEED. This exists to put a number on the wait, so with no
+   * splash in the document there is nothing to report to — and starting a 7.3 MB fetch anyway
+   * would mean every test that builds a shell also queues one. That is not a hypothetical: it made
+   * the suite flaky the moment this was added unconditionally, passing alone and failing together.
+   */
+  if (host.getElementById('splash')) {
+    void preloadEngine(({ fraction }) => splash.setProgress(fraction));
+  }
 
   /*
    * ⚠️ THE DOOR IS ACTED ON AFTER CONSTRUCTION, NOT DURING IT. `teach()` reaches `startLesson`,

@@ -86,7 +86,7 @@ export const es: Catalog = {
     'splash.ready': 'Listo para jugar',
     'splash.slow': 'El motor tarda. Puedes empezar; el rival quizá no responda.',
     'splash.failed': 'No se pudo cargar el motor. El tablero funciona; el rival no.',
-    'splash.loadingOpponent': 'Descargando el rival…',
+    'splash.downloading': 'Descargando el rival… {percent}%',
     'splash.play': 'JUGAR',
     'splash.learn': 'APRENDER',
     'hud.strength': 'Fuerza del rival',
@@ -141,6 +141,8 @@ export const es: Catalog = {
     'theme.short.contrast2': 'AyA',
     'theme.xboard':    'XBoard',
     'theme.jose':      'José',
+    'theme.cbsafe': 'Seguro para daltonismo',
+    'theme.short.cbsafe': 'DALT',
     'theme.contrast1': 'Negro y Blanco',
     'theme.contrast2': 'Azul y Amarillo',
 

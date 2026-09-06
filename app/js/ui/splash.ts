@@ -24,21 +24,19 @@ export interface SplashDeps {
   readonly doc: Document;
   readonly i18n: I18n;
   /**
-   * Resolves when there is an OPPONENT to play. Rejecting is handled, not thrown.
+   * Resolves when EVERYTHING needed to run has arrived. Rejecting is handled, not thrown.
    *
-   * ⚠️ THIS GATES `JOGAR` AND NOTHING ELSE. It is the 6.98 MB engine download, and a lesson does
-   * not use it: `chess/state.ts` runs a lesson as a hot seat, so nothing is ever asked to reply.
-   * A child who came to learn was waiting for seven megabytes of a chess engine they would never
-   * consult, on a school connection, in front of a screen that said "loading".
+   * ⚠️ BOTH DOORS WAIT FOR THIS, and an earlier version split them: `APRENDER` was opened before
+   * the 7.3 MB engine on the grounds that a lesson runs as a hot seat and never consults one.
+   * That was wrong about what a lesson IS. Capablanca's exercises let the student play the position
+   * ON from where it is set — study is not a fixed script, and a board you can only answer one
+   * question on is not the book. Seven megabytes is also very little to organise a whole loading
+   * strategy around.
+   *
+   * So the wait is honest and shared, and what changed instead is that it is now VISIBLE: see
+   * `setProgress` and `chess/engine/preload.ts`.
    */
   readonly ready: Promise<unknown>;
-  /**
-   * Resolves when the PAGE can run: fonts, and whatever else a board needs to be drawn.
-   *
-   * Absent means "as soon as the splash exists", which is what a page with no such wait should
-   * say rather than borrowing the opponent's.
-   */
-  readonly canRun?: Promise<unknown>;
   /** The element to make inert while the splash is up, and to focus once it is gone. */
   readonly region: HTMLElement;
   onStart?(): void;
@@ -57,6 +55,14 @@ export type Door = 'play' | 'learn';
 export interface Splash {
   /** Resolves with the door taken, or immediately with `play` if there was no splash. */
   readonly done: Promise<Door>;
+  /**
+   * How far the download has got, 0 to 1.
+   *
+   * ⚠️ A NUMBER RATHER THAN A SPINNER. Seven megabytes on a school connection is a long time to
+   * look at something that only says it is busy — "busy" and "stuck" look identical, and the
+   * second one is what a child concludes.
+   */
+  setProgress(fraction: number): void;
 }
 
 /**
@@ -72,6 +78,7 @@ export function createSplash(deps: SplashDeps): Splash {
   const { doc, i18n, region } = deps;
   const root = doc.getElementById('splash');
   const doors = doc.getElementById('splash-doors');
+  const bar = doc.getElementById('splash-progress') as HTMLProgressElement | null;
   const play = doc.getElementById('splash-play');
   const learn = doc.getElementById('splash-learn');
   const status = doc.getElementById('splash-status');
@@ -83,7 +90,7 @@ export function createSplash(deps: SplashDeps): Splash {
     || !(play instanceof HTMLButtonElement) || !(learn instanceof HTMLButtonElement)) {
     // ⚠️ `play` is the answer when there is no splash at all, because that is what a game with no
     // title screen is: already begun. Answering `learn` would open a lesson nobody asked for.
-    return { done: Promise.resolve('play') };
+    return { done: Promise.resolve('play'), setProgress: () => {} };
   }
 
   // ========================= NOT ON THE WAY BETWEEN VIEWS =========================
@@ -103,7 +110,7 @@ export function createSplash(deps: SplashDeps): Splash {
 
   if (switching) {
     root.remove();
-    return { done: Promise.resolve('play') };
+    return { done: Promise.resolve('play'), setProgress: () => {} };
   }
 
   root.setAttribute('aria-label', i18n.t('splash.title'));
@@ -122,39 +129,32 @@ export function createSplash(deps: SplashDeps): Splash {
      * for a chess engine no lesson consults. Learning is now offered the moment the page can draw a
      * board, and playing joins it when there is somebody to play.
      */
-    let learnReady = false;
-    let playReady = false;
-
-    const show = (message: string): void => {
+    const reveal = (message: string): void => {
       status.textContent = message;
-      const first = doors.hidden;
-      doors.hidden = !(learnReady || playReady);
-      play.disabled = !playReady;
-      learn.disabled = !learnReady;
-      // Focus the way out as soon as there IS one — and the first time only, so a reader who has
-      // already reached for `APRENDER` is not pulled back when `JOGAR` becomes available.
-      if (first && !doors.hidden) (playReady ? play : learn).focus();
+      doors.hidden = false;
+      play.disabled = false;
+      learn.disabled = false;
+      // The bar has nothing left to say once there is a way in, and a full bar left on screen
+      // reads as a thing still happening.
+      if (bar) bar.hidden = true;
+      // Focus the way out as soon as there is one. Without this a keyboard player is left on
+      // whatever the browser chose while the buttons did not exist.
+      play.focus();
     };
 
-    // Hidden AND disabled until then: `hidden` is what the eye reads and `disabled` is what a
-    // click and a screen reader read. One without the other is a button that lies.
+    /*
+     * ⚠️ HIDDEN AND DISABLED, BOTH. `hidden` is what the eye reads and `disabled` is what a click
+     * and a screen reader read; one without the other is a button that lies. Nothing is pressable
+     * until everything needed to run has arrived — including the opponent, because a study
+     * position a student is allowed to play ON from needs one.
+     */
     play.disabled = true;
     learn.disabled = true;
 
-    void (deps.canRun ?? Promise.resolve())
-      .then(() => { learnReady = true; show(i18n.t('splash.loadingOpponent')); })
-      .catch(() => { /* the page itself failed; the opponent's own path still speaks below */ });
-
-    const timer = setTimeout(() => {
-      // ⚠️ THE WAY OUT OF A FAILED LOAD. A splash with no button is a game that never starts, and
-      // "the opponent did not arrive" is a thing to be told rather than trapped by — the board,
-      // the lessons and every setting work perfectly well without one.
-      playReady = true;
-      show(i18n.t('splash.slow'));
-    }, PATIENCE_MS);
+    const timer = setTimeout(() => reveal(i18n.t('splash.slow')), PATIENCE_MS);
     void deps.ready
-      .then(() => { playReady = true; show(i18n.t('splash.ready')); })
-      .catch(() => { playReady = true; show(i18n.t('splash.failed')); })
+      .then(() => reveal(i18n.t('splash.ready')))
+      .catch(() => reveal(i18n.t('splash.failed')))
       .finally(() => clearTimeout(timer));
 
     const enter = (door: Door) => (): void => {
@@ -170,5 +170,16 @@ export function createSplash(deps: SplashDeps): Splash {
     learn.addEventListener('click', enter('learn'), { once: true });
   });
 
-  return { done };
+  return {
+    done,
+    setProgress(fraction) {
+      if (!bar) return;
+      const clamped = Math.min(1, Math.max(0, fraction));
+      bar.value = clamped;
+      // ⚠️ SAID AS WELL AS DRAWN. A `<progress>` announces its value to a screen reader only when
+      // asked; the percentage in the status line is what a reader hears without asking, and it is
+      // the same live region the "loading" message was already using.
+      status.textContent = i18n.t('splash.downloading', { percent: Math.round(clamped * 100) });
+    },
+  };
 }

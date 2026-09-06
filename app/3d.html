@@ -72,6 +72,20 @@
    * Bigger than the 44 px floor, because it is the only control on the screen and the first thing
    * a child touches. Nothing here depends on hover: the focus ring is the platform's own, widened.
    */
+  #splash-progress[hidden] { display: none; }
+  #splash-progress {
+    width: min(22rem, 70vw);
+    height: 0.6rem;
+    /* Native bars are wildly different per platform; these two make it one thing everywhere. */
+    appearance: none;
+    border: 1px solid #B79BE8;
+    border-radius: 999px;
+    background: #1C1230;
+    overflow: hidden;
+  }
+  #splash-progress::-webkit-progress-bar { background: #1C1230; }
+  #splash-progress::-webkit-progress-value { background: #B79BE8; }
+  #splash-progress::-moz-progress-bar { background: #B79BE8; }
   #splash-doors[hidden] { display: none; }
   #splash-doors { display: flex; gap: 0.6em; flex-wrap: wrap; justify-content: center; margin: 0; }
   #splash-play, #splash-learn {
@@ -118,6 +132,12 @@
     who came to learn arrive at a lesson rather than at a game they must then find their way out
     of. Both are hidden until the engine is ready, and one of them takes focus then.
   -->
+  <!--
+    ⚠️ IN THE FOOTER AND BELOW THE STATUS LINE, because it is the SECOND channel. The percentage
+    goes into `#splash-status`, which is already a live region — a `<progress>` announces its value
+    to a screen reader only when asked, so on its own it would be a number nobody hears.
+  -->
+  <progress id="splash-progress" max="1" value="0"></progress>
   <p id="splash-doors" hidden>
     <button id="splash-play" type="button">JOGAR</button>
     <button id="splash-learn" type="button">APRENDER</button>

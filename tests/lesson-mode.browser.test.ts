@@ -657,17 +657,18 @@ describe('[Language] the switch the game never had', () => {
   });
 });
 
-describe('[No opponent] APRENDER keeps the teacher without downloading one', () => {
+describe('[No opponent] a lesson never blocks on the engine', () => {
   /*
-   * ========================= ⚠️ THE CLAIM BEHIND SPLITTING THE TWO DOORS =========================
-   * `APRENDER` is offered before the engine arrives, on the grounds that a lesson never consults
-   * one. The teacher is the part of a lesson that most LOOKS like it would: in a game it IS the
-   * engine's suggestion. In a lesson it is the step's own recorded answer — `show.arrows`, straight
-   * out of the table — and for a tactic it is the solution move the dump shipped.
+   * ⚠️ THE DOORS NO LONGER WAIT SEPARATELY — both hold until everything has arrived, because a
+   * study position a student may play ON from needs an opponent. But the claim underneath is still
+   * worth pinning, and it is about the LESSON rather than about the door: nothing inside a lesson
+   * blocks on the engine.
    *
-   * So this builds a shell whose opponent NEVER becomes ready, takes a lesson through to the
-   * teacher, and requires the answer to appear anyway. If the lesson teacher ever reached for the
-   * engine, this is where it would hang.
+   * The teacher is the part that most LOOKS like it would. In a game it IS the engine's
+   * suggestion; in a lesson it is the step's own recorded answer — `show.arrows`, straight out of
+   * the table — and for a tactic it is the solution move the dump shipped. So this builds a shell
+   * whose opponent NEVER becomes ready and takes a lesson through to the teacher. If any of it
+   * reached for the engine, this is where it would hang.
    */
   it('unlocks and shows the answer with an opponent that never arrives', async () => {
     document.body.innerHTML = `
