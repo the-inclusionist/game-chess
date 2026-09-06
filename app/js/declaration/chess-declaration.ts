@@ -50,7 +50,31 @@ export function createChessDeclaration(deps: DeclarationDeps): GameDeclaration {
   return {
     // Chebyshev distance on a grid IS the king's step, which is the unit a player already counts
     // in — so "two squares away" means the same thing to the sonar and to the person hearing it.
-    topology: { kind: 'grid', cols: 8, rows: 8 },
+    //
+    // ⚠️ A METHOD SINCE THE ENGINE'S ADR-0084. It was a value, and the asymmetry had already been
+    // patched in two places before anybody named it: the sonar door always asked for
+    // `() => Topology`. A chess board is 8x8 forever, so this one really does return a constant —
+    // but a shape that never changes is not a reason to be the one declaration in the catalogue
+    // that answers differently from the rest.
+    topology: () => ({ kind: 'grid', cols: 8, rows: 8 }),
+
+    /**
+     * ⚠️ THE WHOLE REGION, NOT THE CANVAS — and for this game that distinction is the point of the
+     * field. The engine's own root made the world its PixiJS canvas, which is right for a game
+     * drawn in PixiJS and wrong here twice over: the flat page has NO canvas board at all, and on
+     * the other two pages the HUD, the move list and the coordinate labels are DOM sitting beside
+     * it. A blindness simulation aimed at the canvas would black out the board and leave the score
+     * sheet perfectly legible, which simulates nothing.
+     *
+     * `#game-region` is everything that is "the game as seen". The engine's menus and dialogs live
+     * outside it, which is what keeps a simulated blindness from locking a child inside the mode —
+     * the defect the engine's ADR-0087 was written about.
+     *
+     * And `none` would be a lie here for a reason the engine states better than this file could:
+     * blindfold chess exists, so a game whose board is DOM is not a game where empathy makes no
+     * sense — it is one where it asks more of whoever writes it.
+     */
+    world: () => ({ kind: 'element', selector: '#game-region' }),
     tick: 'player',
 
     roleAt(at: Spot): Role {

@@ -39,7 +39,7 @@ describe('[Conformance] the engine agrees this is a well-formed game', () => {
 
   it('declares a grid of the right size', () => {
     const { declaration } = build();
-    expect(declaration.topology).toEqual({ kind: 'grid', cols: 8, rows: 8 });
+    expect(declaration.topology()).toEqual({ kind: 'grid', cols: 8, rows: 8 });
   });
 
   it('declares the player as the clock, not a timer', () => {
@@ -222,9 +222,34 @@ describe('[Objective] what the round is asking for', () => {
 
 describe('[Metric] the engine measures the board the way a player counts it', () => {
   it('makes a diagonal step cost one, like the king', () => {
+    // ⚠️ `topology()` IS CALLED, not read. It became a method in the engine's ADR-0084 because a
+    // value could not serve a game whose board changes size; chess's never does, and it is called
+    // the same way anyway rather than being the one declaration that answers differently.
     const { declaration } = build();
-    expect(distance(declaration.topology, sq('e4'), sq('f5'))).toBe(1);
-    expect(distance(declaration.topology, sq('e4'), sq('e5'))).toBe(1);
-    expect(distance(declaration.topology, sq('a1'), sq('h8'))).toBe(7);
+    expect(distance(declaration.topology(), sq('e4'), sq('f5'))).toBe(1);
+    expect(distance(declaration.topology(), sq('e4'), sq('e5'))).toBe(1);
+    expect(distance(declaration.topology(), sq('a1'), sq('h8'))).toBe(7);
+  });
+});
+
+describe('[World] what a simulated blindness is allowed to reach', () => {
+  it('⚠️ names the whole region, never the canvas', () => {
+    /*
+     * The canvas would be wrong twice: the flat page has no canvas board at all, and on the other
+     * two the HUD, the move list and the coordinate labels are DOM beside it. A blindness aimed at
+     * the canvas blacks out the board and leaves the score sheet legible, which simulates nothing.
+     *
+     * And it must not be the DOCUMENT either: the engine's menus live outside `#game-region`, and
+     * that is what stops a simulation from locking a child inside itself.
+     */
+    const { declaration } = build();
+    expect(declaration.world()).toEqual({ kind: 'element', selector: '#game-region' });
+  });
+
+  it('never declares that it has no world', () => {
+    // Blindfold chess exists. A board that happens to be DOM is not a game where empathy makes no
+    // sense — it is one where it asks more of whoever writes it.
+    const { declaration } = build();
+    expect(declaration.world().kind).not.toBe('none');
   });
 });
