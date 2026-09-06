@@ -353,7 +353,18 @@ export function createLessonMode(deps: LessonModeDeps): LessonMode {
       paint();
     },
 
-    canBack: () => Boolean(lesson) && !(tutor?.stepIndex() === 0 && lessonIndex(lesson!.id) === 0),
+    /*
+     * ⚠️ `<= 0`, NOT `=== 0`, AND THE DIFFERENCE IS EVERYTHING OUTSIDE THE COURSE. `lessonIndex`
+     * returns -1 for a lesson that is not in the syllabus — a tactic, a book — so it is doing
+     * double duty: "not found" and "before the first". Written `=== 0` this reads as "is the first
+     * lesson of the course" and quietly answers NO for every puzzle and every book, which enabled
+     * the "‹ Anterior" button on their first step.
+     *
+     * `back()` then did the right thing and reopened the same step, so nothing broke and nothing
+     * moved: a control that is offered and does nothing, which is the exact failure `action4` was
+     * fixed for when it focused a disabled button.
+     */
+    canBack: () => Boolean(lesson) && !(tutor?.stepIndex() === 0 && lessonIndex(lesson!.id) <= 0),
     canForward: () => Boolean(lesson),
 
     async back() {

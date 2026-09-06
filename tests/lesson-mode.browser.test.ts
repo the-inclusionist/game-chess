@@ -15,7 +15,8 @@ import { createLessonPanel } from '../app/js/ui/lesson-panel.ts';
 import type { BoardView, ViewContext } from '../app/js/boot/view.ts';
 import { clear, loadProgress, loadSettings, saveSettings } from '../app/js/chess/session.ts';
 import { LESSONS } from '../app/js/teach/lessons.ts';
-import { GAMES } from '../app/js/teach/games.ts';
+import { GAMES, gameById } from '../app/js/teach/games.ts';
+import { gameLesson, isBookId } from '../app/js/teach/game-lesson.ts';
 import { fromAlgebraic, type Square } from '../app/js/chess/types.ts';
 
 const at = (name: string): Square => {
@@ -511,6 +512,43 @@ describe('[Walking] back and forward run through the whole course', () => {
     await mode.back();
     expect(mode.active()?.id).toBe('notation');
     expect(mode.stepIndex()).toBe(0);
+  });
+
+  it('⚠️ nor from the first step of something that is not in the course at all', async () => {
+    /*
+     * `lessonIndex` returns -1 for a lesson the syllabus does not contain — a tactic, a book — so
+     * it carries two meanings: "not found" and "before the first". Tested against a BOOK because
+     * that is where it was noticed, and the assertion is about the -1, not about books.
+     *
+     * Written `=== 0`, the guard read as "is the first lesson of the course" and answered NO for
+     * everything outside it, so "‹ Anterior" was offered on the first step of every puzzle and
+     * every book. `back()` then reopened the same step — nothing broke, nothing moved, and the
+     * only symptom was a control that does nothing when pressed.
+     */
+    // Its own panel: the one in `beforeEach` is a `const` in that closure, not a shared binding.
+    const bookPanel = createLessonPanel({
+      doc: document,
+      i18n: shell.i18n,
+      onChoose: () => {},
+    });
+    document.body.appendChild(bookPanel.root);
+    const book = createLessonMode({
+      shell,
+      panel: bookPanel,
+      say: (text) => { said.push(text); },
+      onLeave: () => { left += 1; },
+      holdMs: 0,
+      find: async (id) => (isBookId(id) ? gameLesson(gameById(id.slice('book:'.length))!) : null),
+    });
+    expect(await book.start('book:opera')).toBe(true);
+    expect(book.stepIndex()).toBe(0);
+    expect(book.canBack()).toBe(false);
+
+    // And forward still works, so the guard tightened one end without closing the other.
+    expect(book.canForward()).toBe(true);
+    await book.forward();
+    expect(book.stepIndex()).toBe(1);
+    expect(book.canBack()).toBe(true);
   });
 });
 
