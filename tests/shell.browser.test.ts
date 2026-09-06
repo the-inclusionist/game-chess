@@ -127,7 +127,7 @@ describe('[Shell] the walk travels every ply, and lets go of the board afterward
 
     // The board is usable again: a second walk is accepted rather than refused by a stuck flag.
     await shell.walkHistory('back').catch(() => {});
-    expect(shell.game.canReplay()).toBe(true);
+    expect(shell.game().canReplay()).toBe(true);
   });
 
   it('withholds BOTH pieces when a capture is walked backwards', async () => {
@@ -159,5 +159,120 @@ describe('[Shell] the walk travels every ply, and lets go of the board afterward
     expect(record.hidden[0]).toEqual(['e4', 'd5']);
     // And afterwards nothing is withheld, or a piece stays invisible for the rest of the game.
     expect(record.hidden[record.hidden.length - 1]).toEqual([]);
+  });
+});
+
+describe('[NewGame] a lesson changes the board without rebuilding anything around it', () => {
+  const at = (name: string): Square => ({
+    x: 'abcdefgh'.indexOf(name[0]!), y: 8 - Number(name[1]),
+  });
+
+  function shellFor() {
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    return createGameShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: '__shellTest', contrastTheme: 'contrast-flat',
+    });
+  }
+
+  it('puts the named position on the board', () => {
+    const shell = shellFor();
+    shell.newGame('k7/7p/8/3R4/8/8/8/7K w - - 0 1');
+    expect(shell.rules().pieceAt(at('d5'))?.type).toBe('r');
+    expect(shell.rules().pieceAt(at('e2'))).toBeNull();
+  });
+
+  it('⚠️ keeps the same mirror, so the focused cell survives the step', () => {
+    /*
+     * THE WHOLE REASON `rules` AND `state` BECAME ACCESSORS. Rebuilding the mirror on every step
+     * that changes the position would throw away the focused cell and the roving tabindex, and
+     * dump a keyboard reader at the top of the page once per step, for the length of a lesson.
+     */
+    const shell = shellFor();
+    const before = shell.mirror.root;
+    shell.mirror.focusSquare(at('d5'));
+    const focused = document.activeElement;
+
+    shell.newGame('k7/7p/8/3R4/8/8/8/7K w - - 0 1');
+
+    expect(shell.mirror.root).toBe(before);
+    expect(document.activeElement).toBe(focused);
+    expect(shell.mirror.cursor()).toEqual(at('d5'));
+  });
+
+  it('⚠️ does NOT write the lesson board over the player\'s saved game', () => {
+    /*
+     * THE DEFECT THIS GUARD EXISTS FOR, and the one whose symptom appears far from its cause.
+     * `syncPosition` saves the score sheet after everything that changes it. Without the guard,
+     * opening a lesson overwrites the player's real game in `sessionStorage` with a board holding
+     * two kings and a rook — and the loss is discovered only when they change VIEW, by which time
+     * nothing on screen connects it to what caused it.
+     */
+    const shell = shellFor();
+    shell.activate(at('e2')); shell.activate(at('e4'));
+
+    const saved = sessionStorage.getItem('incl_chess_game');
+    expect(saved).toContain('e2e4');
+
+    shell.newGame('k7/7p/8/3R4/8/8/8/7K w - - 0 1', { teaching: true });
+    shell.activate(at('d5')); shell.activate(at('d8'));
+
+    expect(sessionStorage.getItem('incl_chess_game')).toBe(saved);
+  });
+
+  it('saves again once the lesson hands the board back', () => {
+    // The guard must be a mode, not a one-way door: leaving a lesson has to restore the game the
+    // player was in the middle of.
+    const shell = shellFor();
+    shell.newGame('k7/7p/8/3R4/8/8/8/7K w - - 0 1', { teaching: true });
+    shell.newGame();
+    shell.activate(at('e2')); shell.activate(at('e4'));
+    expect(sessionStorage.getItem('incl_chess_game')).toContain('e2e4');
+  });
+
+  it('⚠️ is a hot seat, so nothing ever replies', () => {
+    /*
+     * With `opponent: false` the phase settles to `idle` after a move and no engine is consulted.
+     * Were it `thinking`, every activation after the first would come back `ignored/busy` — a
+     * lesson that has quietly stopped accepting answers — and the shell would be waiting on a
+     * search nobody started.
+     */
+    const shell = shellFor();
+    shell.newGame('k7/7p/8/3R4/8/8/8/7K w - - 0 1', { teaching: true });
+    shell.activate(at('d5')); shell.activate(at('d8'));
+    shell.game().animationDone();
+    expect(shell.game().phase()).toBe('idle');
+  });
+
+  it('clears the lesson marks, because they named squares in a position that is gone', () => {
+    const shell = shellFor();
+    shell.setTaught([at('e4')]);
+    expect(document.querySelector('[data-square="e4"]')!.getAttribute('data-lesson')).toBe('true');
+
+    shell.newGame('k7/7p/8/3R4/8/8/8/7K w - - 0 1', { teaching: true });
+    expect(document.querySelector('[data-square="e4"]')!.getAttribute('data-lesson')).toBeNull();
+  });
+});
+
+describe('[Taught] the shell can point at squares', () => {
+  const at = (name: string): Square => ({
+    x: 'abcdefgh'.indexOf(name[0]!), y: 8 - Number(name[1]),
+  });
+
+  it('marks them on the board and names them in the label', () => {
+    fixture();
+    clear();
+    const shell = createGameShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: '__shellTest', contrastTheme: 'contrast-flat',
+    });
+    shell.setTaught([at('e4'), at('d5')]);
+    const cell = document.querySelector('[data-square="e4"]')!;
+    expect(cell.getAttribute('data-lesson')).toBe('true');
+    expect(cell.getAttribute('aria-label')).toContain('nesta casa');
+    shell.setTaught([]);
+    expect(cell.getAttribute('data-lesson')).toBeNull();
   });
 });

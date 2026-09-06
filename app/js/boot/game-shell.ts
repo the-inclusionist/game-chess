@@ -38,7 +38,7 @@ import { isBlunder } from '../chess/review.ts';
 import { createReviewer, type ReviewedMove } from '../chess/reviewer.ts';
 import { loadSettings, patchSettings, resume, save as saveGame } from '../chess/session.ts';
 import { createGameState } from '../chess/state.ts';
-import type { MoveResult } from '../chess/rules.ts';
+import { createRules, type MoveResult } from '../chess/rules.ts';
 import { type Side, type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale } from '../i18n/index.ts';
 import { squareIndex, type Marker } from '../render/board-geometry.ts';
@@ -85,8 +85,12 @@ export interface GameShellDeps {
 export interface GameShell {
   readonly region: HTMLElement;
   readonly i18n: ReturnType<typeof createI18n>;
-  readonly rules: ReturnType<typeof resume>;
-  readonly game: ReturnType<typeof createGameState>;
+  /**
+   * ⚠️ ACCESSORS, LIKE EVERYTHING ELSE DOWNSTREAM. `newGame` replaces both objects, so a caller
+   * that read them once would be holding the board a lesson has already left.
+   */
+  rules(): ReturnType<typeof resume>;
+  game(): ReturnType<typeof createGameState>;
   readonly mirror: ReturnType<typeof createGridMirror>;
   readonly hud: Hud;
   readonly view: BoardView;
@@ -94,6 +98,19 @@ export interface GameShell {
   activate(square: Square): void;
   walkHistory(direction: 'back' | 'forward'): Promise<void>;
   askOpponent(): void;
+  /**
+   * Starts a fresh position, keeping every object around the board alive.
+   *
+   * ⚠️ THE POINT IS WHAT IT DOES *NOT* REBUILD. The mirror, the HUD, the view and the declaration
+   * all stay — they ask for the rules rather than holding them — so the focused cell, the roving
+   * tabindex and the scroll position survive. Rebuilding them instead would dump a keyboard reader
+   * at the top of the page once per lesson step.
+   *
+   * `teaching` suppresses the save while a lesson owns the board; see the guard in `syncPosition`.
+   */
+  newGame(fen?: string, options?: { readonly teaching?: boolean }): void;
+  /** The squares a lesson is pointing at. Empty clears them. */
+  setTaught(squares: readonly Square[]): void;
 }
 
 export function createGameShell(deps: GameShellDeps): GameShell {
@@ -134,6 +151,22 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   /** A hint is in flight: the button says so and a second press is refused. */
   let hinting = false;
   let cursor: Square = { x: 4, y: 6 };
+  /**
+   * The squares a lesson is pointing at.
+   *
+   * ⚠️ SHELL STATE, NOT GAME STATE. Everything else `syncMarks` draws is READ BACK OUT of the
+   * position — selection, legal targets, check — so it is right by construction and free to
+   * rebuild. "Look at this square" is not a fact about the position at all: nothing in `chess/`
+   * knows it, and nothing in `chess/` should.
+   */
+  let taught: readonly Square[] = [];
+  /**
+   * True while a lesson owns the board.
+   *
+   * ⚠️ IT EXISTS TO STOP `saveGame`. See the guard in `syncPosition`, which is the one place that
+   * matters and the last place anybody would look.
+   */
+  let teaching = false;
 
   let motionReduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   let paletteHigh = window.matchMedia?.('(prefers-contrast: more)').matches ?? false;
@@ -541,6 +574,17 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   /** The markers the game itself asks for, rebuilt from the position every time. */
   function syncMarks(): void {
     const markers = new Map<number, Marker>();
+    /*
+     * ⚠️ THE LESSON SPEAKS FIRST SO THE GAME CAN SPEAK OVER IT. The map holds one kind per square
+     * and later writes win, so putting this loop first is what lets a square that is both "look
+     * here" and "you can capture here" end up saying the second — which is the more useful of the
+     * two, because the child is holding a piece. The cursor keeps the last word under the rule it
+     * already had.
+     *
+     * The flat board does not need this ordering: it carries the lesson on its own attribute and
+     * says BOTH. This is the projected board's compromise, and it is a compromise.
+     */
+    for (const square of taught) markers.set(squareIndex(square), 'lesson');
     const selected = game.selection();
     if (selected) {
       markers.set(squareIndex(selected), 'selected');
@@ -568,9 +612,17 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     view.drawPosition(hidden, travelling);
     syncMarks();
     hud.refresh();
-    // The one place the score sheet is written down, and the one place the engine is told the
-    // game has moved: one search per ply feeds the readout, the marks and protected mode.
-    saveGame(rules);
+    /*
+     * The one place the score sheet is written down, and the one place the engine is told the
+     * game has moved: one search per ply feeds the readout, the marks and protected mode.
+     *
+     * ⚠️ AND NOT WHILE A LESSON IS RUNNING. Without this guard, opening a lesson OVERWRITES THE
+     * PLAYER'S REAL GAME in `sessionStorage` — with a board holding two kings and a bishop — and
+     * the loss shows up only when they change view, by which time nothing on screen connects it to
+     * what caused it. The comment belongs here rather than at the top of the function because
+     * here the code looks unconditionally correct, and here is the last place anybody will look.
+     */
+    if (!teaching) saveGame(rules);
     players.refresh();
     reviewer.observe();
     refreshHints();
@@ -750,8 +802,45 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     };
   }
 
+  /**
+   * ⚠️ THE ORDER HERE IS LOAD-BEARING, and every line of it was a bug waiting.
+   *
+   *  1. `teaching` FIRST, before anything can call `syncPosition` — otherwise the very first sync
+   *     of a lesson writes its two-kings board over the player's real game.
+   *  2. The new `Rules`, then the new `GameState` built ON it. A lesson is a HOT SEAT
+   *     (`opponent: false`), so `settle()` never enters `thinking` and no engine is ever asked to
+   *     reply — which is also why none of this needs the 6.98 MB of Stockfish.
+   *  3. The marks are dropped, because they named squares in a position that no longer exists.
+   *  4. The selection is gone with the old state, so the cursor is left where the reader put it:
+   *     it is a property of the PERSON, not of the position.
+   */
+  function newGame(fen?: string, options: { readonly teaching?: boolean } = {}): void {
+    teaching = options.teaching ?? false;
+    rules = createRules(fen);
+    game = createGameState({ rules, playerSide, opponent: !teaching && mode !== 'two' });
+    setTaught([]);
+    syncPosition();
+  }
+
+  /**
+   * ⚠️ THE ONE WRITER, and the first version was not.
+   *
+   * The lesson marks live in two places — here, for the projected board's marker map, and inside
+   * `grid-mirror`, which owns the flat board's attribute and the cell labels. `newGame` cleared
+   * only this one, so a step that changed the position left the PREVIOUS step's amber square
+   * sitting on the flat board, pointing at a lesson that had moved on. Everything that changes the
+   * set goes through here.
+   */
+  function setTaught(squares: readonly Square[]): void {
+    taught = [...squares];
+    mirror.setTaught(taught);
+    syncMarks();
+  }
+
   return {
-    region, i18n, rules, game, mirror, hud, view, opponent,
-    activate: onActivate, walkHistory, askOpponent,
+    region, i18n, mirror, hud, view, opponent,
+    rules: () => rules,
+    game: () => game,
+    activate: onActivate, walkHistory, askOpponent, newGame, setTaught,
   };
 }
