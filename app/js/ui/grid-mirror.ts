@@ -439,12 +439,35 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
 
   /** Returns whether the board did something with it. */
   function handleKey(event: KeyboardEvent): boolean {
+    /*
+     * ================= ⚠️ A MODIFIED KEY IS SOMEBODY ELSE'S =================
+     * `Shift + arrow` turns the CAMERA, and that is written in `boot/view-zdog.ts` and printed in
+     * the hint line under the board. It never ran. The engine resolves `ArrowLeft` to the `left`
+     * intent whatever else is held down, so this function moved the cursor and returned true, and
+     * the shell — which offers the view only what nothing else wanted — stopped there.
+     *
+     * Two gestures, one of them doing the other's job, and the symptom was a hint line naming a
+     * key that turns nothing. Found by asking whether the key ever ARRIVES, which is a question
+     * about routing and needs no camera to answer.
+     *
+     * ⚠️ ALL FOUR MODIFIERS, not just shift. Ctrl+arrow and Alt+arrow are the browser's and the
+     * platform's — word-jumps, history, workspace switches — and quietly eating them to walk a
+     * chess cursor is the same mistake one modifier further along.
+     *
+     * ⚠️ AND IT GUARDS THE INTENTS ONLY, NOT THE WHOLE FUNCTION. Written as an early return it
+     * took `Ctrl+Home` and `Ctrl+End` with it — the jump to the far corner, which reads `ctrlKey`
+     * on purpose a few lines below. The existing suite caught that, which is the argument for
+     * having had it: the first version of this fix silently removed a keyboard shortcut while
+     * fixing a keyboard shortcut.
+     */
+    const modified = event.shiftKey || event.ctrlKey || event.altKey || event.metaKey;
+
     // Clamped at the edges rather than wrapped. A board has corners, and a player who runs into
     // one should feel the edge instead of being teleported to the far file.
     const DELTA: Record<string, [number, number]> = {
       left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1],
     };
-    const action = deps.resolveAction?.(event.code) ?? FALLBACK[event.key] ?? null;
+    const action = modified ? null : (deps.resolveAction?.(event.code) ?? FALLBACK[event.key] ?? null);
     const delta = action ? DELTA[action] : undefined;
     if (delta) {
       setCursor(

@@ -338,9 +338,17 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
       const zoomed = { '+': -1, '=': -1, '-': +1, _: +1 }[event.key];
       if (zoomed !== undefined) { camera.dolly(zoomed); invalidate(); return true; }
 
+      /*
+       * ⚠️ WASD AS WELL AS THE ARROWS, because that is what movement means everywhere else in this
+       * game — the engine's solo scheme binds both to the same four intents, and the hint line
+       * under the board names WASD. Arrows only was a camera that answered half the promise.
+       *
+       * Matched on `event.key` and upper-cased: with shift held the browser reports "A", not "a".
+       */
       const direction = {
         ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
-      }[event.key];
+        A: 'left', D: 'right', W: 'up', S: 'down',
+      }[event.key.length === 1 ? event.key.toUpperCase() : event.key];
       if (!direction) return false;
       camera.nudge(direction as 'left' | 'right' | 'up' | 'down');
       invalidate();

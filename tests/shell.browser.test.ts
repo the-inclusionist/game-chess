@@ -516,3 +516,89 @@ describe('[Opening] the name reaches the screen, not only the lookup', () => {
     expect((document.querySelector('.hud-opening') as HTMLElement).hidden).toBe(false);
   });
 });
+
+describe('[Camera keys] a modified arrow is not board navigation', () => {
+  /*
+   * ========================= THE HINT LINE MAKES A PROMISE =========================
+   * Under the board it says "⇧ + WASD gira o tabuleiro". The turn is implemented in
+   * `boot/view-zdog.ts` behind `onKey`, and the shell only offers the view a key that nothing
+   * else wanted — so whether that promise is kept is a question about ROUTING, not about the
+   * camera.
+   *
+   * ⚠️ `grid-mirror.handleKey` DOES NOT LOOK AT MODIFIERS. `Shift+ArrowLeft` resolves through the
+   * engine to the `left` intent exactly as a bare arrow does, so the cursor moves and the shell
+   * returns — and the camera code never runs. Held down together, one gesture was doing the other
+   * one's job, and the hint under the board named a key that turns nothing.
+   *
+   * The fake view records the offer, which is the whole question: a real camera is not needed to
+   * ask whether the key ever got there.
+   */
+  const press = (code: string, key: string, shift: boolean): void => {
+    document.getElementById('game-region')!.dispatchEvent(new KeyboardEvent('keydown', {
+      code, key, shiftKey: shift, bubbles: true, cancelable: true,
+    }));
+  };
+
+  function shellWithKeys(seen: string[]) {
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    const view = (ctx: ViewContext): BoardView => {
+      ctx.region.appendChild(ctx.mirror.root);
+      return {
+        hudControls: { coordinates: () => false, onCoordinates: () => {} },
+        applyTheme: () => {},
+        drawPosition: () => {},
+        drawMarks: () => {},
+        travel: () => Promise.resolve(),
+        relayout: () => {},
+        destroy: () => {},
+        onKey: (event) => {
+          if (!event.shiftKey) return false;
+          seen.push(event.key);
+          return true;
+        },
+      };
+    };
+    return createGameShell({
+      host: document, kind: '2d', view, visibleMirror: true,
+      debugName: '__cameraTest', contrastTheme: 'contrast-flat',
+    });
+  }
+
+  it('⚠️ offers a shifted arrow to the view instead of moving the cursor', () => {
+    const seen: string[] = [];
+    const shell = shellWithKeys(seen);
+    document.getElementById('game-region')!.focus();
+    const before = shell.mirror.cursor();
+
+    press('ArrowLeft', 'ArrowLeft', true);
+    expect(seen).toEqual(['ArrowLeft']);
+    // And the board did NOT move under it: one gesture, one job.
+    expect(shell.mirror.cursor()).toEqual(before);
+  });
+
+  it('⚠️ offers shifted WASD too, because movement here is arrows OR WASD', () => {
+    // The hint line names WASD, and the whole game binds both — a camera that answered only to
+    // arrows would make that line wrong in the other direction.
+    const seen: string[] = [];
+    const shell = shellWithKeys(seen);
+    document.getElementById('game-region')!.focus();
+    const before = shell.mirror.cursor();
+
+    press('KeyA', 'A', true);
+    expect(seen).toEqual(['A']);
+    expect(shell.mirror.cursor()).toEqual(before);
+  });
+
+  it('still moves the cursor on a BARE arrow, which is the thing not to break', () => {
+    const seen: string[] = [];
+    const shell = shellWithKeys(seen);
+    document.getElementById('game-region')!.focus();
+    const before = shell.mirror.cursor();
+
+    press('ArrowRight', 'ArrowRight', false);
+    expect(seen).toEqual([]);
+    expect(shell.mirror.cursor()).toEqual({ x: before.x + 1, y: before.y });
+  });
+});

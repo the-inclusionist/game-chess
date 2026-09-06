@@ -30,6 +30,13 @@ import type { BoardView, ViewContext, ViewFactory } from './view.ts';
 
 /** How far a pointer may wander during the hold before it counts as a drag rather than a press. */
 const SLOP = 6;
+/*
+ * One key press of camera. The pointer moves 0.008 rad per pixel of drag and reports dozens of
+ * events per gesture; a key reports one, so the same number per event would be invisible. These
+ * are roughly a comfortable drag's worth: about 5.7 degrees of yaw, 4.3 of pitch.
+ */
+const YAW_STEP = 0.1;
+const PITCH_STEP = 0.075;
 /** The share of the region the board gets; the panel has the rest. */
 const BOARD_SHARE = 0.725;
 
@@ -275,6 +282,38 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
      * the same shape the projected view already uses.
      */
     travel: () => Promise.resolve(),
+
+    /*
+     * ========================= ⚠️ THIS VIEW HAD NO KEYBOARD CAMERA AT ALL =========================
+     * The board here orbits on a pointer drag and zooms on a wheel, and neither had an equivalent
+     * anybody could reach from a keyboard — a plain WCAG 2.1.1 failure in the one view whose whole
+     * selling point is that you can walk around the board. The projected view has had this since
+     * its camera was written; the solid one got the pointer half and never the other.
+     *
+     * ⚠️ AND THE HINT LINE HAS BEEN PROMISING IT. "⇧ + WASD gira o tabuleiro" is printed under
+     * this board, which makes the gap worse than an omission: somebody pressing the named key and
+     * getting nothing concludes the keyboard does not work here.
+     *
+     * The steps are deliberately coarser than a pointer's. A drag reports many small deltas and a
+     * key reports one event, so matching the pointer's per-event amount would make a key press
+     * imperceptible — the same reason `render/camera.ts` gives its own `nudge` a step of its own.
+     */
+    onKey: (event) => {
+      if (!event.shiftKey) return false;
+
+      const zoomed = { '+': -1, '=': -1, '-': +1, _: +1 }[event.key];
+      if (zoomed !== undefined) { scene.dolly(zoomed); return true; }
+
+      const turn: Record<string, readonly [number, number]> = {
+        ArrowLeft: [-YAW_STEP, 0], ArrowRight: [YAW_STEP, 0],
+        ArrowUp: [0, -PITCH_STEP], ArrowDown: [0, PITCH_STEP],
+        A: [-YAW_STEP, 0], D: [YAW_STEP, 0], W: [0, -PITCH_STEP], S: [0, PITCH_STEP],
+      };
+      const by = turn[event.key.length === 1 ? event.key.toUpperCase() : event.key];
+      if (!by) return false;
+      scene.orbit(by[0], by[1]);
+      return true;
+    },
 
     relayout: () => {
       // ⚠️ THE ENGINE STILL SIZES THE REGION and it must: `#game-region` is what the panel, the
