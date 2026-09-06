@@ -34,6 +34,32 @@ export const PITCH_DEFAULT = -1;
 export const NUDGE_YAW = Math.PI / 24;
 export const NUDGE_PITCH = Math.PI / 36;
 
+/*
+ * ========================= HOW FAR THE ZOOM MAY GO =========================
+ * A multiple of the framing measured in spike 0, not an absolute: the board's own zoom depends on
+ * the canvas the stage was built at, and only the RATIO is a decision about how the game looks.
+ *
+ * ⚠️ THE RANGE IS NARROW, AND THAT IS THE FRAMING'S DOING, not a timid choice. This board is
+ * already sized to fill the 232 logical pixels the panel leaves it, so there is far more room to
+ * pull back than to push in — and pushing in has a hard stop the solid view does not have,
+ * because this camera cannot pan. A rank that leaves the canvas cannot be clicked, and the only way
+ * back to it is to zoom out again.
+ *
+ * Both ends were measured on screen rather than chosen. At 1.45 and at 1.30 the eighth rank was
+ * cut. 1.18 is the first value where every SQUARE is inside the canvas at the default pitch; the
+ * tallest pieces still touch the top edge there, and that is the accepted part — a king's finial
+ * clipped costs nothing, a square you cannot click costs a move. At 0.72 a piece is about fifteen
+ * pixels tall, which is as small as six silhouettes stay six.
+ *
+ * The step is a FACTOR, so a notch feels the same close up and far away, and in-then-out lands
+ * exactly where it started. It is the same 1.1 the solid view uses, because they are one control
+ * reached two ways and a player who learns it on one board must find it on the other.
+ */
+export const ZOOM_DEFAULT = 1;
+export const ZOOM_NEAREST = 1.18;
+export const ZOOM_FARTHEST = 0.72;
+export const ZOOM_STEP = 1.1;
+
 /** Radians per canvas pixel: dragging the full 320 px width turns half a circle. */
 export const DRAG_SENSITIVITY = Math.PI / 320;
 
@@ -57,6 +83,8 @@ export const ROTATE_HOLD_MS = 1000;
 export interface CameraState {
   readonly pitch: number;
   readonly yaw: number;
+  /** A multiple of the stage's own framing. 1 is the framing measured in spike 0. */
+  readonly zoom: number;
 }
 
 export type NudgeDirection = 'left' | 'right' | 'up' | 'down';
@@ -68,13 +96,19 @@ export interface Camera {
    */
   drag(dx: number, dy: number): CameraState;
   nudge(direction: NudgeDirection): CameraState;
-  set(state: CameraState): CameraState;
+  /** Zooms, in wheel notches: NEGATIVE is closer, which is the sign a wheel reports. */
+  dolly(notches: number): CameraState;
+  set(state: Partial<CameraState>): CameraState;
   reset(): CameraState;
   snapshot(): CameraState;
 }
 
 export function clampPitch(pitch: number): number {
   return Math.min(PITCH_SHALLOWEST, Math.max(PITCH_STEEPEST, pitch));
+}
+
+export function clampZoom(zoom: number): number {
+  return Math.min(ZOOM_NEAREST, Math.max(ZOOM_FARTHEST, zoom));
 }
 
 /** Normalises a turn into (-π, π], so a player spinning the board forever cannot drift a float. */
@@ -84,11 +118,12 @@ export function wrapYaw(yaw: number): number {
   return v > Math.PI ? v - turn : v;
 }
 
-export function createCamera(initial: CameraState = { pitch: PITCH_DEFAULT, yaw: 0 }): Camera {
-  let pitch = clampPitch(initial.pitch);
-  let yaw = wrapYaw(initial.yaw);
+export function createCamera(initial: Partial<CameraState> = {}): Camera {
+  let pitch = clampPitch(initial.pitch ?? PITCH_DEFAULT);
+  let yaw = wrapYaw(initial.yaw ?? 0);
+  let zoom = clampZoom(initial.zoom ?? ZOOM_DEFAULT);
 
-  const snapshot = (): CameraState => ({ pitch, yaw });
+  const snapshot = (): CameraState => ({ pitch, yaw, zoom });
 
   return {
     snapshot,
@@ -124,15 +159,27 @@ export function createCamera(initial: CameraState = { pitch: PITCH_DEFAULT, yaw:
       return snapshot();
     },
 
+    /**
+     * ⚠️ NEGATIVE IS CLOSER, which reads backwards and is what a wheel reports: `deltaY` is
+     * positive when the wheel turns the way that scrolls a page DOWN, and every application on the
+     * machine treats that as zooming out. Flipping it here would make this board the odd one.
+     */
+    dolly(notches) {
+      zoom = clampZoom(zoom * ZOOM_STEP ** -notches);
+      return snapshot();
+    },
+
     set(state) {
-      pitch = clampPitch(state.pitch);
-      yaw = wrapYaw(state.yaw);
+      pitch = clampPitch(state.pitch ?? pitch);
+      yaw = wrapYaw(state.yaw ?? yaw);
+      zoom = clampZoom(state.zoom ?? zoom);
       return snapshot();
     },
 
     reset() {
       pitch = PITCH_DEFAULT;
       yaw = 0;
+      zoom = ZOOM_DEFAULT;
       return snapshot();
     },
   };

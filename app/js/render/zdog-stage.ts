@@ -49,7 +49,14 @@ export interface ZdogStage {
   viewport(): Viewport;
   setCamera(pitch: number, yaw: number): void;
   camera(): { pitch: number; yaw: number };
-  setZoom(zoom: number): void;
+  /**
+   * Scales the picture by a MULTIPLE of the stage's own framing.
+   *
+   * ⚠️ NOT AN ABSOLUTE ZOOM. The illustration's zoom already carries the canvas it was built at
+   * — `CAMERA.zoom * (width / LOGICAL_W)` — and a caller that set it directly would silently
+   * undo that scaling on any canvas but the default one.
+   */
+  setZoomFactor(factor: number): void;
   destroy(): void;
 }
 
@@ -66,9 +73,10 @@ export function createZdogStage(options: ZdogStageOptions = {}): ZdogStage {
   canvas.width = width;
   canvas.height = height;
 
+  const baseZoom = CAMERA.zoom * (width / LOGICAL_W);
   const illo: Illustration = new Zdog.Illustration({
     element: canvas,
-    zoom: CAMERA.zoom * (width / LOGICAL_W),
+    zoom: baseZoom,
     centered: true,
     // The engine owns the frame loop and the pointer; Zdog must not add listeners of its own.
     resize: false,
@@ -119,7 +127,20 @@ export function createZdogStage(options: ZdogStageOptions = {}): ZdogStage {
       return { pitch: illo.rotate.x, yaw: illo.rotate.y };
     },
 
-    setZoom(zoom) { illo.zoom = zoom; },
+    /*
+     * ⚠️ THE FRAMING OFFSET HAS TO BE DIVIDED BACK OUT. `illo.translate` is part of the graph's
+     * own transform and `prerenderCanvas` scales the whole context by the zoom, so the offset that
+     * pushes the board clear of the panel is multiplied by it too. Left alone, zooming in would
+     * walk the board off the left edge — not a wrong scale, a wrong PLACE, which is harder to
+     * recognise as a bug.
+     *
+     * Dividing by the factor keeps the offset constant in PIXELS, which is what it always meant:
+     * a decision about where the picture sits on the canvas.
+     */
+    setZoomFactor(factor) {
+      illo.zoom = baseZoom * factor;
+      illo.translate.x = CAMERA.offsetX / factor;
+    },
 
     destroy() { illo.children.length = 0; },
   };

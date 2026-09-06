@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
 import {
-  clampPitch, createCamera, PITCH_DEFAULT, PITCH_SHALLOWEST, PITCH_STEEPEST, wrapYaw,
+  clampPitch, createCamera, PITCH_DEFAULT, PITCH_SHALLOWEST, PITCH_STEEPEST, wrapYaw, ZOOM_DEFAULT,
+  ZOOM_STEP,
+  ZOOM_NEAREST,
+  ZOOM_FARTHEST,
 } from '../app/js/render/camera.ts';
 
 describe('[Pitch] the board is never allowed to go edge-on', () => {
@@ -153,7 +156,7 @@ describe('[Keyboard] no action requires a drag', () => {
     expect(Number.isInteger(Math.round((Math.PI / 2) / step))).toBe(true);
     expect(Math.abs((Math.PI / 2) / step - Math.round((Math.PI / 2) / step))).toBeLessThan(1e-9);
     cam.reset();
-    expect(cam.snapshot()).toEqual({ pitch: PITCH_DEFAULT, yaw: 0 });
+    expect(cam.snapshot()).toEqual({ pitch: PITCH_DEFAULT, yaw: 0, zoom: ZOOM_DEFAULT });
   });
 });
 
@@ -163,6 +166,73 @@ describe('[Reset] returns to the framing spike 0 measured', () => {
     cam.drag(123, -45);
     cam.nudge('left');
     cam.reset();
-    expect(cam.snapshot()).toEqual({ pitch: PITCH_DEFAULT, yaw: 0 });
+    expect(cam.snapshot()).toEqual({ pitch: PITCH_DEFAULT, yaw: 0, zoom: ZOOM_DEFAULT });
+  });
+});
+
+describe('[Zoom] the wheel comes closer, within limits', () => {
+  it('reads a wheel the way every other application does', () => {
+    // ⚠️ `deltaY` is POSITIVE when the wheel turns the way that scrolls a page down, and every
+    // application on the machine treats that as zooming OUT. The sign is passed straight through,
+    // so this is the assertion that stops someone "fixing" it into the odd one out.
+    const cam = createCamera();
+    expect(cam.dolly(+1).zoom).toBeLessThan(ZOOM_DEFAULT);
+    cam.reset();
+    expect(cam.dolly(-1).zoom).toBeGreaterThan(ZOOM_DEFAULT);
+  });
+
+  it('comes back exactly on a notch out, because the step is a factor', () => {
+    // In-then-out is a multiplication by a reciprocal, which is the property that makes a notch
+    // feel the same close up and far away. A step measured in units would fail this by
+    // construction, and a board that drifts a little on every pair of notches is worse than one
+    // that does not zoom.
+    const cam = createCamera();
+    cam.dolly(-1);
+    expect(cam.dolly(+1).zoom).toBeCloseTo(ZOOM_DEFAULT, 12);
+    expect(cam.dolly(-1).zoom).toBeCloseTo(ZOOM_STEP, 12);
+  });
+
+  it('stops at both ends however long the wheel is turned', () => {
+    const cam = createCamera();
+    for (let i = 0; i < 200; i++) cam.dolly(-1);
+    expect(cam.snapshot().zoom).toBe(ZOOM_NEAREST);
+    for (let i = 0; i < 400; i++) cam.dolly(+1);
+    expect(cam.snapshot().zoom).toBe(ZOOM_FARTHEST);
+  });
+
+  it('keeps the near limit tighter than the far one, because this board does not pan', () => {
+    // Zoom in and the far files leave the canvas with no way to reach them but zooming out again.
+    // Zoom out and the board only gets smaller, which is recoverable by looking closer.
+    expect(ZOOM_NEAREST - ZOOM_DEFAULT).toBeLessThan(ZOOM_DEFAULT - ZOOM_FARTHEST + 1);
+    expect(ZOOM_NEAREST).toBeGreaterThan(ZOOM_DEFAULT);
+    expect(ZOOM_FARTHEST).toBeLessThan(ZOOM_DEFAULT);
+  });
+
+  it('leaves the turn alone, and the turn leaves it alone', () => {
+    // Two independent controls on one gesture. A player who zooms in and then turns the board must
+    // not find the zoom has crept, or they end up somewhere they never asked to be.
+    const cam = createCamera();
+    cam.dolly(-3);
+    const zoomed = cam.snapshot();
+    cam.drag(80, -30);
+    cam.nudge('left');
+    expect(cam.snapshot().zoom).toBe(zoomed.zoom);
+
+    cam.reset();
+    cam.drag(80, -30);
+    const turned = cam.snapshot();
+    cam.dolly(-2);
+    expect(cam.snapshot().pitch).toBe(turned.pitch);
+    expect(cam.snapshot().yaw).toBe(turned.yaw);
+  });
+
+  it('accepts a partial state without forgetting the rest of itself', () => {
+    // `set` takes what a caller knows and keeps what it does not. Restoring a saved pitch used to
+    // mean restoring a zoom nobody had saved.
+    const cam = createCamera({ zoom: 1.1 });
+    cam.set({ yaw: 1 });
+    expect(cam.snapshot().zoom).toBeCloseTo(1.1, 12);
+    expect(cam.snapshot().yaw).toBeCloseTo(1, 12);
+    expect(cam.snapshot().pitch).toBe(PITCH_DEFAULT);
   });
 });

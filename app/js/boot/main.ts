@@ -967,6 +967,27 @@ export function boot(host: Document = document): void {
     invalidate();
   });
 
+  /*
+   * ========================= THE WHEEL ZOOMS, BUT ONLY WHILE PRESSED =========================
+   * The same gesture the solid view uses, and the same reason: a bare wheel over the canvas has to
+   * keep scrolling the PAGE. On a small screen the board fills the viewport, and a page you cannot
+   * scroll past is worse than a board you cannot zoom.
+   *
+   * ⚠️ IT DOES NOT WAIT FOR THE ONE-SECOND HOLD. Wheeling while pressed is already an
+   * unambiguous camera gesture — nobody rests a finger on a wheel by accident — so it turns
+   * the press into a camera gesture immediately, which also stops the release from being read as a
+   * click on a square the pointer never left.
+   */
+  canvas.addEventListener('wheel', (e) => {
+    if (dragging === null) return;
+    e.preventDefault();
+    cancelHold();
+    turning = true;
+    canvas.dataset.turning = 'true';
+    camera.dolly(Math.sign(e.deltaY));
+    invalidate();
+  }, { passive: false });
+
   canvas.addEventListener('pointerup', (e) => {
     if (dragging !== e.pointerId) return;
     dragging = null;
@@ -1018,6 +1039,22 @@ export function boot(host: Document = document): void {
     }
 
     if (!e.shiftKey) return;
+
+    /*
+     * ⚠️ THE ZOOM NEEDS A KEY FOR THE SAME REASON THE TURN DOES. WCAG 2.5.7 and the rule this
+     * repository set itself: nothing may require a drag. `nudge` exists because the camera would
+     * otherwise be the only thing here that did, and a wheel is no more reachable than a drag —
+     * less, for anyone driving this by keyboard alone. `+` and `-` are one notch each, the same
+     * notch the wheel gives.
+     */
+    const zoomed = { '+': -1, '=': -1, '-': +1, _: +1 }[e.key];
+    if (zoomed !== undefined) {
+      camera.dolly(zoomed);
+      invalidate();
+      e.preventDefault();
+      return;
+    }
+
     const direction = {
       ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
     }[e.key];
@@ -1063,6 +1100,7 @@ export function boot(host: Document = document): void {
     dirty = false;
     const view = camera.snapshot();
     stage.setCamera(view.pitch, view.yaw);
+    stage.setZoomFactor(view.zoom);
     stage.render();
     // After the render, because the projected corners the labels extrapolate from are only valid
     // once the graph has been updated — the same precondition `quads()` carries for picking.
