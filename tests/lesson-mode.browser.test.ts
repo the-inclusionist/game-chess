@@ -13,7 +13,9 @@ import { createGameShell, type GameShell } from '../app/js/boot/game-shell.ts';
 import { createLessonMode, type LessonMode } from '../app/js/boot/lesson-mode.ts';
 import { createLessonPanel } from '../app/js/ui/lesson-panel.ts';
 import type { BoardView, ViewContext } from '../app/js/boot/view.ts';
-import { clear, loadProgress, loadSettings, saveSettings } from '../app/js/chess/session.ts';
+import {
+  clear, loadProgress, loadSettings, saveProgress, saveSettings,
+} from '../app/js/chess/session.ts';
 import { LESSONS } from '../app/js/teach/lessons.ts';
 import { GAMES, gameById } from '../app/js/teach/games.ts';
 import { gameLesson, isBookId } from '../app/js/teach/game-lesson.ts';
@@ -860,6 +862,42 @@ describe('[Tactics] a puzzle is a lesson, all the way through the column', () =>
     // ⚠️ Filed under its namespaced id, so a tactic can never be mistaken for a lesson.
     expect(loadProgress(localStorage).done.some((d) => d.startsWith('puzzle:'))).toBe(true);
     expect(press).toBeTruthy();
+  });
+
+  it('⚠️ resumes a BOOK where it was left, not at the start of the course', async () => {
+    /*
+     * `rememberPlace` records whatever lesson is open — the driver does not know a course lesson
+     * from a tactic from a book, and should not. The resume DID know: it accepted a remembered
+     * place only if the id was one of the thirteen in the syllabus, so a child who closed the tab
+     * halfway through a book pressed APRENDER and was put back at the notation lesson.
+     *
+     * Half a feature, and the half that was missing is the half a child notices.
+     */
+    saveProgress({ done: [], at: { lesson: 'book:opera', step: 4 } }, localStorage);
+    expect(shell.teach()).toBe(true);
+    await waitFor(() => (document.querySelector('#side-column .lesson-title')?.textContent ?? '')
+      !== '');
+    expect(document.querySelector('#side-column .lesson-title')!.textContent)
+      .toBe('A partida da ópera');
+    // Step 5 of 9 — the knight sacrifice, which is where it was left.
+    expect(document.querySelector('#side-column .lesson-counter')!.textContent)
+      .toContain('5');
+    expect(document.querySelector('#side-column .lesson-say')!.textContent)
+      .toContain('contando tempo');
+  });
+
+  it('⚠️ falls back to the course when the remembered lesson no longer exists', async () => {
+    /*
+     * The one thing the old guard was actually worth, kept without throwing the place away. A
+     * curated set can drop a tactic between releases; a remembered id that no longer resolves used
+     * to be impossible and is now merely a failed open, which must not cost the reader the door.
+     */
+    saveProgress({ done: [], at: { lesson: 'puzzle:doesnotexist', step: 0 } }, localStorage);
+    expect(shell.teach()).toBe(true);
+    await waitFor(() => (document.querySelector('#side-column .lesson-title')?.textContent ?? '')
+      !== '');
+    expect(document.querySelector('#side-column .lesson-title')!.textContent)
+      .toBe('Lendo o tabuleiro');
   });
 
   it('⚠️ opens the book, and its first step asks for the move the note is about', async () => {

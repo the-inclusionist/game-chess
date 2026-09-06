@@ -777,7 +777,14 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     lessonMenu?.refresh();
   }
 
-  async function startLesson(id: string): Promise<void> {
+  /**
+   * ⚠️ RETURNS WHETHER IT OPENED, because one caller has somewhere else to go if it did not.
+   * A remembered place can name a lesson that no longer resolves — a tactic dropped from the
+   * curated set, a book taken out — and the failure path here tears everything down and leaves
+   * the reader looking at the board with nothing said. Silent for a menu click, where the entry
+   * came from the list itself; not acceptable for a resume.
+   */
+  async function startLesson(id: string): Promise<boolean> {
     const [{ createLessonPanel }, { createLessonMode }, { createLessonMenu }] = await Promise.all([
       import('../ui/lesson-panel.ts'),
       import('./lesson-mode.ts'),
@@ -907,13 +914,14 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       lessonMenu.destroy();
       lessonMenu = null;
       lessonMode = null;
-      return;
+      return false;
     }
     hud.root.hidden = true;
     lessonMenu.root.hidden = false;
     refreshLessonMenu();
     // Nothing is under the board any more, so the board gets that height back.
     relayout();
+    return true;
   }
 
   /**
@@ -1575,11 +1583,31 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       if (!deps.teaches) return false;
       const { at, done } = loadProgress();
       const order = syllabus();
-      const resume = at && order.some((l) => l.id === at.lesson) ? at.lesson : null;
+      /*
+       * ================= ⚠️ HALF THIS FEATURE WAS IMPLANTED =================
+       * `rememberPlace` is called for whatever lesson is open — a course lesson, a tactic, a book
+       * — because the driver does not know the difference and should not. The resume did know:
+       * `order.some((l) => l.id === at.lesson)` is true only for the thirteen lessons IN the
+       * syllabus, so a child who closed the tab halfway through a tactic pressed APRENDER and was
+       * put back at the start of the course.
+       *
+       * That guard was right when it was written, because nothing else could be resolved then.
+       * `find` has answered `puzzle:` ids since the tactics landed and `book:` ids since the books
+       * did — so the guard is not protecting anything any more, it is only discarding the place.
+       */
+      const remembered = at?.lesson;
       const next = order.find((l) => !done.includes(l.id))?.id;
-      const id = resume ?? next ?? order[0]?.id;
+      const fallback = next ?? order[0]?.id;
+      const id = remembered ?? fallback;
       if (!id) return false;
-      void startLesson(id);
+      /*
+       * ⚠️ AND IF THE REMEMBERED ONE WILL NOT OPEN, THE COURSE STILL DOES. This is what the guard
+       * was really worth, kept without throwing the place away: an id that no longer resolves
+       * costs one failed open instead of the whole door.
+       */
+      void startLesson(id).then((opened) => {
+        if (!opened && fallback && fallback !== id) void startLesson(fallback);
+      });
       return true;
     },
 
