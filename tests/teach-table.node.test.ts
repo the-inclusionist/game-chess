@@ -161,8 +161,9 @@ describe('[Table] every lesson is playable as written', () => {
      * `{kind:'ignored', reason:'over'}`.
      *
      * Two lone kings is insufficient material. So is king and bishop against king, and king and
-     * knight against king. That is the notation, king, bishop and knight lessons — four of eleven,
-     * dead on arrival, and the symptom is a board that stops responding without a word.
+     * knight against king. That was the notation, king, bishop and knight lessons — four of the
+     * eleven there were then, dead on arrival, and the symptom is a board that stops responding
+     * without a word.
      */
     for (const lesson of LESSONS) {
       for (const [index, step] of lesson.steps.entries()) {

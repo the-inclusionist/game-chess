@@ -264,7 +264,7 @@ describe('[Panel] a change of language mid-lesson', () => {
      * `loadTeach` before it opens a lesson, and `boot/lesson-mode.ts` does.
      *
      * The title is no longer part of that. It moved to the main catalogue because the HUD lists
-     * eleven lesson names at BOOT, long before any prose is fetched — and with the titles next
+     * every lesson name at BOOT, long before any prose is fetched — and with the titles next
      * door the menu read `teach.notation.title` eleven times over on the real page. No test caught
      * that; looking at it did.
      */

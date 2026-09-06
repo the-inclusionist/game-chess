@@ -90,7 +90,7 @@ describe('[Reach] every sentence a lesson asks for exists in all three languages
      * and fails the child.
      *
      * ⚠️ THROUGH `t()`, NOT THROUGH THE FILE, because a lesson's strings now come from TWO places.
-     * The prose is here; the TITLES are in the main catalogue, because the HUD lists eleven lesson
+     * The prose is here; the TITLES are in the main catalogue, because the HUD lists every lesson
      * names at boot and the prose is a dynamic import — verified in the browser, where the menu
      * read `teach.notation.title` eleven times over.
      */

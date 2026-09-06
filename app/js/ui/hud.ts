@@ -563,8 +563,8 @@ export function createHud(deps: HudDeps): Hud {
   // marks on the squares — and into the live region, because a player who cannot see the marks is
   // exactly the player a hint is for.
   // --- the lessons ------------------------------------------------------------
-  // A select and a verb, like the strength control below it, rather than eleven buttons: the HUD
-  // is 88 logical pixels wide and a list of lessons would be most of it.
+  // A select and a verb, like the strength control below it, rather than a button per lesson:
+  // the HUD is 88 logical pixels wide and a list of lessons would be most of it.
   const lessonBox = doc.createElement('p');
   lessonBox.className = 'hud-field';
   const lessonLabel = doc.createElement('label');

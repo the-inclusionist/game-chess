@@ -49,7 +49,7 @@ import { createBlunderBar } from '../ui/blunder-bar.ts';
 import { createPauseMenu } from '../ui/pause-menu.ts';
 /*
  * ⚠️ THE TABLE IS STATIC AND THE MACHINERY IS NOT, and the split is deliberate. The HUD has to
- * list eleven lesson names before anyone opens one, so `LESSONS` is imported here — it is data,
+ * list every lesson name before anyone opens one, so `LESSONS` is imported here — it is data,
  * a few kilobytes of FENs and square sets. The panel, the tutor and the driver are fetched only
  * when a lesson is actually started, and the PROSE is fetched separately again by the driver. A
  * player who never opens a lesson downloads the names and nothing else.
@@ -546,7 +546,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     /*
      * ⚠️ THE LIST IS REBUILT ON EVERY `hud.refresh()`, which is what makes a finished lesson show
      * its tick without anybody wiring an event. `loadProgress` reads `localStorage`, and the whole
-     * cost is eleven string comparisons.
+     * cost is one string comparison per lesson.
      */
     ...(deps.teaches
       ? {
@@ -864,10 +864,9 @@ export function createGameShell(deps: GameShellDeps): GameShell {
           current: l.id === lessonMode?.active()?.id,
         })),
         /*
-         * ⚠️ ONE ENTRY PER THEME, NOT ONE PER PUZZLE. Two hundred names would bury the eleven
-         * lessons above them and turn a course into a phone book. A theme opens the next tactic in
-         * it that has not been solved, which is what a list of two hundred was only ever a slow
-         * way of doing.
+         * ⚠️ ONE ENTRY PER THEME, NOT ONE PER PUZZLE. Two hundred names would bury the course
+         * above them and turn it into a phone book. A theme opens the next tactic in it that has
+         * not been solved, which is what a list of two hundred was only ever a slow way of doing.
          *
          * `done` stays false until the set has been fetched, because until then nobody knows how
          * many there are — and claiming a theme is finished before counting it would be a tick

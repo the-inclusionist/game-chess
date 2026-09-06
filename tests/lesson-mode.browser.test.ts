@@ -811,7 +811,7 @@ describe('[Tactics] a puzzle is a lesson, all the way through the column', () =>
   const entries = (): HTMLButtonElement[] =>
     [...document.querySelectorAll<HTMLButtonElement>('#side-column .lesson-entry')];
 
-  it('offers five themes under the eleven lessons, not two hundred puzzles', async () => {
+  it('offers five themes under the course, not two hundred puzzles', async () => {
     expect(shell.teach()).toBe(true);
     await waitFor(() => entries().length > 0);
     const names = entries().map((b) => b.textContent);
