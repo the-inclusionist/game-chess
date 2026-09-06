@@ -3,7 +3,7 @@
 //
 // ========================= ⚠️ EVERY POSITION HERE WAS COMPUTED, NOT GUESSED =========================
 // The square sets below are what `rules.legalTargets()` actually returns from these exact FENs, and
-// `tests/teach-lesson-table.node.test.ts` re-derives every one of them. That is not belt and braces:
+// `tests/teach-table.node.test.ts` re-derives every one of them. That is not belt and braces:
 // a `mark` step that lists a square the piece cannot reach is unanswerable, and the person who
 // discovers it is a child who has done nothing wrong.
 //
