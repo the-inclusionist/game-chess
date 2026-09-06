@@ -118,4 +118,37 @@ export const en: TeachStrings = {
   'teach.castling.long': 'Now castle queenside: the king goes to c1.',
   'teach.castling.long.nudge':
     'On that side the king also moves two squares, and the rook jumps over him.',
+
+  /* --------------------------- the endgame, which is geometry --------------------------- */
+  'teach.square.can':
+    'A passed pawn runs for promotion. Draw a square from the pawn to the last row: if the king can '
+    + 'step inside it, it catches the pawn. Does this king catch it?',
+  'teach.square.can.nudge':
+    'The pawn is on the fourth row and has four squares to go. Count how many the king needs to '
+    + 'reach the promotion square.',
+  'teach.square.yes': 'Yes, it catches it',
+  'teach.square.no': 'No, the pawn promotes',
+  'teach.square.cannot':
+    'And now? The pawn has moved one square and the king is one file further away.',
+  'teach.square.cannot.nudge':
+    'A tempo is worth exactly one file of square. The king is outside it, and running will not help.',
+  'teach.square.take':
+    'The rule talks about a race, but the king does not have to race. The pawn is right beside it: '
+    + 'take it.',
+  'teach.square.take.nudge':
+    'Counting the race to the promotion square would say it cannot be done. Look at the pawn, not '
+    + 'at the eighth row.',
+
+  'teach.opposition.who':
+    'The kings face each other with one square between: that is the opposition. It belongs to '
+    + 'whoever does NOT have to move. White to play. Who has it?',
+  'teach.opposition.who.nudge':
+    'Whoever moves has to give way. The opposition belongs to the one who waits.',
+  'teach.opposition.white': 'White',
+  'teach.opposition.black': 'Black',
+  'teach.opposition.take':
+    'Now there are two squares between the kings and nobody has the opposition. One move takes it. '
+    + 'Play it.',
+  'teach.opposition.take.nudge':
+    'Walk the king forward, on the same file, until one square is left between them.',
 };

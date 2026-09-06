@@ -14,6 +14,7 @@ import { createLessonMode, type LessonMode } from '../app/js/boot/lesson-mode.ts
 import { createLessonPanel } from '../app/js/ui/lesson-panel.ts';
 import type { BoardView, ViewContext } from '../app/js/boot/view.ts';
 import { clear, loadProgress, loadSettings, saveSettings } from '../app/js/chess/session.ts';
+import { LESSONS } from '../app/js/teach/lessons.ts';
 import { fromAlgebraic, type Square } from '../app/js/chess/types.ts';
 
 const at = (name: string): Square => {
@@ -760,9 +761,16 @@ describe('[Tactics] a puzzle is a lesson, all the way through the column', () =>
     expect(shell.teach()).toBe(true);
     await waitFor(() => entries().length > 0);
     const names = entries().map((b) => b.textContent);
-    // Eleven lessons and five themes. Two hundred names would bury the course above them.
-    expect(names).toHaveLength(16);
-    expect(names.slice(11)).toEqual([
+    /*
+     * ⚠️ COUNTED FROM THE TABLE, NOT TYPED IN. This said "sixteen" and went red the day two endgame
+     * lessons were added — which is the test complaining about the syllabus growing, and the
+     * syllabus growing is the whole point of it being data.
+     *
+     * What is worth pinning is the SHAPE: every lesson, then five themes, in that order. Two
+     * hundred puzzle names would bury the course above them.
+     */
+    expect(names).toHaveLength(LESSONS.length + 5);
+    expect(names.slice(LESSONS.length)).toEqual([
       'Mate em 1', 'Garfo', 'Peça pendurada', 'Cravada', 'Mate em 2',
     ]);
   });
@@ -770,7 +778,9 @@ describe('[Tactics] a puzzle is a lesson, all the way through the column', () =>
   it('⚠️ opens a real tactic, and it is solvable and finishable', async () => {
     expect(shell.teach()).toBe(true);
     await waitFor(() => entries().length > 0);
-    entries()[11]!.click();                                  // Mate em 1
+    // Found by NAME rather than by index, for the same reason: a lesson added above it must not
+    // silently change which tactic this test opens.
+    entries().find((b) => b.textContent === 'Mate em 1')!.click();
 
     await waitFor(() => (document.querySelector('#side-column .lesson-say')?.textContent ?? '')
       .includes('xeque-mate'));

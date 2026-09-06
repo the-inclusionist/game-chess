@@ -342,6 +342,79 @@ export const LESSONS: readonly Lesson[] = [
       },
     ],
   },
+  /* ============================ THE ENDGAME, WHICH IS GEOMETRY ============================ */
+  /*
+   * ⚠️ THESE TWO POSITIONS ARE OURS, AND THAT IS THE POINT. The plan's endgame stage ran into a
+   * licence wall — the book it named is by EDWARD Lasker, protected until 2052 — and wrote down
+   * the way through: the geometric ideas "são matemática, não texto de ninguém". Nobody owns the
+   * observation that a king catches a pawn by stepping inside a square, so a position built from
+   * the rule is ours to ship and the prose around it is ours to write.
+   *
+   * ⚠️ AND THE ANSWERS ARE NOT TYPED IN. `tests/teach-endgame.node.test.ts` recomputes every one of
+   * them from `endgame/geometry.ts` — the same file whose own rule was raced against all twelve
+   * thousand positions on the board. A `pick` is the one task the table test cannot check, because
+   * "which option is right" is a fact about chess rather than about data; this is what closes that.
+   */
+  {
+    id: 'square',
+    title: 'teach.square.title',
+    after: ['king', 'pawn'],
+    steps: [
+      {
+        // Black king d5, white pawn h4, Black to move: inside the square, and it catches.
+        fen: '8/8/8/3k4/7P/8/8/K7 b - - 0 1',
+        say: 'teach.square.can',
+        task: { kind: 'pick', options: ['teach.square.yes', 'teach.square.no'], answer: 0 },
+        nudge: 'teach.square.can.nudge',
+      },
+      {
+        // The same idea one file further away and one rank further on: outside, and it does not.
+        fen: '8/8/8/k6P/8/8/8/K7 b - - 0 1',
+        say: 'teach.square.cannot',
+        task: { kind: 'pick', options: ['teach.square.yes', 'teach.square.no'], answer: 1 },
+        nudge: 'teach.square.cannot.nudge',
+      },
+      {
+        /*
+         * ⚠️ AND THE RULE AS USUALLY TAUGHT GETS THIS ONE WRONG. "Can the king reach the queening
+         * square in time" says no — a6 to a8 is two moves and the pawn needs one. The king does not
+         * have to race: it takes the pawn. Racing every position on the board is what found it.
+         */
+        fen: '8/P7/k7/8/8/8/8/7K b - - 0 1',
+        say: 'teach.square.take',
+        task: { kind: 'play', want: { from: 'a6', to: 'a7', captures: 'p' } },
+        show: { arrows: [['a6', 'a7']] },
+        nudge: 'teach.square.take.nudge',
+      },
+    ],
+  },
+
+  {
+    id: 'opposition',
+    title: 'teach.opposition.title',
+    after: ['square'],
+    steps: [
+      {
+        // Kings on e4 and e6 with White to move: Black holds it, because White must give way.
+        fen: '8/8/4k3/8/4K3/8/4P3/8 w - - 0 1',
+        say: 'teach.opposition.who',
+        task: {
+          kind: 'pick',
+          options: ['teach.opposition.white', 'teach.opposition.black'],
+          answer: 1,
+        },
+        nudge: 'teach.opposition.who.nudge',
+      },
+      {
+        // Two squares between: nobody has it, and one move takes it.
+        fen: '8/8/4k3/8/8/4K3/1P6/8 w - - 0 1',
+        say: 'teach.opposition.take',
+        task: { kind: 'play', want: { from: 'e3', to: 'e4' } },
+        show: { arrows: [['e3', 'e4']] },
+        nudge: 'teach.opposition.take.nudge',
+      },
+    ],
+  },
 ];
 
 /**

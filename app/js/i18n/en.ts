@@ -198,6 +198,8 @@ export const en: Catalog = {
     'teach.promotion.title': 'Promotion',
     'teach.enpassant.title': 'Capturing en passant',
     'teach.castling.title': 'Castling',
+    'teach.square.title': 'The rule of the square',
+    'teach.opposition.title': 'The opposition',
     'hud.startLesson': 'Start',
     'hud.lessonDone': '{title} ✔',
     'lesson.back': '‹ Previous',

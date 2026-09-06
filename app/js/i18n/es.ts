@@ -199,6 +199,8 @@ export const es: Catalog = {
     'teach.promotion.title': 'La promoción',
     'teach.enpassant.title': 'La captura al paso',
     'teach.castling.title': 'El enroque',
+    'teach.square.title': 'La regla del cuadrado',
+    'teach.opposition.title': 'La oposicion',
     'hud.startLesson': 'Empezar',
     'hud.lessonDone': '{title} ✔',
     'lesson.back': '‹ Anterior',

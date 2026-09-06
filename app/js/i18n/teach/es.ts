@@ -123,4 +123,36 @@ export const es: TeachStrings = {
   'teach.castling.long': 'Ahora el enroque largo: el rey va hasta c1.',
   'teach.castling.long.nudge':
     'De ese lado el rey también avanza dos casillas, y la torre salta por encima de él.',
+
+  /* --------------------------- the endgame, which is geometry --------------------------- */
+  'teach.square.can':
+    'Un peon pasado corre hacia la promocion. Traza un cuadrado del peon hasta la ultima fila: si '
+    + 'el rey puede entrar en el, alcanza al peon. Este rey lo alcanza?',
+  'teach.square.can.nudge':
+    'El peon esta en la cuarta fila: le faltan cuatro casillas. Cuenta cuantas necesita el rey para '
+    + 'llegar a la casilla de promocion.',
+  'teach.square.yes': 'Si, lo alcanza',
+  'teach.square.no': 'No, el peon promociona',
+  'teach.square.cannot':
+    'Y ahora? El peon avanzo una casilla y el rey quedo una columna mas lejos.',
+  'teach.square.cannot.nudge':
+    'Un tiempo vale exactamente una columna de cuadrado. El rey quedo fuera, y correr no sirve.',
+  'teach.square.take':
+    'La regla habla de una carrera, pero el rey no tiene que correr. El peon esta a su lado: '
+    + 'capturalo.',
+  'teach.square.take.nudge':
+    'Contar la carrera hasta la casilla de promocion diria que no se puede. Mira el peon, no la '
+    + 'octava fila.',
+
+  'teach.opposition.who':
+    'Los reyes estan frente a frente con una casilla en medio: eso es la oposicion. La tiene quien '
+    + 'NO debe jugar. Juegan las blancas. Quien la tiene?',
+  'teach.opposition.who.nudge':
+    'Quien juega tiene que apartarse. La oposicion es de quien espera.',
+  'teach.opposition.white': 'Las blancas',
+  'teach.opposition.black': 'Las negras',
+  'teach.opposition.take':
+    'Ahora hay dos casillas entre los reyes y nadie tiene la oposicion. Una jugada la toma. Hazla.',
+  'teach.opposition.take.nudge':
+    'Avanza el rey por la misma columna hasta que quede una casilla entre los dos.',
 };

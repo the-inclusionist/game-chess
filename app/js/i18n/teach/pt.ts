@@ -124,4 +124,34 @@ export const pt: TeachStrings = {
   'teach.castling.long': 'Agora o roque grande: o rei vai até c1.',
   'teach.castling.long.nudge':
     'Do outro lado o rei também anda duas casas, e a torre pula por cima dele.',
+
+  /* --------------------------- the endgame, which is geometry --------------------------- */
+  'teach.square.can':
+    'Um peao passado corre para a promocao. Trace um quadrado do peao ate a ultima linha: se o rei '
+    + 'conseguir entrar nele, alcanca o peao. Este rei alcanca?',
+  'teach.square.can.nudge':
+    'O peao esta na quarta linha: faltam quatro casas. Conte quantas o rei precisa para chegar a '
+    + 'casa de promocao.',
+  'teach.square.yes': 'Sim, alcanca',
+  'teach.square.no': 'Nao, o peao promove',
+  'teach.square.cannot': 'E agora? O peao avancou uma casa e o rei ficou uma coluna mais longe.',
+  'teach.square.cannot.nudge':
+    'Um tempo vale exatamente uma coluna de quadrado. O rei ficou de fora, e correr nao adianta.',
+  'teach.square.take':
+    'A regra fala de uma corrida, mas o rei nao precisa correr. O peao esta ao lado dele: capture.',
+  'teach.square.take.nudge':
+    'Contar a corrida ate a casa de promocao diria que nao da. Olhe para o peao, nao para a oitava '
+    + 'linha.',
+
+  'teach.opposition.who':
+    'Os reis estao frente a frente com uma casa no meio: isso e a oposicao. Quem a tem e quem NAO '
+    + 'precisa jogar. As brancas jogam. Quem tem a oposicao?',
+  'teach.opposition.who.nudge':
+    'Quem joga tem de sair da frente. A oposicao e de quem espera.',
+  'teach.opposition.white': 'As brancas',
+  'teach.opposition.black': 'As pretas',
+  'teach.opposition.take':
+    'Agora ha duas casas entre os reis, e ninguem tem a oposicao. Um lance a toma. Jogue-o.',
+  'teach.opposition.take.nudge':
+    'Ande com o rei para a frente, na mesma coluna, ate sobrar uma casa entre os dois.',
 };
