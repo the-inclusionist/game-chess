@@ -579,12 +579,12 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       i18n,
       onChoose: (option) => lessonMode?.chose(option),
     });
-    // Under the board, beside the blunder bar and for the same reason: the position stays in view.
-    blunderBar.root.parentElement?.insertBefore(panel.root, blunderBar.root);
-    // ⚠️ The panel takes height out of the board's share, so the stage has to be measured again —
-    // both when it arrives and when it goes. Without this the board keeps the size it had when
-    // there was nothing under it and the panel hangs off the bottom of the screen.
-    relayout();
+    /*
+     * ⚠️ NOT UNDER THE BOARD ANY MORE. It lived there so the position stayed in view while the
+     * sentence was read — which it still does, because the panel is now the top of the right-hand
+     * column and the board is beside it rather than above it. What that buys is the 157 px of
+     * height a third panel was taking out of the board's own share.
+     */
     lessonMode = createLessonMode({
       // Filled at the end of construction; `startLesson` cannot run before that.
       shell: self!,
@@ -613,6 +613,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     lessonMenu = createLessonMenu({
       doc: host,
       i18n,
+      lesson: panel.root,
       lessons: () => syllabus().map((l) => ({
         id: l.id,
         title: l.title,
@@ -645,6 +646,8 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     hud.root.hidden = true;
     lessonMenu.root.hidden = false;
     refreshLessonMenu();
+    // Nothing is under the board any more, so the board gets that height back.
+    relayout();
   }
 
   /**

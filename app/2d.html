@@ -424,6 +424,29 @@
   }
 
   .lesson-menu[hidden] { display: none; }
+  /*
+   * ⚠️ THE COLUMN SCROLLS, AND ONLY THE COLUMN. It now carries the lesson AND the controls AND
+   * eleven lesson names in a panel 27.5% of a 640-pixel board wide. Letting the page scroll
+   * instead would move the BOARD off screen — which is the one thing a lesson cannot do, because
+   * every question in it is asked about the board.
+   */
+  .lesson-menu { overflow-y: auto; }
+  /*
+   * Inside the column the lesson is a SECTION, not a card: it keeps its heading and its rule, and
+   * drops the border and the panel background it needed when it floated under the board.
+   */
+  .lesson-menu .lesson-panel {
+    margin: 0 0 0.5em;
+    padding: 0 0 0.5em;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #2b3947;
+    border-radius: 0;
+    font-size: inherit;
+  }
+  .lesson-menu .lesson-say { font-weight: 600; }
+  /* The list no longer needs its own scroller: the column is the scroller. */
+  .lesson-menu .lesson-list { overflow-y: visible; }
   .lesson-menu-title { margin: 0; font-size: 1.05em; font-weight: 700; color: #FFB300; }
   .lesson-menu-steps { margin: 0.1em 0 0; opacity: 0.85; }
   .lesson-walk { margin: 0.35em 0 0; display: flex; gap: 0.3em; }

@@ -30,6 +30,15 @@ export interface MenuLesson {
 export interface LessonMenuDeps {
   readonly doc: Document;
   readonly i18n: I18n;
+  /**
+   * The lesson itself — the title, the step, the nudge, the choices.
+   *
+   * ⚠️ IT USED TO SIT UNDER THE BOARD and it moved up here, which also settled a geometry problem
+   * it had created: a third panel below the board cost 157 px of height that the board needed to
+   * scale at all. Two panels beside each other need no such room. The right-hand column now reads
+   * top to bottom as the lesson and then the things you do to it.
+   */
+  readonly lesson?: HTMLElement;
   lessons(): readonly MenuLesson[];
   onPick(id: string): void;
   /** Where in the current lesson, 1-based, and how many steps it has. */
@@ -104,6 +113,12 @@ export function createLessonMenu(deps: LessonMenuDeps): LessonMenu {
   teacher.setAttribute('aria-describedby', teacherWhy.id);
   teacherBox.append(teacher, teacherLabel, teacherWhy);
 
+  /*
+   * ⚠️ THE LESSON FIRST, THE CONTROLS AFTER. Reading order is the order of importance here: the
+   * sentence a child is answering comes before the machinery for moving between sentences, and a
+   * screen reader walks the column in exactly this order.
+   */
+  if (deps.lesson) root.appendChild(deps.lesson);
   root.append(heading, steps, walk, teacherBox, list);
 
   const onBack = (): void => deps.onBack();
