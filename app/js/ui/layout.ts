@@ -32,43 +32,38 @@ const ENGINE_BASE_W = 320;
 const MIN_REGION_W = 640;
 
 /**
- * ========================= THE STAGE IS 2:1, IN WHOLE UNITS OF 360x180 =========================
- * The board, the side panel and anything under them share one box whose size is an integer
- * multiple of 360x180 — 1080x540, 1440x720, 1800x900, and so on.
+ * ========================= THE STAGE IS SIXTEEN UNITS BY NINE =========================
+ * Specified: nine units of it are a PERFECT SQUARE for the board, the remaining seven are the side
+ * panel, and nothing may be drawn outside it — the pause menu included.
  *
- * ⚠️ THE FLOOR IS THREE, NOT TWO, AND THAT IS ARITHMETIC RATHER THAN TASTE. 720x360 was asked for
- * and cannot work: the board is 640x360 logical and must scale by whole numbers or it stops being
- * pixel art, so it is 640 px wide at its smallest honest size and would leave 80 px for a panel
- * that has to hold a lesson. At k=3 the board takes 640x360 and the panel gets 440x540, which is
- * the three-panel shape this was always describing.
+ * At the floor that is 640x360, which is the engine's 320x180 doubled: a 360x360 board and a
+ * 280x360 panel. One unit is 40 pixels there, and every ratio in the spec falls out of it —
+ * 9 x 40 = 360, 7 x 40 = 280, 16 x 40 = 640.
+ *
+ * ⚠️ AND IT GROWS BY DOUBLING, NOT BY EVERY MULTIPLE OF 320x180. The board's raster is 360x360 and
+ * must scale by whole PHYSICAL pixels, so the stage's height has to stay a multiple of 360: 360,
+ * 720, 1080. A stage of 960x540 — a perfectly good multiple of 320x180 — would put the board at
+ * 1.5x and stop it being pixel art. So the ladder is 640x360, 1280x720, 1920x1080, which is every
+ * EVEN multiple of the engine's base.
+ *
+ * ⚠️ THE PREVIOUS SHAPE WAS 2:1 IN UNITS OF 360x180, and it is worth saying why it went. A 2:1
+ * stage cannot hold a square board of nine units out of sixteen: the board would have been bound
+ * by the height and the panel would have taken everything else, which is exactly the "board adrift
+ * beside an enormous panel" that was reported from the screen.
  */
-const STAGE_UNIT_W = 360;
-const STAGE_UNIT_H = 180;
-const MIN_STAGE_K = 3;
+const STAGE_COLS = 16;
+/** Of the sixteen columns, nine are the board — which makes it square, since the stage is 16:9. */
+const BOARD_COLS = 9;
 
-/**
- * The narrowest the side panel may be squeezed, in CSS pixels.
+/*
+ * ⚠️ `MIN_COLUMN_W` AND `MAX_COLUMN_W` LIVED HERE AND ARE GONE. They bounded the side panel at 300
+ * and 360 px, and both existed only because the panel WAS a remainder: a 2:1 stage with a square
+ * board handed it everything the board did not take, which came out as wide as the board itself
+ * and had to be clamped back.
  *
- * ⚠️ MEASURED, NOT CHOSEN. At the old 176 px the lesson column held 875 px of content in 357 px of
- * height and a child read a sentence through a slot. This is what makes the board wait for a
- * bigger stage before it doubles, and that trade is the right way round: a board that is too small
- * is still a board, and a sentence that is too narrow is a lesson nobody finishes.
+ * The panel is seven of the stage's sixteen columns now. A proportion does not need bounds, and
+ * keeping them would have fought the proportion at exactly the sizes they were written for.
  */
-const MIN_COLUMN_W = 300;
-
-/**
- * The widest the side panel may grow.
- *
- * ⚠️ WITHOUT THIS THE PANEL IS AS WIDE AS THE BOARD, and that is not a taste judgement — it is what
- * a 2:1 stage does to a SQUARE board. The board is bound by the stage's height, so on 1080x540 it
- * is about 510 across; the panel then took the whole remaining 440 and the screen read as two
- * equal halves, one of them a chess board and the other a menu.
- *
- * Capped, the leftover becomes MARGIN either side of the pair rather than width nobody asked the
- * panel to have. One stage unit is the cap because it is the unit everything else here is in.
- */
-const MAX_COLUMN_W = 360;
-
 export interface LayoutHost {
   readonly doc: Document;
   readonly win: Window;
@@ -106,66 +101,62 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
   const availH = Math.max(120, (wrap.clientHeight || (MIN_REGION_W * 9) / 16) - reserved);
 
   /*
-   * ⚠️ THE PAGE'S OWN SHAPE DECIDES THIS, so the question is asked before the stage is sized. A
-   * canvas board must scale by whole PHYSICAL pixels; the flat page's board is DOM and scales
-   * continuously, so it can use whatever stage it is given.
-   */
-  const boardCanvas = host.doc.getElementById('board-canvas');
-
-  // The largest stage the viewport allows, in whole units, never below the floor — a viewport too
-  // small for that overflows rather than shrinking the art, which is what `MIN_REGION_W` has
-  // always done.
-  const kMax = Math.max(MIN_STAGE_K, Math.floor(Math.min(availW / STAGE_UNIT_W, availH / STAGE_UNIT_H)));
-
-  /**
-   * The smallest stage, in units, that a board drawn at `deviceScale` actually needs.
+   * ========================= ONE NUMBER DECIDES THE WHOLE STAGE =========================
+   * The board is square and is nine of the stage's sixteen columns, so the stage's height IS the
+   * board's side. Choose how many whole physical pixels one art pixel gets, and everything else
+   * follows: board side, stage height, stage width, panel width.
    *
-   * ⚠️ IN CSS PIXELS, WHICH IS WHY `dpr` IS IN HERE. The scale is locked in physical pixels, so at
-   * a device ratio of 2 a board at device scale 3 is 960 CSS pixels across, not 1920.
+   * ⚠️ WHOLE PHYSICAL PIXELS, NOT CSS ONES. ADR-001, corrected 2026-07-04: at any device ratio
+   * that is not 1 a "clean" CSS scale lands the art on half a physical pixel and every edge in it
+   * is resampled, in a renderer whose entire point is not resampling.
    */
-  const unitsFor = (deviceScale: number): number => Math.max(
-    Math.ceil(((LOGICAL_W * deviceScale) / dpr + MIN_COLUMN_W) / STAGE_UNIT_W),
-    Math.ceil((LOGICAL_H * deviceScale) / dpr / STAGE_UNIT_H),
-  );
-
   /*
-   * ========================= ⚠️ THE STAGE STOPS WHERE THE BOARD STOPS =========================
-   * A canvas board goes 1x, 2x, 3x and nothing between. Sized independently, the stage grew with
-   * the window while the board waited for its next whole step — and at every viewport from 1440 to
-   * 1799 across that produced a 1440x720 stage with a 640x360 board adrift in it and a column
-   * beside it, which is what "as dimensões estão horrivelmente estranhas" looks like when the
-   * arithmetic is right and the result is not.
+   * ========================= THE LADDER, AND THE TWO RULES IT OBEYS =========================
+   * The stage grows in whole multiples of the engine's 320x180 — that is the spec. The board's
+   * 360x360 raster must land on whole PHYSICAL pixels — that is ADR-001, and it is not negotiable
+   * in a renderer whose point is not resampling.
    *
-   * So the stage is grown only as far as a scale the board can actually reach: 1080x540 for 1x,
-   * 1800x900 for 2x, 2520x1260 for 3x. What is left over becomes margin around a proportionate
-   * game rather than emptiness inside a stretched one.
-   *
-   * ⚠️ AND ONLY ON A CANVAS PAGE. The flat board is DOM, sized as a percentage of its box, so it
-   * fills whatever stage it is handed — capping it there would shrink a board that was fine.
+   * ⚠️ THE TWO DISAGREE AT SOME SIZES, AND THE DEVICE RATIO DECIDES WHICH. A 960x540 stage is a
+   * perfectly good multiple of 320x180 and puts the board at 1.5x — fractional at a ratio of 1,
+   * and exactly 3x at a ratio of 2, where 540 CSS pixels ARE 1080 physical ones. So the rungs are
+   * not fixed: they are every multiple whose board side comes out whole in real pixels, which on a
+   * plain screen is every second one and on a retina screen is every one.
    */
-  let k = kMax;
-  if (boardCanvas) {
-    k = MIN_STAGE_K;
-    for (let scale = 1; unitsFor(scale) <= kMax; scale += 1) k = Math.max(MIN_STAGE_K, unitsFor(scale));
+  /*
+   * ⚠️ THE INTEGER IS THE PHYSICAL SCALE, AND THE CSS SIZE FOLLOWS FROM IT — not the other way
+   * round. Choosing a CSS rung first and demanding it come out whole in real pixels sounds like
+   * the same rule and is not: at a device ratio of 1.25 no multiple of 180 gives a whole physical
+   * scale at all, so there would be no legal size to pick.
+   *
+   * So the ladder is "how many real pixels does one art pixel get", and the stage is whatever that
+   * makes. At a ratio of 1 it lands on 640x360, 1280x720, 1920x1080 — every EVEN multiple of the
+   * engine's base, because a 360x360 raster cannot do the odd ones without halving a pixel. At a
+   * ratio of 2 the odd ones come back, because 540 CSS pixels are 1080 real ones.
+   *
+   * The floor is one art pixel per CSS pixel: `round(dpr)`, which is a 360 CSS board and the
+   * 640x360 stage the spec names.
+   */
+  let scaleDevice = Math.max(1, Math.round(dpr));
+  for (let next = scaleDevice + 1; ; next += 1) {
+    const side = (LOGICAL_W * next) / dpr;
+    if ((side * STAGE_COLS) / BOARD_COLS > availW || side > availH) break;
+    scaleDevice = next;
   }
-  const stageW = STAGE_UNIT_W * k;
-  const stageH = STAGE_UNIT_H * k;
-
-  // The scale is locked in REAL pixels, not CSS ones. That is ADR-001, corrected 2026-07-04: each
-  // art pixel must be a whole number of PHYSICAL pixels, or the scanlines come out uneven at any
-  // device pixel ratio that is not 1.
-  //
-  // ⚠️ AND IT IS MEASURED AGAINST THE STAGE MINUS THE PANEL, not against the whole viewport. The
-  // board no longer shares its box with the panel, so every pixel it is given is a pixel it draws.
-  const floorDevice = Math.round((MIN_REGION_W / LOGICAL_W) * dpr);
-  const scaleDevice = Math.max(floorDevice, Math.floor(Math.min(
-    ((stageW - MIN_COLUMN_W) * dpr) / LOGICAL_W,
-    (stageH * dpr) / LOGICAL_H,
-  )));
 
   const scale = scaleDevice / dpr;
   const width = LOGICAL_W * scale;
   const height = LOGICAL_H * scale;
+
+  /*
+   * The stage from the board, rather than the board from the stage — which is the inversion this
+   * whole rewrite is. Sized the other way round, the stage grew smoothly with the window while the
+   * board waited for its next whole step, and left it adrift in a box built for a bigger one.
+   *
+   * ⚠️ A VIEWPORT TOO SMALL FOR THE FLOOR OVERFLOWS rather than shrinking the art, which is what
+   * `MIN_REGION_W` has always done here.
+   */
+  const stageH = height;
+  const stageW = (height * STAGE_COLS) / BOARD_COLS;
 
   if (stage) {
     stage.style.width = `${stageW}px`;
@@ -183,25 +174,22 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
    * a canvas in it or there is not.
    */
   /*
-   * ⚠️ AND AS WIDE. A canvas page needs exactly `LOGICAL_W x LOGICAL_H` times the scale, or the
-   * canvas — which is `width: 100%; height: 100%` — stretches. The flat page's board is a SQUARE
-   * drawn as a percentage of this box, so a 640-wide box for a 508-wide board left 132 px of
-   * nothing inside the region and made the panel look bigger than it was.
+   * ⚠️ THE BRANCH THAT USED TO BE HERE IS GONE, and its going is the point. A canvas page was given
+   * `LOGICAL_W x LOGICAL_H` and the flat page a square, because one raster was 16:9 and the other
+   * board was DOM. The raster is square now, so both pages want the same box and there is nothing
+   * left to ask the document about.
    */
-  const regionHeight = boardCanvas ? height : Math.max(height, stageH);
-  const regionWidth = boardCanvas ? width : regionHeight;
-
-  region.style.width = `${regionWidth}px`;
-  region.style.height = `${regionHeight}px`;
+  region.style.width = `${width}px`;
+  region.style.height = `${height}px`;
   /*
-   * Whatever the board did not take, within the two bounds. The panel is still the remainder by
-   * construction — the two can never overlap — but the remainder is now clamped, and `#stage`
-   * centres the pair so anything left over is margin on both sides.
+   * The remaining seven of the sixteen columns, exactly — not a remainder to be clamped.
+   *
+   * ⚠️ `MIN_COLUMN_W` AND `MAX_COLUMN_W` ARE GONE WITH THE CLAMP, and they were only ever there
+   * because the panel WAS a remainder: a 2:1 stage with a square board handed it everything left
+   * over, which came out as wide as the board itself. Seven units against nine is a proportion,
+   * and a proportion does not need bounds.
    */
-  if (column) {
-    const rest = stageW - regionWidth;
-    column.style.width = `${Math.min(MAX_COLUMN_W, Math.max(MIN_COLUMN_W, rest))}px`;
-  }
+  if (column) column.style.width = `${stageW - width}px`;
 
   // Against the ENGINE's base, not ours: a 44 px target is 44 px whatever this game rasterises at.
   const ui = width / ENGINE_BASE_W;

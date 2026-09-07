@@ -29,11 +29,31 @@
 
 import { LOGICAL_W as ENGINE_W } from '@the-inclusionist/engine/core/constants.js';
 
-/** How many times the engine's own base this game draws at. */
+/**
+ * ========================= ⚠️ THE CANVAS IS SQUARE, AND THAT IS THE SPEC =========================
+ * It was 640x360 — the engine's 320x180 doubled — and the paragraph above still argues for that
+ * shape. The argument for DOUBLING stands and is untouched; the argument for 16:9 does not, and
+ * this is why.
+ *
+ * A chess board is square. In a 16:9 raster it can only ever use the height, so the projected
+ * board measured 258x217 inside 640x360 — forty per cent of the width, with the rest letterboxed.
+ * That was invisible while the HUD was drawn in the same canvas and filled the right 27.5%; when
+ * the teaching mode moved the HUD out to a DOM sibling, the letterbox was all that was left there.
+ *
+ * The stage is now 16x9 UNITS: nine of them for a square board, seven for the panel beside it.
+ * At the floor that is a 640x360 stage holding a 360x360 board and a 280x360 panel — so 360x360 is
+ * the raster the board actually occupies, and the canvas is exactly that.
+ *
+ * ⚠️ THE DOUBLING IS PRESERVED WHERE IT MATTERS. 360 is twice the 180 the engine gives a square of
+ * its own height, so a diagonal still costs half the staircase it would at the engine's base —
+ * which is the whole of the argument above. What is dropped is 280 columns of pixels the board was
+ * never able to draw into.
+ */
 export const SOURCE_MULTIPLE = 2;
 
-export const LOGICAL_W = ENGINE_W * SOURCE_MULTIPLE;          // 640
-export const LOGICAL_H = (ENGINE_W * 9 / 16) * SOURCE_MULTIPLE; // 360
+/** The square the board is drawn in: nine of the stage's sixteen units, at the floor. */
+export const LOGICAL_W = (ENGINE_W * 9 / 16) * SOURCE_MULTIPLE;  // 360
+export const LOGICAL_H = LOGICAL_W;                              // 360 — a board is square
 
 /** Re-exported unchanged: the world unit of a square is the engine's tile, and stays 16. */
 export { TILE } from '@the-inclusionist/engine/core/constants.js';

@@ -38,11 +38,22 @@ describe('[Resolution] the backing store is the logical size, whatever CSS says'
     expect(Math.round(c.getBoundingClientRect().width)).toBe(LOGICAL_W);
   });
 
-  it('is 16:9 and a whole multiple of the engine base, so it integer-scales beside it', () => {
-    expect(LOGICAL_W / LOGICAL_H).toBeCloseTo(16 / 9, 5);
-    expect(LOGICAL_W).toBe(320 * SOURCE_MULTIPLE);
+  it('⚠️ is SQUARE, because the board is, and still a whole multiple of the engine base', () => {
+    /*
+     * ⚠️ THIS SAID 16:9 UNTIL THE STAGE WAS SPECIFIED, and it was right about the old raster. The
+     * stage is sixteen units by nine now, nine of them a perfect square for the board — so the
+     * board's raster is square too, and a 16:9 one could only ever have used its height. That is
+     * exactly what it did: 258x217 drawn inside 640x360, with the rest letterboxed.
+     *
+     * The DOUBLING is untouched and still checked. 360 is twice the 180 the engine gives a square
+     * of its own height, which is the whole of `render/resolution.ts`'s argument about diagonals —
+     * what was dropped is 280 columns the board was never able to draw into.
+     */
+    expect(LOGICAL_W).toBe(LOGICAL_H);
+    expect(LOGICAL_W).toBe((320 * 9 / 16) * SOURCE_MULTIPLE);
     expect(Number.isInteger(SOURCE_MULTIPLE)).toBe(true);
-    expect(Number.isInteger(LOGICAL_W / 16)).toBe(true);
+    // Nine units of the stage, so a unit is a whole number of art pixels at every scale.
+    expect(Number.isInteger(LOGICAL_W / 9)).toBe(true);
   });
 });
 

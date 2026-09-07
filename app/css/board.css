@@ -100,8 +100,14 @@
      * clamps the column, and what is left over is already spare — 80 px at the smallest stage,
      * against a gap of about sixteen.
      */
-    gap: var(--ui-fs, 16px);
+    /*
+     * ⚠️ NO `gap` HERE, AND THAT IS DELIBERATE. A flex gap comes out of the CHILDREN: with the
+     * board at nine units and the panel at seven, sixteen units plus a gap is more than the stage,
+     * so the board was squeezed to 351 where the spec says 360. The separation is padding inside
+     * the panel instead, which leaves both boxes exactly the width they were specified.
+     */
   }
+  #side-column { padding-left: var(--ui-fs, 16px); box-sizing: border-box; }
   #side-column { flex: 0 0 auto; min-width: 0; }
   /*
    * ⚠️ CENTRED IN THE STAGE. The board region is a whole multiple of 640x360 and the stage is a
