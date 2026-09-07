@@ -146,9 +146,10 @@ Started: Chapter I §1, the elementary mates — rook and queen so far, both re-
 `tests/teach-fundamentals.node.test.ts` rather than trusted. Next: §1's two-bishop mate, then §2
 Pawn Promotion and §3 Pawn Endings.
 
-The same shape of question stands behind Staunton's explanatory text for the openings and behind
-the history module. `docs/LICENSES.md` carries which books are usable at all, including two that
-look usable and are not.
+⚠️ **Everything else is deferred and filed.** Staunton's explanatory text for the openings, the
+history module, and the endgame position sets are [issues 1–3](https://github.com/the-inclusionist/game-chess/issues);
+each carries its source, its public-domain status and its trap. `docs/LICENSES.md` has the full
+table, including two books that look usable and are not.
 
 Shipped meanwhile: **Morphy's Opera Game, 1858, with notes written here.** A game's moves are facts
 and its notes are not; ours need no permission, so the mechanism could ship while the book is still
