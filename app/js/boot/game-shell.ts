@@ -858,6 +858,8 @@ export function createGameShell(deps: GameShellDeps): GameShell {
         // panel and the game is still there underneath; rebuilding it would throw away the move
         // list's scroll position and whatever control the reader had left focus on.
         hud.root.hidden = false;
+        players.root.hidden = false;
+        thinking.root.hidden = false;
         relayout();
         // The tick on a finished lesson appears here, without an event to wire.
         hud.refresh();
@@ -933,7 +935,19 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       lessonMode = null;
       return false;
     }
+    /*
+     * ⚠️ THE HUD IS NOT THE ONLY THING THAT MEANS NOTHING IN A LESSON. The player strips carry
+     * whose turn it is, the captured tally and an ENGINE EVALUATION; the thinking line reports a
+     * search. A lesson is a hot seat with no opponent — `+0.2` and "engine: stopped" are answers to
+     * questions nobody asked, sitting above and below the board the whole time.
+     *
+     * Found by LOOKING at the page rather than by measuring it, which is how all three of these
+     * survived: `hidden` was set on the HUD and read back as `true` while 360x720 of controls stayed
+     * exactly where they were.
+     */
     hud.root.hidden = true;
+    players.root.hidden = true;
+    thinking.root.hidden = true;
     lessonMenu.root.hidden = false;
     refreshLessonMenu();
     // Nothing is under the board any more, so the board gets that height back.

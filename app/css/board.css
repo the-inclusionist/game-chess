@@ -186,6 +186,23 @@
    * sibling of the region now and `ui/layout` gives it whatever the board did not take, so the two
    * cannot overlap by construction.
    */
+  /*
+   * ⚠️ `display: flex` BEATS `[hidden]`, AND THIS IS THE LINE THAT WAS MISSING. The UA sheet says
+   * `[hidden] { display: none }` at lower specificity than any class, so a `.hud` set to
+   * `hidden = true` by the shell stayed exactly where it was — 360x720 of controls, on screen,
+   * during every lesson, pushing the lesson menu below the fold.
+   *
+   * The trap was known: `.pause-menu`, `.lesson-menu`, `.lesson-panel`, `.lesson-nudge`,
+   * `.lesson-options`, `.lesson-teacher-why` and `.blunder-bar` all carry this line, and the
+   * comment beside the blunder bar spells out why. `.hud` — the one element the teaching mode
+   * actually hides — did not.
+   *
+   * ⚠️ AND NO TEST COULD SEE IT. The browser suite builds its DOM by hand and this stylesheet is a
+   * `<link>` in the three HTML pages, so `hud.root.hidden` read `true` and every assertion agreed.
+   * Nothing was measuring what was on the screen.
+   */
+  .hud[hidden] { display: none; }
+
   .hud {
     width: 100%;
     height: 100%;
@@ -597,6 +614,9 @@
     font-size: calc(var(--ui-fs, 16px) * 0.72);
     line-height: 1.2;
   }
+  /* ⚠️ The same trap as `.hud`: without this, `hidden` is a property nothing can see. */
+  .board-players[hidden] { display: none; }
+
   .player-strip {
     display: flex;
     flex-direction: column;
@@ -941,6 +961,9 @@
    * sends `info` many times a second, and announcing that would drown the move announcements that
    * actually matter.
    */
+  /* ⚠️ The same trap as `.hud`: without this, `hidden` is a property nothing can see. */
+  .thinking[hidden] { display: none; }
+
   .thinking {
     display: flex;
     flex-wrap: wrap;

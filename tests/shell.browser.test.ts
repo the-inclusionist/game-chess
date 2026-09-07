@@ -17,6 +17,12 @@
 // pane — and the pane is not visible under vitest, which is exactly when a real animation never
 // settles.
 import { afterEach, describe, expect, it } from 'vitest';
+/*
+ * ⚠️ THE GAME'S STYLESHEET, AND IT IS LOAD-BEARING. The three HTML pages link it; a test that
+ * builds its DOM by hand gets none of it, which made every 'is it hidden' assertion in this
+ * suite a question about a PROPERTY rather than about the screen. See the [Chrome] describe.
+ */
+import '../app/css/board.css';
 import { createGameShell } from '../app/js/boot/game-shell.ts';
 import type { BoardView, ViewContext } from '../app/js/boot/view.ts';
 import { clear, saveSettings } from '../app/js/chess/session.ts';
@@ -506,7 +512,7 @@ describe('[Opening] the name reaches the screen, not only the lookup', () => {
     play(shell, 'b8', 'c6');
     play(shell, 'f1', 'b5');
 
-    const deadline = Date.now() + 5000;
+    const deadline = Date.now() + 10_000;
     while (!shown().includes('Ruy Lopez') && Date.now() < deadline) {
       await new Promise((resolve) => { setTimeout(resolve, 20); });
     }
@@ -768,7 +774,7 @@ describe('[Opponent] the reply lands on the board, which is the defect that surv
 
   /** Waits for the reply to have reached the board. */
   const settled = async (test: () => boolean): Promise<void> => {
-    const deadline = Date.now() + 3000;
+    const deadline = Date.now() + 10_000;
     while (!test() && Date.now() < deadline) {
       await new Promise((resolve) => { setTimeout(resolve, 10); });
     }
@@ -830,5 +836,105 @@ describe('[Opponent] the reply lands on the board, which is the defect that surv
 
     expect(shell.rules().history().map((m) => m.san)).toEqual(['e4']);
     expect(record.legs).not.toContain('e7e5');
+  });
+});
+
+/** Waits until a lesson opened through the shell is actually running. */
+async function untilLesson(): Promise<void> {
+  const step = (): string => document.querySelector('#side-column .lesson-say')?.textContent ?? '';
+  const deadline = Date.now() + 10_000;
+  while (step() === '' && Date.now() < deadline) {
+    await new Promise((resolve) => { setTimeout(resolve, 10); });
+  }
+  expect(step()).not.toBe('');
+}
+
+
+describe('[Chrome] what steps aside for a lesson actually leaves the screen', () => {
+  /*
+   * ========================= ⚠️ THE SUITE WAS BLIND TO THE SCREEN =========================
+   * This whole file — and every other browser test — built its DOM by hand and never loaded
+   * `app/css/board.css`, which is a `<link>` in the three HTML pages. So `hud.root.hidden` read
+   * `true`, every assertion agreed, and the HUD sat on screen through every lesson: 360x720 of
+   * controls, an engine evaluation and a difficulty selector, pushing the lesson panel below the
+   * fold. `.hud` sets `display: flex`, and a class beats the UA sheet's `[hidden] { display: none }`.
+   *
+   * The trap was known — `.pause-menu`, `.lesson-menu`, `.lesson-panel`, `.lesson-nudge`,
+   * `.lesson-options`, `.lesson-teacher-why` and `.blunder-bar` all carry the guard, and the comment
+   * beside the blunder bar spells out why. The one element the teaching mode actually hides did not.
+   *
+   * ⚠️ SO THE STYLESHEET IS IMPORTED HERE, and that is the point of this describe rather than an
+   * incidental. `hidden` is a property; `display` is what a person sees. Only the second one is
+   * worth asserting, and until this import there was no way to ask.
+   */
+  const press = (code: string, key: string): void => {
+    document.getElementById('stage')!.dispatchEvent(new KeyboardEvent('keydown', {
+      code, key, bubbles: true, cancelable: true,
+    }));
+  };
+
+  function shellFor() {
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    return createGameShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      teaches: true,
+      debugName: '__chromeTest', contrastTheme: 'contrast-flat',
+    });
+  }
+
+  const shown = (selector: string): string => {
+    const el = document.querySelector(selector);
+    return el ? getComputedStyle(el).display : 'absent';
+  };
+
+  it('⚠️ the stylesheet is actually loaded, or every assertion below is vacuous', () => {
+    /*
+     * A guard on the guards. If the import ever stops arriving — a bundler change, a moved file —
+     * these tests would pass by measuring unstyled elements, which is exactly the failure they
+     * exist to catch, one level up.
+     */
+    fixture();
+    const probe = document.createElement('div');
+    probe.className = 'hud';
+    document.body.appendChild(probe);
+    expect(getComputedStyle(probe).display).toBe('flex');
+    probe.remove();
+  });
+
+  it('⚠️ the HUD, the player strips and the engine line all LEAVE during a lesson', async () => {
+    const shell = shellFor();
+    expect(shown('.hud')).toBe('flex');
+
+    expect(shell.teach()).toBe(true);
+    await untilLesson();
+
+    // Not `hidden === true`, which was true all along. What a person would see.
+    expect(shown('.hud'), 'the HUD').toBe('none');
+    expect(shown('.board-players'), 'the player strips').toBe('none');
+    expect(shown('.thinking'), 'the engine line').toBe('none');
+    // And the thing that replaced them is there.
+    expect(shown('.lesson-menu')).not.toBe('none');
+  });
+
+  it('⚠️ and all three come back when the lesson is left', async () => {
+    // They were hidden rather than destroyed, so the move list keeps its scroll and whatever
+    // control had focus keeps it. That only pays if they actually return.
+    const shell = shellFor();
+    expect(shell.teach()).toBe(true);
+    await untilLesson();
+    expect(shown('.hud')).toBe('none');
+
+    press('KeyH', 'h');
+    const quit = [...document.querySelectorAll('[role="dialog"] button')]
+      .find((b) => /sair/i.test(b.textContent ?? ''));
+    expect(quit, 'a way out of the lesson').toBeDefined();
+    (quit as HTMLButtonElement).click();
+    await new Promise((resolve) => { setTimeout(resolve, 50); });
+
+    expect(shown('.hud'), 'the HUD came back').toBe('flex');
+    expect(shown('.board-players'), 'the strips came back').not.toBe('none');
+    expect(shown('.thinking'), 'the engine line came back').not.toBe('none');
   });
 });

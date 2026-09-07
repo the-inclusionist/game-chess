@@ -123,7 +123,7 @@ const settle = async (): Promise<void> => {
  */
 async function untilTeaching(): Promise<void> {
   const step = (): string => document.querySelector('#side-column .lesson-say')?.textContent ?? '';
-  const deadline = Date.now() + 4000;
+  const deadline = Date.now() + 10_000;
   while (step() === '' && Date.now() < deadline) {
     await new Promise((resolve) => { setTimeout(resolve, 10); });
   }
@@ -652,7 +652,7 @@ describe('[Language] the switch the game never had', () => {
     const select = document.getElementById('hud-locale') as HTMLSelectElement;
     select.value = code;
     select.dispatchEvent(new Event('change', { bubbles: true }));
-    const deadline = Date.now() + 3000;
+    const deadline = Date.now() + 10_000;
     while ((document.querySelector('#side-column .lesson-say')?.textContent ?? '') === before
       && Date.now() < deadline) {
       await new Promise((resolve) => { setTimeout(resolve, 10); });
@@ -684,7 +684,7 @@ describe('[Language] the switch the game never had', () => {
      * answer to be shown before the step turns over. Polling for the step, not for a duration.
      */
     shell.activate(at('e4'));
-    const stepDeadline = Date.now() + 3000;
+    const stepDeadline = Date.now() + 10_000;
     while (!inColumn('.lesson-say').includes('c6') && Date.now() < stepDeadline) {
       await new Promise((resolve) => { setTimeout(resolve, 20); });
     }
@@ -800,7 +800,16 @@ describe('[Tactics] a puzzle is a lesson, all the way through the column', () =>
       .dispatchEvent(new KeyboardEvent('keydown', { code, key: code, bubbles: true, cancelable: true }));
   };
 
-  const waitFor = async (test: () => boolean, ms = 4000): Promise<void> => {
+  /*
+   * ⚠️ TEN SECONDS, AND THE NUMBER IS THE POINT. These are POLLS, not timeouts: when one gives up
+   * it does not report a timeout — it falls through, and the assertion after it fails with a
+   * message about the wrong thing, a lesson that "did not open" when it was merely slow.
+   * `testTimeout` cannot help, because vitest's clock never expires: the poll ends first.
+   *
+   * Loading the game's stylesheet into this project made every page do real layout and pushed two
+   * of these over, in a full run and never alone.
+   */
+  const waitFor = async (test: () => boolean, ms = 10_000): Promise<void> => {
     const deadline = Date.now() + ms;
     while (!test() && Date.now() < deadline) {
       await new Promise((resolve) => { setTimeout(resolve, 15); });
