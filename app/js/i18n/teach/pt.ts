@@ -242,4 +242,18 @@ export const pt: TeachStrings = {
   'teach.underpromotion.take':
     'O xeque obrigou o rei a sair e nenhuma das casas dele defende a dama. Capture-a.',
   'teach.underpromotion.take.nudge': 'O cavalo vai de c8 até e7.',
+
+  'teach.breakthrough.push':
+    'Três peões contra três, e nenhum rei perto. Parece equilibrado — não é. Empurre o peão do '
+    + 'meio e ofereça-o.',
+  'teach.breakthrough.push.nudge':
+    'O peão de b vai a b6, onde as pretas podem comê-lo de dois lados. É de propósito.',
+  'teach.breakthrough.again':
+    'As pretas comeram. Agora ofereça o segundo — pela outra coluna.',
+  'teach.breakthrough.again.nudge':
+    'O peão de c vai a c6. Comer é obrigatório para as pretas, ou o peão passa.',
+  'teach.breakthrough.run':
+    'Dois peões dados, e a coluna a ficou aberta. Empurre o terceiro: nenhum rei chega a tempo.',
+  'teach.breakthrough.run.nudge':
+    'O peão de a vai a a6. Trace o quadrado dele até a oitava linha e veja onde está o rei preto.',
 };

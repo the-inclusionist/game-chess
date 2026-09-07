@@ -232,4 +232,53 @@ export const FUNDAMENTALS: readonly Lesson[] = [
       },
     ],
   },
+  {
+    /*
+     * ========================= §3 PAWN ENDINGS, AND THE SAME LINE AS §2 =========================
+     * Most of §3 is "this ending is won" and "this one is drawn", which nothing in this repository
+     * can settle — see the note on `underpromotion` above. The two ideas that decide those endings
+     * already ship, generated from `endgame/geometry.ts`.
+     *
+     * ⚠️ THE BREAKTHROUGH IS DIFFERENT, AND THAT IS WHY IT IS HERE. It is not a judgement about a
+     * position: it is a FORCED SEQUENCE, and every move in it is legal or it is not. Three pawns
+     * against three, nobody's king in reach, and White gives away two of them to queen the third.
+     *
+     * Verified before it was written, and both of Black's captures come to the same thing:
+     *   1.b6 axb6 2.c6 bxc6 3.a6 — and the a-pawn runs.
+     *   1.b6 cxb6 2.a6 bxa6 3.c6 — the mirror image.
+     *
+     * ⚠️ AND IT PAYS THE SQUARE LESSON BACK. Why the pawn cannot be caught is exactly the rule the
+     * `square` lesson taught, so this is the first place in the course where one lesson is the
+     * ANSWER to another. `tests/teach-fundamentals.node.test.ts` re-derives that with
+     * `catchesPawn`, rather than my saying so.
+     */
+    id: 'breakthrough',
+    title: 'teach.breakthrough.title',
+    after: ['square', 'pawn'],
+    steps: [
+      {
+        // Three against three, and the kings are in the far corner where neither can interfere.
+        fen: '7k/ppp5/8/PPP5/8/8/8/7K w - - 0 1',
+        say: 'teach.breakthrough.push',
+        task: { kind: 'play', want: { from: 'b5', to: 'b6' } },
+        show: { arrows: [['b5', 'b6']] },
+        nudge: 'teach.breakthrough.push.nudge',
+      },
+      {
+        // Its own FEN: Black's capture is not a goal, so nothing would replay it.
+        fen: '7k/1pp5/1p6/P1P5/8/8/8/7K w - - 0 2',
+        say: 'teach.breakthrough.again',
+        task: { kind: 'play', want: { from: 'c5', to: 'c6' } },
+        show: { arrows: [['c5', 'c6']] },
+        nudge: 'teach.breakthrough.again.nudge',
+      },
+      {
+        fen: '7k/2p5/1pp5/P7/8/8/8/7K w - - 0 3',
+        say: 'teach.breakthrough.run',
+        task: { kind: 'play', want: { from: 'a5', to: 'a6' } },
+        show: { arrows: [['a5', 'a6']] },
+        nudge: 'teach.breakthrough.run.nudge',
+      },
+    ],
+  },
 ];

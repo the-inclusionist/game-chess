@@ -243,4 +243,19 @@ export const es: TeachStrings = {
   'teach.underpromotion.take':
     'El jaque obligó al rey a moverse y ninguna de sus casillas defiende a la dama. Cáptúrala.',
   'teach.underpromotion.take.nudge': 'El caballo va de c8 a e7.',
+
+  'teach.breakthrough.push':
+    'Tres peones contra tres, y ningún rey cerca. Parece equilibrado y no lo está: empuja el peón '
+    + 'del medio y ofrécelo.',
+  'teach.breakthrough.push.nudge':
+    'El peón de b va a b6, donde las negras pueden comerlo por los dos lados. Es a propósito.',
+  'teach.breakthrough.again':
+    'Las negras comieron. Ahora ofrece el segundo, por la otra columna.',
+  'teach.breakthrough.again.nudge':
+    'El peón de c va a c6. Las negras tienen que comer, o el peón pasa.',
+  'teach.breakthrough.run':
+    'Dos peones regalados, y la columna a quedó abierta. Empuja el tercero: ningún rey llega a '
+    + 'tiempo.',
+  'teach.breakthrough.run.nudge':
+    'El peón de a va a a6. Traza su cuadrado hasta la octava fila y mira dónde está el rey negro.',
 };

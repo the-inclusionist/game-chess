@@ -17,7 +17,8 @@ import { lessonById } from '../app/js/teach/lessons.ts';
 import { FUNDAMENTALS } from '../app/js/teach/fundamentals.ts';
 import { createRules } from '../app/js/chess/rules.ts';
 import { matchesShape } from '../app/js/teach/lesson.ts';
-import { fromAlgebraic, type Square } from '../app/js/chess/types.ts';
+import { catchesPawn } from '../app/js/endgame/geometry.ts';
+import { fromAlgebraic, toAlgebraic, type Square } from '../app/js/chess/types.ts';
 
 const at = (name: string): Square => {
   const square = fromAlgebraic(name);
@@ -163,6 +164,57 @@ describe('[Fundamentals] the curriculum is chained into the course, not bolted b
         const pieces = createRules(step.fen!).placements().map((p) => p.piece.type);
         expect(`${lesson.id}: ${pieces.includes('p')}`).toBe(`${lesson.id}: false`);
       }
+    }
+  });
+});
+
+describe('[Fundamentals] the breakthrough works for the reason the course already taught', () => {
+  /*
+   * ⚠️ THE FIRST PLACE IN THIS COURSE WHERE ONE LESSON IS THE ANSWER TO ANOTHER. Why the third
+   * pawn cannot be caught is exactly the rule of the square, which ships as a lesson of its own and
+   * whose closed form was raced against every position on the board in
+   * `tests/endgame-geometry.node.test.ts`.
+   *
+   * So the claim is re-derived from that module rather than asserted by me — and if the two ever
+   * disagreed, one of them would be teaching a child something false.
+   */
+  it('⚠️ leaves a pawn the black king provably cannot catch', () => {
+    const lesson = lessonById('breakthrough')!;
+    const { rules, played } = afterStep('breakthrough', lesson.steps.length - 1);
+
+    /*
+     * ⚠️ THE PAWN THIS STEP PUSHED, taken from the move that was played — not one found on the
+     * board by looking for a white pawn on the a-file. The first version did exactly that, and a
+     * mutation that pushed a DIFFERENT pawn on the h-file, right beside the black king, passed:
+     * the untouched a-pawn was still there to be found, and the assertion happily proved something
+     * true about a pawn the lesson no longer moved.
+     *
+     * Follow the causal chain. `played.to` is where the pawn this lesson is about actually ended.
+     */
+    expect(played.piece.type).toBe('p');
+    const king = rules.placements().find((p) => p.piece.type === 'k' && p.piece.side === 'b');
+    expect(king).toBeDefined();
+
+    // Black to move, and still cannot get there: the square rule, applied to the lesson it decides.
+    expect(rules.turn()).toBe('b');
+    expect(catchesPawn(played.to, 'w', king!.square, 'b')).toBe(false);
+  });
+
+  it('⚠️ starts from a position that looks level, which is the whole hook', () => {
+    /*
+     * Three pawns against three and no king in reach. If the material were ever edited to be
+     * unequal the lesson would still "work" and would have stopped being surprising, which is the
+     * only thing it has going for it.
+     */
+    const first = lessonById('breakthrough')!.steps[0]!;
+    const rules = createRules(first.fen!);
+    const pawns = rules.placements().filter((p) => p.piece.type === 'p');
+    expect(pawns.filter((p) => p.piece.side === 'w')).toHaveLength(3);
+    expect(pawns.filter((p) => p.piece.side === 'b')).toHaveLength(3);
+
+    // Neither king is anywhere near: both on the h-file, seven files from where it happens.
+    for (const king of rules.placements().filter((p) => p.piece.type === 'k')) {
+      expect(toAlgebraic(king.square)[0]).toBe('h');
     }
   });
 });

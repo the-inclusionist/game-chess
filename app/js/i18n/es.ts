@@ -219,6 +219,7 @@ export const es: Catalog = {
     'teach.matequeen.title': 'Mate con la dama',
     'teach.matebishops.title': 'Mate con dos alfiles',
     'teach.underpromotion.title': 'No siempre la dama',
+    'teach.breakthrough.title': 'La ruptura',
     'hud.startLesson': 'Empezar',
     'hud.lessonDone': '{title} ✔',
     'lesson.back': '‹ Anterior',

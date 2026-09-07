@@ -240,4 +240,18 @@ export const en: TeachStrings = {
   'teach.underpromotion.take':
     'The check forced the king to move and none of its squares defends the queen. Take her.',
   'teach.underpromotion.take.nudge': 'The knight goes from c8 to e7.',
+
+  'teach.breakthrough.push':
+    'Three pawns against three, and no king anywhere near. It looks level. It is not — push the '
+    + 'middle pawn and offer it.',
+  'teach.breakthrough.push.nudge':
+    'The b-pawn goes to b6, where Black can take it from either side. That is the point.',
+  'teach.breakthrough.again':
+    'Black took. Now offer the second one, down the other file.',
+  'teach.breakthrough.again.nudge':
+    'The c-pawn goes to c6. Black has to take, or the pawn walks in.',
+  'teach.breakthrough.run':
+    'Two pawns given away, and the a-file is open. Push the third: no king arrives in time.',
+  'teach.breakthrough.run.nudge':
+    'The a-pawn goes to a6. Draw its square out to the eighth rank and see where the black king is.',
 };
