@@ -176,4 +176,60 @@ export const FUNDAMENTALS: readonly Lesson[] = [
       },
     ],
   },
+  {
+    /*
+     * ========================= §2 PAWN PROMOTION, AND WHAT IS PROVABLE IN IT =========================
+     * Capablanca's §2 is mostly king-and-pawn against king, and the truth of those positions is
+     * "White wins" or "this is drawn" — claims a chess LIBRARY cannot settle. `chess.js` will say
+     * whether a move is legal and whether a position is mate; it will not say whether an ending is
+     * won, and neither will our own search at any depth a lesson could wait for.
+     *
+     * ⚠️ SO THIS LESSON TEACHES THE HALF OF §2 THAT IS A FACT ABOUT THE POSITION IN FRONT OF YOU.
+     * The rule of the square and the opposition — the two ideas that decide those endings — already
+     * ship, generated from `endgame/geometry.ts` and raced against every position on the board.
+     * What is left, and is worth a lesson of its own, is that the queen is not automatically the
+     * right piece to ask for.
+     *
+     * Every claim here was checked against the rules before it was written: `c8=N+` is check, and
+     * Black's only replies are four king moves, so the queen cannot be saved. `c8=Q` is not check
+     * and leaves Black twenty-three.
+     */
+    id: 'underpromotion',
+    title: 'teach.underpromotion.title',
+    after: ['promotion', 'knight'],
+    steps: [
+      {
+        /*
+         * ⚠️ THE BALLAST PAWN ON h2 IS DOING A JOB. Without it, winning the queen leaves king and
+         * knight against king — insufficient material, an immediate draw — and a child would be
+         * congratulated on a combination and then told the game was over. It is the same fix, for
+         * the same reason, as the spare pawn in the piece lessons.
+         */
+        fen: '8/k1P1q3/8/8/8/8/7P/6K1 w - - 0 1',
+        say: 'teach.underpromotion.always',
+        task: {
+          kind: 'pick',
+          options: ['teach.underpromotion.notalways', 'teach.underpromotion.alwaysqueen'],
+          answer: 0,
+        },
+        nudge: 'teach.underpromotion.always.nudge',
+      },
+      {
+        fen: '8/k1P1q3/8/8/8/8/7P/6K1 w - - 0 1',
+        say: 'teach.underpromotion.choose',
+        // Any promotion to a knight — there is one pawn, so it is this one.
+        task: { kind: 'play', want: { promotion: 'n' } },
+        show: { arrows: [['c7', 'c8']] },
+        nudge: 'teach.underpromotion.choose.nudge',
+      },
+      {
+        // Black had four king moves and none of them defends e7.
+        fen: 'k1N5/4q3/8/8/8/8/7P/6K1 w - - 0 1',
+        say: 'teach.underpromotion.take',
+        task: { kind: 'play', want: { from: 'c8', to: 'e7' } },
+        show: { arrows: [['c8', 'e7']] },
+        nudge: 'teach.underpromotion.take.nudge',
+      },
+    ],
+  },
 ];

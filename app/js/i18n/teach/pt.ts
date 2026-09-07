@@ -228,4 +228,18 @@ export const pt: TeachStrings = {
     + 'acaba.',
   'teach.matebishops.mate.nudge':
     'Leve o bispo até g2. Dali ele vê o canto a8 em linha reta.',
+
+  'teach.underpromotion.always':
+    'Ao promover, você escolhe a peça. A dama é a mais forte — ela é sempre a melhor escolha?',
+  'teach.underpromotion.always.nudge':
+    'Quase sempre. Mas o que decide não é a força da peça: é o que ela ataca a partir dali.',
+  'teach.underpromotion.notalways': 'Quase sempre, mas não sempre',
+  'teach.underpromotion.alwaysqueen': 'Sim, sempre a dama',
+  'teach.underpromotion.choose':
+    'Olhe onde estão o rei preto e a dama preta antes de escolher. Promova.',
+  'teach.underpromotion.choose.nudge':
+    'Uma dama em c8 não dá xeque. Que peça, chegando em c8, ataca a7 e e7 ao mesmo tempo?',
+  'teach.underpromotion.take':
+    'O xeque obrigou o rei a sair e nenhuma das casas dele defende a dama. Capture-a.',
+  'teach.underpromotion.take.nudge': 'O cavalo vai de c8 até e7.',
 };

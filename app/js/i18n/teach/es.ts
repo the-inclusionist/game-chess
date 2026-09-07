@@ -228,4 +228,19 @@ export const es: TeachStrings = {
     + 'se acabó.',
   'teach.matebishops.mate.nudge':
     'Lleva el alfil a g2. Desde ahí ve el rincón a8 en línea recta.',
+
+  'teach.underpromotion.always':
+    'Al coronar, tú eliges la pieza. La dama es la más fuerte, ¿es siempre la mejor opción?',
+  'teach.underpromotion.always.nudge':
+    'Casi siempre. Pero lo que decide no es la fuerza de la pieza: es lo que ataca desde esa '
+    + 'casilla.',
+  'teach.underpromotion.notalways': 'Casi siempre, pero no siempre',
+  'teach.underpromotion.alwaysqueen': 'Sí, siempre la dama',
+  'teach.underpromotion.choose':
+    'Mira dónde están el rey negro y la dama negra antes de elegir. Corona.',
+  'teach.underpromotion.choose.nudge':
+    'Una dama en c8 no da jaque. ¿Qué pieza, al llegar a c8, ataca a7 y e7 a la vez?',
+  'teach.underpromotion.take':
+    'El jaque obligó al rey a moverse y ninguna de sus casillas defiende a la dama. Cáptúrala.',
+  'teach.underpromotion.take.nudge': 'El caballo va de c8 a e7.',
 };

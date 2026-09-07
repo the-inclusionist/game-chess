@@ -224,4 +224,20 @@ export const en: TeachStrings = {
     + 'diagonal and it is over.',
   'teach.matebishops.mate.nudge':
     'Take the bishop to g2. From there it sees the corner a8 in a straight line.',
+
+  'teach.underpromotion.always':
+    'When you promote, you choose the piece. The queen is the strongest — is she always the best '
+    + 'choice?',
+  'teach.underpromotion.always.nudge':
+    'Nearly always. But what decides it is not how strong the piece is: it is what it attacks from '
+    + 'that square.',
+  'teach.underpromotion.notalways': 'Nearly always, but not always',
+  'teach.underpromotion.alwaysqueen': 'Yes, always the queen',
+  'teach.underpromotion.choose':
+    'Look at where the black king and the black queen are before you choose. Promote.',
+  'teach.underpromotion.choose.nudge':
+    'A queen on c8 gives no check. Which piece, arriving on c8, attacks a7 and e7 at once?',
+  'teach.underpromotion.take':
+    'The check forced the king to move and none of its squares defends the queen. Take her.',
+  'teach.underpromotion.take.nudge': 'The knight goes from c8 to e7.',
 };

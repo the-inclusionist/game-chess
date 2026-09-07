@@ -16,6 +16,7 @@ import { describe, expect, it } from 'vitest';
 import { lessonById } from '../app/js/teach/lessons.ts';
 import { FUNDAMENTALS } from '../app/js/teach/fundamentals.ts';
 import { createRules } from '../app/js/chess/rules.ts';
+import { matchesShape } from '../app/js/teach/lesson.ts';
 import { fromAlgebraic, type Square } from '../app/js/chess/types.ts';
 
 const at = (name: string): Square => {
@@ -24,15 +25,25 @@ const at = (name: string): Square => {
   return square;
 };
 
-/** The step's own position, with its asked-for move played. */
+/**
+ * The step's own position, with its asked-for move played.
+ *
+ * ⚠️ FOUND BY THE SHAPE, NOT BY `from`/`to`, and the first version got this wrong. A `play` goal is
+ * a `MoveShape` — `{ promotion: 'n' }` is a perfectly good one and names no squares at all, which
+ * is the entire point of the model. Reading `want.from!` worked for as long as every goal in the
+ * table happened to name its squares, and crashed on the first one that did not.
+ */
 function afterStep(lessonId: string, step: number) {
   const lesson = lessonById(lessonId)!;
   const task = lesson.steps[step]!.task;
   if (task.kind !== 'play') throw new Error(`${lessonId}[${step}] is not a play`);
   const rules = createRules(lesson.steps[step]!.fen!);
-  const played = rules.move(at(task.want.from!), at(task.want.to!));
-  if (!played) throw new Error(`${lessonId}[${step}] asks for an illegal move`);
-  return { rules, played };
+  for (const candidate of rules.allMoves()) {
+    const played = rules.move(candidate.from, candidate.to, candidate.promotion ?? 'q');
+    if (played && matchesShape(task.want, played)) return { rules, played };
+    if (played) rules.undo();
+  }
+  throw new Error(`${lessonId}[${step}] asks for a move nothing legal satisfies`);
 }
 
 describe('[Fundamentals] the mates are mate, and the rules say so', () => {
@@ -136,12 +147,20 @@ describe('[Fundamentals] the curriculum is chained into the course, not bolted b
     }
   });
 
-  it('promises no piece it does not put on the board', () => {
-    // Every position here mates, so none of them needs the spare pawn the earlier lessons carry —
-    // and a stray pawn in one of these would change what the answer sets mean.
-    for (const lesson of FUNDAMENTALS) {
+  it('⚠️ puts no spare pawn in a MATE position, where one would change the answer', () => {
+    /*
+     * ⚠️ THIS ASSERTION USED TO COVER THE WHOLE FILE, AND THAT WAS A COINCIDENCE DRESSED AS A RULE.
+     * It said no lesson here has a pawn in it — true of the three mates, and false the moment §2
+     * arrived, whose lesson is ABOUT a pawn and needs a second one as ballast so that winning the
+     * queen does not leave king and knight against king.
+     *
+     * What was actually meant: a mate lesson needs no ballast, because king and rook, king and
+     * queen and king and two bishops all mate on their own — and a stray pawn in one of those
+     * positions would quietly change what the marked sets mean.
+     */
+    for (const lesson of FUNDAMENTALS.filter((l) => l.id.startsWith('mate'))) {
       for (const step of lesson.steps) {
-        const pieces = createRules(step.fen!).placements().map((p) => p.piece.type).sort();
+        const pieces = createRules(step.fen!).placements().map((p) => p.piece.type);
         expect(`${lesson.id}: ${pieces.includes('p')}`).toBe(`${lesson.id}: false`);
       }
     }
