@@ -217,6 +217,7 @@ export const es: Catalog = {
     'teach.book.opera.title': 'La partida de la ópera',
     'teach.materook.title': 'Mate con la torre',
     'teach.matequeen.title': 'Mate con la dama',
+    'teach.matebishops.title': 'Mate con dos alfiles',
     'hud.startLesson': 'Empezar',
     'hud.lessonDone': '{title} ✔',
     'lesson.back': '‹ Anterior',

@@ -209,4 +209,23 @@ export const es: TeachStrings = {
     'Con el rey al lado, la dama no necesita acercarse. Da mate en la octava fila.',
   'teach.matequeen.mate.nudge':
     'La dama sube a la octava fila. Tu rey cubre las casillas de escape.',
+
+  'teach.matebishops.corner':
+    'Dos alfiles también dan mate, pero con una diferencia. El rey negro ya está en el borde. '
+    + '¿Alcanza con eso?',
+  'teach.matebishops.corner.nudge':
+    'Con torre o dama el borde alcanza. Con dos alfiles no: no llegan a la casilla de al lado de '
+    + 'la que atacan.',
+  'teach.matebishops.needcorner': 'No: hay que llevarlo a un rincón',
+  'teach.matebishops.edgeisenough': 'Sí, el borde alcanza',
+  'teach.matebishops.impossible': 'Dos alfiles nunca dan mate',
+  'teach.matebishops.diagonal':
+    'Un alfil quita una diagonal entera. Marca todas las casillas a las que llega este alfil.',
+  'teach.matebishops.diagonal.nudge':
+    'Se mueve solo en diagonal, hacia los dos lados, hasta el borde del tablero.',
+  'teach.matebishops.mate':
+    'El rey negro está en el rincón y tu rey cubre a7 y b7. Un alfil entra en la diagonal larga y '
+    + 'se acabó.',
+  'teach.matebishops.mate.nudge':
+    'Lleva el alfil a g2. Desde ahí ve el rincón a8 en línea recta.',
 };

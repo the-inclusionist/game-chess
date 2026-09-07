@@ -36,22 +36,30 @@ function afterStep(lessonId: string, step: number) {
 }
 
 describe('[Fundamentals] the mates are mate, and the rules say so', () => {
-  it('⚠️ the rook lesson ends in checkmate, not in check', () => {
+  it('⚠️ every lesson whose name promises a mate ends in one', () => {
     /*
      * The whole lesson is worthless if the last move is merely a check: a child told "give mate"
      * who gives check, and is told they are right, has learned the wrong word for the rest of
      * their life. And nothing else in the suite would notice — the move is legal, the position
      * builds, the goal matches.
+     *
+     * ⚠️ WRITTEN OVER THE TABLE RATHER THAN OVER TWO NAMED LESSONS, and that is not tidiness. The
+     * book has thirty-three sections and arrives a few at a time; a test that names its cases
+     * covers whatever was there the day it was written and silently stops covering the rest. The
+     * property is "a lesson called a mate ends in mate", and it is the property that has to be
+     * asserted.
      */
-    const { rules, played } = afterStep('materook', 2);
-    expect(played.checkmate).toBe(true);
-    expect(rules.isCheckmate()).toBe(true);
-  });
-
-  it('⚠️ the queen lesson ends in checkmate too', () => {
-    const { rules, played } = afterStep('matequeen', 2);
-    expect(played.checkmate).toBe(true);
-    expect(rules.isCheckmate()).toBe(true);
+    const mates = FUNDAMENTALS.filter((lesson) => lesson.id.startsWith('mate'));
+    expect(mates.length).toBeGreaterThanOrEqual(3);
+    for (const lesson of mates) {
+      const last = lesson.steps.length - 1;
+      expect(`${lesson.id}: last step is a move`).toBe(
+        `${lesson.id}: ${lesson.steps[last]!.task.kind === 'play' ? 'last step is a move' : 'not'}`,
+      );
+      const { rules, played } = afterStep(lesson.id, last);
+      expect(`${lesson.id}: ${played.checkmate}`).toBe(`${lesson.id}: true`);
+      expect(`${lesson.id}: ${rules.isCheckmate()}`).toBe(`${lesson.id}: true`);
+    }
   });
 
   it('⚠️ every step before the last leaves a position somebody can still play', () => {

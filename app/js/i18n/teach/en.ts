@@ -205,4 +205,23 @@ export const en: TeachStrings = {
   'teach.matequeen.mate':
     'With the king beside her the queen need not come close. Give mate on the eighth rank.',
   'teach.matequeen.mate.nudge': 'The queen goes to the eighth rank. Your king covers the escapes.',
+
+  'teach.matebishops.corner':
+    'Two bishops mate as well, but with a difference. The black king is already on the edge. Is '
+    + 'that enough?',
+  'teach.matebishops.corner.nudge':
+    'With a rook or a queen the edge is enough. With two bishops it is not: they cannot reach the '
+    + 'square beside the one they attack.',
+  'teach.matebishops.needcorner': 'No — he has to be driven into a corner',
+  'teach.matebishops.edgeisenough': 'Yes, the edge is enough',
+  'teach.matebishops.impossible': 'Two bishops can never mate',
+  'teach.matebishops.diagonal':
+    'A bishop takes a whole diagonal away. Mark every square this one reaches.',
+  'teach.matebishops.diagonal.nudge':
+    'It travels on the diagonal only, both ways, to the edge of the board.',
+  'teach.matebishops.mate':
+    'The black king is in the corner and your king holds a7 and b7. One bishop steps onto the long '
+    + 'diagonal and it is over.',
+  'teach.matebishops.mate.nudge':
+    'Take the bishop to g2. From there it sees the corner a8 in a straight line.',
 };

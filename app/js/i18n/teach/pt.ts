@@ -210,4 +210,22 @@ export const pt: TeachStrings = {
     'Com o rei ao lado, a dama não precisa chegar perto. Dê o mate na oitava linha.',
   'teach.matequeen.mate.nudge':
     'A dama sobe para a oitava linha. O seu rei cobre as casas de fuga.',
+
+  'teach.matebishops.corner':
+    'Dois bispos também dão mate, mas há uma diferença. O rei preto já está na borda. Isso basta?',
+  'teach.matebishops.corner.nudge':
+    'Com torre ou dama, a borda basta. Com dois bispos, não: eles não alcançam a casa ao lado da '
+    + 'que atacam.',
+  'teach.matebishops.needcorner': 'Não: é preciso levá-lo até um canto',
+  'teach.matebishops.edgeisenough': 'Sim, a borda basta',
+  'teach.matebishops.impossible': 'Dois bispos nunca dão mate',
+  'teach.matebishops.diagonal':
+    'Um bispo tira uma diagonal inteira. Marque todas as casas a que este bispo chega.',
+  'teach.matebishops.diagonal.nudge':
+    'Ele anda só na diagonal, para os dois lados, até o fim do tabuleiro.',
+  'teach.matebishops.mate':
+    'O rei preto está no canto e o seu rei toma a7 e b7. Um bispo entra na diagonal comprida e '
+    + 'acaba.',
+  'teach.matebishops.mate.nudge':
+    'Leve o bispo até g2. Dali ele vê o canto a8 em linha reta.',
 };

@@ -119,4 +119,61 @@ export const FUNDAMENTALS: readonly Lesson[] = [
       },
     ],
   },
+  {
+    /*
+     * ⚠️ THE ONLY ONE OF THE THREE THAT NEEDS A CORNER, and that is the entire lesson. A rook or a
+     * queen mates against any edge; two bishops cannot — the defending king has to be driven all
+     * the way into a corner first, which is why this mate takes fourteen moves and the others take
+     * ten and under.
+     *
+     * Taught in three steps rather than played out. Fourteen moves of technique is a lesson nobody
+     * finishes, and the thing worth carrying away is not the move order: it is that the edge is
+     * not enough.
+     */
+    id: 'matebishops',
+    title: 'teach.matebishops.title',
+    after: ['matequeen'],
+    steps: [
+      {
+        // The black king already on the edge, and the answer is still "not yet".
+        fen: '4k3/8/8/8/8/8/8/K1BB4 w - - 0 1',
+        say: 'teach.matebishops.corner',
+        task: {
+          kind: 'pick',
+          options: [
+            'teach.matebishops.needcorner',
+            'teach.matebishops.edgeisenough',
+            'teach.matebishops.impossible',
+          ],
+          answer: 0,
+        },
+        nudge: 'teach.matebishops.corner.nudge',
+      },
+      {
+        /*
+         * ⚠️ `reachOf` IS FOR THE TEST, and it is what makes this answer an invariant rather than a
+         * list somebody maintains by hand: `teach-table.node.test.ts` re-derives these seven
+         * squares from `legalTargets` and would catch a typo the compiler cannot see.
+         */
+        fen: '4k3/8/8/8/8/8/8/K1BB4 w - - 0 1',
+        say: 'teach.matebishops.diagonal',
+        task: {
+          kind: 'mark',
+          want: ['c2', 'b3', 'a4', 'e2', 'f3', 'g4', 'h5'],
+          reachOf: 'd1',
+        },
+        show: { squares: ['d1'] },
+        nudge: 'teach.matebishops.diagonal.nudge',
+      },
+      {
+        // The corner reached, the two bishops on neighbouring diagonals, the king holding a7 and
+        // b7. One bishop steps onto the long diagonal and there is nowhere left.
+        fen: 'k7/2B5/1K6/8/8/7B/8/8 w - - 0 1',
+        say: 'teach.matebishops.mate',
+        task: { kind: 'play', want: { from: 'h3', to: 'g2' } },
+        show: { arrows: [['h3', 'g2']] },
+        nudge: 'teach.matebishops.mate.nudge',
+      },
+    ],
+  },
 ];
