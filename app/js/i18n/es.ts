@@ -221,6 +221,7 @@ export const es: Catalog = {
     'teach.underpromotion.title': 'No siempre la dama',
     'teach.breakthrough.title': 'La ruptura',
     'teach.backrank.title': 'La última fila',
+    'teach.knightrim.title': 'Tres no siempre es tres',
     'hud.startLesson': 'Empezar',
     'hud.lessonDone': '{title} ✔',
     'lesson.back': '‹ Anterior',

@@ -274,4 +274,16 @@ export const es: TeachStrings = {
     + 'fila. Dale aire a tu rey antes de que sea tarde.',
   'teach.backrank.air.nudge':
     'Un peón delante del rey abre una casilla de escape. El de h alcanza y no debilita nada.',
+
+  'teach.knightrim.corner':
+    'Ya sabes que el caballo vale tres. Pero ¿tres es siempre tres? Marca las casillas a las que '
+    + 'llega este caballo, en el rincón.',
+  'teach.knightrim.corner.nudge':
+    'Desde el rincón salta en L hacia dentro del tablero, y solo hay dos maneras de hacerlo.',
+  'teach.knightrim.walk':
+    'Dos casillas. En el medio del tablero serían ocho. Empieza a traerlo hacia dentro.',
+  'teach.knightrim.walk.nudge': 'Un salto de caballo, de a1 a c2.',
+  'teach.knightrim.better': 'Una jugada. ¿Y ahora? Marca otra vez sus casillas.',
+  'teach.knightrim.better.nudge':
+    'Son seis. El caballo no cambió y la tabla tampoco: lo que cambió es dónde está.',
 };

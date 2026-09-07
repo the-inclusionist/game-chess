@@ -220,6 +220,7 @@ export const en: Catalog = {
     'teach.underpromotion.title': 'Not always the queen',
     'teach.breakthrough.title': 'The breakthrough',
     'teach.backrank.title': 'The back rank',
+    'teach.knightrim.title': 'Three is not always three',
     'hud.startLesson': 'Start',
     'hud.lessonDone': '{title} ✔',
     'lesson.back': '‹ Previous',

@@ -247,6 +247,7 @@ export const pt: Catalog = {
     'teach.underpromotion.title': 'Nem sempre a dama',
     'teach.breakthrough.title': 'A ruptura',
     'teach.backrank.title': 'A última linha',
+    'teach.knightrim.title': 'Três nem sempre é três',
     'hud.startLesson': 'Começar',
     // ⚠️ O visto vai no TEXTO da opção. Um `<option>` não carrega marca própria que um leitor
     // de tela anuncie, então "aprendida" ou está no nome ou não existe para quem mais precisa

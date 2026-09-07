@@ -337,4 +337,52 @@ export const FUNDAMENTALS: readonly Lesson[] = [
       },
     ],
   },
+  {
+    /*
+     * ========================= §5, AND WHY IT IS NOT THE POINT TABLE AGAIN =========================
+     * ⚠️ CHECKED BEFORE WRITING, WHICH IS THE WHOLE REASON THIS LESSON IS ABOUT SOMETHING ELSE.
+     * `values` already teaches the table — pawn one, rook five, queen nine, the king nothing — and
+     * `knight` already teaches the eight squares from the centre and that it jumps over everything.
+     * A third lesson repeating either would be a menu entry that says nothing new.
+     *
+     * What neither of them says, and what "RELATIVE value" actually means, is that the number is
+     * not a constant. The same knight is worth what it can reach, and that changes enormously with
+     * where it stands.
+     *
+     * Counted from the rules rather than asserted: two squares in the corner, six one move later,
+     * eight in the middle. All three sets are re-derived by `reachOf` in the table test.
+     */
+    id: 'knightrim',
+    title: 'teach.knightrim.title',
+    after: ['knight', 'values'],
+    steps: [
+      {
+        /*
+         * ⚠️ THE BLACK PAWN IS BALLAST AND HAS TO BE THERE. King and knight against a lone king is
+         * insufficient material, the phase settles to `over`, and the board would refuse every
+         * square — the failure that killed four lessons once. A pawn means neither side is short.
+         */
+        fen: '7k/7p/8/8/8/8/8/N6K w - - 0 1',
+        say: 'teach.knightrim.corner',
+        task: { kind: 'mark', want: ['b3', 'c2'], reachOf: 'a1' },
+        show: { squares: ['a1'] },
+        nudge: 'teach.knightrim.corner.nudge',
+      },
+      {
+        fen: '7k/7p/8/8/8/8/8/N6K w - - 0 1',
+        say: 'teach.knightrim.walk',
+        task: { kind: 'play', want: { from: 'a1', to: 'c2' } },
+        show: { arrows: [['a1', 'c2']] },
+        nudge: 'teach.knightrim.walk.nudge',
+      },
+      {
+        // One move from the corner and it has three times as much board.
+        fen: '7k/7p/8/8/8/8/2N5/7K w - - 1 1',
+        say: 'teach.knightrim.better',
+        task: { kind: 'mark', want: ['a1', 'a3', 'b4', 'd4', 'e1', 'e3'], reachOf: 'c2' },
+        show: { squares: ['c2'] },
+        nudge: 'teach.knightrim.better.nudge',
+      },
+    ],
+  },
 ];

@@ -269,4 +269,17 @@ export const en: TeachStrings = {
     + 'rank. Give your king air before it is too late.',
   'teach.backrank.air.nudge':
     'A pawn in front of the king opens an escape square. The h-pawn is enough and weakens nothing.',
+
+  'teach.knightrim.corner':
+    'You already know a knight is worth three. But is three always three? Mark the squares this '
+    + 'one, in the corner, can reach.',
+  'teach.knightrim.corner.nudge':
+    'From the corner it hops in an L into the board — and there are only two ways to do that.',
+  'teach.knightrim.walk':
+    'Two squares. In the middle of the board it would be eight. Start bringing it in.',
+  'teach.knightrim.walk.nudge': 'One knight hop, from a1 to c2.',
+  'teach.knightrim.better': 'One move. Now mark its squares again.',
+  'teach.knightrim.better.nudge':
+    'Six of them. The knight did not change and neither did the table: what changed is where it '
+    + 'stands.',
 };

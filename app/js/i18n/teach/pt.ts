@@ -271,4 +271,17 @@ export const pt: TeachStrings = {
     + 'Dê ar ao seu rei antes que seja tarde.',
   'teach.backrank.air.nudge':
     'Um peão à frente do rei abre uma casa de fuga. O de h basta, e não enfraquece nada.',
+
+  'teach.knightrim.corner':
+    'Você já sabe que o cavalo vale três. Mas três é sempre três? Marque as casas a que este '
+    + 'cavalo, no canto, consegue chegar.',
+  'teach.knightrim.corner.nudge':
+    'Do canto ele salta em L para dentro do tabuleiro — e só há duas maneiras de fazer isso.',
+  'teach.knightrim.walk':
+    'Duas casas. No meio do tabuleiro seriam oito. Comece a trazê-lo para dentro.',
+  'teach.knightrim.walk.nudge': 'Um salto do cavalo, de a1 para c2.',
+  'teach.knightrim.better':
+    'Um lance, e agora? Marque outra vez as casas dele.',
+  'teach.knightrim.better.nudge':
+    'São seis. O cavalo não mudou e a tabela também não: o que mudou foi onde ele está.',
 };
