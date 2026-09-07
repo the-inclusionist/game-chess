@@ -77,7 +77,7 @@ export const NUDGE_PITCH = Math.PI / 36;
  * has made — a flatter pitch, a taller canvas, or accepting the letterbox — and it is recorded in
  * the interface review rather than guessed at here.
  */
-export const ZOOM_NEAREST = 1.18;
+export const ZOOM_NEAREST = 1.42;
 export const ZOOM_FARTHEST = 0.72;
 export const ZOOM_STEP = 1.1;
 /*
