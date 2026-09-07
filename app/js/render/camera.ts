@@ -39,36 +39,39 @@ export const NUDGE_PITCH = Math.PI / 36;
  * A multiple of the framing measured in spike 0, not an absolute: the board's own zoom depends on
  * the canvas the stage was built at, and only the RATIO is a decision about how the game looks.
  *
- * ⚠️ THE RANGE IS NARROW, AND THAT IS THE FRAMING'S DOING, not a timid choice. This board is
- * already sized to fill the 232 logical pixels the panel leaves it, so there is far more room to
- * pull back than to push in — and pushing in has a hard stop the solid view does not have,
- * because this camera cannot pan. A rank that leaves the canvas cannot be clicked, and the only way
- * back to it is to zoom out again.
+ * ⚠️ PUSHING IN HAS A HARD STOP THE SOLID VIEW DOES NOT HAVE, because this camera cannot pan. A
+ * rank that leaves the canvas cannot be clicked, and the only way back to it is to zoom out again.
  *
- * Both ends were measured on screen rather than chosen. At 1.45 and at 1.30 the eighth rank was
- * cut. 1.18 is the first value where every SQUARE is inside the canvas at the default pitch; the
- * tallest pieces still touch the top edge there, and that is the accepted part — a king's finial
- * clipped costs nothing, a square you cannot click costs a move. At 0.72 a piece is about fifteen
- * pixels tall, which is as small as six silhouettes stay six.
+ * Both ends were measured on screen rather than chosen. At 0.72 a piece is about fifteen pixels
+ * tall, which is as small as six silhouettes stay six. The near end is where every SQUARE is still
+ * inside the canvas at the default pitch; the tallest pieces touch the top edge there, and that is
+ * the accepted part — a king's finial clipped costs nothing, a square you cannot click costs a
+ * move.
  *
  * The step is a FACTOR, so a notch feels the same close up and far away, and in-then-out lands
  * exactly where it started. It is the same 1.1 the solid view uses, because they are one control
  * reached two ways and a player who learns it on one board must find it on the other.
  */
 /*
- * ⚠️ REFRAMED WHEN THE HUD LEFT THE CANVAS. The paragraph above still describes the old framing —
- * "sized to fill the 232 logical pixels the panel leaves it" — and the panel does not leave it
- * anything any more: it is a sibling of the canvas now, in `#side-column`. Nobody re-measured, so
- * the board went on being drawn for a canvas two thirds the width of the one it has.
+ * ========================= ⚠️ WHY THIS NUMBER MOVED TWICE IN ONE EVENING =========================
+ * It was framed for a canvas that reserved 27.5% of itself for a HUD drawn inside it. The teaching
+ * mode moved that HUD out to a DOM sibling and nobody re-measured, so the board went on being
+ * drawn for two thirds of the canvas it had. Three readings, in the order they were taken:
  *
- * Measured on screen, which is the only way this constant has ever been set: at zoom 1 the eight
- * ranks projected to 258x217 inside a 640x360 canvas — 40% of its width and 60% of its height.
+ *   640x360, framed for the old HUD column:        258x217 — 40% of the width
+ *   640x360, ceiling raised as far as it would go:  18% more, and no further
+ *   360x360, square, this ceiling:                  92% of the width, all 64 squares inside
  *
- * ⚠️ AND THE ZOOM IS NOT THE LEVER THAT FIXES THAT, which is worth writing down because it looks
- * like it should be. 1.55 was tried and clipped the eighth rank; the ceiling measured for the old
- * framing is still the ceiling, because the board is bound by the canvas HEIGHT and the height did
- * not change when the panel moved out — only the width did. So the default now sits AT that
- * ceiling rather than 18% under it, which is the whole of what the zoom can give.
+ * ⚠️ THE SECOND READING IS THE ONE THAT MATTERED. The zoom was pushed to its measured limit and
+ * the board still used less than half the canvas — which is what said the framing was never the
+ * problem. A square board cannot fill a 16:9 raster at ANY zoom, and no amount of adjusting this
+ * number was going to make it. The canvas shape was the answer; this number only became worth
+ * touching once that changed.
+ *
+ * So the ceiling moved with the canvas and had to. 1.18 was where the eighth rank left a 640x360
+ * raster, bound by its HEIGHT — which is exactly why raising the zoom never bought any width. The
+ * raster is square now, the width binds instead, and the board reaches it at about 1.42 with
+ * fourteen pixels either side.
  *
  * ⚠️ AND IT STOPS SHORT OF THE CEILING ON PURPOSE — see `ZOOM_DEFAULT` below.
  *
