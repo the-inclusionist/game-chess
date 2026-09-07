@@ -611,11 +611,26 @@
    * ⚠️ `pointer-events: none`, and never anything else: none of this is interactive, and a strip
    * that could swallow a click would make the top rank of the board unplayable.
    */
+  /*
+   * ========================= ⚠️ ABOVE THE BOARD, NOT ON TOP OF IT =========================
+   * Reported in those words: "o HUD está por cima do tabuleiro ao invés de acima". It was
+   * `top: 0` inside the board's own box, so the two names and the evaluation were painted over the
+   * eighth rank — on the solid board, over the black pieces themselves.
+   *
+   * ⚠️ AND `right: 27.5%` IS THE DEAD HUD COLUMN AGAIN, the third place that fraction outlived the
+   * thing it described. It reserved the right quarter of the BOARD for a panel that has been a
+   * sibling in `#side-column` since the teaching mode landed, which is why the evaluation sat left
+   * of centre and the black player's name landed in the middle of the board instead of at its
+   * right edge.
+   *
+   * `bottom: 100%` puts the row in the margin the stage already leaves above the board, so it
+   * costs the board no height and the region keeps the exact size the canvas needs.
+   */
   .board-players {
     position: absolute;
-    top: 0;
+    bottom: 100%;
     left: 0;
-    right: 27.5%;
+    right: 0;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;

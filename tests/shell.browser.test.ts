@@ -993,6 +993,44 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     }
   });
 
+  it('⚠️ the player strips sit ABOVE the board, not painted over it', () => {
+    /*
+     * Reported in those words: "o HUD está por cima do tabuleiro ao invés de acima". The row of
+     * names and the evaluation were `top: 0` inside the board's own box, so they were painted over
+     * the eighth rank — over the black pieces themselves on the solid board.
+     *
+     * ⚠️ AND THE ROW WAS INSET `right: 27.5%`, which is the dead HUD column for the third time: a
+     * fraction reserving the right quarter of the BOARD for a panel that has been a sibling in
+     * `#side-column` since the teaching mode landed. That is why the evaluation sat left of centre
+     * and the black player's name landed mid-board instead of at its right edge.
+     *
+     * Two assertions, because the fault had two halves and either could come back alone.
+     */
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    createGameShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: '__stripsTest', contrastTheme: 'contrast-flat',
+    });
+
+    const strips = document.querySelector('.board-players') as HTMLElement | null;
+    const board = document.getElementById('game-region')!;
+    expect(strips, 'the player strips are on the page').not.toBeNull();
+
+    const row = strips!.getBoundingClientRect();
+    const box = board.getBoundingClientRect();
+    expect(row.height, 'the strips have a size at all').toBeGreaterThan(0);
+
+    // Above: the row ends at or before the board begins. A one-pixel tolerance, not a whole line.
+    expect(`strips end above the board? ${row.bottom <= box.top + 1}`)
+      .toBe('strips end above the board? true');
+
+    // And the full width of the board, so the two names land on its two edges.
+    expect(`width ${Math.round(row.width)} of ${Math.round(box.width)}`)
+      .toBe(`width ${Math.round(box.width)} of ${Math.round(box.width)}`);
+  });
+
   it('⚠️ and all three come back when the lesson is left', async () => {
     // They were hidden rather than destroyed, so the move list keeps its scroll and whatever
     // control had focus keeps it. That only pays if they actually return.
