@@ -33,7 +33,7 @@ function fixture(): void {
     </div>
     <div id="sr-status" role="status" aria-live="polite"></div>
     <div id="sr-alert" role="alert" aria-live="assertive"></div>
-    <svg id="cvd" aria-hidden="true"></svg>
+    <svg id="cvd" class="sr-only" aria-hidden="true"></svg>
   `;
 }
 

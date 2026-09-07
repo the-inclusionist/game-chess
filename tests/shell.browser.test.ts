@@ -39,7 +39,7 @@ function fixture(): void {
     </div>
     <div id="sr-status" role="status" aria-live="polite"></div>
     <div id="sr-alert" role="alert" aria-live="assertive"></div>
-    <svg id="cvd" aria-hidden="true"></svg>
+    <svg id="cvd" class="sr-only" aria-hidden="true"></svg>
   `;
 }
 
@@ -1044,6 +1044,85 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     const panel = document.getElementById('game-region')!.getBoundingClientRect();
     expect(`width ${Math.round(row.width)} of ${Math.round(panel.width)}`)
       .toBe(`width ${Math.round(panel.width)} of ${Math.round(panel.width)}`);
+  });
+
+  it('⚠️ nothing visible is drawn outside the stage, the pause menu included', () => {
+    /*
+     * ========================= THE SPEC, AND IT NAMED THE EXCEPTION ITSELF =========================
+     * "Nada pode ser desenhado fora desta resolução, especialmente menus como o de pausa." Three
+     * things were: the player strips, the bar under the board, and the keyboard reference — all
+     * three moved inside, and this is what stops a fourth appearing.
+     *
+     * ⚠️ EVERY VISIBLE ELEMENT, NOT A LIST OF THE ONES THAT WERE WRONG. A list is a copy of the
+     * data and would have covered exactly the three already fixed; the rule is about the box.
+     *
+     * Screen-reader-only elements are exempt and stay exempt: `#sr-status` and `#sr-alert` are
+     * one pixel in the corner by design, because a live region has to be IN the document to be
+     * announced and must take no space to do it.
+     *
+     * ⚠️ AND THE FIXTURES WERE MISSING `class="sr-only"` ON `#cvd`, which the three real pages all
+     * carry. This test reported the colour-vision filter host as a stray — correctly, given the
+     * markup it was handed, and wrongly about the game. The fixtures say what the pages say now,
+     * which is worth more than the exemption I nearly wrote instead.
+     */
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    const shell = createGameShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      teaches: true,
+      debugName: '__boundsTest', contrastTheme: 'contrast-flat',
+    });
+
+    const stageEl = document.getElementById('stage')!;
+    const stage = stageEl.getBoundingClientRect();
+
+    /*
+     * ⚠️ A RECT OUTSIDE THE STAGE IS NOT THE SAME AS SOMETHING DRAWN OUTSIDE IT, and the first
+     * version of this conflated them. It reported 34 strays on the real page — the side panel's
+     * score table and everything under it, which sit past the stage's foot because the panel holds
+     * more than 360 px of content and SCROLLS. They are clipped, not painted.
+     *
+     * So an element counts only if nothing between it and the stage clips it away. `#stage` itself
+     * is `overflow: hidden`, which makes the spec structural rather than a promise each child has
+     * to keep — this walk is what proves no child is relying on that to hide a mistake.
+     */
+    const clipped = (el: Element): boolean => {
+      const box = el.getBoundingClientRect();
+      for (let p = el.parentElement; p && p !== stageEl.parentElement; p = p.parentElement) {
+        const style = getComputedStyle(p);
+        if (style.overflow === 'visible' && style.overflowY === 'visible') continue;
+        const bounds = p.getBoundingClientRect();
+        if (box.bottom <= bounds.top || box.top >= bounds.bottom
+          || box.right <= bounds.left || box.left >= bounds.right) return true;
+        if (box.bottom > bounds.bottom + 1 || box.top < bounds.top - 1
+          || box.right > bounds.right + 1 || box.left < bounds.left - 1) return true;
+      }
+      return false;
+    };
+
+    const strays = (): string[] => [...document.querySelectorAll('body *')]
+      .filter((el) => {
+        if (el.closest('.sr-only') || el.classList.contains('sr-only')) return false;
+        if (el.id === 'stage-wrap' || el.id === 'stage' || el.closest('#splash')) return false;
+        const r = el.getBoundingClientRect();
+        if (r.width < 1 || r.height < 1) return false;
+        const out = r.left < stage.left - 1 || r.right > stage.right + 1
+          || r.top < stage.top - 1 || r.bottom > stage.bottom + 1;
+        return out && !clipped(el);
+      })
+      .map((el) => `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ''}`
+        + `${el.className && typeof el.className === 'string' ? `.${el.className.split(' ')[0]}` : ''}`);
+
+    expect(strays().join(', ')).toBe('');
+
+    // And with the pause menu open, which the spec singled out by name.
+    document.getElementById('stage')!.dispatchEvent(new KeyboardEvent('keydown', {
+      code: 'KeyH', key: 'h', bubbles: true, cancelable: true,
+    }));
+    expect(document.querySelector('[role="dialog"]'), 'the pause menu opened').not.toBeNull();
+    expect(strays().join(', ')).toBe('');
+    expect(shell).toBeTruthy();
   });
 
   it('⚠️ a tap target is 44 CSS pixels, whatever the game rasterises at', () => {

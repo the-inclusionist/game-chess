@@ -55,7 +55,7 @@ beforeEach(() => {
     </div>
     <div id="sr-status" role="status" aria-live="polite"></div>
     <div id="sr-alert" role="alert" aria-live="assertive"></div>
-    <svg id="cvd" aria-hidden="true"></svg>
+    <svg id="cvd" class="sr-only" aria-hidden="true"></svg>
   `;
   clear();
   localStorage.removeItem('incl_chess_learned');
@@ -738,7 +738,7 @@ describe('[No opponent] a lesson never blocks on the engine', () => {
       </div>
       <div id="sr-status" role="status" aria-live="polite"></div>
       <div id="sr-alert" role="alert" aria-live="assertive"></div>
-      <svg id="cvd" aria-hidden="true"></svg>
+      <svg id="cvd" class="sr-only" aria-hidden="true"></svg>
     `;
     clear();
     localStorage.removeItem('incl_chess_learned');

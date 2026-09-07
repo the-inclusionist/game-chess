@@ -91,6 +91,13 @@
     position: relative;
     flex: 0 0 auto;
     /*
+     * ⚠️ THE SPEC MADE STRUCTURAL. "Nada pode ser desenhado fora desta resolução, especialmente
+     * menus como o de pausa." Clipping here makes that true by construction rather than by every
+     * child remembering to stay inside — and the side panel legitimately holds more than 360 px of
+     * content at the smallest stage, which it scrolls.
+     */
+    overflow: hidden;
+    /*
      * ⚠️ THE BOARD AND THE PANEL WERE TOUCHING. With no gap the canvas's right edge ran straight
      * into the side column, which reads as the board having been cut off rather than as two things
      * side by side — and on the solid board, whose scene reaches the canvas edge, it reads as a
