@@ -468,12 +468,22 @@ export function createHud(deps: HudDeps): Hud {
   // happens when the PLAYER throws the game away. Which is a teaching aid, so it sits with the
   // other things a teacher turns on rather than with the ones that set the level.
   const protectedBox = doc.createElement('p');
-  protectedBox.className = 'hud-check';
   const protectedInput = doc.createElement('input');
   protectedInput.type = 'checkbox';
   protectedInput.id = 'hud-protected';
   const protectedLabel = doc.createElement('label');
   protectedLabel.htmlFor = protectedInput.id;
+  /*
+   * ⚠️ THE CLASS GOES ON THE LABEL, NOT ON THE BOX, and it was on the box. `.hud label` is
+   * `display: block` — right for the labels above a `select`, which is most of them — and
+   * `.hud-check` is the override that puts a checkbox's label back on the same line as its box.
+   * Sitting on the wrapper it overrode nothing, so this one switch drew its box on one line and a
+   * full-width label under it, looking like a control that had come apart.
+   *
+   * The other three switches — reduced motion, the outline, the coordinates — already do it this
+   * way. This was the odd one out, and only a look at the screen tells them apart.
+   */
+  protectedLabel.className = 'hud-check';
   protectedBox.append(protectedInput, protectedLabel);
 
   // --- how strong the opponent plays ------------------------------------------

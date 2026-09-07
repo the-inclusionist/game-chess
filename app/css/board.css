@@ -774,7 +774,20 @@
     text-overflow: ellipsis;
   }
 
-  .hud-check { display: inline; font-size: 0.8em; color: var(--ink); margin-left: 0.4em; }
+  /*
+   * ⚠️ `.hud .hud-check`, NOT `.hud-check`, AND THAT IS THE WHOLE BUG. `.hud label` above is
+   * `display: block` — correct for the label that sits ABOVE a select, which is most of them — and
+   * it scores (0,1,1) against this rule's (0,1,0). So the override lost every time the label was
+   * inside the HUD, and the one switch that lives there drew its box on one line with a full-width
+   * label underneath, looking like a control that had come apart.
+   *
+   * The other three switches — reduced motion, the outline, the coordinates — are identical markup
+   * and looked fine, purely because `ui/hud.ts` hands their container to the PAUSE MENU, outside
+   * `.hud`, where nothing was overriding them. Same class, same intent, two different outcomes
+   * decided by where the element happened to be mounted.
+   */
+  .hud-check,
+  .hud .hud-check { display: inline; font-size: 0.8em; color: var(--ink); margin-left: 0.4em; }
   .hud input[type="checkbox"] {
     width: calc(var(--tap, 44px) * 0.4); height: calc(var(--tap, 44px) * 0.4);
     vertical-align: middle; accent-color: var(--focus);

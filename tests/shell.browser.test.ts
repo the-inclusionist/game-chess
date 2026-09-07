@@ -918,6 +918,81 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     expect(shown('.lesson-menu')).not.toBe('none');
   });
 
+  it('⚠️ every switch keeps its label beside its box, in the HUD and in the pause menu', () => {
+    /*
+     * ========================= THE SAME MARKUP, TWO OUTCOMES =========================
+     * Four switches are built identically in `ui/hud.ts` — reduced motion, the piece outline, the
+     * board coordinates and protected mode. Three of them go into the container the pause menu
+     * takes; the fourth stays in the HUD. Only the fourth came apart: box on one line, a full-width
+     * label under it, looking like a control that had broken in half.
+     *
+     * ⚠️ `.hud label` IS `display: block` AND SCORES (0,1,1); `.hud-check` SCORED (0,1,0). The
+     * override lost every time the label was inside the HUD, and won everywhere else purely because
+     * nothing was competing there. Where an element happens to be mounted decided how it looked.
+     *
+     * Asserted by GEOMETRY rather than by computed display, because "on the same line" is what a
+     * reader sees and `inline` is only one way to achieve it.
+     */
+    /*
+     * ⚠️ AN ENGINE MODE, AND THAT IS THE POINT OF THE FIXTURE. Protected mode is the switch that
+     * was broken, and `ui/hud.ts` only builds it when `deps.onProtected` exists — which the shell
+     * withholds in a two-player game, correctly, because there is no engine to hold back.
+     *
+     * The first version of this test used a hot seat, so the broken control was never on the page:
+     * reverting the CSS fix left it green. Found by making that exact change and watching nothing
+     * happen. It is the third time this session a test has looked for something by a property the
+     * failure does not disturb.
+     */
+    fixture();
+    clear();
+    saveSettings({ mode: 'w' });
+    const shell = createGameShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      teaches: true,
+      makeOpponent: () => ({
+        ready: () => new Promise<{ minElo: number; maxElo: number }>(() => {}),
+        requestMove: () => new Promise<EngineMove | null>(() => {}),
+        requestHint: () => new Promise<EngineMove | null>(() => {}),
+        requestReview: () => new Promise<EngineMove | null>(() => {}),
+        setStrength: () => {},
+        cancel: () => {},
+        destroy: () => {},
+      }),
+      debugName: '__checkTest', contrastTheme: 'contrast-flat',
+    });
+    // The settings live in the pause menu's slot, so they need mounting to have a layout at all.
+    document.body.appendChild(shell.hud.settings);
+
+    // The one that was broken has to be among them, or this proves nothing about it.
+    expect(document.getElementById('hud-protected'), 'protected mode is on the page').not.toBeNull();
+
+    const pairs = [...document.querySelectorAll('input[type="checkbox"]')]
+      .map((input) => ({
+        id: input.id,
+        label: document.querySelector(`label[for="${input.id}"]`) as HTMLElement | null,
+        input: input as HTMLElement,
+      }))
+      .filter((pair) => pair.label && pair.input.getBoundingClientRect().width > 0);
+
+    /*
+     * ⚠️ TWO, NOT FOUR, AND THE GUARD SAYS SO RATHER THAN ASSUMING. The outline switch belongs to
+     * the VIEW (`HudViewControls`) and the shared fake does not offer one; another has no layout
+     * until the pause menu is open. The guard exists so this can never silently become zero and
+     * pass by checking nothing.
+     */
+    expect(pairs.length, 'switches found to check').toBeGreaterThanOrEqual(2);
+    for (const pair of pairs) {
+      const box = pair.input.getBoundingClientRect();
+      const text = pair.label!.getBoundingClientRect();
+      // Same line: their tops agree to within a line's slack, rather than one sitting under the
+      // other. A stacked pair differs by the whole height of the box.
+      expect(`${pair.id}: ${Math.abs(box.top - text.top) < 12}`).toBe(`${pair.id}: true`);
+      // And the label is a word beside a box, not a full-width block.
+      expect(`${pair.id} label narrower than the column: ${text.width < 300}`)
+        .toBe(`${pair.id} label narrower than the column: true`);
+    }
+  });
+
   it('⚠️ and all three come back when the lesson is left', async () => {
     // They were hidden rather than destroyed, so the move list keeps its scroll and whatever
     // control had focus keeps it. That only pays if they actually return.
