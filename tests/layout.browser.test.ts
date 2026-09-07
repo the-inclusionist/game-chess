@@ -166,10 +166,15 @@ describe('[Type] a tap target is a finger, whatever the game rasterises at', () 
      */
     page(1500, 760, { canvas: true });
     applyLayout({ doc: document, win: win(1) });
+    /*
+     * ⚠️ THE NUMBERS, NOT "IT IS SET". This asked for non-empty strings and for a `--hud-fs`
+     * at least 9 — which read back what the line above it had just written, and passed for the
+     * whole time `--ui-fs` was half what it should have been. A 1500x760 window at a ratio of 1
+     * holds a 720 board in a 1280 stage, so the two values are decided and can be named.
+     */
     const vars = stage()!;
-    expect(vars.style.getPropertyValue('--tap')).not.toBe('');
-    expect(vars.style.getPropertyValue('--ui-fs')).not.toBe('');
-    expect(Number.parseFloat(vars.style.getPropertyValue('--hud-fs'))).toBeGreaterThanOrEqual(9);
+    expect(vars.style.getPropertyValue('--tap')).toBe('44px');
+    expect(vars.style.getPropertyValue('--ui-fs')).toBe('32px');
   });
 });
 

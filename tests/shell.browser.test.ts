@@ -1125,6 +1125,51 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     expect(shell).toBeTruthy();
   });
 
+  it('⚠️ the panel scrolls rather than losing what does not fit', () => {
+    /*
+     * ========================= THE DECISION, AND IT IS THE USER'S =========================
+     * At the smallest stage the panel is 280x360 and holds about 464 px of controls. Asked what
+     * should leave it at that size, the answer was: nothing — it keeps scrolling.
+     *
+     * ⚠️ WHICH MAKES "IT SCROLLS" A SPEC AND NOT A CONSEQUENCE, so it is asserted here. The
+     * failure it guards against is not cosmetic: `overflow: hidden` on this box means the
+     * difficulty select and the outline switch are on the page, focusable, announced by a screen
+     * reader — and unreachable with a pointer. Losing a menu by playing twenty moves is the bug
+     * this replaced, and it would come back silently, because nothing else measures it.
+     *
+     * The height is forced rather than waited for: whether the content overflows depends on which
+     * rung of the ladder the test window lands on, and the property is about what happens WHEN it
+     * does. 200 px is the same question the 360 px panel asks.
+     */
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    createGameShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      teaches: true,
+      debugName: '__scrollTest', contrastTheme: 'contrast-flat',
+    });
+
+    const hud = document.querySelector('.hud') as HTMLElement;
+    expect(hud, 'a panel to measure').not.toBeNull();
+    expect(getComputedStyle(hud).overflowY).toMatch(/auto|scroll/);
+
+    hud.style.height = '200px';
+    expect(hud.scrollHeight, 'content past the foot of the panel').toBeGreaterThan(hud.clientHeight);
+
+    const controls = [...hud.querySelectorAll('button, select, input')] as HTMLElement[];
+    const last = controls[controls.length - 1];
+    expect(last, 'a last control').toBeDefined();
+
+    hud.scrollTop = hud.scrollHeight;
+    const box = hud.getBoundingClientRect();
+    const reached = last.getBoundingClientRect();
+    // At or above the foot, not exactly on it: the panel has padding, so scrolling to the end
+    // leaves the last control a few pixels inside. What matters is that it is no longer below.
+    const past = Math.round(reached.bottom - box.bottom);
+    expect(`${past} px past the foot, inside? ${past <= 1}`).toBe(`${past} px past the foot, inside? true`);
+  });
+
   it('⚠️ a tap target is 44 CSS pixels, whatever the game rasterises at', () => {
     /*
      * ========================= THE PROMISE THAT WAS BROKEN BY ARITHMETIC =========================

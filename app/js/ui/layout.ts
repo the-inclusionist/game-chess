@@ -235,7 +235,16 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
   const vars = stage ?? region;
   vars.style.setProperty('--ui-fs', `${8 * ui}px`);
   vars.style.setProperty('--tap', `${tapFor(width)}px`);
-  vars.style.setProperty('--hud-fs', `${Math.max(9, Math.round(180 * ui * 0.052))}px`);
+  /*
+   * ⚠️ `--hud-fs` USED TO BE SET HERE AND WAS READ BY NOTHING. It came in with this file,
+   * which started as the engine's own `ui/layout.ts`, and there it is real: the engine's
+   * stylesheet sizes `#game-hud` and `.vphud-quit` from it. This game has neither element and
+   * never loads that stylesheet — our panel is `.hud` in `#side-column` and takes `--ui-fs`.
+   *
+   * It is the same shape as the 27.5% HUD column that caused this whole review: a number computed
+   * every layout pass for a consumer that moved out. The only thing reading it was a test asking
+   * this function what this function had just written.
+   */
 
   if (below) {
     // Exactly the board and the side menu together — the panels under the board are neither wider
