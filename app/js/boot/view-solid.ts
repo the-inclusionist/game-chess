@@ -37,8 +37,18 @@ const SLOP = 6;
  */
 const YAW_STEP = 0.1;
 const PITCH_STEP = 0.075;
-/** The share of the region the board gets; the panel has the rest. */
-const BOARD_SHARE = 0.725;
+/*
+ * ========================= ⚠️ THE DEAD HUD COLUMN, FOR THE FOURTH TIME =========================
+ * This was 0.725 — "the share of the region the board gets; the panel has the rest" — and it is
+ * the complement of the 27.5% that `render/resolution.ts` reserved for a HUD drawn INSIDE the
+ * canvas. The teaching mode moved that HUD out to a DOM sibling in `#side-column`, and the same
+ * fraction went on holding back a quarter of the board in four independent places: those
+ * constants, `render/camera.ts`'s framing, `.board-players`' `right: 27.5%`, and here.
+ *
+ * The region IS the board now — nine of the stage's sixteen units, a perfect square — so the scene
+ * gets all of it. Measured before this line changed: a 360x360 region with a 261x360 canvas in it
+ * and 99 pixels of nothing to the right of the board.
+ */
 
 export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
   const { doc, region, mirror, prefs, rules } = ctx;
@@ -320,7 +330,7 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
       // strips and every `--ui-fs` are laid out against. Without it the region has no size at all
       // and the canvas comes out one pixel by one, which is exactly what the first run did.
       const box = region.getBoundingClientRect();
-      scene.resize(Math.max(1, box.width * BOARD_SHARE), Math.max(1, box.height));
+      scene.resize(Math.max(1, box.width), Math.max(1, box.height));
     },
 
     debug: () => ({
