@@ -2,7 +2,7 @@
 
 A chess game with an opponent that also **teaches chess**, in **three views of one game**:
 
-- **2.5D** — the board and the 32 pieces drawn with **Zdog** at **640×360**, upscaled by an integer
+- **2.5D** — the board and the 32 pieces drawn with **Zdog** at **360×360**, upscaled by an integer
   factor in physical pixels.
 - **2D** — the same game as a flat board of glyphs in the DOM, in the conventions a learner has
   already met.
@@ -12,11 +12,38 @@ All three teach. The title screen offers **JOGAR** and **APRENDER**, and everyth
 — the screen reader, the sonar, the remappable input, the colour-vision correction — is the same
 in all three because it is composed once, in `app/js/boot/game-shell.ts`.
 
-The doubling to 640×360 is measured, not aesthetic: a board drawn in projected 3D has no
-axis-aligned edges, because the camera is pitched, and diagonals are the one thing low-resolution
-pixel art handles worst. The staircase step is one source pixel, so it grows with the screen — five
-physical pixels at a 1600-wide window. Doubling the source halves it while keeping the art
-integer-scaled, 16:9, and recognisably a sibling of the platformer. See `app/js/render/resolution.ts`.
+The doubling is measured, not aesthetic: a board drawn in projected 3D has no axis-aligned edges,
+because the camera is pitched, and diagonals are the one thing low-resolution pixel art handles
+worst. The staircase step is one source pixel, so it grows with the screen — five physical pixels
+at a 1600-wide window. Drawing at twice the engine's base halves it while keeping the art
+integer-scaled. See `app/js/render/resolution.ts`.
+
+⚠️ **The raster is SQUARE, and it was 640×360 until the layout was specified.** A chess board in a
+16:9 raster can only use the height: the projected board measured 258×217 inside 640×360, forty per
+cent of the width, with the rest letterboxed. That was invisible while the HUD was drawn in the
+same canvas and filled the right 27.5% of it — when the teaching mode moved the HUD out to the DOM,
+the letterbox was all that was left there.
+
+## The stage: sixteen units by nine
+
+The board, the side panel and the two bands that belong to the board share one box whose sides are
+in the ratio 16:9. Nine of those units are a **perfect square for the board**, seven are the panel.
+At the floor that is a 640×360 stage — the engine's 320×180 doubled — holding a 360×360 board and a
+280×360 panel, which makes one unit 40 pixels.
+
+**Nothing is drawn outside it.** `#stage` clips, so that holds by construction rather than by every
+child remembering it, and a test sweeps every visible element to prove none is relying on the clip
+to hide a mistake. The player names, the blunder bar and the engine's thinking line live inside the
+board's nine units — above it and below it — and the keyboard reference lives in the pause menu.
+
+⚠️ **Which sizes exist depends on the screen.** The board's raster must land on whole PHYSICAL
+pixels, so the ladder is "how many real pixels does one art pixel get" and the stage is whatever
+that makes: 640×360, 1280×720, 1920×1080 at a device ratio of 1, with the intermediate steps
+appearing at a ratio of 2, where 540 CSS pixels are 1080 real ones.
+
+⚠️ **The flat board shrinks for those two bands and the other two do not.** The flat grid is in
+flow, so they take 96 pixels from it; the projected and solid canvases fill the whole region and
+ride under them, because a player can zoom those two and cannot zoom the flat one.
 
 It reimplements [`juliangarnier/3D-Hartwig-chess-set`](https://github.com/juliangarnier/3D-Hartwig-chess-set)
 (2013, MIT), which achieved its 3D entirely with CSS transforms on DOM nodes, targeting feature
@@ -78,9 +105,9 @@ Each view is its own page, decided by measurement rather than taste. Eagerly-loa
 
 | | raw | gzip |
 |---|---|---|
-| `2d.html` — flat, no renderer | **182.8 KB** | 63.4 KB |
-| `index.html` — Zdog | **229.2 KB** | 77.1 KB |
-| `3d.html` — Three.js | **730.5 KB** | 202.0 KB |
+| `2d.html` — flat, no renderer | **195.9 KB** | 67.3 KB |
+| `index.html` — Zdog | **241.9 KB** | 80.7 KB |
+| `3d.html` — Three.js | **743.9 KB** | 206.0 KB |
 
 A flat board offered as a *mode* inside one bundle would have made every player download the
 renderer they were not looking at — and the spread is now four to one. What they share is the larger
