@@ -38,16 +38,23 @@ export const LOGICAL_H = (ENGINE_W * 9 / 16) * SOURCE_MULTIPLE; // 360
 /** Re-exported unchanged: the world unit of a square is the engine's tile, and stays 16. */
 export { TILE } from '@the-inclusionist/engine/core/constants.js';
 
-/**
- * Width of the HUD column on the right: turn indicator, captured pieces, move list.
- * Measured in spike 0 by drawing it — 27.5 % of the viewport holds all three at the engine's
- * text sizes, which was 88 px of 320 and is 176 of 640.
+/*
+ * ========================= ⚠️ THE HUD COLUMN USED TO BE IN HERE, AND IS GONE =========================
+ * Four exports lived here — `HUD_FRACTION`, `HUD_W`, `HUD_X` and `BOARD_W` — reserving 27.5% of
+ * the canvas, 176 pixels of 640, for the turn indicator, the captured pieces and the move list.
+ * Measured in spike 0 by drawing it, and correct for as long as the HUD was drawn INSIDE the
+ * canvas.
+ *
+ * The teaching mode moved it out. It is DOM now, a sibling of the canvas in `#side-column`, and by
+ * the time anybody looked these four were read by nothing at all — not by a renderer, not by a
+ * test, not by a spike.
+ *
+ * ⚠️ THEY WERE NOT HARMLESS. `render/camera.ts` was framed against `BOARD_W` and still said so:
+ * "this board is already sized to fill the 232 logical pixels the panel leaves it". The panel
+ * leaves it all 640. The board went on being drawn two thirds the width of the canvas it had —
+ * which is what "o tabuleiro reduziu drasticamente de tamanho" was, and a dead constant is exactly
+ * how a framing survives the thing it was measured against.
+ *
+ * Deleted rather than left for tidiness later: the next person to reach for them would have
+ * re-derived a layout from a fiction.
  */
-export const HUD_FRACTION = 0.275;
-export const HUD_W = Math.round(LOGICAL_W * HUD_FRACTION);
-
-/** Left edge of the HUD column. Everything left of this belongs to the board. */
-export const HUD_X = LOGICAL_W - HUD_W;
-
-/** Horizontal room the board gets, once the HUD has taken its column. */
-export const BOARD_W = HUD_X;

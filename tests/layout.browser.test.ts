@@ -208,3 +208,63 @@ describe('[Missing] a page without the elements is not a crash', () => {
     expect(applyLayout({ doc: document, win: win(1) })).toBeNull();
   });
 });
+
+describe('[Stage] a canvas page stops growing where the board stops', () => {
+  /*
+   * ========================= THE ONE THAT WAS REPORTED FROM THE SCREEN =========================
+   * "O tabuleiro reduziu drasticamente de tamanho. Por que?" — because a canvas board scales 1x,
+   * 2x, 3x and nothing between, while the stage grew smoothly with the window. Every viewport from
+   * 1440 to 1799 across produced a 1440x720 stage holding a 640x360 board and a 360 panel, with
+   * 440 pixels of nothing between them: the board adrift in a box built for a bigger one.
+   *
+   * ⚠️ AND THE FIX SHIPPED WITH NO TEST AT ALL. Deleting the whole branch left all twelve
+   * assertions in this file green, because every fixture above builds a page WITHOUT a canvas and
+   * takes the other path. Found by deleting it and watching nothing happen.
+   *
+   * The property is not "k equals three at 1440". It is that the stage is never a whole unit wider
+   * than the board and the panel actually need — which is what "adrift" means, measured.
+   */
+  it('⚠️ never leaves a whole stage unit of nothing between the board and the panel', () => {
+    for (let w = 1080; w <= 2600; w += 29) {
+      page(w, Math.round(w / 2), { canvas: true });
+      applyLayout({ doc: document, win: win(1) });
+      const stageW = px(stage(), 'width');
+      const boardW = px(document.getElementById('game-region'), 'width');
+      const columnW = px(column(), 'width');
+      const spare = stageW - boardW - columnW;
+      expect(`${w}: spare ${spare} under one unit? ${spare < STAGE_UNIT_W}`)
+        .toBe(`${w}: spare ${spare} under one unit? true`);
+    }
+  });
+
+  it('⚠️ and at 1440 specifically, which is where it was reported', () => {
+    // The exact case in the screenshot: a 1440-wide window must not build a 1440-wide stage around
+    // a 640-wide board.
+    page(1440, 810, { canvas: true });
+    applyLayout({ doc: document, win: win(1) });
+    expect(px(stage(), 'width')).toBe(1080);
+    expect(px(document.getElementById('game-region'), 'width')).toBe(640);
+  });
+
+  it('⚠️ but a FLAT page still fills the window, because its board is not pixel art', () => {
+    /*
+     * The other half, and the reason the rule is guarded on the document rather than applied to
+     * both. The flat board is DOM sized as a percentage of its box: it takes whatever stage it is
+     * given, so capping the stage there would shrink a board that was perfectly fine.
+     */
+    page(1440, 810);
+    applyLayout({ doc: document, win: win(1) });
+    const flat = px(stage(), 'width');
+    page(1440, 810, { canvas: true });
+    applyLayout({ doc: document, win: win(1) });
+    expect(flat).toBeGreaterThan(px(stage(), 'width'));
+  });
+
+  it('still reaches the bigger scales when the window is big enough for them', () => {
+    // 1x needs 1080, 2x needs 1800. The rule caps the stage; it must not cap the board.
+    page(1920, 1080, { canvas: true });
+    const result = applyLayout({ doc: document, win: win(1) })!;
+    expect(px(stage(), 'width')).toBe(1800);
+    expect(result.scaleDevice).toBe(2);
+  });
+});
