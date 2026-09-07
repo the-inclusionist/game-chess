@@ -90,6 +90,17 @@
     justify-content: center;
     position: relative;
     flex: 0 0 auto;
+    /*
+     * ⚠️ THE BOARD AND THE PANEL WERE TOUCHING. With no gap the canvas's right edge ran straight
+     * into the side column, which reads as the board having been cut off rather than as two things
+     * side by side — and on the solid board, whose scene reaches the canvas edge, it reads as a
+     * slice taken out of it.
+     *
+     * It comes out of the MARGIN, not out of either of them: `ui/layout` sizes the region and
+     * clamps the column, and what is left over is already spare — 80 px at the smallest stage,
+     * against a gap of about sixteen.
+     */
+    gap: var(--ui-fs, 16px);
   }
   #side-column { flex: 0 0 auto; min-width: 0; }
   /*

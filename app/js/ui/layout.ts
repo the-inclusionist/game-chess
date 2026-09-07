@@ -105,9 +105,49 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
   const availW = wrap.clientWidth || MIN_REGION_W;
   const availH = Math.max(120, (wrap.clientHeight || (MIN_REGION_W * 9) / 16) - reserved);
 
-  // The stage in whole units, never smaller than the floor above — a viewport too small for that
-  // overflows rather than shrinking the art, which is what `MIN_REGION_W` has always done.
-  const k = Math.max(MIN_STAGE_K, Math.floor(Math.min(availW / STAGE_UNIT_W, availH / STAGE_UNIT_H)));
+  /*
+   * ⚠️ THE PAGE'S OWN SHAPE DECIDES THIS, so the question is asked before the stage is sized. A
+   * canvas board must scale by whole PHYSICAL pixels; the flat page's board is DOM and scales
+   * continuously, so it can use whatever stage it is given.
+   */
+  const boardCanvas = host.doc.getElementById('board-canvas');
+
+  // The largest stage the viewport allows, in whole units, never below the floor — a viewport too
+  // small for that overflows rather than shrinking the art, which is what `MIN_REGION_W` has
+  // always done.
+  const kMax = Math.max(MIN_STAGE_K, Math.floor(Math.min(availW / STAGE_UNIT_W, availH / STAGE_UNIT_H)));
+
+  /**
+   * The smallest stage, in units, that a board drawn at `deviceScale` actually needs.
+   *
+   * ⚠️ IN CSS PIXELS, WHICH IS WHY `dpr` IS IN HERE. The scale is locked in physical pixels, so at
+   * a device ratio of 2 a board at device scale 3 is 960 CSS pixels across, not 1920.
+   */
+  const unitsFor = (deviceScale: number): number => Math.max(
+    Math.ceil(((LOGICAL_W * deviceScale) / dpr + MIN_COLUMN_W) / STAGE_UNIT_W),
+    Math.ceil((LOGICAL_H * deviceScale) / dpr / STAGE_UNIT_H),
+  );
+
+  /*
+   * ========================= ⚠️ THE STAGE STOPS WHERE THE BOARD STOPS =========================
+   * A canvas board goes 1x, 2x, 3x and nothing between. Sized independently, the stage grew with
+   * the window while the board waited for its next whole step — and at every viewport from 1440 to
+   * 1799 across that produced a 1440x720 stage with a 640x360 board adrift in it and a column
+   * beside it, which is what "as dimensões estão horrivelmente estranhas" looks like when the
+   * arithmetic is right and the result is not.
+   *
+   * So the stage is grown only as far as a scale the board can actually reach: 1080x540 for 1x,
+   * 1800x900 for 2x, 2520x1260 for 3x. What is left over becomes margin around a proportionate
+   * game rather than emptiness inside a stretched one.
+   *
+   * ⚠️ AND ONLY ON A CANVAS PAGE. The flat board is DOM, sized as a percentage of its box, so it
+   * fills whatever stage it is handed — capping it there would shrink a board that was fine.
+   */
+  let k = kMax;
+  if (boardCanvas) {
+    k = MIN_STAGE_K;
+    for (let scale = 1; unitsFor(scale) <= kMax; scale += 1) k = Math.max(MIN_STAGE_K, unitsFor(scale));
+  }
   const stageW = STAGE_UNIT_W * k;
   const stageH = STAGE_UNIT_H * k;
 
@@ -142,7 +182,6 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
    * Asked rather than configured, because the answer is a fact about the document: either there is
    * a canvas in it or there is not.
    */
-  const boardCanvas = host.doc.getElementById('board-canvas');
   /*
    * ⚠️ AND AS WIDE. A canvas page needs exactly `LOGICAL_W x LOGICAL_H` times the scale, or the
    * canvas — which is `width: 100%; height: 100%` — stretches. The flat page's board is a SQUARE

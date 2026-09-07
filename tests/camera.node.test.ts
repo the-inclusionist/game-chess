@@ -189,7 +189,12 @@ describe('[Zoom] the wheel comes closer, within limits', () => {
     const cam = createCamera();
     cam.dolly(-1);
     expect(cam.dolly(+1).zoom).toBeCloseTo(ZOOM_DEFAULT, 12);
-    expect(cam.dolly(-1).zoom).toBeCloseTo(ZOOM_STEP, 12);
+    /*
+     * ⚠️ `ZOOM_DEFAULT * ZOOM_STEP`, NOT `ZOOM_STEP`. Written as the bare step this quietly assumed
+     * the default was exactly 1 — true when it was written, and a copy of the data rather than the
+     * property. The property is that one notch in multiplies by the step, whatever the default is.
+     */
+    expect(cam.dolly(-1).zoom).toBeCloseTo(ZOOM_DEFAULT * ZOOM_STEP, 12);
   });
 
   it('stops at both ends however long the wheel is turned', () => {

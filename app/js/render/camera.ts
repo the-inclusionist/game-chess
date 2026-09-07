@@ -55,10 +55,41 @@ export const NUDGE_PITCH = Math.PI / 36;
  * exactly where it started. It is the same 1.1 the solid view uses, because they are one control
  * reached two ways and a player who learns it on one board must find it on the other.
  */
-export const ZOOM_DEFAULT = 1;
+/*
+ * ⚠️ REFRAMED WHEN THE HUD LEFT THE CANVAS. The paragraph above still describes the old framing —
+ * "sized to fill the 232 logical pixels the panel leaves it" — and the panel does not leave it
+ * anything any more: it is a sibling of the canvas now, in `#side-column`. Nobody re-measured, so
+ * the board went on being drawn for a canvas two thirds the width of the one it has.
+ *
+ * Measured on screen, which is the only way this constant has ever been set: at zoom 1 the eight
+ * ranks projected to 258x217 inside a 640x360 canvas — 40% of its width and 60% of its height.
+ *
+ * ⚠️ AND THE ZOOM IS NOT THE LEVER THAT FIXES THAT, which is worth writing down because it looks
+ * like it should be. 1.55 was tried and clipped the eighth rank; the ceiling measured for the old
+ * framing is still the ceiling, because the board is bound by the canvas HEIGHT and the height did
+ * not change when the panel moved out — only the width did. So the default now sits AT that
+ * ceiling rather than 18% under it, which is the whole of what the zoom can give.
+ *
+ * ⚠️ AND IT STOPS SHORT OF THE CEILING ON PURPOSE — see `ZOOM_DEFAULT` below.
+ *
+ * What is left is a 640x360 canvas holding a board whose projection is about as wide as it is
+ * tall: roughly 300x255 of it used, and the rest letterboxed. Closing that needs a decision nobody
+ * has made — a flatter pitch, a taller canvas, or accepting the letterbox — and it is recorded in
+ * the interface review rather than guessed at here.
+ */
 export const ZOOM_NEAREST = 1.18;
 export const ZOOM_FARTHEST = 0.72;
 export const ZOOM_STEP = 1.1;
+/*
+ * ⚠️ EXACTLY ONE NOTCH BELOW THE CEILING, AND WRITTEN AS THAT RATHER THAN AS A NUMBER. Any closer
+ * and a notch IN hits the clamp, so the notch back OUT lands somewhere else — and "in then out
+ * returns exactly where it started" is a property this camera's own comment promises and
+ * `tests/camera.node.test.ts` checks. 1.12 broke it; the test said so within seconds.
+ *
+ * So the board gains what the framing can actually give it — about seven per cent — and the wheel
+ * still works in both directions from where a player finds it.
+ */
+export const ZOOM_DEFAULT = ZOOM_NEAREST / ZOOM_STEP;
 
 /** Radians per canvas pixel: dragging the full 320 px width turns half a circle. */
 export const DRAG_SENSITIVITY = Math.PI / 320;

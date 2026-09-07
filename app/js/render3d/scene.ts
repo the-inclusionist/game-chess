@@ -77,7 +77,15 @@ export interface Scene3d {
 }
 
 /** The camera's distance and its limits, in Zdog units. */
-const RADIUS = BOARD_SPAN * 1.35;
+/*
+ * ⚠️ 1.35 PUT THE NEAR RANK OFF THE BOTTOM OF THE FRAME, which is the one thing `ZOOM_NEAREST`
+ * below exists to prevent — and it was the DEFAULT, so a player met it before touching the wheel.
+ * The framing was set when the canvas had a different shape; the region is square now and the
+ * board no longer fits at that distance.
+ *
+ * Measured on screen at 1116x761, which is where it was reported.
+ */
+const RADIUS = BOARD_SPAN * 1.75;
 const PITCH_MIN = 0.20;
 const PITCH_MAX = 1.35;
 
@@ -91,8 +99,19 @@ const PITCH_MAX = 1.35;
  * The step is a FACTOR, not an amount: a notch has to feel the same close up and far away, and a
  * fixed number of units is a nudge at one end and a jump at the other.
  */
-const ZOOM_NEAREST = 0.45;
-const ZOOM_FARTHEST = 2.2;
+/*
+ * ⚠️ RE-DERIVED WHEN `RADIUS` MOVED, BECAUSE THESE ARE FACTORS OF IT. The two ends are absolute
+ * claims — "nearer than this the near rank leaves the frame", "further than this a piece is a few
+ * pixels tall" — expressed as multiples of the default distance. Pulling the default back from
+ * 1.35 to 1.75 spans dragged both ends out with it, and the far one went past the distance where
+ * the silhouettes were measured to stop being six.
+ *
+ * So the factors are restated to keep the ABSOLUTES the measurement found: 1.35 spans at the near
+ * end, which is exactly where the near rank was clipping before, and about 2.98 at the far end,
+ * which is where 1.35 x 2.2 used to land.
+ */
+const ZOOM_NEAREST = 1.35 / 1.75;
+const ZOOM_FARTHEST = 2.98 / 1.75;
 const ZOOM_STEP = 1.1;
 
 export function createScene3d(options: Scene3dOptions): Scene3d {
