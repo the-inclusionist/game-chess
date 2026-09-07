@@ -191,8 +191,22 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
    */
   if (column) column.style.width = `${stageW - width}px`;
 
-  // Against the ENGINE's base, not ours: a 44 px target is 44 px whatever this game rasterises at.
-  const ui = width / ENGINE_BASE_W;
+  /*
+   * ========================= ⚠️ AGAINST THE STAGE, NOT THE BOARD =========================
+   * A 44 px target is 44 px whatever this game rasterises at — that is the promise, and it was
+   * broken by making the board's raster square. `width` is the BOARD, and the board used to be the
+   * whole interface: 640 CSS pixels at the floor, so `640 / 320` gave 2 and `--tap` came out at 44.
+   *
+   * The board is nine of sixteen units now and its raster is 360, so the same line produced
+   * `360 / 320 = 1.125` and a tap target of 24.75 — buttons 25 pixels tall, well under the floor
+   * this game promises and WCAG 2.5.5 asks for. Nothing said so: no test measures a rendered
+   * control's height, and the arithmetic reads as correct on the page it was written for.
+   *
+   * The interface occupies the STAGE, so the stage is what it should be measured against — and the
+   * stage at the floor is 640 wide, which restores exactly the numbers this line produced before
+   * and keeps them growing with the game rather than with the board's share of it.
+   */
+  const ui = stageW / ENGINE_BASE_W;
   // ⚠️ ON THE STAGE, NOT ON THE REGION. The panel is a sibling of the board now, so variables set
   // on the board would not reach it — and every control in it is sized from `--tap`.
   const vars = stage ?? region;

@@ -1031,6 +1031,43 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
       .toBe(`width ${Math.round(box.width)} of ${Math.round(box.width)}`);
   });
 
+  it('⚠️ a tap target is 44 CSS pixels, whatever the game rasterises at', () => {
+    /*
+     * ========================= THE PROMISE THAT WAS BROKEN BY ARITHMETIC =========================
+     * `ui/layout.ts` says it in those words, and WCAG 2.5.5 asks for 44x44. It was computed as
+     * `boardWidth / 320`, which gave 2 for as long as the board's raster WAS the interface — 640
+     * CSS pixels wide. Making the raster square dropped it to 360, so the same line produced 1.125
+     * and every control came out 25 pixels tall.
+     *
+     * ⚠️ NOTHING NOTICED, BECAUSE NOTHING MEASURED A RENDERED CONTROL. The arithmetic reads as
+     * correct, `--tap` was still "computed from the base", and the number it produced was never
+     * compared against the promise. This is that comparison.
+     */
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    createGameShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      teaches: true,
+      debugName: '__tapTest', contrastTheme: 'contrast-flat',
+    });
+
+    const stage = document.getElementById('stage')!;
+    const tap = Number.parseFloat(getComputedStyle(stage).getPropertyValue('--tap'));
+    expect(`--tap is ${tap}px, at least 44? ${tap >= 44}`).toBe(`--tap is ${tap}px, at least 44? true`);
+
+    // And the controls that use it actually come out that tall — the variable is only a promise
+    // until something is sized from it.
+    const buttons = [...document.querySelectorAll('.hud button')]
+      .map((b) => Math.round(b.getBoundingClientRect().height))
+      .filter((h) => h > 0);
+    expect(buttons.length, 'controls to measure').toBeGreaterThan(0);
+    for (const height of buttons) {
+      expect(`a control is ${height}px, at least 44? ${height >= 44}`)
+        .toBe(`a control is ${height}px, at least 44? true`);
+    }
+  });
+
   it('⚠️ and all three come back when the lesson is left', async () => {
     // They were hidden rather than destroyed, so the move list keeps its scroll and whatever
     // control had focus keeps it. That only pays if they actually return.

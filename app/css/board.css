@@ -250,6 +250,18 @@
    * dimension there is none of. The current one is filled rather than merely marked, because
    * `aria-current` is for the reader and the fill is for the eye.
    */
+  /*
+   * ========================= ⚠️ THE FLOOR BELONGS TO EVERY BUTTON, NOT TO A LIST OF THEM =========================
+   * `min-height: var(--tap)` was applied class by class — `.hud-view`, `.hud-hint`, and five more
+   * — and "Começar", the button that opens a lesson, was never given a rule of its own. It came
+   * out 21 px tall against the 44 this file promises and WCAG 2.5.5 asks for, and it had been that
+   * way for as long as it existed.
+   *
+   * A list of classes is a copy of the data: every new button has to remember to join it, and the
+   * one that forgot was invisible because the other six were right. Stated once, over the element.
+   */
+  .hud button { min-height: var(--tap, 44px); }
+
   .hud-views { display: flex; gap: 2px; }
   .hud-view {
     flex: 1 1 0;
