@@ -133,10 +133,18 @@ that reason.
 
 The mechanism takes a public-domain book unchanged. What it is waiting on is editorial:
 
-**Capablanca, *Chess Fundamentals* (1921)** is clear to use — he died in 1942, so it entered the
-public domain in Brazil in 2013, and he wrote it in English himself, which means there is no
-translator's separate term to clear. Undecided: **which chapters**, and **who writes the pt-BR and
-es** beside his English, since those translations would be new work of ours and are the real cost.
+**Decided 2026-09-06: the whole book, taken in sessions, with all three languages written here.**
+
+The curriculum is Capablanca's; the prose is ours. `docs/LICENSES.md` sets out why — briefly, the
+positions and the technique are facts, pt-BR and es always had to be new work because no chess
+classic exists in Portuguese at all, and a 1921 explanation addressed to an adult is not the
+sentence a child needs. ⚠️ This is not a transcription and must not be described as one.
+
+**Running order.** Part I is six chapters and thirty-three sections, which become lessons like the
+first thirteen; Part II is fourteen annotated games, which drop into `gameLesson()` unchanged.
+Started: Chapter I §1, the elementary mates — rook and queen so far, both re-derived in
+`tests/teach-fundamentals.node.test.ts` rather than trusted. Next: §1's two-bishop mate, then §2
+Pawn Promotion and §3 Pawn Endings.
 
 The same shape of question stands behind Staunton's explanatory text for the openings and behind
 the history module. `docs/LICENSES.md` carries which books are usable at all, including two that

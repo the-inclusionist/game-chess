@@ -178,4 +178,36 @@ export const pt: TeachStrings = {
   'teach.book.nudge':
     'Não foi este o lance da partida. Leia a nota de novo: ela diz o que este lance estava '
     + 'tentando fazer.',
+
+  /* ------------- Capablanca I.1: the elementary mates ------------- */
+  'teach.materook.cut':
+    'A torre sozinha não dá mate, mas corta. Ponha-a na sétima linha: o rei preto nunca mais a '
+    + 'atravessa.',
+  'teach.materook.cut.nudge':
+    'Suba a torre pela coluna a até a linha 7. Nada está no caminho.',
+  'teach.materook.walk':
+    'Agora traga o seu rei. A torre prende, mas quem dá o mate são os dois juntos.',
+  'teach.materook.walk.nudge': 'Um passo do rei para a frente, para e2.',
+  'teach.materook.mate':
+    'Os reis estão frente a frente com uma casa no meio: é a oposição, e o rei preto não tem para '
+    + 'onde fugir. Dê o mate com a torre.',
+  'teach.materook.mate.nudge':
+    'A torre vai para a oitava linha. O seu rei já toma todas as casas de fuga.',
+
+  'teach.matequeen.cut':
+    'A dama faz o mesmo que a torre, e mais depressa. Corte a sétima linha.',
+  'teach.matequeen.cut.nudge': 'Suba a dama pela coluna a até a linha 7.',
+  'teach.matequeen.trap':
+    'Cuidado: com a dama é fácil demais tirar TODAS as casas do rei preto. Se as brancas jogassem '
+    + 'Dg6 agora, o que aconteceria?',
+  'teach.matequeen.trap.nudge':
+    'Conte as casas do rei preto depois de Dg6. Se não sobra nenhuma e ele não está em xeque, a '
+    + 'partida acaba empatada.',
+  'teach.matequeen.stalemate': 'Empate por afogamento',
+  'teach.matequeen.checkmate': 'Xeque-mate',
+  'teach.matequeen.nothing': 'Nada de especial',
+  'teach.matequeen.mate':
+    'Com o rei ao lado, a dama não precisa chegar perto. Dê o mate na oitava linha.',
+  'teach.matequeen.mate.nudge':
+    'A dama sobe para a oitava linha. O seu rei cobre as casas de fuga.',
 };

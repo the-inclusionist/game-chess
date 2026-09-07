@@ -178,4 +178,35 @@ export const es: TeachStrings = {
   'teach.book.nudge':
     'Esa no es la jugada de la partida. Lee otra vez la nota: dice qué estaba '
     + 'intentando esta jugada.',
+
+  /* ------------- Capablanca I.1: the elementary mates ------------- */
+  'teach.materook.cut':
+    'La torre sola no da mate, pero corta. Ponla en la séptima fila: el rey negro ya no vuelve a '
+    + 'cruzarla.',
+  'teach.materook.cut.nudge': 'Sube la torre por la columna a hasta la fila 7. Nada estorba.',
+  'teach.materook.walk':
+    'Ahora trae tu rey. La torre encierra, pero el mate lo dan los dos juntos.',
+  'teach.materook.walk.nudge': 'Un paso del rey hacia adelante, a e2.',
+  'teach.materook.mate':
+    'Los reyes están frente a frente con una casilla en medio — la oposición — y el rey negro no '
+    + 'tiene adónde ir. Da mate con la torre.',
+  'teach.materook.mate.nudge':
+    'La torre va a la octava fila. Tu rey ya cubre todas las casillas de escape.',
+
+  'teach.matequeen.cut':
+    'La dama hace lo mismo que la torre, y más rápido. Corta la séptima fila.',
+  'teach.matequeen.cut.nudge': 'Sube la dama por la columna a hasta la fila 7.',
+  'teach.matequeen.trap':
+    'Cuidado: con la dama es demasiado fácil quitarle TODAS las casillas al rey negro. Si las '
+    + 'blancas jugaran Dg6 ahora, ¿qué pasaría?',
+  'teach.matequeen.trap.nudge':
+    'Cuenta las casillas del rey negro después de Dg6. Si no queda ninguna y no está en jaque, la '
+    + 'partida termina en tablas.',
+  'teach.matequeen.stalemate': 'Tablas por ahogado',
+  'teach.matequeen.checkmate': 'Jaque mate',
+  'teach.matequeen.nothing': 'Nada en particular',
+  'teach.matequeen.mate':
+    'Con el rey al lado, la dama no necesita acercarse. Da mate en la octava fila.',
+  'teach.matequeen.mate.nudge':
+    'La dama sube a la octava fila. Tu rey cubre las casillas de escape.',
 };

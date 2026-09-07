@@ -215,6 +215,8 @@ export const es: Catalog = {
     'teach.square.title': 'La regla del cuadrado',
     'teach.opposition.title': 'La oposición',
     'teach.book.opera.title': 'La partida de la ópera',
+    'teach.materook.title': 'Mate con la torre',
+    'teach.matequeen.title': 'Mate con la dama',
     'hud.startLesson': 'Empezar',
     'hud.lessonDone': '{title} ✔',
     'lesson.back': '‹ Anterior',

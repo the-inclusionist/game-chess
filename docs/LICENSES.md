@@ -227,12 +227,36 @@ exactly that reason: it is the game beginners are taught first almost everywhere
 needs no permission and no opinion — the mechanism could therefore ship while the book is still
 being chosen.
 
-**Still open, and it is an editorial decision rather than a legal one:** the plan names
-Capablanca's *Chess Fundamentals* (1921) as the first real title. It is safe to use — Capablanca
-died in 1942, so it entered the public domain in Brazil in 2013, and he wrote it in English
-himself, which means there is no translator's separate term to clear. What is undecided is *which*
-chapters, and who writes the pt-BR and es beside his English, since those translations would be new
-work of ours. `gameLesson()` takes his games unchanged the day that is settled.
+## Capablanca's *Chess Fundamentals* — the curriculum is his, the prose is ours
+
+Decided 2026-09-06: the whole book, taken in sessions, with all three languages written here.
+
+The book is safe to use. Capablanca died in 1942, so it entered the public domain in Brazil in
+2013, and he wrote it in English himself — there is no translator's separate term to clear.
+
+⚠️ **What we take from it is the CURRICULUM, and what we write is the prose.** Which ideas come in
+which order, starting from the elementary mates and the value of the pieces, is a fact about the
+book. The positions and the technique are facts too: nobody owns the observation that a king and a
+rook mate a lone king by cutting it off rank by rank, any more than anybody owns the rule of the
+square — `app/js/endgame/geometry.ts` makes that argument at length and the same argument applies
+here.
+
+Two reasons the sentences are ours rather than his, and they point the same way:
+
+- pt-BR and es always would have been. No chess classic exists in Portuguese at all, so that text
+  had to be new work whatever the source. The plan settled that long ago.
+- A 1921 explanation addressed to an adult reader is not the sentence a child needs, and every
+  string in this game is read out loud to somebody. The catalogues say why they are short.
+
+⚠️ **So this is not a transcription and must not be described as one.** `app/js/teach/fundamentals.ts`
+carries the same warning at the top of the table, because that is where somebody adding the next
+chapter will be looking.
+
+⚠️ **A practical note, recorded because it shaped the above.** Two attempts to retrieve the book's
+verbatim text through the tooling available here were declined on copyright grounds — mistakenly,
+since the work is public domain, but the effect is the same: the English in this repository is
+written here, not transcribed. That is worth knowing before anybody plans work that assumes the
+original wording is on hand.
 
 ⚠️ **Two books that look usable and are not**, recorded so nobody re-derives the mistake: Edward
 Lasker's *Chess Strategy* (1915) is by the OTHER Lasker, who died in 1981 and is protected in

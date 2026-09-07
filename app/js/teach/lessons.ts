@@ -24,6 +24,7 @@
 // does not silently reorder everything after it, and the ordering can be checked for cycles.
 
 import type { Lesson } from './lesson.ts';
+import { FUNDAMENTALS } from './fundamentals.ts';
 
 /*
  * ========================= ⚠️ THE LONE PAWNS ARE LEAD BALLAST, NOT DECORATION =========================
@@ -51,6 +52,13 @@ import type { Lesson } from './lesson.ts';
 /** Two kings in opposite corners of the LONG diagonal, for pieces that do not travel on it. */
 const CORNERS = 'k7/7p/8/8/8/8/8/7K w - - 0 1';
 
+/*
+ * ⚠️ ONE TABLE, TWO SOURCES. `teach/fundamentals.ts` carries Capablanca's curriculum and is spread
+ * in here rather than kept as a second list — because `syllabus()`, `lessonIndex`, the column, the
+ * reach test and the table test all work on `LESSONS` and none of them should have to know where a
+ * lesson came from. The file boundary is about who the material belongs to; the mechanism has no
+ * opinion.
+ */
 export const LESSONS: readonly Lesson[] = [
   /* ============================ READING THE BOARD ============================ */
   {
@@ -415,6 +423,9 @@ export const LESSONS: readonly Lesson[] = [
       },
     ],
   },
+
+  /* ============================ CAPABLANCA'S CURRICULUM ============================ */
+  ...FUNDAMENTALS,
 ];
 
 /**

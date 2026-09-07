@@ -175,4 +175,34 @@ export const en: TeachStrings = {
   'teach.book.nudge':
     'That is not the move that was played. Read the note again: it says what this move '
     + 'was trying to do.',
+
+  /* ------------- Capablanca I.1: the elementary mates ------------- */
+  'teach.materook.cut':
+    'A rook cannot mate on its own, but it can cut. Put it on the seventh rank: the black king '
+    + 'never crosses it again.',
+  'teach.materook.cut.nudge': 'Take the rook up the a-file to rank 7. Nothing is in the way.',
+  'teach.materook.walk':
+    'Now bring your king. The rook does the fencing; the mate takes both of them.',
+  'teach.materook.walk.nudge': 'One step forward with the king, to e2.',
+  'teach.materook.mate':
+    'The kings face each other with one square between them — the opposition — and the black king '
+    + 'has nowhere to go. Give mate with the rook.',
+  'teach.materook.mate.nudge':
+    'The rook goes to the eighth rank. Your king already covers every escape.',
+
+  'teach.matequeen.cut':
+    'A queen does what the rook did, and sooner. Cut the seventh rank.',
+  'teach.matequeen.cut.nudge': 'Take the queen up the a-file to rank 7.',
+  'teach.matequeen.trap':
+    'Careful: with a queen it is easy to take away ALL of the black king\'s squares. If White '
+    + 'played Qg6 now, what would happen?',
+  'teach.matequeen.trap.nudge':
+    'Count the black king\'s squares after Qg6. If none is left and he is not in check, the game '
+    + 'is drawn.',
+  'teach.matequeen.stalemate': 'A draw by stalemate',
+  'teach.matequeen.checkmate': 'Checkmate',
+  'teach.matequeen.nothing': 'Nothing in particular',
+  'teach.matequeen.mate':
+    'With the king beside her the queen need not come close. Give mate on the eighth rank.',
+  'teach.matequeen.mate.nudge': 'The queen goes to the eighth rank. Your king covers the escapes.',
 };

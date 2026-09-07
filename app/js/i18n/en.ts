@@ -214,6 +214,8 @@ export const en: Catalog = {
     'teach.square.title': 'The rule of the square',
     'teach.opposition.title': 'The opposition',
     'teach.book.opera.title': 'The Opera Game',
+    'teach.materook.title': 'Mate with the rook',
+    'teach.matequeen.title': 'Mate with the queen',
     'hud.startLesson': 'Start',
     'hud.lessonDone': '{title} ✔',
     'lesson.back': '‹ Previous',
