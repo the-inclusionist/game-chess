@@ -74,21 +74,24 @@ describe('[Fundamentals] the mates are mate, and the rules say so', () => {
     }
   });
 
-  it('⚠️ every step before the last leaves a position somebody can still play', () => {
-    /*
-     * The failure four lessons had once: a position that is already over answers every square with
-     * `ignored/over` and the board simply stops responding. Here the risk runs the other way — a
-     * mate arriving a step EARLY would end the lesson before its last step, which reads as the
-     * lesson being broken.
-     */
-    for (const lesson of FUNDAMENTALS) {
-      for (const [index, step] of lesson.steps.entries()) {
-        if (step.task.kind !== 'play' || index === lesson.steps.length - 1) continue;
-        const { rules } = afterStep(lesson.id, index);
-        expect(`${lesson.id}[${index}]: ${rules.isGameOver()}`).toBe(`${lesson.id}[${index}]: false`);
-      }
-    }
-  });
+  /*
+   * ========================= ⚠️ A TEST THAT WAS HERE AND IS DELIBERATELY GONE =========================
+   * It said "every step before the last leaves a position somebody can still play", and the
+   * back-rank lesson broke it correctly: that lesson gives mate on its second step of three, and
+   * its third step carries its OWN FEN, so the board is rebuilt rather than continued.
+   *
+   * Restating it precisely — only a step whose SUCCESSOR has no FEN of its own can be hurt by
+   * ending the game — turned out to have no instances at all: across all fifty-one steps in the
+   * syllabus there is not one such pair. Counted, not assumed.
+   *
+   * So it was green and checked nothing, which is worse than not existing: it reads like coverage.
+   * And the failure it was really about — a step whose own position is ALREADY over, which killed
+   * four lessons once — is asserted properly in `teach-table.node.test.ts`, which builds a
+   * `GameState` for every step and demands the phase be `idle`.
+   *
+   * Written down rather than quietly deleted, because the next person to notice the gap should
+   * find out it was looked at.
+   */
 });
 
 describe('[Fundamentals] the stalemate trap really is a stalemate', () => {

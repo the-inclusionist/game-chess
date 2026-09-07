@@ -258,4 +258,20 @@ export const es: TeachStrings = {
     + 'tiempo.',
   'teach.breakthrough.run.nudge':
     'El peón de a va a a6. Traza su cuadrado hasta la octava fila y mira dónde está el rey negro.',
+
+  'teach.backrank.boxed':
+    'El rey negro está encerrado detrás de sus propios peones. Marca las casillas a las que '
+    + 'todavía puede ir.',
+  'teach.backrank.boxed.nudge':
+    'Los peones de f7, g7 y h7 son suyos: no puede ocuparlos. Quedan dos, y las dos están en la '
+    + 'última fila.',
+  'teach.backrank.mate':
+    'Sus dos salidas están en la última fila. Pon la torre ahí.',
+  'teach.backrank.mate.nudge':
+    'La torre sube por la columna a hasta la octava fila. Desde ahí ve la fila entera.',
+  'teach.backrank.air':
+    'Ahora al revés: son las blancas las que están encerradas, y la torre negra apunta a la última '
+    + 'fila. Dale aire a tu rey antes de que sea tarde.',
+  'teach.backrank.air.nudge':
+    'Un peón delante del rey abre una casilla de escape. El de h alcanza y no debilita nada.',
 };

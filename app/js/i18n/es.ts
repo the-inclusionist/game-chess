@@ -220,6 +220,7 @@ export const es: Catalog = {
     'teach.matebishops.title': 'Mate con dos alfiles',
     'teach.underpromotion.title': 'No siempre la dama',
     'teach.breakthrough.title': 'La ruptura',
+    'teach.backrank.title': 'La última fila',
     'hud.startLesson': 'Empezar',
     'hud.lessonDone': '{title} ✔',
     'lesson.back': '‹ Anterior',

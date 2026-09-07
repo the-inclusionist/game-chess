@@ -219,6 +219,7 @@ export const en: Catalog = {
     'teach.matebishops.title': 'Mate with two bishops',
     'teach.underpromotion.title': 'Not always the queen',
     'teach.breakthrough.title': 'The breakthrough',
+    'teach.backrank.title': 'The back rank',
     'hud.startLesson': 'Start',
     'hud.lessonDone': '{title} ✔',
     'lesson.back': '‹ Previous',

@@ -254,4 +254,19 @@ export const en: TeachStrings = {
     'Two pawns given away, and the a-file is open. Push the third: no king arrives in time.',
   'teach.breakthrough.run.nudge':
     'The a-pawn goes to a6. Draw its square out to the eighth rank and see where the black king is.',
+
+  'teach.backrank.boxed':
+    'The black king is shut in behind its own pawns. Mark the squares it can still go to.',
+  'teach.backrank.boxed.nudge':
+    'The pawns on f7, g7 and h7 are its own: it cannot stand on them. Two squares are left, and '
+    + 'both are on the back rank.',
+  'teach.backrank.mate':
+    'Both of its ways out are on the back rank. Put the rook there.',
+  'teach.backrank.mate.nudge':
+    'The rook goes up the a-file to the eighth rank. From there it sees the whole line.',
+  'teach.backrank.air':
+    'Now the other way round: it is White who is shut in, and the black rook is eyeing the back '
+    + 'rank. Give your king air before it is too late.',
+  'teach.backrank.air.nudge':
+    'A pawn in front of the king opens an escape square. The h-pawn is enough and weakens nothing.',
 };

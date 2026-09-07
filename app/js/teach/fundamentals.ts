@@ -281,4 +281,60 @@ export const FUNDAMENTALS: readonly Lesson[] = [
       },
     ],
   },
+  {
+    /*
+     * ========================= §4, AND WHAT WAS ALREADY COVERED =========================
+     * The two hundred Lichess tactics already ship five themes — mate in one, mate in two, fork,
+     * pin, hanging piece. §4 is "some winning positions in the middle-game", and picking a pattern
+     * those five already drill would be a lesson that teaches nothing new and a menu entry that
+     * repeats itself.
+     *
+     * The back rank is the one that is missing, and it is the most valuable pattern a beginner can
+     * carry: it decides more club games than every combination in the book put together, and it
+     * has a DEFENCE that is one quiet move, which is the half nobody teaches.
+     *
+     * ⚠️ AND THE POSITION CORRECTED THE LESSON I MEANT TO WRITE. I expected the king to have no
+     * squares at all. It has two — f8 and h8 — and BOTH ARE ON THE BACK RANK, which is precisely
+     * why a rook arriving there is mate rather than check. The first step asks for exactly those
+     * two squares, re-derived by `reachOf`.
+     */
+    id: 'backrank',
+    title: 'teach.backrank.title',
+    // The book's own order. `after` is prerequisites rather than chapter numbers everywhere else,
+    // and here they coincide: this is Chapter I §4 and it follows §3.
+    after: ['breakthrough'],
+    steps: [
+      {
+        /*
+         * ⚠️ BLACK TO MOVE, so the king's squares are real and `legalTargets` can be asked for
+         * them. With White to move `legalTargets('g8')` is empty — correctly, it is not Black's
+         * turn — and the marked set would have had nothing to check it against.
+         */
+        fen: '6k1/5ppp/8/8/8/8/5PPP/R5K1 b - - 0 1',
+        say: 'teach.backrank.boxed',
+        task: { kind: 'mark', want: ['f8', 'h8'], reachOf: 'g8' },
+        show: { squares: ['g8'] },
+        nudge: 'teach.backrank.boxed.nudge',
+      },
+      {
+        fen: '6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1',
+        say: 'teach.backrank.mate',
+        task: { kind: 'play', want: { from: 'a1', to: 'a8' } },
+        show: { arrows: [['a1', 'a8']] },
+        nudge: 'teach.backrank.mate.nudge',
+      },
+      {
+        /*
+         * The other side of it, and the reason this lesson is worth more than a tactic: the
+         * defence. Without the pawn move, Black's Ra1 is mate; with it, Ra1 is a check the king
+         * steps out of. Verified both ways.
+         */
+        fen: 'r5k1/5ppp/8/8/8/8/5PPP/6K1 w - - 0 1',
+        say: 'teach.backrank.air',
+        task: { kind: 'play', want: { from: 'h2', to: 'h3' } },
+        show: { arrows: [['h2', 'h3']] },
+        nudge: 'teach.backrank.air.nudge',
+      },
+    ],
+  },
 ];

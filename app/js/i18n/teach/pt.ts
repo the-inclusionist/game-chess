@@ -256,4 +256,19 @@ export const pt: TeachStrings = {
     'Dois peões dados, e a coluna a ficou aberta. Empurre o terceiro: nenhum rei chega a tempo.',
   'teach.breakthrough.run.nudge':
     'O peão de a vai a a6. Trace o quadrado dele até a oitava linha e veja onde está o rei preto.',
+
+  'teach.backrank.boxed':
+    'O rei preto está atrás dos próprios peões. Marque as casas para onde ele ainda pode ir.',
+  'teach.backrank.boxed.nudge':
+    'Os peões de f7, g7 e h7 são dele: não pode ocupá-las. Sobram duas, e as duas estão na '
+    + 'última linha.',
+  'teach.backrank.mate':
+    'As duas saídas dele estão na última linha. Ponha a torre lá.',
+  'teach.backrank.mate.nudge':
+    'A torre sobe pela coluna a até a oitava linha. Dali ela vê a linha inteira.',
+  'teach.backrank.air':
+    'Agora do outro lado: são as brancas que estão assim, e a torre preta ameaça a última linha. '
+    + 'Dê ar ao seu rei antes que seja tarde.',
+  'teach.backrank.air.nudge':
+    'Um peão à frente do rei abre uma casa de fuga. O de h basta, e não enfraquece nada.',
 };
