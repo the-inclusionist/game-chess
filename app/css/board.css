@@ -115,7 +115,17 @@
    * not divide into each other, and they are not meant to. What is left over is margin, and margin
    * split evenly reads as a board on a background rather than a board that has slipped upwards.
    */
-  #stage > #game-region { align-self: center; }
+  /*
+   * ⚠️ A COLUMN, so the three things that live in the board's nine units stack: the player strips,
+   * the board itself, and the bar under it. The two canvas views take no part in this — their
+   * canvas is `position: absolute; inset: 0` and keeps the whole region whatever is in flow.
+   */
+  #stage > #game-region {
+    align-self: center;
+    display: flex;
+    flex-direction: column;
+  }
+  #game-region > #below-board { flex: 0 0 auto; width: 100%; box-sizing: border-box; }
   #stage-wrap {
     flex: 1 1 auto;
     min-height: 0;
@@ -645,10 +655,17 @@
    * costs the board no height and the region keeps the exact size the canvas needs.
    */
   .board-players {
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    right: 0;
+    /*
+     * ⚠️ IN FLOW, AT THE TOP OF THE BOARD'S OWN BOX. It was `top: 0` painted over the eighth rank,
+     * then `bottom: 100%` in the margin above — which put it OUTSIDE the sixteen-by-nine stage, and
+     * the spec is that nothing may be. In flow it pushes the flat grid down and makes it slightly
+     * smaller; the projected and solid canvases are `inset: 0` and do not move, which is the whole
+     * of why those two were exempted.
+     */
+    flex: 0 0 auto;
+    width: 100%;
+    /* ⚠️ Or the padding below is ADDED to the width and the row hangs out of the board's box. */
+    box-sizing: border-box;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -1125,14 +1142,22 @@
    * right 27.5% would not cover it. The panel is a sibling now, so the board has the whole region
    * and simply sits in the middle of it — the same correction `CAMERA.offsetX` got.
    */
+  /*
+   * ⚠️ IN FLOW NOW, AND THAT IS WHAT LETS THE STRIPS PUSH IT. It was `position: absolute` and
+   * centred on the region, so the player strips above it and the bar below it slid underneath
+   * instead of moving it — the flat board overlapped both while measuring as if it had been given
+   * room. The spec is that those two take space from THIS board and leave the projected and solid
+   * ones alone, and a board out of flow cannot honour that.
+   *
+   * `min-height: 0` because a flex child will not shrink below its content without it, and this
+   * one has eight rows of squares that would happily overflow the region instead.
+   */
   .board-2d {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    flex: 1 1 auto;
+    min-height: 0;
+    align-self: center;
     display: grid;
     grid-template-rows: repeat(8, 1fr);
-    height: 94%;
     aspect-ratio: 1;
     border: 2px solid var(--piece-halo, #3a2a14);
     box-sizing: border-box;

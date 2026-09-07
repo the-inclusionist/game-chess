@@ -34,6 +34,14 @@ export interface PauseMenuDeps {
   actions(): readonly PauseAction[];
   /** Settings that live in the menu rather than in the side panel. Appended as-is. */
   readonly settings?: HTMLElement;
+  /**
+   * The keyboard reference, at the foot of the menu.
+   *
+   * ⚠️ IT USED TO SPAN THE WINDOW, under everything, which put it outside the sixteen-by-nine
+   * stage — and the spec is that nothing may be drawn there. The menu is also where somebody
+   * actually goes looking for it: a control list belongs beside the controls, not under a board.
+   */
+  readonly keys?: HTMLElement;
 }
 
 export interface PauseMenu {
@@ -69,6 +77,8 @@ export function createPauseMenu(deps: PauseMenuDeps): PauseMenu {
 
   box.append(heading, list);
   if (deps.settings) box.appendChild(deps.settings);
+  // Last, because it is reference rather than a control: everything actionable comes first.
+  if (deps.keys) box.appendChild(deps.keys);
   root.appendChild(box);
 
   let buttons: { el: HTMLButtonElement; handler: () => void }[] = [];

@@ -1014,8 +1014,16 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
       debugName: '__stripsTest', contrastTheme: 'contrast-flat',
     });
 
+    /*
+     * ⚠️ AGAINST THE BOARD, NOT THE REGION, and the difference is the whole later spec. The strips
+     * used to live in the margin ABOVE `#game-region`, so comparing them to the region was the same
+     * question. They are inside it now, at the top of the board's own nine units — because nothing
+     * may be drawn outside the sixteen-by-nine stage — and the thing they must not cover is the
+     * grid.
+     */
     const strips = document.querySelector('.board-players') as HTMLElement | null;
-    const board = document.getElementById('game-region')!;
+    const board = (document.querySelector('.board-2d')
+      ?? document.getElementById('game-region')) as HTMLElement;
     expect(strips, 'the player strips are on the page').not.toBeNull();
 
     const row = strips!.getBoundingClientRect();
@@ -1026,9 +1034,16 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     expect(`strips end above the board? ${row.bottom <= box.top + 1}`)
       .toBe('strips end above the board? true');
 
-    // And the full width of the board, so the two names land on its two edges.
-    expect(`width ${Math.round(row.width)} of ${Math.round(box.width)}`)
-      .toBe(`width ${Math.round(box.width)} of ${Math.round(box.width)}`);
+    /*
+     * ⚠️ AND THE WIDTH IS THE PANEL'S, NOT THE GRID'S — two measurements against two different
+     * things, on purpose. The strips sit at the top of the board's nine units and span them, so
+     * the two names land on the panel's edges; the grid is a square centred inside what is left,
+     * and is narrower. Comparing the row to the GRID would demand it shrink with the board, which
+     * is neither what was asked for nor what looks right.
+     */
+    const panel = document.getElementById('game-region')!.getBoundingClientRect();
+    expect(`width ${Math.round(row.width)} of ${Math.round(panel.width)}`)
+      .toBe(`width ${Math.round(panel.width)} of ${Math.round(panel.width)}`);
   });
 
   it('⚠️ a tap target is 44 CSS pixels, whatever the game rasterises at', () => {

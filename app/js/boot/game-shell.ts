@@ -582,7 +582,16 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     onReplay: () => { void walkHistory('forward'); },
   });
 
-  region.appendChild(players.root);
+  /*
+   * ⚠️ `prepend`, NOT `append`, AND NOT `order: -1` IN CSS. The view mounts the board first, so
+   * appending put the strips after it — and with the region a flex column that drew them BELOW the
+   * board, where the spec says above.
+   *
+   * CSS `order` would have moved them visually and left them last for a screen reader, which is
+   * the mismatch WCAG 1.3.2 is about. Putting them first in the DOM fixes the picture and the
+   * reading order with one change, and there is nothing focusable in them to reorder.
+   */
+  region.prepend(players.root);
   // Outside the panel, over the board: see `.theme-report` in the stylesheet.
   region.appendChild(hud.report);
   column.appendChild(hud.root);
@@ -596,18 +605,23 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     console.warn('[chess] #stage-wrap has no parent: the thinking panel has nowhere to go');
   }
   /*
-   * ========================= ⚠️ UNDER THE BOARD, NOT UNDER THE PAGE =========================
-   * These used to be siblings of `#stage-wrap`, which made them as wide as the BODY: an 11 px
-   * ribbon of text stretched across a 1600 px window under a 640 px board. `#below-board` lives
-   * INSIDE the stage and `ui/layout` gives it the region's exact width, so a panel under the board
-   * is as wide as the board and the side menu together and no wider.
+   * ========================= ⚠️ INSIDE THE BOARD'S OWN NINE UNITS =========================
+   * It was a sibling of `#stage-wrap` once — an 11 px ribbon stretched across a 1600 px window —
+   * and then a child of the stage. Both drew it OUTSIDE the sixteen-by-nine box, and the spec is
+   * that nothing may be.
+   *
+   * So it sits at the foot of the region, in flow. On the flat board that pushes the grid up and
+   * makes it slightly smaller, which is the intended trade. On the projected and solid boards it
+   * costs nothing: their canvas is `position: absolute; inset: 0` and keeps the whole region, so
+   * this rides over it — and those two can be zoomed by the player anyway, which is the reason
+   * given for treating them differently.
    *
    * It is built here rather than in the three HTML files because it has no content of its own —
    * markup that exists only to be filled in by this module belongs to this module.
    */
   const below = host.createElement('div');
   below.id = 'below-board';
-  wrap?.appendChild(below);
+  region.appendChild(below);
   below.appendChild(blunderBar.root);
   // Below the blunder bar: a warning about the move just played is more urgent than the engine's
   // running commentary.
@@ -1063,6 +1077,13 @@ export function createGameShell(deps: GameShellDeps): GameShell {
      * drifted would be the one nobody was looking at.
      */
     settings: hud.settings,
+    /*
+     * ⚠️ THE SAME `<p class="hint">` THE THREE PAGES ALREADY CARRY, moved rather than copied. It is
+     * filled by `refreshKeyHints()` from the catalogue at boot and on every change of language, and
+     * moving the element keeps that one writer — a second line built here would be a second place
+     * for the keys to be wrong.
+     */
+    keys: host.querySelector('.hint') as HTMLElement | undefined ?? undefined,
     actions: () => [
       { label: 'pause.resume', run: () => pause.hide() },
       ...(lessonMode
