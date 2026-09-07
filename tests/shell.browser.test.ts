@@ -1053,8 +1053,17 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     });
 
     const stage = document.getElementById('stage')!;
+    const board = Math.round(document.getElementById('game-region')!.getBoundingClientRect().width);
     const tap = Number.parseFloat(getComputedStyle(stage).getPropertyValue('--tap'));
-    expect(`--tap is ${tap}px, at least 44? ${tap >= 44}`).toBe(`--tap is ${tap}px, at least 44? true`);
+
+    /*
+     * ⚠️ GRADUATED, NOT A SINGLE NUMBER, and the levels are why. WCAG 2.2 gives 24x24 at AA
+     * (2.5.8 Minimum) and 44x44 at AAA (2.5.5 Enhanced); this game takes AA at the smallest board
+     * and AAA once there is room to spend on it. A 44 px floor everywhere is what made the HUD
+     * scroll inside a 280x360 panel.
+     */
+    const wanted = board >= 720 ? 44 : board >= 540 ? 34 : 24;
+    expect(`board ${board}: --tap ${tap}`).toBe(`board ${board}: --tap ${wanted}`);
 
     // And the controls that use it actually come out that tall — the variable is only a promise
     // until something is sized from it.
@@ -1063,8 +1072,8 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
       .filter((h) => h > 0);
     expect(buttons.length, 'controls to measure').toBeGreaterThan(0);
     for (const height of buttons) {
-      expect(`a control is ${height}px, at least 44? ${height >= 44}`)
-        .toBe(`a control is ${height}px, at least 44? true`);
+      expect(`a control is ${height}px, at least ${wanted}? ${height >= wanted}`)
+        .toBe(`a control is ${height}px, at least ${wanted}? true`);
     }
   });
 

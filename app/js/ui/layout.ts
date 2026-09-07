@@ -207,11 +207,34 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
    * and keeps them growing with the game rather than with the board's share of it.
    */
   const ui = stageW / ENGINE_BASE_W;
+
+  /*
+   * ========================= ⚠️ THE TAP TARGET IS GRADUATED, AND THE LEVELS ARE THE REASON =========================
+   * WCAG 2.2 has two thresholds and this game meets the higher one where there is room for it:
+   *
+   *   · 2.5.8 Target Size (Minimum), Level AA:      at least 24 by 24 CSS pixels
+   *   · 2.5.5 Target Size (Enhanced), Level AAA:    at least 44 by 44 CSS pixels
+   *
+   * ⚠️ 44 IS NOT AN iOS NUMBER THAT WANDERED IN, which is worth writing down because it looks like
+   * one: Apple's guideline is also 44, and the two coincide. It is 2.5.5, verbatim. And the 22 that
+   * used to be in this line was neither — it was the engine's tap unit at its own 320-wide base,
+   * doubled by `ui`, which happened to land on 44 and read as if it had been chosen for the norm.
+   *
+   * A 24 px floor is what makes the smallest stage usable at all: at 640x360 the panel is 280 wide
+   * and 360 tall, and 44 px controls with 16 px type do not fit in it — the HUD scrolled. So the
+   * target grows with the board rather than being one number: AA while the board is 360, an
+   * intermediate 34 at 540, and AAA from 720 up, where the room exists to spend on it.
+   */
+  const tapFor = (boardSide: number): number => {
+    if (boardSide >= 720) return 44;
+    if (boardSide >= 540) return 34;
+    return 24;
+  };
   // ⚠️ ON THE STAGE, NOT ON THE REGION. The panel is a sibling of the board now, so variables set
   // on the board would not reach it — and every control in it is sized from `--tap`.
   const vars = stage ?? region;
   vars.style.setProperty('--ui-fs', `${8 * ui}px`);
-  vars.style.setProperty('--tap', `${22 * ui}px`);
+  vars.style.setProperty('--tap', `${tapFor(width)}px`);
   vars.style.setProperty('--hud-fs', `${Math.max(9, Math.round(180 * ui * 0.052))}px`);
 
   if (below) {
@@ -231,7 +254,7 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
       // caption under a board and becomes the thing the board is under.
       `${Math.min(20, Math.max(13, Math.round(width * 0.022)))}px`,
     );
-    below.style.setProperty('--tap', `${22 * ui}px`);
+    below.style.setProperty('--tap', `${tapFor(width)}px`);
   }
 
   return { width, height, scaleDevice };
