@@ -104,6 +104,20 @@ export function createChessDeclaration(deps: DeclarationDeps): GameDeclaration {
      * sense — it is one where it asks more of whoever writes it.
      */
     world: () => ({ kind: 'element', selector: '#stage' }),
+
+    /*
+     * ⚠️ ONE, AND CHESS IS THE CLEANEST CASE THE ENGINE'S ADR-0104 COULD HAVE ASKED FOR. Nothing here is ever
+     * held down: you land on a square, you confirm, the piece moves. There is no run-and-jump, no aim-while-
+     * moving, no chord of any kind — every command arrives on its own, and the next one waits.
+     *
+     * That number is not a shrug, it is the strongest answer in the catalogue. A game that holds ONE position
+     * at a time is playable on EVERY transport the engine offers and on every one it will offer later: a
+     * two-point phone, a single switch, a gaze tracker, a breath sensor. The mandatory field exists so that
+     * this fact is DECLARED rather than accidental — «não declarar é ter a acessibilidade programada no
+     * controle pro sorte» — and here declaring it is also a claim worth making out loud.
+     */
+    holdsAtOnce: () => 1,
+
     tick: 'player',
 
     roleAt(at: Spot): Role {

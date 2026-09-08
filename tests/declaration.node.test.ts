@@ -37,6 +37,20 @@ describe('[Conformance] the engine agrees this is a well-formed game', () => {
     expect(conformanceProblems(declaration)).toEqual([]);
   });
 
+  it('⚠️ holds exactly ONE position at a time, which is the strongest answer a game can give', () => {
+    /*
+     * The engine's ADR-0104 made this field mandatory because omitting it decides a child's accommodation by
+     * silence — «não declarar é ter a acessibilidade programada no controle pro sorte». Chess is the cleanest
+     * case: nothing is ever held down, every command arrives on its own, and the next one waits.
+     *
+     * ONE is not a shrug. It means this game is playable on EVERY transport the engine offers and on every
+     * one it will offer later — a two-point phone, a single switch, a gaze tracker, a breath sensor. This
+     * case exists so that a future change to the declaration cannot quietly raise the number: raising it
+     * would exclude those children, and it should have to be argued rather than typed.
+     */
+    expect(build().declaration.holdsAtOnce()).toBe(1);
+  });
+
   it('declares a grid of the right size, and how a step is counted in it', () => {
     /*
      * ⚠️ `move` AND `frame` ARE NOT DECORATION, and the engine made them required because "grid"
