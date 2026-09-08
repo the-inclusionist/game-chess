@@ -437,7 +437,14 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     declaration,
     host: { doc: host, win: window, cvdHost: host.getElementById('cvd') },
     declines: { semMenuDePausa: true, semAssistenteDePad: true, semAtorDePausa: true },
-    sonarPlayers: () => [{ i: 0, x: cursor.x, y: cursor.y, viz: 'normal' }],
+    /*
+     * ⚠️ `viz: 'normal'` LEFT, and the absence is the news. The sonar no longer reads a visual mode
+     * off the player: the engine's root answers `visaoComprometida` for it, from the two-axis
+     * `visual` state a player may carry. This game carries none — a cursor on a board has no
+     * eyesight of its own — so the answer stays the same one `'normal'` used to give: not impaired.
+     * The blind mode that DOES matter here reaches the sonar through `isBlindMode`, as before.
+     */
+    sonarPlayers: () => [{ i: 0, x: cursor.x, y: cursor.y }],
   });
 
   /**
@@ -1224,7 +1231,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
      * the pause key is, and `especial` is still honoured for the day the engine binds it.
      */
     if (action === 'especial' || event.code === 'KeyL') {
-      engine.sonar.sonar({ i: 0, x: cursor.x, y: cursor.y, viz: 'normal' });
+      engine.sonar.sonar({ i: 0, x: cursor.x, y: cursor.y });
       event.preventDefault();
       return;
     }

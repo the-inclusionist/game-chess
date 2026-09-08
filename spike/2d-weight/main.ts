@@ -37,7 +37,7 @@ const engine = createGame({
   declaration,
   host: { doc: host, win: window, cvdHost: host.getElementById('cvd') },
   declines: { semMenuDePausa: true, semAssistenteDePad: true, semAtorDePausa: true },
-  sonarPlayers: () => [{ i: 0, x: cursor.x, y: cursor.y, viz: 'normal' }],
+  sonarPlayers: () => [{ i: 0, x: cursor.x, y: cursor.y }],
 });
 
 const mirror = createGridMirror({
