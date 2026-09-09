@@ -118,6 +118,26 @@ export function createChessDeclaration(deps: DeclarationDeps): GameDeclaration {
      */
     holdsAtOnce: () => 1,
 
+    /*
+     * FALSE — and this board is the cleanest example of why the engine needed a SECOND field (ADR-0115).
+     *
+     * ⚠️ THE NUMBER ABOVE LOOKS LIKE IT ANSWERS THIS AND DOES NOT. `holdsAtOnce` counts positions held at the
+     * same INSTANT, and the contract refuses zero because that number feeds the reachability arithmetic. So a
+     * game that holds nothing still declares 1 — this one does, right above, with a paragraph explaining why
+     * ONE is the strongest answer in the catalogue. Both are true and they answer different questions.
+     *
+     * 📌 Nothing on a chess board is HELD. The cursor moves by taps and a square is chosen by a tap; there is
+     * no direction to keep pressed. Latching — press once to walk, press again to stop — exists for a child
+     * who cannot keep a key down, and here it would have nothing to hold back. Declaring `false` makes the
+     * control ABSENT from this game's accessibility bar and panel instead of present and inert: a child who
+     * depends on latching does not find a switch that does nothing and conclude the adjustment is broken.
+     *
+     * ⚠️ AND ABSENT IS NOT DISABLED-WITH-A-REASON. That other shape belongs to ADR-0113 clause 3, where the
+     * DEVICE requires latching and it must not be switched off; there the control stays reachable so she can
+     * read why. Here there is no reason that would help her.
+     */
+    seguraTeclas: () => false,
+
     tick: 'player',
 
     roleAt(at: Spot): Role {
