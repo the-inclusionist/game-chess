@@ -1,12 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// boot/view-zdog — the projected board: a Zdog stage, a camera you can turn, and a frame loop.
+// boot/view-zdog — the projected board: a Zdog stage, a camera you can turn, and work to do per frame.
 //
-// ========================= THE ONLY VIEW WITH A CLOCK =========================
-// The flat board draws a position and stops. This one runs `startLoop` because it has a camera
-// that moves and pieces that fly, and the loop lives HERE rather than in the shell for a reason
-// that is easy to get backwards: `dt` is in FRAMES, a convention `render/animation.ts` inherited
-// from PixiJS, and it means nothing on a page with no loop. `boot/main-2d.ts` has neither, by
-// measurement — 104 KB against 146.
+// ========================= IT HAS A FRAME, AND NOT A CLOCK =========================
+// The flat board draws a position and stops. This one has a camera that moves and pieces that fly,
+// so it exports `frame(dt)` — and `dt` is in FRAMES, a convention `render/animation.ts` inherited
+// from PixiJS, which is why nothing here is expressed in seconds.
+//
+// ⚠️ IT USED TO OWN THE CLOCK TOO, building a ticker and calling `startLoop` itself, and ADR-0139 §3
+// is what took that away: a cartridge never starts a loop, because inside a platform the loop is the
+// page's. The shell drives this now. Two consequences that were not free:
+//
+//   · ONE TICKER FOR THE PAGE instead of one per view. Switching view used to destroy a clock and
+//     build another; there is now nothing to leak and nothing to forget.
+//   · THE ANNOUNCEMENT IS REAL. This file passed `console.error` to `aoFalhar`, which reaches
+//     whoever has a console open. The shell passes the engine's own, which reaches the screen
+//     reader — and a child who cannot see the screen cannot tell a frozen board from a thinking one.
 //
 // ========================= ⚠️ HOW A FRAME LOOP BECOMES A PROMISE =========================
 // The shell awaits `travel(from, to)` and walks the score sheet one ply at a time. There is no
@@ -22,14 +30,12 @@
 //     strands the shell inside its own `finally`, and the only symptom is that take-back and
 //     replay quietly stop working for the rest of the game.
 
-import { startLoop } from '@the-inclusionist/engine/core/loop.js';
 import type { Square } from '../chess/types.ts';
 import { squareFromIndex, squareIndex } from '../render/board-geometry.ts';
 import { createMoveAnimation, type MoveAnimation } from '../render/animation.ts';
 import { createBoard } from '../render/board.ts';
 import { CAMERA, createZdogStage } from '../render/zdog-stage.ts';
 import { createCamera, ROTATE_HOLD_MS } from '../render/camera.ts';
-import { createFrameTicker } from '../render/frame-ticker.ts';
 import { createPiecesLayer } from '../render/pieces/index.ts';
 import { DEFAULT_DESIGN, PIECE_DESIGNS, pieceDesign } from '../render/pieces/sets.ts';
 import { projectedPalette } from '../render/palette.ts';
@@ -86,8 +92,6 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
   // would be noise.
   region.appendChild(coordinates.root);
 
-  const ticker = createFrameTicker();
-
   /**
    * CSS pixels per canvas pixel, kept from the last layout instead of measured per frame.
    * `getBoundingClientRect` inside a render loop forces a synchronous layout on every frame, which
@@ -135,12 +139,6 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
     // once the graph has been updated — the same precondition `quads()` carries for picking.
     coordinates.place(boardView.quads(), stage.viewport(), cssPerPixel);
   }
-
-  startLoop(ticker, frame, 2, {
-    // The engine ships this and its own game never wires it: the loop stops on error and NOTHING
-    // announces it. A blind child cannot see a frozen screen.
-    aoFalhar: (erro: unknown) => { console.error('[chess] frame loop stopped', erro); },
-  });
 
   /* ---------- pointer: a press selects, a HOLD turns the board ---------- */
 
@@ -320,6 +318,16 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
       return new Promise<void>((resolve) => { landed = resolve; });
     },
 
+    /**
+     * The clock is the shell's; this is what it drives.
+     *
+     * ⚠️ THE ANIMATION HALF CANNOT BE SKIPPED WHEN NOTHING IS DIRTY, which is why `frame` is one
+     * function and not two: the resolver that lets the shell walk the score sheet is released from
+     * inside it. A `frame` that returned early on a clean board would leave the walk hanging with
+     * nothing thrown and nothing logged.
+     */
+    frame,
+
     relayout: () => {
       cssPerPixel = canvas.getBoundingClientRect().width / LOGICAL_W;
       // The labels are positioned in CSS pixels, so a resize moves them even though the canvas
@@ -384,7 +392,6 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
     }),
 
     destroy: () => {
-      ticker.destroy();
       stage.destroy();
       coordinates.destroy();
     },

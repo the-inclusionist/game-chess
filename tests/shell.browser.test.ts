@@ -1610,3 +1610,84 @@ describe('[Switch] the board changes renderer without leaving the page', () => {
     });
   });
 });
+
+/*
+ * ========================= THE CLOCK BELONGS TO THE SHELL =========================
+ * ADR-0139 §3 says a cartridge never calls `startLoop`, and until now two views did: the projected
+ * board and the solid one each built a ticker and a loop of their own. Moving that up to the shell
+ * is one line in each file and one new fault, and the fault is the reason these two tests exist.
+ *
+ * Neither of them is visible to `tsc`, to the build, or to a person looking at the screen:
+ *
+ *   · A `frame` the shell never forwards leaves the projected board frozen and still interactive —
+ *     the mirror answers keys, the score sheet fills, nothing moves. No error anywhere.
+ *   · A frame drawn into a renderer that has been torn down THROWS, and `startLoop` answers a throw
+ *     by removing its callback for good. One change of view and the board stops for the rest of the
+ *     game, which is the worse of the two because it looks like the first one.
+ */
+describe('[Frame] the shell drives the renderer that is drawing now', () => {
+  /** A fake that counts frames and refuses to draw once it has been destroyed. */
+  function countingView(count: { frames: number; afterDestroy: number }) {
+    return (ctx: ViewContext): BoardView => {
+      let alive = true;
+      ctx.region.appendChild(ctx.mirror.root);
+      return {
+        hudControls: { coordinates: () => false, onCoordinates: () => {} },
+        applyTheme: () => {},
+        drawPosition: () => {},
+        drawMarks: () => {},
+        travel: () => Promise.resolve(),
+        frame: () => {
+          if (!alive) { count.afterDestroy += 1; return; }
+          count.frames += 1;
+        },
+        relayout: () => {},
+        destroy: () => { alive = false; },
+      };
+    };
+  }
+
+  it('one update is one frame on the view', () => {
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    const count = { frames: 0, afterDestroy: 0 };
+    const shell = createGameShell({
+      host: document, kind: '2.5d', view: countingView(count), visibleMirror: true,
+      debugName: '__frameTest', contrastTheme: 'contrast-flat',
+    });
+
+    expect(count.frames, 'nothing drawn until the clock asks').toBe(0);
+    shell.update(1);
+    shell.update(1);
+    expect(count.frames, 'both frames reached the renderer').toBe(2);
+  });
+
+  it('a frame that arrives mid-swap is not drawn into the renderer being replaced', async () => {
+    /*
+     * ⚠️ THE WINDOW IS REAL AND THE `await` IS WHERE IT LIVES. `switchView` tears the old renderer
+     * down and THEN awaits the import of the next one — deliberately, so two renderers never draw
+     * the same board at once. Every other caller of a view is a person doing something, and a person
+     * cannot click inside an await they never saw; a frame loop can, sixty times a second, every
+     * time. Calling `update` between the two halves here is that window, held open by hand.
+     */
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    const count = { frames: 0, afterDestroy: 0 };
+    const shell = createGameShell({
+      host: document, kind: '2.5d', view: countingView(count), visibleMirror: true,
+      debugName: '__frameSwap', contrastTheme: 'contrast-flat',
+    });
+
+    const swapping = shell.switchView('2d');
+    shell.update(1);
+    shell.update(1);
+    await swapping;
+
+    expect(count.afterDestroy, 'the destroyed renderer was never asked to draw').toBe(0);
+    // And the shell did not answer by going quiet for good: the flat board has no `frame` of its
+    // own, so this asserts the call is made and lands nowhere rather than that it stopped.
+    expect(() => { shell.update(1); }, 'the loop still runs after the swap').not.toThrow();
+  });
+});

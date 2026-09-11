@@ -19,6 +19,8 @@
 // allow.
 import { createGame } from '@the-inclusionist/engine';
 import { srAlert } from '@the-inclusionist/engine/core/a11y-sr.js';
+import { startLoop } from '@the-inclusionist/engine/core/loop.js';
+import { createFrameTicker } from '../render/frame-ticker.ts';
 import { createChessCartridge } from './game-shell.ts';
 import { VIEWS } from './views.ts';
 import { CONTRAST_THEME } from '../ui/board-themes.ts';
@@ -60,7 +62,34 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     baixarPesados: false,
   });
 
-  return cartridge.create(engine);
+  const shell = cartridge.create(engine);
+
+  /*
+   * ========================= THE CLOCK IS THE SHELL'S, AND ONLY THE SHELL'S =========================
+   * ADR-0139 §3 in one statement: a cartridge never calls `startLoop`. It used to be called twice
+   * here — once inside the projected view and once inside the solid one — which was right while each
+   * view was its own page and wrong the moment a view became something you switch. Two consequences
+   * were already true and nobody had to pay for them yet: two renderers on one page would have meant
+   * two clocks, and switching view meant tearing a clock down and building another.
+   *
+   * ⚠️ AND `aoFalhar` IS THE ENGINE'S NOW, WHICH IS THE PART THAT MATTERS. Both views passed a
+   * `console.error`, so a loop that stopped announced itself to whoever had devtools open. The
+   * engine's own announcer reaches the screen reader and the visible page, and its comment says why
+   * that is not a nicety: a child who cannot see the screen has no way to tell a frozen board from a
+   * board that is thinking. Stopping was never optional; SAYING so was, and this is where it stopped
+   * being skipped.
+   *
+   * `2` is the frame ceiling, unchanged from both call sites it replaces: a tab that comes back after
+   * a minute in the background must not advance an animation by three thousand frames at once.
+   *
+   * 📌 Nothing stops this ticker, because in this shell nothing ends before the document does. A
+   * platform that swaps cartridges needs the other half — `teardown()`, the sibling ADR-0139 names
+   * beside `update` — and it is not written yet; saying so here is cheaper than discovering it as a
+   * leak on the day two games share a page.
+   */
+  startLoop(createFrameTicker(), (dt) => { shell.update(dt); }, 2, { aoFalhar: engine.aoFalhar });
+
+  return shell;
 }
 
 /**

@@ -105,6 +105,24 @@ export interface BoardView {
    * frame there would hang forever on a pane the browser has stopped ticking.
    */
   travel(from: Square, to: Square): Promise<void>;
+  /**
+   * One frame, `dt` in FRAMES. Absent on a view with nothing to animate.
+   *
+   * ⚠️ THE VIEW NO LONGER OWNS ITS CLOCK, and ADR-0139 §3 is the reason rather than tidiness: a
+   * cartridge never calls `startLoop`, because inside a platform the loop is the page's and a
+   * second one is a second 60 wake-ups a second on the machine least able to afford it. Two of
+   * these three views used to build a ticker and a loop apiece; now the shell builds one and asks
+   * whoever is drawing.
+   *
+   * ⚠️ AND THE ANNOUNCER CAME WITH THE MOVE. Both views passed `console.error` to `aoFalhar` —
+   * which tells whoever has the console open and nobody else. The engine's `aoFalhar` reaches the
+   * screen reader, and a child who cannot see the screen cannot tell a frozen board from a
+   * thinking one.
+   *
+   * The flat board has no `frame`: it draws a position and stops, which is the measurement that
+   * kept it at 104 KB against 146.
+   */
+  frame?(dt: number): void;
   relayout(): void;
   /**
    * A key the shell did not want. Return true when it was used, and the shell calls

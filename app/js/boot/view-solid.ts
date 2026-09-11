@@ -13,11 +13,9 @@
 // is a LAYOUT box here, not a pixel grid — both statements are true at once, and conflating them
 // is what cost a working first frame.
 
-import { startLoop } from '@the-inclusionist/engine/core/loop.js';
 import * as THREE from 'three';
 import { SAME_LEVEL_CP } from '../chess/engine/same-level.ts';
 import type { Square } from '../chess/types.ts';
-import { createFrameTicker } from '../render/frame-ticker.ts';
 import { squareCenter } from '../render/board-geometry.ts';
 import { hintHue, projectedPalette } from '../render/palette.ts';
 import { DEFAULT_DESIGN, PIECE_DESIGNS } from '../render/pieces/sets.ts';
@@ -85,15 +83,6 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
   /** The arrows, as flat shapes lying on the board. Rebuilt whenever the advice changes. */
   const arrows = new THREE.Group();
   scene.scene.add(arrows);
-
-  const ticker = createFrameTicker();
-  startLoop(ticker, () => { scene.render(); }, 2, {
-    aoFalhar: (error: unknown) => {
-      // ⚠️ A loop that stops silently leaves a frozen picture. A child who cannot see the screen
-      // has no way to know the game has died.
-      console.error('[chess3d] frame failed', error);
-    },
-  });
 
   /**
    * ⚠️ THREE DOES NOT FREE A GEOMETRY when its mesh leaves the scene — it is a GPU buffer and it
@@ -325,6 +314,17 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
       return true;
     },
 
+    /**
+     * One frame. A WebGL scene is redrawn whole every time, so there is no dirty flag to consult
+     * and nothing here reads `dt` — the orbit is set by input rather than integrated.
+     *
+     * ⚠️ THIS FILE USED TO BUILD ITS OWN TICKER AND CALL `startLoop`, and ADR-0139 §3 is what
+     * moved it: a cartridge never starts a loop. The `aoFalhar` it passed was a `console.error`,
+     * which announces a dead board to whoever has a console open; the shell passes the engine's,
+     * which reaches the screen reader.
+     */
+    frame: () => { scene.render(); },
+
     relayout: () => {
       // ⚠️ THE ENGINE STILL SIZES THE REGION and it must: `#game-region` is what the panel, the
       // strips and every `--ui-fs` are laid out against. Without it the region has no size at all
@@ -347,7 +347,6 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
     }),
 
     destroy: () => {
-      ticker.destroy();
       clearArrows();
       scene.destroy();
     },

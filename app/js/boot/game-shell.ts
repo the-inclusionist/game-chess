@@ -164,6 +164,20 @@ export interface GameShell {
    * that nobody should pay for unless they ask for it.
    */
   switchView(kind: ViewKind): Promise<void>;
+  /**
+   * One frame, `dt` in FRAMES — what ADR-0139 names `GameInstance.update(dt)`.
+   *
+   * ⚠️ THE CARTRIDGE DOES NOT START THE LOOP THAT CALLS THIS, and that is §3 of the same record
+   * rather than a preference: inside a platform the clock is the page's, and a cartridge that
+   * built its own would be a second 60 wake-ups a second on hardware that cannot spare the first.
+   * Two of the three views used to call `startLoop` themselves; this is where that went.
+   *
+   * ⚠️ AND IT ASKS THE CURRENT VIEW RATHER THAN A HELD ONE, for the reason `view()` already gives:
+   * `switchView` replaces the renderer, and a frame that had captured the old one would be drawing
+   * into a board that has been torn down — sixty times a second, which is the one caller certain
+   * to hit the window.
+   */
+  update(dt: number): void;
   readonly opponent: StockfishClient;
   activate(square: Square): void;
   walkHistory(direction: 'back' | 'forward'): Promise<void>;
@@ -749,6 +763,18 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    */
   let view = mountView(deps.view);
   let viewKind = deps.kind;
+  /**
+   * Whether `view` is a renderer that is actually mounted.
+   *
+   * ⚠️ A WINDOW THAT DID NOT EXIST WHILE EACH VIEW OWNED ITS CLOCK. `switchView` tears the old
+   * renderer down and then AWAITS the import of the next one; for that whole moment `view` names
+   * something destroyed. Nobody noticed because every caller of a view is a person doing something,
+   * and a person cannot click during an await they did not know about — but the frame loop is not a
+   * person, it runs sixty times a second, and it is guaranteed to land in there. A frame drawn into
+   * a torn-down stage throws, and `startLoop` answers a throw by removing its callback for good: one
+   * change of view and the board would freeze for the rest of the game.
+   */
+  let mounted = true;
 
   const hud = createHud({
     doc: host,
@@ -1947,6 +1973,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
   self = {
     region, i18n, mirror, hud, opponent,
     view: () => view,
+    update: (dt: number) => { if (mounted) view.frame?.(dt); },
     async switchView(kind: ViewKind): Promise<void> {
       if (kind === viewKind) return;
       /*
@@ -1954,8 +1981,10 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
        * import may take a moment on a school link, and two renderers drawing the same board into
        * the same region is a worse thing to look at than an empty board for that moment.
        */
+      mounted = false;
       view.destroy();
       view = mountView(await VIEWS[kind]());
+      mounted = true;
       viewKind = kind;
       /*
        * A fresh renderer starts at its own defaults, so everything the player had chosen has to be
