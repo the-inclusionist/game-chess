@@ -21,6 +21,8 @@ import { createGame } from '@the-inclusionist/engine';
 import { srAlert } from '@the-inclusionist/engine/core/a11y-sr.js';
 import { createChessCartridge } from './game-shell.ts';
 import { VIEWS } from './views.ts';
+import { CONTRAST_THEME } from '../ui/board-themes.ts';
+import type { ViewKind } from '../ui/hud.ts';
 import type { GameShell, GameShellDeps } from './game-shell.ts';
 
 // Re-exported because this file is the door now: whoever builds a shell imports it from here.
@@ -96,4 +98,37 @@ export function bootFailed(error: unknown): void {
   } catch {
     // The live region may not exist if the failure happened before the document was ready.
   }
+}
+
+/**
+ * Everything about a view that is not the renderer itself.
+ *
+ * ⚠️ THIS WAS THREE ROOTS SAYING NEARLY THE SAME THING, and the differences were four fields out of
+ * five. Measured before gathering them: `teaches` is true on all three, and only the flat board
+ * differs on the other two — its grid IS the board rather than a mirror behind a canvas, and its
+ * high-contrast palette answers a glyph where the other two answer a stroke.
+ *
+ * 📌 Gathered here because the three HTML entries are going away: inside a platform a second entry
+ * is a second URL, not a second bundle. A single root needs to derive from the KIND what three
+ * files used to state, and this table is that derivation — written once so the collapse is a
+ * deletion rather than a rewrite.
+ */
+const PER_VIEW = {
+  '2d': { visibleMirror: true, debugName: '__chess2d', contrastTheme: CONTRAST_THEME },
+  '2.5d': { visibleMirror: false, debugName: '__chess', contrastTheme: 'contrast-solid' },
+  '3d': { visibleMirror: false, debugName: '__chess3d', contrastTheme: 'contrast-solid' },
+} as const;
+
+/**
+ * Boot this game in one named view.
+ *
+ * ⚠️ ALL THREE TEACH, and that is worth stating because it was not always so: the solid board was
+ * left out while `render3d/scene.ts` had no marker channel, since a lesson that says «look at these
+ * squares» and shows nothing is worse than no lesson mode. The channel exists; the exception does
+ * not.
+ */
+export function bootChess(host: Document, kind: ViewKind): Promise<void> {
+  return startChess({ host, kind, teaches: true, ...PER_VIEW[kind] })
+    .then(() => undefined)
+    .catch(bootFailed);
 }

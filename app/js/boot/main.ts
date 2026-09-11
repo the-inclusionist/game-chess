@@ -16,7 +16,7 @@
 // It was 1,103 lines. The frame loop, the camera, the picking and the pointer went to the view;
 // everything else was a copy of something in the other two roots.
 
-import { bootFailed, startChess } from './standalone.ts';
+import { bootChess } from './standalone.ts';
 
 /*
  * ⚠️ THIS FILE NO LONGER KNOWS WHAT A RENDERER IS, and that is the point rather than a tidy-up. It
@@ -36,22 +36,7 @@ import { bootFailed, startChess } from './standalone.ts';
  * degraded experience, it is no game at all.
  */
 export function boot(host: Document = document): Promise<void> {
-  return startChess({
-    host,
-    kind: '2.5d',
-    /*
-     * ⚠️ THIS PAGE TEACHES; `3d.html` DOES NOT, AND THAT IS SAID RATHER THAN FUDGED.
-     * `render3d/scene.ts` has no marker channel at all — no selection, no legal targets, nothing —
-     * so a lesson that said "look at these squares" would silently show nothing there. Offering a
-     * mode whose main instruction does nothing is worse than not offering it. See the debt list.
-     */
-    teaches: true,
-    debugName: '__chess',
-    // ⚠️ `contrast-solid` HERE and `contrast-flat` on the flat board, and that is the whole reason
-    // a theme carries piece inks: the two have the same squares and different pieces, because a
-    // solid whose ink is mostly STROKE needs a different answer from a glyph.
-    contrastTheme: 'contrast-solid',
-  }).then(() => undefined).catch(bootFailed);
+  return bootChess(host, '2.5d');
 }
 
 if (typeof document !== 'undefined' && document.getElementById('game-region')) boot();
