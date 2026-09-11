@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config'; // not 'vite': vitest/config is what types the `test` field
 import { fileURLToPath } from 'node:url';
 import { playwright } from '@vitest/browser-playwright';
+import { VitePWA } from 'vite-plugin-pwa';
 
 // ========================== THE ENGINE COMES FROM THE REGISTRY ==========================
 // ⚠️ THIS PARAGRAPH DESCRIBED A SYMLINK THAT NO LONGER EXISTS. It read: "`file:../SP-the-
@@ -22,6 +23,60 @@ import { playwright } from '@vitest/browser-playwright';
 // load weight. See docs/spike-1-file-dependency.md.
 export default defineConfig({
   root: 'app',
+  /*
+   * ========================= THE STANDALONE BUILD IS A PWA =========================
+   * ADR-0140: a game is a standalone PWA *and* a cartridge, from one source, and five of the six
+   * games were not PWAs. This is the app half of that record — and §3 of it draws the line this
+   * config has to respect: the standalone artifact is a DEVELOPMENT, TEST, AUDIT AND DEMONSTRATION
+   * route, never a delivery route to children. A game deployed to children is the platform's job,
+   * because Cache Storage partitions by origin and a child's accessibility profile has to follow
+   * her between games.
+   *
+   * ⚠️ THE OPPONENT IS PRECACHED, AND THE BUDGET OBJECTION TO IT WAS MINE AND WAS WRONG. I read
+   * ADR-0116/0117 as putting a byte budget in the way of 7 MB of Stockfish. They do not: what those
+   * records price is 244 MB of voice models across N origins, and ~32 MB of vendored runtime across
+   * three hundred deploys. Neither is a sentence about one game's demo build. And the Dev settled
+   * the substance in one line — «sem IA não há nem modo professor»: an opponent is not an extra
+   * here, it is what makes the teaching mode exist.
+   *
+   * ⚠️ `maximumFileSizeToCacheInBytes` IS THE LINE THAT DECIDES WHETHER ANY OF THIS IS TRUE.
+   * Workbox defaults to 2 MiB and SILENTLY DROPS anything larger, so the 7.3 MB `.wasm` would be
+   * excluded from the precache without a warning — leaving a service worker that promises offline
+   * and an opponent that only exists online. That is the failure ADR-0116 §2 names from the other
+   * side: «precached at install, never fetched lazily at first use». The test asserts the file is
+   * in the manifest, because a number in a config is not evidence.
+   */
+  plugins: [
+    VitePWA({
+      registerType: 'autoUpdate',
+      workbox: {
+        // `wasm` is not in Workbox's default list, and it is the whole opponent.
+        globPatterns: ['**/*.{html,js,css,svg,wasm,woff2,txt}'],
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+      },
+      manifest: {
+        name: 'Xadrez de Hartwig',
+        short_name: 'Xadrez',
+        description: 'Xadrez acessível em pixel art, com aulas, para aprender a jogar e a ler o tabuleiro.',
+        /*
+         * ⚠️ `pt-BR` AND A RELATIVE SCOPE, and both are corrections of a mistake already recorded:
+         * ADR-0140 notes the platformer's manifest claiming `scope: "/"` — the whole origin, for one
+         * game — and `lang: "en"` for a product delivered in Portuguese. Repeating either here would
+         * be copying a defect the record was written to stop.
+         */
+        lang: 'pt-BR',
+        dir: 'ltr',
+        scope: './',
+        start_url: './',
+        display: 'standalone',
+        background_color: '#05070f',
+        theme_color: '#05070f',
+        icons: [
+          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+        ],
+      },
+    }),
+  ],
   build: {
     outDir: '../dist',
     emptyOutDir: true,
