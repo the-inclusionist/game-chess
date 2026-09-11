@@ -212,9 +212,20 @@ export function createHud(deps: HudDeps): Hud {
    *
    *   · `.hud{max-width:1000px;margin:0 auto;padding:0 1rem .5rem;display:flex;gap:1.5rem;
    *     flex-wrap:wrap}` — a centred, wrapping ROW, applied to a panel that is a measured 280x360
-   *     COLUMN.
-   *   · `body.blind-mode .hud{visibility:hidden}` — so turning blind mode on, from the very bar
-   *     being adopted to offer it, would make this game's whole side panel disappear.
+   *     COLUMN. Probed on the built page under the old name: `max-width: 1000px`, `flex-wrap:
+   *     wrap`, `gap: 24px`, all of it unconditional.
+   *   · `body.blind-mode .hud{visibility:hidden}`.
+   *
+   * ⚠️ AND THE SECOND ONE IS A CORRECTION TO WHAT THIS COMMENT FIRST SAID. It claimed that turning
+   * blind mode on — from the very bar being adopted to offer it — would make the panel disappear.
+   * Measured afterwards, on the running page: clicking the blind icon leaves `document.body.
+   * className` EMPTY, so that rule never fires here. `body.blind-mode` is written by the engine's
+   * `ui/shell`, which `createGame` deliberately does not mount. The panel stays 264x331 and
+   * visible through the toggle, verified on all three pages.
+   *
+   * The rename was still necessary, and the first rule is the whole reason: it needs no class on
+   * anything. Keeping a claim that sounds worse than the truth would have cost the true one its
+   * credibility the first time somebody checked.
    *
    * Two projects named their panel the same thing; the shared vocabulary is the engine's, so this
    * is the side that moves. Only the bare class changes — the `hud-*` children collide with
