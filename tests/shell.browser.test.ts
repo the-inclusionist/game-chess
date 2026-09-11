@@ -863,7 +863,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
    * `app/css/board.css`, which is a `<link>` in the three HTML pages. So `hud.root.hidden` read
    * `true`, every assertion agreed, and the HUD sat on screen through every lesson: 360x720 of
    * controls, an engine evaluation and a difficulty selector, pushing the lesson panel below the
-   * fold. `.hud` sets `display: flex`, and a class beats the UA sheet's `[hidden] { display: none }`.
+   * fold. `.chess-hud` sets `display: flex`, and a class beats the UA sheet's `[hidden] { display: none }`.
    *
    * The trap was known — `.chess-pause`, `.lesson-menu`, `.lesson-panel`, `.lesson-nudge`,
    * `.lesson-options`, `.lesson-teacher-why` and `.blunder-bar` all carry the guard, and the comment
@@ -903,7 +903,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
      */
     fixture();
     const probe = document.createElement('div');
-    probe.className = 'hud';
+    probe.className = 'chess-hud';
     document.body.appendChild(probe);
     expect(getComputedStyle(probe).display).toBe('flex');
     probe.remove();
@@ -911,13 +911,13 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
 
   it('⚠️ the HUD, the player strips and the engine line all LEAVE during a lesson', async () => {
     const shell = shellFor();
-    expect(shown('.hud')).toBe('flex');
+    expect(shown('.chess-hud')).toBe('flex');
 
     expect(shell.teach()).toBe(true);
     await untilLesson();
 
     // Not `hidden === true`, which was true all along. What a person would see.
-    expect(shown('.hud'), 'the HUD').toBe('none');
+    expect(shown('.chess-hud'), 'the HUD').toBe('none');
     expect(shown('.board-players'), 'the player strips').toBe('none');
     expect(shown('.thinking'), 'the engine line').toBe('none');
     // And the thing that replaced them is there.
@@ -1156,7 +1156,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
       debugName: '__scrollTest', contrastTheme: 'contrast-flat',
     });
 
-    const hud = document.querySelector('.hud') as HTMLElement;
+    const hud = document.querySelector('.chess-hud') as HTMLElement;
     expect(hud, 'a panel to measure').not.toBeNull();
     expect(getComputedStyle(hud).overflowY).toMatch(/auto|scroll/);
 
@@ -1212,7 +1212,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
 
     // And the controls that use it actually come out that tall — the variable is only a promise
     // until something is sized from it.
-    const buttons = [...document.querySelectorAll('.hud button')]
+    const buttons = [...document.querySelectorAll('.chess-hud button')]
       .map((b) => Math.round(b.getBoundingClientRect().height))
       .filter((h) => h > 0);
     expect(buttons.length, 'controls to measure').toBeGreaterThan(0);
@@ -1228,7 +1228,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     const shell = shellFor();
     expect(shell.teach()).toBe(true);
     await untilLesson();
-    expect(shown('.hud')).toBe('none');
+    expect(shown('.chess-hud')).toBe('none');
 
     press('KeyH', 'h');
     const quit = [...document.querySelectorAll('.chess-pause button')]
@@ -1237,7 +1237,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     (quit as HTMLButtonElement).click();
     await new Promise((resolve) => { setTimeout(resolve, 50); });
 
-    expect(shown('.hud'), 'the HUD came back').toBe('flex');
+    expect(shown('.chess-hud'), 'the HUD came back').toBe('flex');
     expect(shown('.board-players'), 'the strips came back').not.toBe('none');
     expect(shown('.thinking'), 'the engine line came back').not.toBe('none');
   });

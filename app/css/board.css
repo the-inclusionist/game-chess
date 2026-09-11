@@ -222,22 +222,22 @@
    */
   /*
    * ⚠️ `display: flex` BEATS `[hidden]`, AND THIS IS THE LINE THAT WAS MISSING. The UA sheet says
-   * `[hidden] { display: none }` at lower specificity than any class, so a `.hud` set to
+   * `[hidden] { display: none }` at lower specificity than any class, so a `.chess-hud` set to
    * `hidden = true` by the shell stayed exactly where it was — 360x720 of controls, on screen,
    * during every lesson, pushing the lesson menu below the fold.
    *
    * The trap was known: `.chess-pause`, `.lesson-menu`, `.lesson-panel`, `.lesson-nudge`,
    * `.lesson-options`, `.lesson-teacher-why` and `.blunder-bar` all carry this line, and the
-   * comment beside the blunder bar spells out why. `.hud` — the one element the teaching mode
+   * comment beside the blunder bar spells out why. `.chess-hud` — the one element the teaching mode
    * actually hides — did not.
    *
    * ⚠️ AND NO TEST COULD SEE IT. The browser suite builds its DOM by hand and this stylesheet is a
    * `<link>` in the three HTML pages, so `hud.root.hidden` read `true` and every assertion agreed.
    * Nothing was measuring what was on the screen.
    */
-  .hud[hidden] { display: none; }
+  .chess-hud[hidden] { display: none; }
 
-  .hud {
+  .chess-hud {
     width: 100%;
     height: 100%;
     box-sizing: border-box;
@@ -277,7 +277,7 @@
    * A list of classes is a copy of the data: every new button has to remember to join it, and the
    * one that forgot was invisible because the other six were right. Stated once, over the element.
    */
-  .hud button { min-height: var(--tap, 44px); }
+  .chess-hud button { min-height: var(--tap, 44px); }
 
   .hud-views { display: flex; gap: 2px; }
   .hud-view {
@@ -305,11 +305,11 @@
     color: #000000; background: #FFFFFF;
   }
 
-  .hud h2 {
+  .chess-hud h2 {
     margin: 0; font-size: 0.75em; font-weight: 600;
     color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.04em;
   }
-  .hud p { margin: 0; }
+  .chess-hud p { margin: 0; }
   .hud-turn { display: flex; align-items: center; gap: 0.4em; font-weight: 600; }
   .hud-swatch { flex: 0 0 auto; width: 0.8em; height: 0.8em; border: 1px solid #0b0f14; }
   .hud-swatch[data-side="w"] { background: var(--focus); }
@@ -412,7 +412,7 @@
   /*
    * ========================= THE LESSON PANEL =========================
    * Modelled on the blunder bar below it and deliberately calmer: teaching colours, not warning
-   * ones. Same `position: relative; z-index` for the same measured reason — `.hud` is absolutely
+   * ones. Same `position: relative; z-index` for the same measured reason — `.chess-hud` is absolutely
    * positioned, so an unpositioned sibling paints underneath it however the source order reads,
    * and half the buttons would simply not be there to click.
    */
@@ -617,7 +617,7 @@
   .blunder-bar {
     /*
      * ⚠️ POSITIONED, and that is the whole reason for these two lines. The bar comes after the
-     * board in the document, so it ought to paint on top of it — but `.hud` is
+     * board in the document, so it ought to paint on top of it — but `.chess-hud` is
      * `position: absolute`, and a positioned element paints above every non-positioned one in the
      * same stacking context whatever the source order says. The bar was being drawn UNDER the
      * side panel: half of "carry on anyway" was simply not there to click.
@@ -700,7 +700,7 @@
     font-size: calc(var(--ui-fs, 16px) * 0.72);
     line-height: 1.2;
   }
-  /* ⚠️ The same trap as `.hud`: without this, `hidden` is a property nothing can see. */
+  /* ⚠️ The same trap as `.chess-hud`: without this, `hidden` is a property nothing can see. */
   .board-players[hidden] { display: none; }
 
   .player-strip {
@@ -805,7 +805,7 @@
   .hud-nav button:hover:not(:disabled) { background: var(--surface-high); }
   .hud-nav button:disabled { opacity: 0.45; cursor: default; }
   .hud-nav-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .hud label { display: block; font-size: 0.75em; color: var(--ink-dim); }
+  .chess-hud label { display: block; font-size: 0.75em; color: var(--ink-dim); }
 
   /*
    * ========================= TWO OR THREE OPTIONS ARE BUTTONS =========================
@@ -861,14 +861,14 @@
   /* --tap is 22*k, which is 44px at the k=2 floor: the WCAG 2.5.5 target size, inherited.
      The font shrinks but the TARGET does not — "Correção deuteranopia" has to fit in 176px
      without the control becoming harder to hit. */
-  .hud select {
+  .chess-hud select {
     width: 100%; min-height: var(--tap, 44px);
     font: inherit; font-size: 0.8em;
     text-overflow: ellipsis;
   }
 
   /*
-   * ⚠️ `.hud .hud-check`, NOT `.hud-check`, AND THAT IS THE WHOLE BUG. `.hud label` above is
+   * ⚠️ `.chess-hud .hud-check`, NOT `.hud-check`, AND THAT IS THE WHOLE BUG. `.chess-hud label` above is
    * `display: block` — correct for the label that sits ABOVE a select, which is most of them — and
    * it scores (0,1,1) against this rule's (0,1,0). So the override lost every time the label was
    * inside the HUD, and the one switch that lives there drew its box on one line with a full-width
@@ -876,12 +876,12 @@
    *
    * The other three switches — reduced motion, the outline, the coordinates — are identical markup
    * and looked fine, purely because `ui/hud.ts` hands their container to the PAUSE MENU, outside
-   * `.hud`, where nothing was overriding them. Same class, same intent, two different outcomes
+   * `.chess-hud`, where nothing was overriding them. Same class, same intent, two different outcomes
    * decided by where the element happened to be mounted.
    */
   .hud-check,
-  .hud .hud-check { display: inline; font-size: 0.8em; color: var(--ink); margin-left: 0.4em; }
-  .hud input[type="checkbox"] {
+  .chess-hud .hud-check { display: inline; font-size: 0.8em; color: var(--ink); margin-left: 0.4em; }
+  .chess-hud input[type="checkbox"] {
     width: calc(var(--tap, 44px) * 0.4); height: calc(var(--tap, 44px) * 0.4);
     vertical-align: middle; accent-color: var(--focus);
   }
@@ -907,21 +907,21 @@
    * it is on — so a ring drawn ON them would need to contrast with white AND with the black
    * panel, which no single colour does. Two pixels out, it always sits on the panel.
    */
-  .hud a:focus-visible,
-  .hud button:focus-visible,
-  .hud select:focus-visible,
-  .hud input[type="checkbox"]:focus-visible {
+  .chess-hud a:focus-visible,
+  .chess-hud button:focus-visible,
+  .chess-hud select:focus-visible,
+  .chess-hud input[type="checkbox"]:focus-visible {
     outline: 3px solid var(--focus);
     outline-offset: 2px;
   }
-  #game-region[data-contrast="high"] .hud a:focus-visible,
-  #game-region[data-contrast="high"] .hud button:focus-visible,
-  #game-region[data-contrast="high"] .hud select:focus-visible,
-  #game-region[data-contrast="high"] .hud input[type="checkbox"]:focus-visible,
+  #game-region[data-contrast="high"] .chess-hud a:focus-visible,
+  #game-region[data-contrast="high"] .chess-hud button:focus-visible,
+  #game-region[data-contrast="high"] .chess-hud select:focus-visible,
+  #game-region[data-contrast="high"] .chess-hud input[type="checkbox"]:focus-visible,
   #game-region[data-contrast="high"] .hud-choice input:focus-visible + label {
     outline-color: #FFFFFF;
   }
-  #game-region[data-contrast="high"] .hud legend { color: #FFFFFF; }
+  #game-region[data-contrast="high"] .chess-hud legend { color: #FFFFFF; }
 
   /*
    * ⚠️ THE ON STATE OF THE TEACHER SWITCH WAS SURVIVING BY ACCIDENT. `[aria-pressed="true"]`
@@ -939,11 +939,11 @@
   }
 
   /* The panel switches with the board: same surface, same eye. */
-  #game-region[data-contrast="high"] .hud {
+  #game-region[data-contrast="high"] .chess-hud {
     background: #000000; color: #FFFFFF; border-left-color: #FFFFFF;
   }
-  #game-region[data-contrast="high"] .hud h2,
-  #game-region[data-contrast="high"] .hud label { color: #FFFFFF; }
+  #game-region[data-contrast="high"] .chess-hud h2,
+  #game-region[data-contrast="high"] .chess-hud label { color: #FFFFFF; }
   #game-region[data-contrast="high"] .hud-nav button {
     color: #FFFFFF; background: #000000; border-color: #FFFFFF;
   }
@@ -1067,7 +1067,7 @@
    * sends `info` many times a second, and announcing that would drown the move announcements that
    * actually matter.
    */
-  /* ⚠️ The same trap as `.hud`: without this, `hidden` is a property nothing can see. */
+  /* ⚠️ The same trap as `.chess-hud`: without this, `hidden` is a property nothing can see. */
   .thinking[hidden] { display: none; }
 
   .thinking {

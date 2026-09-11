@@ -59,8 +59,8 @@ describe('[Boot] the composition root actually composes', () => {
      * holds both. Asserting through the stage is asserting the thing that is still true: the panel
      * reached the document.
      */
-    expect(document.querySelector('#stage .hud')).not.toBeNull();
-    expect(region?.querySelector('.hud')).toBeNull();
+    expect(document.querySelector('#stage .chess-hud')).not.toBeNull();
+    expect(region?.querySelector('.chess-hud')).toBeNull();
   });
 
   it('starts from the opening position, drawn', () => {
@@ -109,8 +109,8 @@ describe('[Boot] the flat composition root composes too', () => {
      * holds both. Asserting through the stage is asserting the thing that is still true: the panel
      * reached the document.
      */
-    expect(document.querySelector('#stage .hud')).not.toBeNull();
-    expect(region?.querySelector('.hud')).toBeNull();
+    expect(document.querySelector('#stage .chess-hud')).not.toBeNull();
+    expect(region?.querySelector('.chess-hud')).toBeNull();
     // The whole point of the second entry: this view never builds a renderer.
     expect(region?.querySelector('canvas')).toBeNull();
   });
@@ -168,8 +168,8 @@ describe('[Boot] the solid composition root composes too', () => {
      * holds both. Asserting through the stage is asserting the thing that is still true: the panel
      * reached the document.
      */
-    expect(document.querySelector('#stage .hud')).not.toBeNull();
-    expect(region?.querySelector('.hud')).toBeNull();
+    expect(document.querySelector('#stage .chess-hud')).not.toBeNull();
+    expect(region?.querySelector('.chess-hud')).toBeNull();
   });
 
   it('starts from the opening position', () => {

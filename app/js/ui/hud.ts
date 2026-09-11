@@ -204,7 +204,23 @@ export function createHud(deps: HudDeps): Hud {
   const { doc, i18n, rules, state } = deps;
 
   const root = doc.createElement('div');
-  root.className = 'hud';
+  /*
+   * ⚠️ `chess-hud` AND NOT `hud`, FOR THE SAME REASON `chess-pause` IS NOT `pause-menu`, and this
+   * one would have been the more expensive collision of the two. The engine's own stylesheet — the
+   * one this game is about to import, so that the accessibility bar it mounts looks like something
+   * — carries four rules on `.hud`, and two of them are not cosmetic:
+   *
+   *   · `.hud{max-width:1000px;margin:0 auto;padding:0 1rem .5rem;display:flex;gap:1.5rem;
+   *     flex-wrap:wrap}` — a centred, wrapping ROW, applied to a panel that is a measured 280x360
+   *     COLUMN.
+   *   · `body.blind-mode .hud{visibility:hidden}` — so turning blind mode on, from the very bar
+   *     being adopted to offer it, would make this game's whole side panel disappear.
+   *
+   * Two projects named their panel the same thing; the shared vocabulary is the engine's, so this
+   * is the side that moves. Only the bare class changes — the `hud-*` children collide with
+   * nothing and keep their names, which is what keeps the diff readable.
+   */
+  root.className = 'chess-hud';
 
   // --- the three views ---------------------------------------------------------
   // ========================= LINKS, NOT BUTTONS =========================
@@ -474,7 +490,7 @@ export function createHud(deps: HudDeps): Hud {
   const protectedLabel = doc.createElement('label');
   protectedLabel.htmlFor = protectedInput.id;
   /*
-   * ⚠️ THE CLASS GOES ON THE LABEL, NOT ON THE BOX, and it was on the box. `.hud label` is
+   * ⚠️ THE CLASS GOES ON THE LABEL, NOT ON THE BOX, and it was on the box. `.chess-hud label` is
    * `display: block` — right for the labels above a `select`, which is most of them — and
    * `.hud-check` is the override that puts a checkbox's label back on the same line as its box.
    * Sitting on the wrapper it overrode nothing, so this one switch drew its box on one line and a

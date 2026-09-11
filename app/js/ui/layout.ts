@@ -239,7 +239,7 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
    * ⚠️ `--hud-fs` USED TO BE SET HERE AND WAS READ BY NOTHING. It came in with this file,
    * which started as the engine's own `ui/layout.ts`, and there it is real: the engine's
    * stylesheet sizes `#game-hud` and `.vphud-quit` from it. This game has neither element and
-   * never loads that stylesheet — our panel is `.hud` in `#side-column` and takes `--ui-fs`.
+   * never loads that stylesheet — our panel is `.chess-hud` in `#side-column` and takes `--ui-fs`.
    *
    * It is the same shape as the 27.5% HUD column that caused this whole review: a number computed
    * every layout pass for a consumer that moved out. The only thing reading it was a test asking

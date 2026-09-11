@@ -18,7 +18,7 @@
 // same reason it was in the dropdown: it has to survive being read aloud. WCAG 1.4.1.
 //
 // ========================= ⚠️ MEASURED, AND CURRENTLY TOO NARROW =========================
-// This column inherits `.hud`'s 27.5% of the board, which is 176 px against a 640-px region. With
+// This column inherits `.chess-hud`'s 27.5% of the board, which is 176 px against a 640-px region. With
 // the lesson in it, the content measures 875 px tall in 357 px of height — the sentence alone
 // takes 173 — so it scrolls, and a child reads a lesson through a slot.
 //
