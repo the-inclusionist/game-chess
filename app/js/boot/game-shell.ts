@@ -79,8 +79,19 @@ import { createPlayerStrips } from '../ui/player-strip.ts';
 import { createScoreboard } from '../ui/scoreboard.ts';
 import { createSplash } from '../ui/splash.ts';
 import { createThinkingPanel } from '../ui/thinking.ts';
+import { hintParts, keyLabel } from '../ui/key-hints.ts';
 import { announceActivation, announceMove, announceOutcome } from './narration.ts';
 import type { BoardView, ViewFactory } from './view.ts';
+
+/**
+ * The sonar's key, in ONE place.
+ *
+ * ⚠️ IT WAS IN TWO, AND THE TWO WERE THE KEYDOWN AND THE LINE THAT ADVERTISES IT — the exact pair
+ * that has already gone wrong here once, when the hint line announced keys the handler no longer
+ * answered to. It is a literal rather than an action because engine 8 has no action that fits: see
+ * the comment on the branch that reads it.
+ */
+const SONAR_CODE = 'KeyL';
 
 export interface GameShellDeps {
   readonly host: Document;
@@ -1151,24 +1162,21 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     const line = host.querySelector('.hint');
     if (!line) return;
     line.replaceChildren();
-    const parts: readonly (readonly [string, string])[] = [
-      ['WASD', 'keys.move'],
-      ['J', 'keys.select'],
-      ['K', 'keys.cancel'],
-      ['U', 'keys.teacher'],
-      ['I', 'keys.panel'],
-      ['L', 'keys.sonar'],
-      ['H', 'keys.pause'],
-    ];
     /*
+     * ⚠️ DERIVED FROM THE SCHEME, NOT TYPED. This was a table of letters — `WASD`, `J`, `K`, `U`,
+     * `I`, `L`, `H` — and every one of them is remappable, so the line promised keys it had no way
+     * of knowing were still bound. It is the same defect `4345f66` fixed from the other side: that
+     * one stopped the WORDS being hard-coded and left the KEYS hard-coded.
+     *
      * ⚠️ THE CAMERA HINTS BELONG TO THE VIEWS THAT HAVE A CAMERA, and they used to be typed into
      * two of the three HTML files by hand — which is how the flat page nearly ended up advertising
-     * a board it cannot turn.
+     * a board it cannot turn. They ride the same four direction keys, so they are derived too.
      */
-    const camera: readonly (readonly [string, string])[] = deps.kind === '2d'
-      ? []
-      : [['⇧ + WASD', 'keys.turn'], ['⇧ + / −', 'keys.zoom']];
-    [...parts, ...camera].forEach(([key, label], index) => {
+    const parts = hintParts(engine.keyboard.kbFor(0), {
+      camera: deps.kind !== '2d',
+      sonar: keyLabel(SONAR_CODE),
+    });
+    parts.forEach(([key, label], index) => {
       if (index > 0) line.append(' · ');
       const kbd = host.createElement('kbd');
       kbd.textContent = key;
@@ -1342,14 +1350,22 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     /*
      * ⚠️ `especial` IS NOT BOUND TO ANY KEY, and the sonar was therefore unreachable. The engine's
      * solo scheme carries up/down/left/right, action1-4, the shoulders, start and select — and
-     * nothing else. `especial` is the slot a game may define, and this game never defined it: the
-     * sonar moved there when a bare `s` was found colliding with `down`, and moving it there is
-     * what silently switched it off.
+     * nothing else. The sonar moved to `especial` when a bare `s` was found colliding with `down`,
+     * and moving it there is what silently switched it off.
      *
-     * Asked of the running page rather than read off the table. So the key is NAMED here, the way
-     * the pause key is, and `especial` is still honoured for the day the engine binds it.
+     * ⚠️ AND THE OLD HOPE HERE — "`especial` is still honoured for the day the engine binds it" —
+     * IS A DAY THAT WILL NOT COME, which is worth writing rather than leaving as a wait. Measured
+     * on 8.0.0: `especial` appears in the engine's whole shipped `core/actions` exactly once, in a
+     * comment listing the names that were REPLACED (`jump`, `run`, `swap`, `especial`). It is not a
+     * slot a game may define; it is vocabulary from before the canonical list existed. The branch
+     * is gone with it, and the sonar reaches the board by the literal key alone.
+     *
+     * 📌 WHICH MEANS THE SONAR IS THE ONE CONTROL HERE THAT CANNOT BE REMAPPED, and that is a real
+     * gap rather than a tidy ending: remapping is an accessibility feature, and this is a key a
+     * blind player depends on. Closing it means choosing one of the canonical verbs to carry it —
+     * a choice with a name a child will read, so it is not one to make silently.
      */
-    if (action === 'especial' || event.code === 'KeyL') {
+    if (event.code === SONAR_CODE) {
       engine.sonar.sonar({ i: 0, x: cursor.x, y: cursor.y });
       event.preventDefault();
       return;
