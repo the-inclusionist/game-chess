@@ -1481,3 +1481,36 @@ describe('[Menu nav] the engine never takes the board keys', () => {
     card.hidden = true;
   });
 });
+
+describe('[Sonar] the key a player who cannot see the board depends on', () => {
+  it('⚠️ KeyL reaches the sonar through the engine, not through a literal', () => {
+    /*
+     * ========================= THE PATH THAT HAD NO TEST AT ALL =========================
+     * The sonar answered `event.code === 'KeyL'` for as long as no engine action carried it. It is
+     * on a canonical slot now — `declaration.mapeamentoDoTeclado` binds `SONAR_ACTION` to `KeyL`
+     * for seat 0 — which is what makes it remappable, and also what makes it able to die quietly:
+     * if that mapping ever fails to land, `actionOf` answers null, the branch never runs, and the
+     * only symptom is a key that stopped working for the player least able to report why.
+     *
+     * The assertion is that the event was CONSUMED, which is reachable without the engine handle
+     * and is not accidental: with the mapping gone the branch does not fire, nothing else claims
+     * `KeyL`, and the fake view has no `onKey` — so the event would come back unconsumed.
+     */
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    createGameShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: '__sonarTest', contrastTheme: 'contrast-flat',
+    });
+
+    const region = document.getElementById('game-region')!;
+    region.focus();
+    const event = new KeyboardEvent('keydown', {
+      code: 'KeyL', key: 'l', bubbles: true, cancelable: true,
+    });
+    region.dispatchEvent(event);
+
+    expect(event.defaultPrevented, 'the sonar key was answered').toBe(true);
+  });
+});

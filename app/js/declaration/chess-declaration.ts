@@ -54,6 +54,16 @@ export interface DeclarationDeps {
   readonly playerSide?: 'w' | 'b';
 }
 
+/**
+ * The canonical action this game puts the sonar on, named ONCE.
+ *
+ * ⚠️ THE MAPPING AND THE HANDLER ARE THE PAIR THAT HAS ALREADY DRIFTED HERE. The declaration below
+ * binds it to a key, the shell's keydown answers it, and the hint line advertises it: three places
+ * that must agree about one slot, which is exactly the shape that produced a line announcing keys
+ * the handler no longer listened to. One constant, imported by all three.
+ */
+export const SONAR_ACTION = 'leftTrigger';
+
 export function createChessDeclaration(deps: DeclarationDeps): GameDeclaration {
   const { rules, state, i18n } = deps;
   const mine = deps.playerSide ?? 'w';
@@ -154,6 +164,34 @@ export function createChessDeclaration(deps: DeclarationDeps): GameDeclaration {
      * is indistinguishable from a game nobody asked.
      */
     needsPointer: () => false,
+
+    /**
+     * THE SONAR GETS A CANONICAL SLOT, so that it can be remapped like everything else.
+     *
+     * ⚠️ IT WAS THE ONE CONTROL HERE THAT COULD NOT BE, and that is the wrong one to leave out:
+     * remapping is an accessibility feature, and this is the key a player who cannot see the board
+     * depends on. It used to ride an intent called `especial`, which engine 8's canonical list does
+     * not contain — the name survives there in a single comment, listing what was replaced — so
+     * what reached the sonar was a literal `KeyL` in the shell's keydown, unbindable and unmovable.
+     *
+     * ⚠️ `leftTrigger` IS AN ARBITRARY CHOICE AMONG FOUR, and saying so is better than inventing a
+     * reason. The measured solo scheme leaves `leftShoulder`, `leftTrigger`, `rightShoulder` and
+     * `rightTrigger` unused by this game, which uses only the four directions, `action1`..`action4`
+     * and `start`. Any of them would do; what matters is that the sonar is now a position the
+     * engine knows about instead of a key nobody can move.
+     *
+     * 📌 AND THE SLOT'S NAME IS NOT WHAT ANYONE READS. The word a child sees for an action comes
+     * from the game, through `ActionWord.label` — the engine's own comment on that type is
+     * "NUNCA `action2` — nome abstrato que chega a uma pessoa é defeito". This root does not even
+     * build that translator; it reads a preset only to count how many actions a device must reach.
+     *
+     * Seat 0 only. In a hot seat the second player's scheme lives on the other side of the
+     * keyboard, and handing both seats the same physical key would be a collision rather than a
+     * convenience — the sonar speaks about the cursor, and there is one cursor.
+     */
+    mapeamentoDoTeclado: (_jogadores: number, assento: number) => (
+      assento === 0 ? { [SONAR_ACTION]: ['KeyL'] } : null
+    ),
 
     tick: 'player',
 

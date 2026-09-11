@@ -28,7 +28,7 @@
 import { createGame } from '@the-inclusionist/engine';
 import { srAlert, srSay } from '@the-inclusionist/engine/core/a11y-sr.js';
 import { VIZ_FILTER } from '@the-inclusionist/engine/render/viz-modes.js';
-import { createChessDeclaration } from '../declaration/chess-declaration.ts';
+import { createChessDeclaration, SONAR_ACTION } from '../declaration/chess-declaration.ts';
 import type { Suggestion } from '../chess/engine/client.ts';
 import { createStockfishClient, type StockfishClient } from '../chess/engine/stockfish-client.ts';
 import { preloadEngine } from '../chess/engine/preload.ts';
@@ -79,19 +79,9 @@ import { createPlayerStrips } from '../ui/player-strip.ts';
 import { createScoreboard } from '../ui/scoreboard.ts';
 import { createSplash } from '../ui/splash.ts';
 import { createThinkingPanel } from '../ui/thinking.ts';
-import { hintParts, keyLabel } from '../ui/key-hints.ts';
+import { hintParts } from '../ui/key-hints.ts';
 import { announceActivation, announceMove, announceOutcome } from './narration.ts';
 import type { BoardView, ViewFactory } from './view.ts';
-
-/**
- * The sonar's key, in ONE place.
- *
- * ⚠️ IT WAS IN TWO, AND THE TWO WERE THE KEYDOWN AND THE LINE THAT ADVERTISES IT — the exact pair
- * that has already gone wrong here once, when the hint line announced keys the handler no longer
- * answered to. It is a literal rather than an action because engine 8 has no action that fits: see
- * the comment on the branch that reads it.
- */
-const SONAR_CODE = 'KeyL';
 
 export interface GameShellDeps {
   readonly host: Document;
@@ -1174,7 +1164,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
      */
     const parts = hintParts(engine.keyboard.kbFor(0), {
       camera: deps.kind !== '2d',
-      sonar: keyLabel(SONAR_CODE),
+      sonar: SONAR_ACTION,
     });
     parts.forEach(([key, label], index) => {
       if (index > 0) line.append(' · ');
@@ -1354,18 +1344,21 @@ export function createGameShell(deps: GameShellDeps): GameShell {
      * and moving it there is what silently switched it off.
      *
      * ⚠️ AND THE OLD HOPE HERE — "`especial` is still honoured for the day the engine binds it" —
-     * IS A DAY THAT WILL NOT COME, which is worth writing rather than leaving as a wait. Measured
-     * on 8.0.0: `especial` appears in the engine's whole shipped `core/actions` exactly once, in a
-     * comment listing the names that were REPLACED (`jump`, `run`, `swap`, `especial`). It is not a
-     * slot a game may define; it is vocabulary from before the canonical list existed. The branch
-     * is gone with it, and the sonar reaches the board by the literal key alone.
+     * WAS A DAY THAT WAS NEVER COMING. Measured on 8.0.0: `especial` appears in the engine's whole
+     * shipped `core/actions` exactly once, in a comment listing the names that were REPLACED
+     * (`jump`, `run`, `swap`, `especial`). It is not a slot a game may define; it is vocabulary
+     * from before the canonical list existed.
      *
-     * 📌 WHICH MEANS THE SONAR IS THE ONE CONTROL HERE THAT CANNOT BE REMAPPED, and that is a real
-     * gap rather than a tidy ending: remapping is an accessibility feature, and this is a key a
-     * blind player depends on. Closing it means choosing one of the canonical verbs to carry it —
-     * a choice with a name a child will read, so it is not one to make silently.
+     * ✅ SO THE GAME GAVE THE SONAR A SLOT OF ITS OWN. `declaration.mapeamentoDoTeclado` binds
+     * `SONAR_ACTION` to `KeyL` for seat 0, which leaves the key exactly where every player already
+     * expects it and makes it REMAPPABLE — the one control here that was not, and the wrong one to
+     * leave out, since it is the key a player who cannot see the board depends on.
+     *
+     * 📌 The physical code is gone from this branch on purpose. It was the last place in the game
+     * that answered a key rather than an intent, and the pair "handler tests a code / hint line
+     * prints a letter" is exactly what produced a line advertising keys nothing listened to.
      */
-    if (event.code === SONAR_CODE) {
+    if (action === SONAR_ACTION) {
       engine.sonar.sonar({ i: 0, x: cursor.x, y: cursor.y });
       event.preventDefault();
       return;

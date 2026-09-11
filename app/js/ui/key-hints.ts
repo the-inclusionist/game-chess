@@ -51,7 +51,10 @@ export type Hint = readonly [key: string, label: string];
  * the previous version printed seven keys whatever the scheme said, so a binding that had been
  * cleared still had a letter under the board promising it. Silence is honest; a promise is not.
  */
-export function hintParts(scheme: KeyScheme, opts: { readonly camera: boolean; readonly sonar: string | null }): readonly Hint[] {
+export function hintParts(
+  scheme: KeyScheme,
+  opts: { readonly camera: boolean; readonly sonar: keyof KeyScheme | null },
+): readonly Hint[] {
   const parts: Hint[] = [];
 
   /*
@@ -75,13 +78,20 @@ export function hintParts(scheme: KeyScheme, opts: { readonly camera: boolean; r
   }
 
   /*
-   * ⚠️ THE SONAR IS PASSED IN, BECAUSE IT IS NOT AN ACTION AND SAYING SO IS THE POINT. It used to
-   * ride the `especial` intent; engine 8's canonical list has no such name — `especial` survives in
-   * one historical comment there and nowhere else — so the only thing that reaches the sonar is the
-   * literal key the shell still tests for. Deriving it from the scheme would print nothing at all,
-   * and printing nothing would hide a key that works.
+   * ⚠️ THE SONAR IS PASSED IN AS AN ACTION, NOT AS A LETTER, and the difference is the whole repair.
+   * This argument was a literal `'L'` for as long as the sonar rode a key the engine did not know
+   * about: it used to be the `especial` intent, which engine 8's canonical list does not contain,
+   * so nothing bound it and the shell tested the physical code instead. The game now declares the
+   * sonar on a canonical slot, so it derives here like every other entry — and follows a remapping
+   * the same way.
+   *
+   * It stays a PARAMETER rather than a constant in this file because which slot carries the sonar
+   * is the game's decision, and this module is about the derivation.
    */
-  if (opts.sonar) parts.push([opts.sonar, 'keys.sonar']);
+  if (opts.sonar) {
+    const key = firstKey(scheme, opts.sonar);
+    if (key) parts.push([key, 'keys.sonar']);
+  }
 
   const pause = firstKey(scheme, 'start');
   if (pause) parts.push([pause, 'keys.pause']);

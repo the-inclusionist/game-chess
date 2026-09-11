@@ -17,6 +17,12 @@ const MEASURED: KeyScheme = {
   start: ['KeyH', 'Enter'], select: ['KeyF'],
 } as unknown as KeyScheme;
 
+/**
+ * The same scheme after this game's own `mapeamentoDoTeclado` lands: the sonar moves onto a
+ * canonical slot, which is what makes it remappable and what lets this line derive it like the rest.
+ */
+const OURS: KeyScheme = { ...MEASURED, leftTrigger: ['KeyL'] } as unknown as KeyScheme;
+
 const line = (parts: readonly (readonly [string, string])[]): string =>
   parts.map(([key, label]) => `${key}=${label}`).join(' · ');
 
@@ -45,7 +51,7 @@ describe('[Key hints] the line follows the scheme, which is the point', () => {
   it('reproduces the hand-written line from the measured defaults', () => {
     // The seven entries this line carried as literals, now derived from the same scheme the game
     // resolves keys through. If the two ever disagree, the literals were the ones that were wrong.
-    expect(line(hintParts(MEASURED, { camera: false, sonar: 'L' })))
+    expect(line(hintParts(OURS, { camera: false, sonar: 'leftTrigger' })))
       .toBe('WASD=keys.move · J=keys.select · K=keys.cancel · U=keys.teacher · I=keys.panel · L=keys.sonar · H=keys.pause');
   });
 
@@ -55,22 +61,22 @@ describe('[Key hints] the line follows the scheme, which is the point', () => {
      * press H, in her own language, by a line that had been translated with care and never asked
      * what the keys were.
      */
-    const remapped = { ...MEASURED, start: ['KeyP'], action2: ['KeyZ'] } as unknown as KeyScheme;
-    expect(line(hintParts(remapped, { camera: false, sonar: 'L' })))
+    const remapped = { ...OURS, start: ['KeyP'], action2: ['KeyZ'] } as unknown as KeyScheme;
+    expect(line(hintParts(remapped, { camera: false, sonar: 'leftTrigger' })))
       .toBe('WASD=keys.move · Z=keys.select · K=keys.cancel · U=keys.teacher · I=keys.panel · L=keys.sonar · P=keys.pause');
   });
 
   it('⚠️ an action that reaches no key is not advertised', () => {
     // Silence is honest; a promise is not. `null` is what the engine's own boot scheme is made of
     // — every action to null — so this is a state the game really passes through.
-    const bare = { ...MEASURED, action1: null, start: [] } as unknown as KeyScheme;
+    const bare = { ...OURS, action1: null, start: [] } as unknown as KeyScheme;
     const out = line(hintParts(bare, { camera: false, sonar: null }));
     expect(out).toBe('WASD=keys.move · J=keys.select · K=keys.cancel · I=keys.panel');
   });
 
   it('the camera rides the same four keys, and only where there is a camera', () => {
-    const flat = hintParts(MEASURED, { camera: false, sonar: 'L' });
-    const solid = hintParts(MEASURED, { camera: true, sonar: 'L' });
+    const flat = hintParts(OURS, { camera: false, sonar: 'leftTrigger' });
+    const solid = hintParts(OURS, { camera: true, sonar: 'leftTrigger' });
     expect(solid.length - flat.length).toBe(2);
     expect(solid[solid.length - 2]?.[0]).toBe('⇧ + WASD');
   });
