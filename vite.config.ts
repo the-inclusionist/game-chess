@@ -2,11 +2,19 @@ import { defineConfig } from 'vitest/config'; // not 'vite': vitest/config is wh
 import { fileURLToPath } from 'node:url';
 import { playwright } from '@vitest/browser-playwright';
 
-// ============================ THE ENGINE IS A LINKED DEPENDENCY ============================
-// `file:../SP-the-inclusionist-tracer` makes npm symlink the engine into node_modules. Vite does
-// not pre-bundle linked packages, which is exactly what this needs: the engine's `exports` map
-// points at raw `.ts`, and those sources must go through the normal transform pipeline.
-// `exclude` states that rather than relying on it happening. Proved in docs/spike-1.
+// ========================== THE ENGINE COMES FROM THE REGISTRY ==========================
+// ⚠️ THIS PARAGRAPH DESCRIBED A SYMLINK THAT NO LONGER EXISTS. It read: "`file:../SP-the-
+// inclusionist-tracer` makes npm symlink the engine into node_modules… the engine's `exports` map
+// points at raw `.ts`, and those sources must go through the normal transform pipeline". Both
+// halves are now false. The dependency is `@the-inclusionist/engine@^8.0.0` from npm, and the
+// published `exports` map points at built `dist-pkg/*.js` — there is no TypeScript to transform.
+//
+// ⚠️ `exclude` IS KEPT, AND KEPT WITHOUT A MEASUREMENT TO JUSTIFY IT — which is the honest state
+// and is why it is written down. Its original reason is gone with the symlink; whether pre-bundling
+// the published package would now be better, worse or identical has not been tested. What argues
+// against finding out casually is the record: this repository has already paid for browser-suite
+// intermittency caused by dependency discovery mid-run (see `include: ['zdog']` below), so changing
+// how the engine is served is a change that needs its own run and its own evidence, not a tidy-up.
 //
 // One consequence worth knowing: `dist/` carries a 26.8 MB WASM asset, the ONNX runtime behind the
 // engine's neural voice. It is reached through a dynamic import gated on an engine selection that
