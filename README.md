@@ -128,8 +128,19 @@ directions of the take-back.
 ## The controls
 
 Movement is arrows **or** WASD; the rest are the engine's remappable intents, so a saved remapping
-travels. The hint line under the board is built from the catalogue at run time and follows a change
-of language.
+travels. The hint line lives in the **pause menu's footer** — a control list belongs beside the
+controls, and under the board it sat outside the sixteen-by-nine stage.
+
+**The line is derived, not typed.** Both halves of it: the words come from the catalogue and follow
+a change of language, and the keys come from `kbFor(0)` — the same object a remapping writes into —
+so a player who moves the pause key to P is told to press P. It printed seven fixed letters until
+2026-09-11, which meant a remapped game had a line politely translated into a lie.
+
+⚠️ **The sonar is the exception, and it is a gap rather than a design.** `L` is a literal in the
+code, because the intent it used to ride (`especial`) is not in engine 8's vocabulary at all — the
+name survives there in one comment, listing what was replaced. So it is the one control here that
+cannot be remapped, which is worth knowing precisely because it is the key a player who cannot see
+the board depends on.
 
 | | |
 |---|---|
@@ -152,6 +163,19 @@ answer the exercise.
 Everything below the game comes from `@the-inclusionist/engine` through a single `createGame()`
 call: screen reader, colour-vision filters, remappable input as intent, dialog stack, menu
 navigation, typography, text-to-speech, and blind-navigation sonar.
+
+**The accessibility bar sits at the top of the side panel**, and the engine mounts it: blind mode,
+text-to-speech, Libras, and a calm mode, as labelled buttons in the tab order. It is a sibling of
+the panel rather than a child, so a lesson hiding the panel cannot take it away — a control that
+disappears while a child is being asked to concentrate is worse than no control.
+
+⚠️ **It arrived on 2026-09-11, and what it replaced was nothing at all.** Searched before it was
+built: this game exposed no switch for blind mode, none for text-to-speech, and the word Libras
+appeared nowhere in `app/`. The sonar was reachable only by knowing the `L` key. Every display
+setting it did offer was behind a pause menu, which was behind knowing that START opens one — so a
+child who needed the screen reader in order to begin could not reach the thing that would read it.
+The engine had been reporting the absence by name since 8.0.0; five of the six games in its local
+catalogue had the same hole.
 
 **The seven fields of the engine's contract carry chess directly** — `app/js/declaration/`. An
 empty square the opponent covers declares itself `hazard`, which is what makes the sonar warn about
@@ -199,7 +223,12 @@ npm run validate
 ```
 
 `validate` is `tsc --noEmit` → `vitest run` (node + Chromium) → `vite build`, and all three must be
-clean. Node ≥ 24. The floor is **801 tests across 49 files**.
+clean. Node ≥ 24. The floor is **896 tests across 56 files**.
+
+The engine is a published dependency — `@the-inclusionist/engine@^8.0.0` from npm, with `pixi.js`
+arriving as its declared peer. It used to be a `file:` link to a sibling checkout, which stopped
+resolving the day that directory was renamed: the repository did not install at all until the move
+to the registry on 2026-09-11.
 
 **The Vite dev server does not run in the sandbox** — dependency pre-bundling never completes.
 Build first, then serve `dist/` statically; the session's `.claude/launch.json` has a `chess-dist`
