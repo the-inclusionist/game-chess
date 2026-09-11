@@ -60,7 +60,22 @@ export function createPauseMenu(deps: PauseMenuDeps): PauseMenu {
   let opener: HTMLElement | null = null;
 
   const root = doc.createElement('div');
-  root.className = 'pause-menu';
+  /*
+   * ⚠️ `chess-pause` AND NOT `pause-menu`, AND THE RENAME IS A BUG FIX RATHER THAN A TIDY-UP. From
+   * engine 8.0.0 the accessibility bar and its pause card are mounted by `createGame` itself — the
+   * game no longer declines them, it says only WHERE — and that markup uses `class="pause-menu"`
+   * and `role="dialog"` for its own sub-menus, inside `#game-region`.
+   *
+   * `#game-region` comes before this menu in document order, so every `querySelector('.pause-menu')`
+   * and every `querySelector('[role="dialog"]')` in this repository started answering with the
+   * ENGINE's element. Nothing about this game's behaviour changed: the menu still opened, still
+   * closed on Escape, still trapped focus. Five tests failed because they were reading somebody
+   * else's element, which is the most expensive kind of green-to-red — the code is right and the
+   * question is wrong.
+   *
+   * A shared vocabulary is the engine's to define, so the fix is to stop squatting on it here.
+   */
+  root.className = 'chess-pause';
   root.setAttribute('role', 'dialog');
   root.setAttribute('aria-modal', 'true');
   root.hidden = true;

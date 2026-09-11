@@ -358,13 +358,13 @@ describe('[Keyboard] the keys work from where the splash leaves you', () => {
     const shell = shellFor();
     document.getElementById('game-region')!.focus();
     press('KeyH');
-    expect(document.querySelector<HTMLElement>('.pause-menu')!.hidden).toBe(false);
+    expect(document.querySelector<HTMLElement>('.chess-pause')!.hidden).toBe(false);
     press('Escape', 'Escape');
-    expect(document.querySelector<HTMLElement>('.pause-menu')!.hidden).toBe(true);
+    expect(document.querySelector<HTMLElement>('.chess-pause')!.hidden).toBe(true);
 
     document.getElementById('game-region')!.focus();
     press('Enter', 'Enter');
-    expect(document.querySelector<HTMLElement>('.pause-menu')!.hidden).toBe(false);
+    expect(document.querySelector<HTMLElement>('.chess-pause')!.hidden).toBe(false);
     expect(shell.region).toBeTruthy();
   });
 });
@@ -667,7 +667,13 @@ describe('[Pause] START opens the menu the settings were moved into', () => {
     });
   }
 
-  const dialog = (): HTMLElement | null => document.querySelector('[role="dialog"]');
+  /*
+   * ⚠️ THIS GAME'S DIALOG BY NAME, NOT "the dialog on the page". Since engine 8.0.0 there are two:
+   * `createGame` mounts the engine's own pause card — `role="dialog"`, inside `#game-region` — and
+   * `#game-region` comes first in document order, so a bare `[role="dialog"]` answered with the
+   * engine's card and every assertion below asked the wrong element about the right thing.
+   */
+  const dialog = (): HTMLElement | null => document.querySelector('.chess-pause');
 
   it('⚠️ carries every display setting the redesign moved there', () => {
     shellFor(false);
@@ -859,7 +865,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
    * controls, an engine evaluation and a difficulty selector, pushing the lesson panel below the
    * fold. `.hud` sets `display: flex`, and a class beats the UA sheet's `[hidden] { display: none }`.
    *
-   * The trap was known — `.pause-menu`, `.lesson-menu`, `.lesson-panel`, `.lesson-nudge`,
+   * The trap was known — `.chess-pause`, `.lesson-menu`, `.lesson-panel`, `.lesson-nudge`,
    * `.lesson-options`, `.lesson-teacher-why` and `.blunder-bar` all carry the guard, and the comment
    * beside the blunder bar spells out why. The one element the teaching mode actually hides did not.
    *
@@ -1120,7 +1126,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     document.getElementById('stage')!.dispatchEvent(new KeyboardEvent('keydown', {
       code: 'KeyH', key: 'h', bubbles: true, cancelable: true,
     }));
-    expect(document.querySelector('[role="dialog"]'), 'the pause menu opened').not.toBeNull();
+    expect(document.querySelector('.chess-pause'), 'the pause menu opened').not.toBeNull();
     expect(strays().join(', ')).toBe('');
     expect(shell).toBeTruthy();
   });
@@ -1225,7 +1231,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     expect(shown('.hud')).toBe('none');
 
     press('KeyH', 'h');
-    const quit = [...document.querySelectorAll('[role="dialog"] button')]
+    const quit = [...document.querySelectorAll('.chess-pause button')]
       .find((b) => /sair/i.test(b.textContent ?? ''));
     expect(quit, 'a way out of the lesson').toBeDefined();
     (quit as HTMLButtonElement).click();

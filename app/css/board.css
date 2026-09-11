@@ -226,7 +226,7 @@
    * `hidden = true` by the shell stayed exactly where it was — 360x720 of controls, on screen,
    * during every lesson, pushing the lesson menu below the fold.
    *
-   * The trap was known: `.pause-menu`, `.lesson-menu`, `.lesson-panel`, `.lesson-nudge`,
+   * The trap was known: `.chess-pause`, `.lesson-menu`, `.lesson-panel`, `.lesson-nudge`,
    * `.lesson-options`, `.lesson-teacher-why` and `.blunder-bar` all carry this line, and the
    * comment beside the blunder bar spells out why. `.hud` — the one element the teaching mode
    * actually hides — did not.
@@ -425,8 +425,8 @@
    * Over the region and only the region: the engine's own dialogs and the page chrome stay
    * reachable, which is what keeps a pause from being a trap.
    */
-  .pause-menu[hidden] { display: none; }
-  .pause-menu {
+  .chess-pause[hidden] { display: none; }
+  .chess-pause {
     position: absolute;
     inset: 0;
     z-index: 5;

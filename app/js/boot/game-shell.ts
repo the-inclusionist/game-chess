@@ -436,7 +436,21 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   const engine = createGame({
     declaration,
     host: { doc: host, win: window, cvdHost: host.getElementById('cvd') },
-    declines: { semMenuDePausa: true, semAssistenteDePad: true, semAtorDePausa: true },
+    /*
+     * ========================= WHAT THIS GAME DECLINES, AS 8.0.0 ASKS IT =========================
+     * ⚠️ `semMenuDePausa` IS GONE, AND ITS GOING IS A CHANGE OF QUESTION RATHER THAN A RENAME. Up to
+     * 7.x a game could decline the engine's pause menu; 8.0.0 dropped the field because the answer
+     * stopped being optional — the engine now mounts the card itself and asks only WHERE
+     * (`host.pauseHost`, defaulting to `#game-region`), pushing a `problems` entry when there is
+     * nowhere to put it. The card is born hidden and is revealed by whoever owns the phase, so this
+     * game's own pause menu stays the one a player sees.
+     *
+     * ⚠️ `semVozNeural` IS NEW, AND THE ENGINE NAMES THIS GAME IN THE FIELD'S OWN COMMENT: of six
+     * games in the local catalogue, three load a neural voice and three — soccer, whackwhack and
+     * this one — neither load it nor say so. There is no neural voice here and there was never a
+     * line saying it, which is the difference between declining and forgetting. This is the line.
+     */
+    declines: { semVozNeural: true, semAssistenteDePad: true, semAtorDePausa: true },
     /*
      * ⚠️ `viz: 'normal'` LEFT, and the absence is the news. The sonar no longer reads a visual mode
      * off the player: the engine's root answers `visaoComprometida` for it, from the two-axis
