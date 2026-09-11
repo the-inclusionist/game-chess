@@ -487,31 +487,25 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   const declaration = createChessDeclaration({
     rules: () => rules, state: () => game, i18n, playerSide, cursor: () => cursor,
   });
-  const engine = createGame({
+  /*
+   * ========================= THE DIVISION OF ADR-0139 §1, MADE EXPLICIT =========================
+   * `CreateGameOptions` splits in two, and the record's test for which half a field belongs to is
+   * whether a PAGE could answer it without knowing which game is running. The host's half describes
+   * the document and the device; the game's half is every field that is a callback INTO this game or
+   * a statement ABOUT it.
+   *
+   * ⚠️ WRITTEN OUT HERE BECAUSE THIS GAME IS GOING TO BE A CARTRIDGE, and a cartridge does not
+   * receive these options — it SUPPLIES this half and somebody else calls `createGame` once, for
+   * however many games share the page. Naming the half now, while the two are still adjacent, is how
+   * the split gets made from what the code already says instead of from a fresh design.
+   *
+   * 📌 `declines` STAYS ON THE HOST'S SIDE, and that is a reading rather than a decision: ADR-0139
+   * leaves its direction open, noting it reads as a statement about what a GAME does not have while
+   * `createGame` also returns a resolved `declines`. It is where it was; the record says to read the
+   * implementation before moving it.
+   */
+  const hooks = {
     declaration,
-    host: {
-      doc: host, win: window, cvdHost: host.getElementById('cvd'),
-      // Out of the board's nine units and into the stage. See the element's own comment.
-      pauseHost: enginePause,
-      // Named rather than left to the fallback: the engine looks for `#title-icons`, which is the
-      // platformer's id, and finding nothing it reported the absence instead of mounting the bar.
-      a11yBarHost: a11yBar,
-    },
-    /*
-     * ========================= WHAT THIS GAME DECLINES, AS 8.0.0 ASKS IT =========================
-     * ⚠️ `semMenuDePausa` IS GONE, AND ITS GOING IS A CHANGE OF QUESTION RATHER THAN A RENAME. Up to
-     * 7.x a game could decline the engine's pause menu; 8.0.0 dropped the field because the answer
-     * stopped being optional — the engine now mounts the card itself and asks only WHERE
-     * (`host.pauseHost`, defaulting to `#game-region`), pushing a `problems` entry when there is
-     * nowhere to put it. The card is born hidden and is revealed by whoever owns the phase, so this
-     * game's own pause menu stays the one a player sees.
-     *
-     * ⚠️ `semVozNeural` IS NEW, AND THE ENGINE NAMES THIS GAME IN THE FIELD'S OWN COMMENT: of six
-     * games in the local catalogue, three load a neural voice and three — soccer, whackwhack and
-     * this one — neither load it nor say so. There is no neural voice here and there was never a
-     * line saying it, which is the difference between declining and forgetting. This is the line.
-     */
-    declines: { semVozNeural: true, semAssistenteDePad: true, semAtorDePausa: true },
     /*
      * ⚠️ `viz: 'normal'` LEFT, and the absence is the news. The sonar no longer reads a visual mode
      * off the player: the engine's root answers `visaoComprometida` for it, from the two-axis
@@ -536,22 +530,6 @@ export function createGameShell(deps: GameShellDeps): GameShell {
      */
     preset: actionPreset((key) => i18n.t(key), SONAR_ACTION),
     /*
-     * ========================= THE DOWNLOAD THIS GAME HAD JUST DECLINED =========================
-     * ⚠️ IT DEFAULTS TO TRUE, AND THE DEFAULT CONTRADICTS THE LINE TWENTY ROWS ABOVE. `create-game`
-     * ends its boot with `if (o.baixarPesados !== false) void baixarPesados(...).catch(() => {})`,
-     * and the catalogue behind it is the neural voices plus a vision bundle — the engine's own
-     * comment speaks of "faltam 241 MB". So from the moment this repository moved to 8.0.0, every
-     * boot started fetching voices that `declines.semVozNeural` says this game does not have.
-     *
-     * ⚠️ AND IT COULD NOT HAVE ANNOUNCED ITSELF: the promise is discarded into an empty `catch`, by
-     * design — the engine argues, correctly, that a school with no network would otherwise push
-     * eight failures into a `problems` list built to say what is missing from the HOST. Nothing is
-     * wrong with that decision; what is wrong is a game paying for it silently. Declining the voice
-     * and downloading the voice are the same sentence said twice, and this is the half that costs
-     * bytes on a school's connection.
-     */
-    baixarPesados: false,
-    /*
      * ========================= IT IS NEVER TIME FOR THE ENGINE TO NAVIGATE A MENU HERE =========================
      * The engine asks "is it now time to navigate a menu?" and, absent an answer, says YES — which
      * is right for the game it was written for (a quiz, always in its menus) and wrong here. Its
@@ -569,6 +547,49 @@ export function createGameShell(deps: GameShellDeps): GameShell {
      * is PLAYING, which is the whole point of it. Saying no here leaves the bar exactly as it was.
      */
     isNavigable: () => false,
+  };
+
+  const engine = createGame({
+    ...hooks,
+    host: {
+      doc: host, win: window, cvdHost: host.getElementById('cvd'),
+      // Out of the board's nine units and into the stage. See the element's own comment.
+      pauseHost: enginePause,
+      // Named rather than left to the fallback: the engine looks for `#title-icons`, which is the
+      // platformer's id, and finding nothing it reported the absence instead of mounting the bar.
+      a11yBarHost: a11yBar,
+    },
+    /*
+     * ========================= WHAT THIS GAME DECLINES, AS 8.0.0 ASKS IT =========================
+     * ⚠️ `semMenuDePausa` IS GONE, AND ITS GOING IS A CHANGE OF QUESTION RATHER THAN A RENAME. Up to
+     * 7.x a game could decline the engine's pause menu; 8.0.0 dropped the field because the answer
+     * stopped being optional — the engine now mounts the card itself and asks only WHERE
+     * (`host.pauseHost`, defaulting to `#game-region`), pushing a `problems` entry when there is
+     * nowhere to put it. The card is born hidden and is revealed by whoever owns the phase, so this
+     * game's own pause menu stays the one a player sees.
+     *
+     * ⚠️ `semVozNeural` IS NEW, AND THE ENGINE NAMES THIS GAME IN THE FIELD'S OWN COMMENT: of six
+     * games in the local catalogue, three load a neural voice and three — soccer, whackwhack and
+     * this one — neither load it nor say so. There is no neural voice here and there was never a
+     * line saying it, which is the difference between declining and forgetting. This is the line.
+     */
+    declines: { semVozNeural: true, semAssistenteDePad: true, semAtorDePausa: true },
+    /*
+     * ========================= THE DOWNLOAD THIS GAME HAD JUST DECLINED =========================
+     * ⚠️ IT DEFAULTS TO TRUE, AND THE DEFAULT CONTRADICTS THE LINE TWENTY ROWS ABOVE. `create-game`
+     * ends its boot with `if (o.baixarPesados !== false) void baixarPesados(...).catch(() => {})`,
+     * and the catalogue behind it is the neural voices plus a vision bundle — the engine's own
+     * comment speaks of "faltam 241 MB". So from the moment this repository moved to 8.0.0, every
+     * boot started fetching voices that `declines.semVozNeural` says this game does not have.
+     *
+     * ⚠️ AND IT COULD NOT HAVE ANNOUNCED ITSELF: the promise is discarded into an empty `catch`, by
+     * design — the engine argues, correctly, that a school with no network would otherwise push
+     * eight failures into a `problems` list built to say what is missing from the HOST. Nothing is
+     * wrong with that decision; what is wrong is a game paying for it silently. Declining the voice
+     * and downloading the voice are the same sentence said twice, and this is the half that costs
+     * bytes on a school's connection.
+     */
+    baixarPesados: false,
   });
 
   /**
