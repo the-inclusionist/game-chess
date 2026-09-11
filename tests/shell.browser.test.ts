@@ -689,9 +689,13 @@ describe('[Pause] START opens the menu the settings were moved into', () => {
     expect(open).not.toBeNull();
     expect(open!.getAttribute('aria-modal')).toBe('true');
 
-    // The seven, by the ids they are actually built with. Named one at a time rather than counted,
+    // The six, by the ids they are actually built with. Named one at a time rather than counted,
     // so a failure says WHICH one went missing.
-    expect(open!.querySelector('.hud-views'), '2D/2.5D/3D').not.toBeNull();
+    //
+    // ⚠️ SEVEN UNTIL 2026-09-11: the view switch was here and is not any more. It is asserted in its
+    // new home instead, in the test right below — moving an assertion to follow a control is the only way a
+    // move stays covered, and deleting this line without adding that one is how a control goes
+    // missing twice.
     expect(open!.querySelector('#hud-set'), 'piece drawing').not.toBeNull();
     expect(open!.querySelector('#hud-theme'), 'board colours').not.toBeNull();
     expect(open!.querySelector('#hud-vision'), 'colour vision').not.toBeNull();
@@ -699,6 +703,40 @@ describe('[Pause] START opens the menu the settings were moved into', () => {
     expect(open!.querySelector('#hud-outline'), 'piece outline').not.toBeNull();
     expect(open!.querySelector('#hud-coords'), 'files and ranks').not.toBeNull();
     expect(open!.querySelector('#hud-locale'), 'language').not.toBeNull();
+  });
+
+  it('⚠️ the three view buttons are in the PANEL, under the accessibility bar', () => {
+    /*
+     * ========================= THE CONTROL THAT WENT MISSING =========================
+     * `32d5227` swept the view switch into the pause menu with the six set-once controls, on the
+     * reasoning that all seven are chosen once and forgotten. The Dev's report of 2026-09-11 is
+     * that the three buttons «sumiram» — and they had: from the side panel they were gone, and
+     * behind a menu that opens on a key they were not found. Nothing was broken; they were filed
+     * where nobody looks.
+     *
+     * ⚠️ AND A CONTROL THAT MOVES NEEDS ITS ASSERTION TO MOVE WITH IT. Deleting the line that held
+     * it in the dialog without writing this one is how the same control goes missing twice, with a
+     * green suite both times.
+     */
+    shellFor(false);
+    const views = document.querySelector('.hud-views');
+    expect(views, 'the switcher exists').not.toBeNull();
+
+    const column = document.getElementById('side-column')!;
+    expect(views!.parentElement, 'a child of the side column').toBe(column);
+    expect(document.querySelector('.chess-pause')?.contains(views!), 'not in the pause menu')
+      .toBe(false);
+
+    // Under the bar, not over it: the order in the column is what "below the inclusion buttons" means.
+    const bar = document.querySelector('.a11y-bar')!;
+    const order = [...column.children];
+    expect(order.indexOf(views!) > order.indexOf(bar), 'below the accessibility bar').toBe(true);
+
+    // And a sibling of the panel rather than a child of it, so a lesson hiding the panel keeps it.
+    expect(document.querySelector('.chess-hud')?.contains(views!), 'outside the panel').toBe(false);
+
+    expect([...views!.querySelectorAll('.hud-view')].map((v) => v.textContent))
+      .toEqual(['2D', '2,5D', '3D']);
   });
 
   it('⚠️ and they are IN the dialog, not merely somewhere on the page', () => {

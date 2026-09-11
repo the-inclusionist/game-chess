@@ -725,6 +725,16 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   region.prepend(players.root);
   // Outside the panel, over the board: see `.theme-report` in the stylesheet.
   region.appendChild(hud.report);
+  /*
+   * ⚠️ UNDER THE ACCESSIBILITY BAR, AND BEFORE THE PANEL, which is the whole of what was asked for:
+   * the three view buttons went into the pause menu in `32d5227` and the Dev reported them missing
+   * on 2026-09-11 — behind a menu that opens on a key, they were not found.
+   *
+   * A SIBLING of the panel rather than a child, exactly like the bar above it. Two consequences,
+   * both wanted: a lesson hides `.chess-hud` and cannot take these away, and the row stays put while
+   * the panel scrolls under it. Changing how you look at the board is not a thing to lose track of.
+   */
+  column.appendChild(hud.views);
   column.appendChild(hud.root);
   // ⚠️ After `#stage-wrap`, not inside it. That element is a centring FLEX ROW, so a child lands
   // beside the board and squeezes it. The panel belongs under the board, and under the board is

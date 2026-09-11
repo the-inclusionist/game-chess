@@ -175,8 +175,12 @@ export interface HudDeps {
 export interface Hud {
   readonly root: HTMLElement;
   /**
-   * The controls you set once and then forget: the view switch, the piece drawing, the board
-   * colours, the colour-vision correction, reduced motion and the coordinate labels.
+   * The controls you set once and then forget: the piece drawing, the board colours, the
+   * colour-vision correction, reduced motion and the coordinate labels.
+   *
+   * ⚠️ THE VIEW SWITCH LEFT THIS LIST on 2026-09-11 — see `views` below and the comment where it is
+   * built. It was swept in here with the others because it is set once; it went back out because
+   * what it does is not the same kind of thing.
    *
    * ⚠️ NOT INSIDE `root`. They are built and refreshed by the HUD because that is where their
    * state and callbacks live, but they are SHOWN wherever the composition root puts them — which
@@ -184,6 +188,18 @@ export interface Hud {
    * parent.
    */
   readonly settings: HTMLElement;
+  /**
+   * The three board views — 2D, 2.5D, 3D — as a row of links.
+   *
+   * ⚠️ ALSO NOT INSIDE `root`, and for the same reason `settings` is not: the HUD builds it because
+   * that is where the current view and its callbacks live, and the composition root decides where it
+   * is seen. It goes under the accessibility bar, at the top of the side column, where it is a
+   * sibling of the panel rather than a child — so a lesson hiding the panel does not take it away.
+   *
+   * Empty when the page did not ask for a view switch; mounting an empty node costs nothing and is
+   * cheaper than a branch at the mounting site.
+   */
+  readonly views: HTMLElement;
   /**
    * The measured contrast table, or an empty node when `debug` is off. It lives OUTSIDE the panel
    * — in the space the board leaves — because six columns cannot be read in an 88-pixel column.
@@ -332,7 +348,18 @@ export function createHud(deps: HudDeps): Hud {
       views.appendChild(el);
       viewLinks.push({ kind, el });
     }
-    settings.appendChild(views);
+    /*
+     * ⚠️ NOT `settings.appendChild(views)` ANY MORE, AND THE MOVE IS A REVERSAL ASKED FOR BY NAME.
+     * `32d5227` swept the view switch into the pause menu with the six set-once controls, on the
+     * reasoning that they are all chosen once and then forgotten. The Dev's report of 2026-09-11 is
+     * that the three buttons «sumiram»: from the side panel they were gone, and behind a menu that
+     * opens on a key they were not found.
+     *
+     * The others belong there and stay there. This one does not sit with them, and the difference is
+     * what a control DOES rather than how often it is touched: changing the board's view is how a
+     * player looks at the same position another way, which is closer to the sonar than to a colour
+     * preference. It is mounted by the composition root now, next to the accessibility bar.
+     */
   }
 
   const report = doc.createElement('aside');
@@ -936,6 +963,7 @@ export function createHud(deps: HudDeps): Hud {
   return {
     root,
     settings,
+    views,
     report,
     refresh,
     destroy() {

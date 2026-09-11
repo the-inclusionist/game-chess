@@ -57,6 +57,17 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
    * moved: they were querying the document, not the panel, and had never had to care which.
    */
   document.body.appendChild(hud.settings);
+  /*
+   * ⚠️ AND IT HAPPENED A SECOND TIME, WHICH IS WHY THE PARAGRAPH ABOVE IS WORTH KEEPING. On
+   * 2026-09-11 the view switch left the settings for the side column, and five tests in this file
+   * went red at once — all of them querying `document` for `.hud-view`, all of them unaware that
+   * somebody else had been mounting the node they were reading.
+   *
+   * The harness mounts what the composition root mounts. A test that asks the document a question
+   * has to put in the document everything the shell puts there, or it is asking about a page that
+   * does not exist.
+   */
+  document.body.appendChild(hud.views);
   const play = (from: string, to: string) => {
     state.activate(sq(from));
     state.activate(sq(to));
@@ -338,17 +349,20 @@ describe('[Panel] walking the game backwards and forwards', () => {
 describe('[Views] 2D, 2.5D and 3D across the top of the panel', () => {
   const views = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>('.hud-view')];
 
-  it('offers all three, in order, at the top of the settings', () => {
+  it('offers all three, in order, and NOT inside the settings', () => {
     build();
     expect(views().map((v) => v.textContent)).toEqual(['2D', '2,5D', '3D']);
     /*
-     * ⚠️ FIRST IN THE SETTINGS, WHICH USED TO MEAN FIRST IN THE PANEL. The six things you set once
-     * and forget moved out of the side panel and into the pause menu — but the reason this was
-     * asserted has not changed with the address: a view switch below five other settings is a
-     * scroll away from somebody who opened the menu to change view.
+     * ⚠️ THIS ASSERTED THE OPPOSITE UNTIL 2026-09-11, and the reversal is the point rather than a
+     * detail. It read "FIRST IN THE SETTINGS", because `32d5227` had swept the view switch into the
+     * pause menu with the six set-once controls and being first there was the consolation.
+     *
+     * The Dev reported the three buttons missing: behind a menu that opens on a key, they were not
+     * found. They are mounted by the composition root now, under the accessibility bar. So the HUD
+     * builds them and hands them over, and what belongs here is the negative — that they are NOT in
+     * the settings, which is the half a test can state without knowing where the shell put them.
      */
-    expect(document.querySelector('.hud-settings')!.firstElementChild!.className)
-      .toBe('hud-views');
+    expect(document.querySelector('.hud-settings')!.querySelector('.hud-views')).toBeNull();
   });
 
   it('marks the current one for the eye AND for the reader', () => {
