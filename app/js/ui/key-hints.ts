@@ -44,6 +44,64 @@ function firstKey(scheme: KeyScheme, action: keyof KeyScheme): string | null {
 /** One entry of the line: what to print on the key, and the i18n key for what it does. */
 export type Hint = readonly [key: string, label: string];
 
+/*
+ * ========================= ONE TABLE, TWO CONSUMERS =========================
+ * These are the actions this game asks for, and they were written out twice: once here, to print
+ * the line under the board, and once in the shell's `preset`, to tell the engine how many actions a
+ * device must reach before a child can finish a game. Two lists of the same fact, and nothing
+ * obliging them to agree — which is the shape that has already gone wrong in this repository more
+ * than once this week.
+ *
+ * ⚠️ THE ANSWER IS NOT A TEST THAT THEY MATCH, IT IS NOT HAVING TWO. `render/pieces/geometry.ts` is
+ * the precedent and it is the house rule: a table read by two consumers, rather than a rule two
+ * consumers each remember. A test asserting agreement would pass the day somebody edited both —
+ * which is the day it would be least needed — and say nothing about the day they edited one.
+ */
+
+/** The four directions, in the order a person says them, which is what makes `WASD` read as WASD. */
+const MOVE = ['up', 'left', 'down', 'right'] as const;
+
+/** The verbs, in the order the line reads them. */
+const VERBS: readonly (readonly [keyof KeyScheme, string])[] = [
+  ['action2', 'keys.select'],
+  ['action3', 'keys.cancel'],
+  ['action1', 'keys.teacher'],
+  ['action4', 'keys.panel'],
+];
+
+/**
+ * Every action this game asks for, flat — what the engine counts against a device's transports.
+ *
+ * ⚠️ THE COUNT IS THE HONEST ONE RATHER THAN THE FLATTERING ONE. Four directions and a confirm
+ * would be enough to push a pawn, and declaring only those would make the reach warning quieter by
+ * lying about what the game needs: leaving a lesson is `start`, reading the board without seeing it
+ * is the sonar, and getting into the side panel at all is `action4`. A child who cannot reach those
+ * has a game she cannot finish, not a game she can play with fewer buttons.
+ */
+export function gameActions(sonar: keyof KeyScheme | null): readonly (readonly [keyof KeyScheme, string])[] {
+  return [
+    ...MOVE.map((d) => [d, 'keys.move'] as const),
+    ...VERBS,
+    ...(sonar ? [[sonar, 'keys.sonar'] as const] : []),
+    ['start', 'keys.pause'] as const,
+  ];
+}
+
+/**
+ * The same table as an engine `ActionPreset`.
+ *
+ * ⚠️ THE LABELS FREEZE IN WHATEVER LANGUAGE IS ASKED FOR HERE, because `createGame` reads the
+ * preset once. That is survivable today only because this root uses it to COUNT and never builds
+ * the labeller, so none of these strings reaches a screen. The day one does, a change of language
+ * has to reach them too, and this is the note that says where to look.
+ */
+export function actionPreset(
+  t: (key: string) => string,
+  sonar: keyof KeyScheme | null,
+): Record<string, { readonly label: string }> {
+  return Object.fromEntries(gameActions(sonar).map(([action, label]) => [action, { label: t(label) }]));
+}
+
 /**
  * The line for a scheme, in reading order.
  *
@@ -61,18 +119,12 @@ export function hintParts(
    * The four directions as one entry, because they are one gesture. Printed in the order a person
    * says them — up, left, down, right — which is what makes `WASD` come out as `WASD`.
    */
-  const move = (['up', 'left', 'down', 'right'] as const)
+  const move = MOVE
     .map((d) => firstKey(scheme, d))
     .filter((k): k is string => k !== null);
   if (move.length > 0) parts.push([move.join(''), 'keys.move']);
 
-  const verbs: readonly (readonly [keyof KeyScheme, string])[] = [
-    ['action2', 'keys.select'],
-    ['action3', 'keys.cancel'],
-    ['action1', 'keys.teacher'],
-    ['action4', 'keys.panel'],
-  ];
-  for (const [action, label] of verbs) {
+  for (const [action, label] of VERBS) {
     const key = firstKey(scheme, action);
     if (key) parts.push([key, label]);
   }

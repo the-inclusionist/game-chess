@@ -5,7 +5,7 @@
 // bound to nothing is not advertised at all.
 import { describe, expect, it } from 'vitest';
 import type { KeyScheme } from '@the-inclusionist/engine/input/keyboard-runtime.js';
-import { hintParts, keyLabel } from '../app/js/ui/key-hints.ts';
+import { actionPreset, gameActions, hintParts, keyLabel } from '../app/js/ui/key-hints.ts';
 
 /** The engine's own solo defaults, read off the running page at `?debug=true` on 8.0.0. */
 const MEASURED: KeyScheme = {
@@ -79,5 +79,36 @@ describe('[Key hints] the line follows the scheme, which is the point', () => {
     const solid = hintParts(OURS, { camera: true, sonar: 'leftTrigger' });
     expect(solid.length - flat.length).toBe(2);
     expect(solid[solid.length - 2]?.[0]).toBe('⇧ + WASD');
+  });
+});
+
+describe('[Actions] the table the line and the reach count both read', () => {
+  it('⚠️ asks for ten positions, and the preset names every one', () => {
+    /*
+     * The count is what gates the reach notice: `createGame` shows it only `if (acoesDoJogo.length)`,
+     * and `presetActions` counts the positions the preset names. Trimming this list would make the
+     * warning quieter by understating what the game needs, which is the failure worth pinning — a
+     * child on a two-button device would be told she can play a game she cannot finish.
+     */
+    const actions = gameActions('leftTrigger');
+    expect(actions.map(([a]) => a).join(',')).toBe(
+      'up,left,down,right,action2,action3,action1,action4,leftTrigger,start',
+    );
+
+    const preset = actionPreset((key) => key.replace('keys.', ''), 'leftTrigger');
+    expect(Object.keys(preset).length, 'a name for every position').toBe(actions.length);
+    expect(Object.values(preset).every((w) => w.label.length > 0), 'no empty labels').toBe(true);
+    expect(preset.start?.label).toBe('pause');
+    expect(preset.leftTrigger?.label).toBe('sonar');
+  });
+
+  it('⚠️ drops the sonar from BOTH when the game declares none', () => {
+    // The hint line and the count are one table now, so they cannot disagree about it — this is
+    // what that buys, asserted rather than assumed.
+    const actions = gameActions(null);
+    expect(actions.some(([, label]) => label === 'keys.sonar')).toBe(false);
+    expect(Object.keys(actionPreset((k) => k, null))).not.toContain('leftTrigger');
+    expect(line(hintParts(OURS, { camera: false, sonar: null })))
+      .not.toContain('keys.sonar');
   });
 });
