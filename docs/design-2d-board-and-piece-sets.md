@@ -48,6 +48,13 @@ one `@font-face`: `src: local('Noto Color Emoji')` — the system font, no downl
 Windows, Noto on ChromeOS. It therefore looks different from machine to machine, and the label has
 to say so.
 
+⚠️ **And since 2026-09-11 that is this game's rule and not merely the engine's.** When the paragraph
+above was written, these pages did not load the engine's stylesheet at all, so "the engine already
+decided it" described a decision inherited in spirit. `board.css` imports that sheet now — for the
+accessibility bar it mounts — which was checked precisely because of this line: the single
+`@font-face` is `local()`, so importing it downloads no fonts and 404s nothing. The warning the
+package gives about fonts belongs to `vendor/fonts.css`, a separate file this game does not link.
+
 **Changing the set changes nothing a screen reader hears.** The meaning of a square lives in the
 `aria-label` of `ui/grid-mirror.ts`, not in what is drawn. A glyph goes in as `aria-hidden`
 decoration. That is what makes this a cheap legibility control rather than a risk.

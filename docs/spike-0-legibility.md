@@ -1,5 +1,26 @@
 # Spike 0 — Hartwig silhouettes at 320×180
 
+> ⚠️ **ITS LEGIBILITY FINDING STANDS; ITS LAYOUT FINDING DOES NOT, AND THAT HALF IS WHERE THE MOST
+> EXPENSIVE DEFECT IN THIS PROJECT CAME FROM.** Kept verbatim, because a spike is the record of an
+> experiment rather than a specification, and rewriting one to match the present is how a repository
+> loses the ability to say what it once knew.
+>
+> **Still true:** the six silhouettes are distinguishable at final scale, and the geometry this page
+> settled is what `render/pieces/geometry.ts` still carries.
+>
+> **No longer true — item 4, "the HUD budget closes".** It measured the board into the left ~232 px
+> and called the remaining **88×180 a right column for the HUD**, drawn INSIDE the same canvas. That
+> is the origin of the 27.5% reservation, and when the teaching mode moved the HUD out to the DOM in
+> 2026-09, the fraction stayed behind in **five independent places** — dead constants in
+> `render/resolution.ts`, the framing in `render/camera.ts`, a `right: 27.5%` on the player strips, a
+> `BOARD_SHARE = 0.725` in `boot/view-solid.ts`, and a `width: 72.5%` on `.stage-3d`. The last two
+> applied it twice over, so fixing one looked like a different bug.
+>
+> **What replaced it:** a sixteen-by-nine stage, nine units of SQUARE board beside seven of DOM
+> panel, with the raster square at 360×360. A chess board in a 16:9 raster can only use the height —
+> the projected board measured 258×217 inside 640×360, forty per cent of the width — which was
+> invisible for as long as a HUD was drawn in the letterbox. See the README's "The stage" section.
+
 **Verdict: GO.** Run 2026-09-04. Throwaway page kept at `spike/legibility.html`.
 
 The question this spike had to answer: at the engine's fixed 320×180 logical
