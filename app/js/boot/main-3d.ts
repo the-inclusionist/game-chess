@@ -18,14 +18,22 @@
 // gave the grid the engine's remappable keys, and it printed "K sonar" in its legend while
 // listening for nothing. All four are the shell's business now, and the shell gets them right once.
 
-import { createGameShell } from './standalone.ts';
-import { createSolidView } from './view-solid.ts';
+import { bootFailed, startChess } from './standalone.ts';
 
-export function boot3d(host: Document = document): void {
-  createGameShell({
+/**
+ * ⚠️ RETURNS A PROMISE NOW, AND THAT IS A REAL CHANGE RATHER THAN A TYPE TIDY-UP. The renderer
+ * arrives by dynamic `import()`, so the board is not on the screen when this function returns. Four
+ * boot tests failed the moment it stopped being synchronous, which is the suite catching exactly
+ * what it exists to catch — they asserted a mounted board immediately after calling this.
+ *
+ * Anything that needs the game to be up has to await it. The failure path is the same either way:
+ * `bootFailed` is loud in the console AND in `srAlert`, because a board that never arrives is not a
+ * degraded experience, it is no game at all.
+ */
+export function boot3d(host: Document = document): Promise<void> {
+  return startChess({
     host,
     kind: '3d',
-    view: createSolidView,
     /*
      * ⚠️ THIS PAGE TEACHES NOW, AND IT DID NOT. It was left out because `render3d/scene.ts` had no
      * marker channel at all — a lesson saying "look at these squares" would have shown nothing, and
@@ -36,7 +44,7 @@ export function boot3d(host: Document = document): void {
     debugName: '__chess3d',
     // Solids, not glyphs: the same squares as the flat board's high contrast, different pieces.
     contrastTheme: 'contrast-solid',
-  });
+  }).then(() => undefined).catch(bootFailed);
 }
 
 if (typeof document !== 'undefined' && document.getElementById('game-region')) boot3d();

@@ -40,14 +40,14 @@ function fixture(): void {
 afterEach(() => { document.body.replaceChildren(); });
 
 describe('[Boot] the composition root actually composes', () => {
-  it('boots without throwing', () => {
+  it('boots without throwing', async () => {
     fixture();
-    expect(() => boot(document)).not.toThrow();
+    await expect(boot(document)).resolves.not.toThrow();
   });
 
-  it('puts the board, the mirror, the coordinates and the panel on the screen', () => {
+  it('puts the board, the mirror, the coordinates and the panel on the screen', async () => {
     fixture();
-    boot(document);
+    await boot(document);
     const region = document.getElementById('game-region');
     expect(region?.querySelector('#board-canvas')).not.toBeNull();
     expect(region?.querySelectorAll('[role="gridcell"]')).toHaveLength(64);
@@ -63,9 +63,9 @@ describe('[Boot] the composition root actually composes', () => {
     expect(region?.querySelector('.chess-hud')).toBeNull();
   });
 
-  it('starts from the opening position, drawn', () => {
+  it('starts from the opening position, drawn', async () => {
     fixture();
-    boot(document);
+    await boot(document);
     // Thirty-two pieces named on the mirror is the position having reached the DOM, which means
     // the rules, the declaration and the renderer all built.
     const occupied = [...document.querySelectorAll('[role="gridcell"]')]
@@ -73,9 +73,9 @@ describe('[Boot] the composition root actually composes', () => {
     expect(occupied).toHaveLength(32);
   });
 
-  it('hides the canvas from the screen reader and keeps the mirror ahead of it', () => {
+  it('hides the canvas from the screen reader and keeps the mirror ahead of it', async () => {
     fixture();
-    boot(document);
+    await boot(document);
     const region = document.getElementById('game-region')!;
     const canvas = region.querySelector('#board-canvas')!;
     expect(canvas.getAttribute('aria-hidden')).toBe('true');
@@ -90,14 +90,14 @@ describe('[Boot] the composition root actually composes', () => {
 // root has now thrown at boot twice for faults no other test could see, and this one composes the
 // same modules in a different order — which is exactly where that class of fault lives.
 describe('[Boot] the flat composition root composes too', () => {
-  it('boots without throwing', () => {
+  it('boots without throwing', async () => {
     fixture();
-    expect(() => boot2d(document)).not.toThrow();
+    await expect(boot2d(document)).resolves.not.toThrow();
   });
 
-  it('puts a VISIBLE board and the panel on the screen, and no canvas', () => {
+  it('puts a VISIBLE board and the panel on the screen, and no canvas', async () => {
     fixture();
-    boot2d(document);
+    await boot2d(document);
     const region = document.getElementById('game-region');
     expect(region?.querySelector('.board-2d')).not.toBeNull();
     expect(region?.querySelectorAll('[role="gridcell"]')).toHaveLength(64);
@@ -115,21 +115,21 @@ describe('[Boot] the flat composition root composes too', () => {
     expect(region?.querySelector('canvas')).toBeNull();
   });
 
-  it('draws the opening position', () => {
+  it('draws the opening position', async () => {
     fixture();
-    boot2d(document);
+    await boot2d(document);
     const drawn = [...document.querySelectorAll('.cell-piece')].filter((g) => g.textContent);
     expect(drawn).toHaveLength(32);
   });
 });
 
 describe('[Boot] the board turns round for a player who chose black', () => {
-  it('flips the ELEMENT and leaves the grid alone', () => {
+  it('flips the ELEMENT and leaves the grid alone', async () => {
     // The rotation is CSS on the board. The DOM keeps its rows, its columns, its reading order and
     // its arrow keys — which is why a1 is still a1 to a screen reader on a turned board.
     saveSettings({ mode: 'b' });
     fixture();
-    boot2d(document);
+    await boot2d(document);
     const board = document.querySelector<HTMLElement>('.board-2d');
     expect(board?.dataset.flipped).toBe('true');
     const first = document.querySelector('[role="gridcell"]');
@@ -150,14 +150,14 @@ describe('[Boot] the board turns round for a player who chose black', () => {
 // WebAssembly to reach, which is the seam the shared core is meant to open. What this catches is
 // the class the other two describes catch: a root that does not come up at all.
 describe('[Boot] the solid composition root composes too', () => {
-  it('boots without throwing', () => {
+  it('boots without throwing', async () => {
     fixture();
-    expect(() => boot3d(document)).not.toThrow();
+    await expect(boot3d(document)).resolves.not.toThrow();
   });
 
-  it('puts a canvas, the mirror and the panel on the screen', () => {
+  it('puts a canvas, the mirror and the panel on the screen', async () => {
     fixture();
-    boot3d(document);
+    await boot3d(document);
     const region = document.getElementById('game-region');
     expect(region?.querySelector('canvas')).not.toBeNull();
     expect(region?.querySelectorAll('[role="gridcell"]')).toHaveLength(64);
@@ -172,15 +172,15 @@ describe('[Boot] the solid composition root composes too', () => {
     expect(region?.querySelector('.chess-hud')).toBeNull();
   });
 
-  it('starts from the opening position', () => {
+  it('starts from the opening position', async () => {
     fixture();
-    boot3d(document);
+    await boot3d(document);
     const occupied = [...document.querySelectorAll('[role="gridcell"]')]
       .filter((cell) => !/vazia|empty|vacía/.test(cell.getAttribute('aria-label') ?? ''));
     expect(occupied).toHaveLength(32);
   });
 
-  it('hides the canvas from the screen reader and keeps the mirror ahead of it', () => {
+  it('hides the canvas from the screen reader and keeps the mirror ahead of it', async () => {
     /*
      * ⚠️ BOTH OF THESE FAILED BEFORE THE SHELL, and the 2.5D describe above has asserted them
      * since it was written. That asymmetry IS the fault: a reader arriving on this page met an
@@ -188,7 +188,7 @@ describe('[Boot] the solid composition root composes too', () => {
      * quietly lost two lines the other two had.
      */
     fixture();
-    boot3d(document);
+    await boot3d(document);
     const region = document.getElementById('game-region')!;
     const canvas = region.querySelector('canvas')!;
     expect(canvas.getAttribute('aria-hidden')).toBe('true');

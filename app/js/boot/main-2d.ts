@@ -22,12 +22,21 @@
 // It was 661 lines. Everything taken out of it was a copy of something in the other two roots, and
 // three of the faults that copying produced are in the git log immediately above this change.
 
-import { createGameShell } from './standalone.ts';
-import { createFlatView } from './view-flat.ts';
+import { bootFailed, startChess } from './standalone.ts';
 import { CONTRAST_THEME } from '../ui/board-themes.ts';
 
-export function boot2d(host: Document = document): void {
-  createGameShell({
+/**
+ * ⚠️ RETURNS A PROMISE NOW, AND THAT IS A REAL CHANGE RATHER THAN A TYPE TIDY-UP. The renderer
+ * arrives by dynamic `import()`, so the board is not on the screen when this function returns. Four
+ * boot tests failed the moment it stopped being synchronous, which is the suite catching exactly
+ * what it exists to catch — they asserted a mounted board immediately after calling this.
+ *
+ * Anything that needs the game to be up has to await it. The failure path is the same either way:
+ * `bootFailed` is loud in the console AND in `srAlert`, because a board that never arrives is not a
+ * degraded experience, it is no game at all.
+ */
+export function boot2d(host: Document = document): Promise<void> {
+  return startChess({
     host,
     kind: '2d',
     /*
@@ -37,14 +46,13 @@ export function boot2d(host: Document = document): void {
      * mode whose main instruction does nothing is worse than not offering it. See the debt list.
      */
     teaches: true,
-    view: createFlatView,
     // ⚠️ The grid is the BOARD on this page, not a mirror of one. Same object, same labels, same
     // roving tabindex — it simply keeps its pixels instead of being `sr-only` behind a canvas.
     visibleMirror: true,
     debugName: '__chess2d',
     // Glyphs, not solids: `contrast-flat` answers a drawing whose ink is a typeface.
     contrastTheme: CONTRAST_THEME,
-  });
+  }).then(() => undefined).catch(bootFailed);
 }
 
 // Same self-start as the other two entries: the page names this module and the module starts the

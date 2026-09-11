@@ -18,7 +18,9 @@
 // stops following her from one game to the next, and a school network has a second address to
 // allow.
 import { createGame } from '@the-inclusionist/engine';
+import { srAlert } from '@the-inclusionist/engine/core/a11y-sr.js';
 import { createChessCartridge } from './game-shell.ts';
+import { VIEWS } from './views.ts';
 import type { GameShell, GameShellDeps } from './game-shell.ts';
 
 // Re-exported because this file is the door now: whoever builds a shell imports it from here.
@@ -63,4 +65,42 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   });
 
   return cartridge.create(engine);
+}
+
+/**
+ * Boot this game by NAME of view, letting the cartridge fetch its own renderer.
+ *
+ * ⚠️ THE ASYNC LIVES HERE AND NOT IN THE CARTRIDGE, and that is the whole reason this function
+ * exists beside `createGameShell` instead of replacing it. A renderer arrives by dynamic `import()`,
+ * which is a promise; the cartridge's own construction must stay synchronous because `createGame`
+ * needs its `declaration` as a VALUE before anything else can happen. Resolving the view first and
+ * handing it over keeps both true.
+ *
+ * 📌 It is also what lets a test hand in a fake renderer with no `await` anywhere: `createGameShell`
+ * still takes a view, and 26 test call sites did not have to learn about promises to keep working.
+ */
+export async function startChess(deps: Omit<GameShellDeps, 'view'>): Promise<GameShell> {
+  const view = await VIEWS[deps.kind]();
+  return createGameShell({ ...deps, view });
+}
+
+/**
+ * What to do when the board never arrives.
+ *
+ * ⚠️ A RENDERER NOW COMES BY DYNAMIC `import()`, so for the first time booting this game can fail
+ * at a point where nothing else notices: the splash stays up, the region stays empty, and a promise
+ * nobody awaited carries the reason away. That is the shape of silent failure this repository keeps
+ * finding, and it is worse here than usual — a child who cannot see the screen gets no signal at all.
+ *
+ * So it is loud in both channels: the console for whoever is debugging, and `srAlert` for whoever is
+ * listening. Assertive rather than polite, because unlike a wrong move in a lesson, this one really
+ * is an emergency: there is no game.
+ */
+export function bootFailed(error: unknown): void {
+  console.error('[chess] the board could not be loaded', error);
+  try {
+    srAlert('Não foi possível carregar o tabuleiro. Verifique a ligação e recarregue a página.');
+  } catch {
+    // The live region may not exist if the failure happened before the document was ready.
+  }
 }
