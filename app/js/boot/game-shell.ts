@@ -1231,13 +1231,24 @@ export function createGameShell(deps: GameShellDeps): GameShell {
 
     const action = engine.keyboard.actionOf(event.code, 0);
     /*
-     * ⚠️ `start` IS NOT IN THE ENGINE'S SOLO KEYBOARD SCHEME. Asked of the running page: `KeyU`,
-     * `KeyJ`, `KeyK` and `KeyI` all resolve, and `KeyH` and `Enter` both come back NULL. So the
-     * pause key is named here rather than resolved — H and Enter, which is what a player is told,
-     * plus Escape because every dialog on every platform answers to it.
+     * ⚠️ THE MEASUREMENT THAT USED TO BE HERE WAS TRUE AND IS NOT ANY MORE, which is the whole
+     * argument for writing measurements down. It read: "`start` IS NOT IN THE ENGINE'S SOLO
+     * KEYBOARD SCHEME. Asked of the running page: `KeyU`, `KeyJ`, `KeyK` and `KeyI` all resolve,
+     * and `KeyH` and `Enter` both come back NULL" — so the pause key was NAMED here, by hand.
+     *
+     * Asked again of the running page on engine 8.0.0, at `?debug=true`: `KeyH` resolves to
+     * `start`, `Enter` resolves to `start`. The engine's own default bindings carry
+     * `start: ['KeyH', 'Enter']` — the same two keys this file had been spelling out, which means
+     * the hand-named half had quietly become a SECOND source of truth for one answer.
+     *
+     * ⚠️ AND THE TWO DISAGREE THE MOMENT A CHILD REMAPS. `start` moved to another key would open
+     * the pause AND `KeyH` would go on opening it too, because this line said so — a key that
+     * cannot be unbound is exactly what a remapping screen exists to prevent.
+     *
+     * Escape stays named, and stays for its own reason: it resolves to nothing (measured: `null`),
+     * because it is not a game action. Every dialog on every platform answers to it anyway.
      */
-    if (action === 'start' || event.code === 'KeyH' || event.key === 'Enter'
-      || event.key === 'Escape') {
+    if (action === 'start' || event.key === 'Escape') {
       pause.toggle();
       event.preventDefault();
       return;

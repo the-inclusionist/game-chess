@@ -352,9 +352,14 @@ describe('[Keyboard] the keys work from where the splash leaves you', () => {
     expect(shell.mirror.cursor()).toEqual(at('f2'));
   });
 
-  it('opens the pause on H and on Enter, which the engine scheme does not bind', () => {
-    // Asked of the running page: `KeyU`, `KeyJ`, `KeyK` and `KeyI` all resolve through the engine,
-    // and `KeyH` and `Enter` both come back null. So the pause key is named rather than resolved.
+  it('opens the pause on H and on Enter, which the engine scheme DOES bind', () => {
+    /*
+     * ⚠️ THIS TEST'S NAME USED TO END "which the engine scheme does not bind", and it was accurate
+     * when written: `KeyH` and `Enter` both resolved to null, so the shell named them by hand.
+     * Asked again on engine 8.0.0 at `?debug=true`, both resolve to `start` — the engine's default
+     * bindings carry `start: ['KeyH', 'Enter']`, the same two keys. The shell stopped spelling them
+     * out, so what this now proves is that the RESOLVED path reaches the menu.
+     */
     const shell = shellFor();
     document.getElementById('game-region')!.focus();
     press('KeyH');

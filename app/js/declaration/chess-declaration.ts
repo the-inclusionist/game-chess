@@ -138,6 +138,23 @@ export function createChessDeclaration(deps: DeclarationDeps): GameDeclaration {
      */
     seguraTeclas: () => false,
 
+    /**
+     * NO POINTER IS REQUIRED HERE, and the field exists so a device without one can refuse a game
+     * up front instead of a child discovering it halfway through.
+     *
+     * ⚠️ IT IS THE DECLARATION OF A PROMISE THIS GAME ALREADY KEEPS AND TESTS. "What the pointer
+     * does, a key does" is item 4 of this project's own verification list; the 64 squares are real
+     * `<button>`s in a DOM mirror, the cursor moves on the arrows, and a whole lesson can be
+     * completed without a mouse. Answering `false` is not an opinion — it is the same fact the
+     * suite asserts, said where a device can read it.
+     *
+     * 📌 Optional, and declared anyway. The engine leaves it optional because the failure is
+     * VISIBLE: a drawing game that forgot it is unusable on the machine of whoever wrote it. That
+     * argument says the silence is safe, not that it is informative — and a game that says nothing
+     * is indistinguishable from a game nobody asked.
+     */
+    needsPointer: () => false,
+
     tick: 'player',
 
     roleAt(at: Spot): Role {
