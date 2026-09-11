@@ -50,13 +50,6 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       ...cartridge.hosts,
     },
     /*
-     * ⚠️ HOST-OWNED, AND THAT IS A READING RATHER THAN A DECISION. ADR-0139 leaves `declines`
-     * undecided: it reads as a statement about what a GAME does not have, which would put it in
-     * `CartridgeHooks`, but `createGame` also returns a resolved `declines`. It sits here because
-     * here is where it was, and the record says to read the implementation before moving it.
-     */
-    declines: { semVozNeural: true, semAssistenteDePad: true, semAtorDePausa: true },
-    /*
      * ⚠️ HOST-OWNED BY THE SPLIT, AND THE CONSEQUENCE IS WANTED: a swap between cartridges inside
      * the platform does not re-fetch anything. This game declares no neural voice, so the ~241 MB
      * catalogue behind this flag is bytes it would download and never use.

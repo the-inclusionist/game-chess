@@ -27,7 +27,7 @@
 
 import type { Engine } from '@the-inclusionist/engine';
 import type { GameDeclaration } from '@the-inclusionist/engine/core/contract.js';
-import type { CreateGameOptions } from '@the-inclusionist/engine';
+import type { GanchosDoCartucho } from '@the-inclusionist/engine';
 import { srAlert, srSay } from '@the-inclusionist/engine/core/a11y-sr.js';
 import { VIZ_FILTER } from '@the-inclusionist/engine/render/viz-modes.js';
 import { createChessDeclaration, SONAR_ACTION } from '../declaration/chess-declaration.ts';
@@ -203,11 +203,12 @@ export interface ChessCartridge {
   /**
    * The game-owned half of `CreateGameOptions`, per ADR-0139 §1.
    *
-   * ⚠️ TYPED AS A `Pick` OF THE ENGINE'S OWN OPTIONS, not as a hand-written shape. The split is
-   * meant to be CHECKABLE by re-reading `CreateGameOptions`; a copied interface would drift from
-   * it silently, which is the defect ADR-0139 says the derivation exists to avoid.
+   * ⚠️ TYPED BY THE ENGINE'S OWN `GanchosDoCartucho`, NOT BY A HAND-WRITTEN `Pick`. It was a Pick,
+   * which was right while the engine named no type for this half — and became a COPY the moment
+   * engine 9 exported one. A copy of a definition is the drift this derivation exists to avoid, and
+   * the engine's version is also the corrected one: fifteen fields rather than the ten I listed.
    */
-  readonly hooks: Pick<CreateGameOptions, 'declaration' | 'sonarPlayers' | 'preset' | 'isNavigable'>;
+  readonly hooks: GanchosDoCartucho & { readonly declaration: GameDeclaration };
   /** Where the engine's own bar and pause card fit in this game's layout. */
   readonly hosts: { readonly a11yBarHost: Element; readonly pauseHost: Element };
   /** Nothing runs until this is called, and it needs the engine the shell built. */
@@ -537,8 +538,42 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * `createGame` also returns a resolved `declines`. It is where it was; the record says to read the
    * implementation before moving it.
    */
-  const hooks = {
+  const hooks: GanchosDoCartucho & { declaration: typeof declaration } = {
     declaration,
+    /*
+     * ========================= WHAT EACH PAUSE ITEM DOES, AND WHY IT IS NOT DECORATION =========================
+     * 🔴 THIS FIELD DID NOT EXIST UNTIL ENGINE 9, AND ITS ABSENCE REACHED EVERY GAME AT ONCE. The
+     * engine's own comment says it: `initPauseIcons` has accepted `getPauseActs` since it was
+     * written, `createGame` never passed it and had no field for it, so NO game mounted by that root
+     * could wire a single pause item.
+     *
+     * ⚠️ AND THE COST LANDED ON THE ACCESSIBILITY BAR RATHER THAN ON THE CARD. `entrarNaBarra` calls
+     * `acts.resume?.()` to step out of the pause card before handing the directional keys to the
+     * bar. With an empty table that call is `undefined`, the card stays over the game, and ADR-0044
+     * item 7 — the directional DRIVING the bar — was unreachable from any game in the catalogue.
+     *
+     * So the bar this game mounted in `b75c807` was reachable by Tab and by pointer and NOT by the
+     * mode the engine designed for it. Nothing said so: it is not in `problems`, and it looks like
+     * a bar that works.
+     *
+     * 📌 ONE ACT, DELIBERATELY. This game has its own pause menu — `.chess-pause`, opened with the
+     * key a player is told about — and the engine's card is not meant to become a second one. What
+     * `resume` buys is the door OUT of that card, which is the thing the bar needs.
+     *
+     * ⚠️ IT READS `engine`, WHICH IS DECLARED SIXTY LINES BELOW THIS OBJECT. That is safe and the
+     * reason is worth writing, because this repository has been bitten by temporal dead zones three
+     * times: the reference lives inside a function body that nothing calls during construction. By
+     * the time the engine asks for the table, the binding it names has been filled by `create()`.
+     */
+    getPauseActs: () => ({ resume: () => engine.pausa.esconder(0) }),
+    /*
+     * ⚠️ GAME-OWNED, AND ENGINE 9 IS WHAT SETTLED IT. This sat on the host's side with a comment
+     * saying ADR-0139 left the direction open and that the implementation should be read before
+     * moving it. The implementation arrived: `MetadeDoJogo` in engine 9 lists fifteen fields rather
+     * than ten, and `declines` is one of the five the record's first version had left out — its own
+     * test («could a PAGE answer this without knowing which game is running?») puts them here.
+     */
+    declines: { semVozNeural: true, semAssistenteDePad: true, semAtorDePausa: true },
     /*
      * ⚠️ `viz: 'normal'` LEFT, and the absence is the news. The sonar no longer reads a visual mode
      * off the player: the engine's root answers `visaoComprometida` for it, from the two-axis
