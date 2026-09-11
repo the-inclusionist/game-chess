@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { afterEach, describe, expect, it } from 'vitest';
-import { boot } from '../app/js/boot/main.ts';
-import { boot2d } from '../app/js/boot/main-2d.ts';
-import { boot3d } from '../app/js/boot/main-3d.ts';
+/*
+ * ⚠️ ONE ROOT, THREE VIEWS. This imported three entry modules, one per page, because each view WAS
+ * a page. Inside a platform a second HTML entry is a second URL rather than a second bundle, so the
+ * pages went and the kind became an argument.
+ */
+import { bootChess } from '../app/js/boot/standalone.ts';
 import { saveSettings } from '../app/js/chess/session.ts';
 
 // ========================= WHY THIS TEST EXISTS =========================
@@ -42,12 +45,12 @@ afterEach(() => { document.body.replaceChildren(); });
 describe('[Boot] the composition root actually composes', () => {
   it('boots without throwing', async () => {
     fixture();
-    await expect(boot(document)).resolves.not.toThrow();
+    await expect(bootChess(document, '2.5d')).resolves.not.toThrow();
   });
 
   it('puts the board, the mirror, the coordinates and the panel on the screen', async () => {
     fixture();
-    await boot(document);
+    await bootChess(document, '2.5d');
     const region = document.getElementById('game-region');
     expect(region?.querySelector('#board-canvas')).not.toBeNull();
     expect(region?.querySelectorAll('[role="gridcell"]')).toHaveLength(64);
@@ -65,7 +68,7 @@ describe('[Boot] the composition root actually composes', () => {
 
   it('starts from the opening position, drawn', async () => {
     fixture();
-    await boot(document);
+    await bootChess(document, '2.5d');
     // Thirty-two pieces named on the mirror is the position having reached the DOM, which means
     // the rules, the declaration and the renderer all built.
     const occupied = [...document.querySelectorAll('[role="gridcell"]')]
@@ -75,7 +78,7 @@ describe('[Boot] the composition root actually composes', () => {
 
   it('hides the canvas from the screen reader and keeps the mirror ahead of it', async () => {
     fixture();
-    await boot(document);
+    await bootChess(document, '2.5d');
     const region = document.getElementById('game-region')!;
     const canvas = region.querySelector('#board-canvas')!;
     expect(canvas.getAttribute('aria-hidden')).toBe('true');
@@ -92,12 +95,12 @@ describe('[Boot] the composition root actually composes', () => {
 describe('[Boot] the flat composition root composes too', () => {
   it('boots without throwing', async () => {
     fixture();
-    await expect(boot2d(document)).resolves.not.toThrow();
+    await expect(bootChess(document, '2d')).resolves.not.toThrow();
   });
 
   it('puts a VISIBLE board and the panel on the screen, and no canvas', async () => {
     fixture();
-    await boot2d(document);
+    await bootChess(document, '2d');
     const region = document.getElementById('game-region');
     expect(region?.querySelector('.board-2d')).not.toBeNull();
     expect(region?.querySelectorAll('[role="gridcell"]')).toHaveLength(64);
@@ -117,7 +120,7 @@ describe('[Boot] the flat composition root composes too', () => {
 
   it('draws the opening position', async () => {
     fixture();
-    await boot2d(document);
+    await bootChess(document, '2d');
     const drawn = [...document.querySelectorAll('.cell-piece')].filter((g) => g.textContent);
     expect(drawn).toHaveLength(32);
   });
@@ -129,7 +132,7 @@ describe('[Boot] the board turns round for a player who chose black', () => {
     // its arrow keys — which is why a1 is still a1 to a screen reader on a turned board.
     saveSettings({ mode: 'b' });
     fixture();
-    await boot2d(document);
+    await bootChess(document, '2d');
     const board = document.querySelector<HTMLElement>('.board-2d');
     expect(board?.dataset.flipped).toBe('true');
     const first = document.querySelector('[role="gridcell"]');
@@ -152,12 +155,12 @@ describe('[Boot] the board turns round for a player who chose black', () => {
 describe('[Boot] the solid composition root composes too', () => {
   it('boots without throwing', async () => {
     fixture();
-    await expect(boot3d(document)).resolves.not.toThrow();
+    await expect(bootChess(document, '3d')).resolves.not.toThrow();
   });
 
   it('puts a canvas, the mirror and the panel on the screen', async () => {
     fixture();
-    await boot3d(document);
+    await bootChess(document, '3d');
     const region = document.getElementById('game-region');
     expect(region?.querySelector('canvas')).not.toBeNull();
     expect(region?.querySelectorAll('[role="gridcell"]')).toHaveLength(64);
@@ -174,7 +177,7 @@ describe('[Boot] the solid composition root composes too', () => {
 
   it('starts from the opening position', async () => {
     fixture();
-    await boot3d(document);
+    await bootChess(document, '3d');
     const occupied = [...document.querySelectorAll('[role="gridcell"]')]
       .filter((cell) => !/vazia|empty|vacía/.test(cell.getAttribute('aria-label') ?? ''));
     expect(occupied).toHaveLength(32);
@@ -188,7 +191,7 @@ describe('[Boot] the solid composition root composes too', () => {
      * quietly lost two lines the other two had.
      */
     fixture();
-    await boot3d(document);
+    await bootChess(document, '3d');
     const region = document.getElementById('game-region')!;
     const canvas = region.querySelector('canvas')!;
     expect(canvas.getAttribute('aria-hidden')).toBe('true');

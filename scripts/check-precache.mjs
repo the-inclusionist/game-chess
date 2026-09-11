@@ -23,10 +23,13 @@ const REQUIRED = [
   'stockfish-18-lite-single.wasm',
   // Its loader: the `.wasm` alone is unreachable.
   'stockfish-18-lite-single.js',
-  // The three views. A PWA that installs one page and 404s the other two is worse than none.
+  /*
+   * The page. ⚠️ THERE WERE THREE, one per view, and this list named all of them because a PWA that
+   * installs one and 404s the others is worse than none. The views are renderers chosen inside one
+   * document now, so there is one page and the other two would be names of files that do not exist
+   * — a gate that guards a file nobody ships passes forever and protects nothing.
+   */
   'index.html',
-  '2d.html',
-  '3d.html',
 ];
 
 const problems = [];

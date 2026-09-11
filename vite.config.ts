@@ -133,17 +133,23 @@ export default defineConfig(({ mode }) => {
     outDir: '../dist',
     emptyOutDir: true,
     target: 'es2022',
-    // ========================= TWO ENTRIES, ONE REPOSITORY =========================
-    // Measured, in `spike/2d-weight/`: a flat board needs 104 KB and the Zdog one needs 146. As a
-    // MODE the flat board would have carried the renderer it never draws with. As a second entry
-    // it carries what it uses, and the shared half — rules, search, declaration, HUD, i18n — is
-    // one chunk both pages fetch.
+    /*
+     * ========================= ONE ENTRY, THREE VIEWS =========================
+     * ⚠️ THIS WAS THREE ENTRIES, AND THE MEASUREMENT THAT JUSTIFIED THEM STILL STANDS — it is the
+     * mechanism that changed. From `spike/2d-weight/`: a flat board needs 104 KB and the Zdog one
+     * 146, so a single bundle with a switch would have made every player pay for all three. As
+     * separate PAGES each carried only what it drew.
+     *
+     * Dynamic `import()` buys the same saving without the pages: measured on this build,
+     * `view-flat` is 0.8 KB, `view-zdog` 38.2 KB and `view-solid` 540.7 KB, each a chunk nobody
+     * parses unless they pick it. That is BETTER than three entries, where `3d.html` loaded Three.js
+     * eagerly for anyone who opened it.
+     *
+     * And the reason it had to change is not weight at all: inside a platform a second HTML entry is
+     * a second URL, not a second bundle (ADR-0139, which records this for this game by name).
+     */
     rollupOptions: {
-      input: {
-        main: fileURLToPath(new URL('./app/index.html', import.meta.url)),
-        flat: fileURLToPath(new URL('./app/2d.html', import.meta.url)),
-        solid: fileURLToPath(new URL('./app/3d.html', import.meta.url)),
-      },
+      input: { main: fileURLToPath(new URL('./app/index.html', import.meta.url)) },
     },
   },
   optimizeDeps: {
