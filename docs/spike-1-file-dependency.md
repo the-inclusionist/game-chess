@@ -1,5 +1,19 @@
 # Spike 1 — the engine as a `file:` dependency
 
+> ⚠️ **SUPERSEDED on 2026-09-11, and kept verbatim as the record of an experiment rather than
+> rewritten.** The mechanism this document proves is gone: the engine arrives as the published
+> `@the-inclusionist/engine@^8.0.0` from npm. The `file:` link stopped resolving the day the sibling
+> checkout was renamed, and the repository did not install at all until the move to the registry.
+>
+> ⚠️ **And what it proved was narrower than it reads.** A `file:` link tests the tree that PUBLISHES,
+> which has every dev dependency installed; only a consumer installing from the registry tests what
+> a stranger gets. That check was run separately, in an empty directory, before the move landed.
+>
+> Two things here were cited elsewhere in the repository and have been corrected at their sites:
+> `vite.config.ts` no longer says the engine's `exports` map points at raw `.ts` (the published one
+> points at built `dist-pkg/*.js`), and the `optimizeDeps.exclude` it justifies now carries a note
+> saying its original reason went with the symlink and no measurement has replaced it.
+
 **Verdict: PASS.** Run 2026-09-04. `typecheck` clean, `build` clean, boots in the browser
 with no console errors. This repository is the **first external consumer** the engine has
 ever had, so everything below was unproven until now.

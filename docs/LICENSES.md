@@ -40,7 +40,8 @@ repository is a consumer of the engine and inherits its position.
 
 | | Licence | Note |
 |---|---|---|
-| `@the-inclusionist/engine` | AGPL-3.0-or-later | Same owner. Linked with `file:`; this repo is its first external consumer. |
+| `@the-inclusionist/engine` 8.0.0 | AGPL-3.0-or-later | Same owner. **Published package**, from npm. It was a `file:` link to a sibling checkout until 2026-09-11, which is worth recording because that mechanism proved nothing about the package: the tree that publishes has every dev dependency installed, so only a consumer installing from the registry tests what a stranger gets. This repo was the engine's first external consumer either way. |
+| `pixi.js` 7.4.2 | MIT | Declared by the engine as a peer, so npm installs it here. **Not shipped**: the only two engine modules that import it — `render/canvas` and `render/minimap` — are ones this game never reaches. Checked both ways: `createGame` does not import them, and no chunk in `dist/` carries Pixi, with every chunk in that build accounted for by something else (the three locale catalogues, the puzzles, the shell, the 230 kB opening book, and Three.js in the solid page). |
 | `zdog` 1.1.3 | MIT | © 2020 Metafizzy. Pseudo-3D geometry, projection and depth sort. |
 | `chess.js` | BSD-2-Clause | Rules, legality, FEN, algebraic notation. |
 | `vite`, `vitest`, `typescript`, `playwright` | MIT / Apache-2.0 | Build and test only; not shipped. |
