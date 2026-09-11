@@ -23,6 +23,7 @@ import { createChessCartridge } from './game-shell.ts';
 import { VIEWS } from './views.ts';
 import { CONTRAST_THEME } from '../ui/board-themes.ts';
 import type { ViewKind } from '../ui/hud.ts';
+import { loadSettings } from '../chess/session.ts';
 import type { GameShell, GameShellDeps } from './game-shell.ts';
 
 // Re-exported because this file is the door now: whoever builds a shell imports it from here.
@@ -127,7 +128,13 @@ const PER_VIEW = {
  * squares» and shows nothing is worse than no lesson mode. The channel exists; the exception does
  * not.
  */
-export function bootChess(host: Document, kind: ViewKind): Promise<void> {
+export function bootChess(host: Document, asked?: ViewKind): Promise<void> {
+  /*
+   * ⚠️ THE REMEMBERED VIEW WINS WHEN NOBODY ASKS, and `2.5d` is the floor rather than a preference:
+   * it is the board this game was built to draw, and the one the title screen's art belongs to.
+   * An explicit `asked` still wins over both — that is how a test names the view it wants.
+   */
+  const kind = asked ?? loadSettings().view ?? '2.5d';
   return startChess({ host, kind, teaches: true, ...PER_VIEW[kind] })
     .then(() => undefined)
     .catch(bootFailed);

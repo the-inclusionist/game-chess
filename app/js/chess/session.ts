@@ -191,6 +191,15 @@ export interface ViewSettings {
   readonly protect?: boolean;
   /** The rating the opponent is asked to play at. */
   readonly elo?: number;
+  /**
+   * Which board is drawing: flat, projected or solid.
+   *
+   * ⚠️ THE ADDRESS USED TO CARRY THIS, and that is why it was not here. Each view was its own page,
+   * so reloading `3d.html` gave you back the solid board without anything being remembered. One
+   * document showing all three means the choice has nowhere to live but here — and a view that
+   * reset on every reload would be exactly the bug the `mode` field above was written to avoid.
+   */
+  readonly view?: '2d' | '2.5d' | '3d';
 }
 
 /**
@@ -237,7 +246,7 @@ export function loadSettings(store: SessionStore | null = defaultStore()): ViewS
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return {};
     const {
-      locale, theme, set, design, coordinates, mode, elo, hints, protect,
+      locale, theme, set, design, coordinates, mode, elo, hints, protect, view,
     } = parsed as ViewSettings;
     return {
       ...(locale === 'pt' || locale === 'en' || locale === 'es' ? { locale } : {}),
@@ -245,6 +254,7 @@ export function loadSettings(store: SessionStore | null = defaultStore()): ViewS
       ...(typeof set === 'string' ? { set } : {}),
       ...(typeof coordinates === 'boolean' ? { coordinates } : {}),
       ...(mode === 'w' || mode === 'b' || mode === 'two' ? { mode } : {}),
+      ...(view === '2d' || view === '2.5d' || view === '3d' ? { view } : {}),
       ...(typeof design === 'string' ? { design } : {}),
       ...(typeof hints === 'boolean' ? { hints } : {}),
       ...(typeof protect === 'boolean' ? { protect } : {}),

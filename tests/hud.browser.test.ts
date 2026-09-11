@@ -27,6 +27,7 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   const onOutline = vi.fn((on: boolean) => { outline = on; });
   let coords = true;
   const onCoords = vi.fn((on: boolean) => { coords = on; });
+  const viewAsks: string[] = [];
   // The composition root cancels the search and redraws around these; the panel only asks.
   const onTakeBack = vi.fn(() => { state.takeBack(); hud!.refresh(); });
   const onReplay = vi.fn(() => { state.replay(); hud!.refresh(); });
@@ -36,7 +37,10 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
     reducedMotion: () => motion, onReducedMotion,
     outline: () => outline, onOutline,
     coordinates: () => coords, onCoordinates: onCoords,
-    view: '2.5d',
+    view: () => '2.5d',
+    // Recorded rather than acted on: the panel's job is to ASK for a view, and what that means is
+    // the composition root's. A harness that mounted a renderer here would be testing the shell.
+    onView: (kind: string) => { viewAsks.push(kind); },
     // The two controls the panel has that are about the OPPONENT: who plays which colour, and how
     // strong the engine is. Both are optional to the panel — the two-player board has neither —
     // so a builder that left them out was testing a panel the game never actually shows.
@@ -74,7 +78,7 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
     state.animationDone();
     hud!.refresh();
   };
-  return { rules, state, hud, onVision, play,
+  return { rules, state, hud, onVision, play, viewAsks,
            getVision: () => vision, onReducedMotion, getMotion: () => motion,
            onOutline, getOutline: () => outline, onTakeBack, onReplay,
            onCoords, getCoords: () => coords };
@@ -367,7 +371,7 @@ describe('[Views] 2D, 2.5D and 3D across the top of the panel', () => {
 
   it('marks the current one for the eye AND for the reader', () => {
     build();
-    const current = views().filter((v) => v.getAttribute('aria-current') === 'page');
+    const current = views().filter((v) => v.getAttribute('aria-current') === 'true');
     expect(current).toHaveLength(1);
     expect(current[0].dataset.view).toBe('2.5d');
     // It stays in the list rather than being removed: a control that changed length between views
@@ -375,27 +379,37 @@ describe('[Views] 2D, 2.5D and 3D across the top of the panel', () => {
     expect(views()).toHaveLength(3);
   });
 
-  it('uses real links, so the platform gives back what a button would take away', () => {
+  it('⚠️ is a row of BUTTONS, and it was a row of links on purpose until the pages went', () => {
+    /*
+     * THE TEST THIS REPLACES SAID THE OPPOSITE, and it was right: «uses real links, so the platform
+     * gives back what a button would take away». What a link gives back is opening a view in
+     * another tab, and that was a true affordance while each view WAS a page — `2d.html`,
+     * `index.html`, `3d.html`.
+     *
+     * ⚠️ IT STOPPED BEING TRUE WHEN THE PAGES WENT. A link to `2d.html` would now point at nothing,
+     * and the middle click it afforded would land on a 404. A button is what this control actually
+     * is: it changes the board in front of you, with no title screen in between.
+     *
+     * `type="button"` is not decoration — inside a form an untyped button submits.
+     */
     build();
-    const [flat, projected] = views();
-    expect(flat.tagName).toBe('A');
-    expect(flat.getAttribute('href')).toBe('2d.html');
-    expect(projected.getAttribute('href')).toBe('index.html');
+    for (const el of views()) {
+      expect(`${el.dataset.view}: ${el.tagName} ${(el as HTMLButtonElement).type}`)
+        .toBe(`${el.dataset.view}: BUTTON button`);
+      expect(el.hasAttribute('href'), 'no destination, because there is none').toBe(false);
+    }
   });
 
-  it('links all three views, none of them disabled any more', () => {
-    // ⚠️ The 3D view used to be shown and DISABLED, because saying "not yet" is more useful than
-    // pretending there were only ever two. It exists now, so it is a link like the others — and
-    // the `null` case stays in `VIEW_PAGES` for the next view that does not exist yet.
-    build();
-    const views = [...document.querySelectorAll('.hud-view')];
-    expect(views).toHaveLength(3);
-    for (const view of views) {
-      expect(`${view.getAttribute('data-view')} ${view.hasAttribute('aria-disabled')}`)
-        .toBe(`${view.getAttribute('data-view')} false`);
-    }
-    expect(views.map((v) => v.getAttribute('href')))
-      .toEqual(['2d.html', 'index.html', '3d.html']);
+  it('⚠️ asks the composition root to change view, rather than knowing how', () => {
+    /*
+     * The panel is the one part of this game that never had to know what a Zdog view is, and a
+     * switcher that mounted renderers would make it the second place that does. It reports a want;
+     * the shell owns the meaning.
+     */
+    const { viewAsks } = build();
+    [...document.querySelectorAll<HTMLElement>('.hud-view')]
+      .find((v) => v.dataset.view === '3d')!.click();
+    expect(viewAsks).toEqual(['3d']);
   });
 
   it('names each destination in the language the reader chose', () => {

@@ -27,6 +27,7 @@ import type { GameState } from '../chess/state.ts';
 export type GameMode = 'w' | 'b' | 'two';
 import { BOARD_THEMES } from './board-themes.ts';
 import { contrastRows } from './contrast-report.ts';
+import { VIEW_KINDS } from '../boot/views.ts';
 import type { I18n } from '../i18n/index.ts';
 
 /** Which drawing of the board this page is. Also which of the three buttons is the current one. */
@@ -34,8 +35,15 @@ export type ViewKind = '2d' | '2.5d' | '3d';
 
 export interface HudDeps {
   readonly doc: Document;
-  /** The view this page shows. Omit and the switcher is left out entirely. */
-  readonly view?: ViewKind;
+  /**
+   * Which view is drawing NOW. Omit and the switcher is left out entirely.
+   *
+   * ⚠️ AN ACCESSOR SINCE VIEWS BECAME SWAPPABLE. It was a value, which was right while a page was a
+   * view and became a capture the moment one document could show all three.
+   */
+  readonly view?: () => ViewKind;
+  /** Asked to change the board. The composition root owns what that means. */
+  readonly onView?: (kind: ViewKind) => void;
   readonly i18n: I18n;
   /**
    * ⚠️ ACCESSORS, NOT OBJECTS, AND THAT IS WHAT KEEPS THE FOCUS ON THE BOARD.
@@ -231,11 +239,6 @@ export interface Hud {
 }
 
 /** The three views and the page each one lives on. `null` is a view that is not built yet. */
-const VIEW_PAGES: readonly (readonly [ViewKind, string | null])[] = [
-  ['2d', '2d.html'],
-  ['2.5d', 'index.html'],
-  ['3d', '3d.html'],
-];
 
 export function createHud(deps: HudDeps): Hud {
   const { doc, i18n, rules, state } = deps;
@@ -344,28 +347,22 @@ export function createHud(deps: HudDeps): Hud {
   const viewLinks: { kind: ViewKind; el: HTMLElement }[] = [];
 
   if (deps.view) {
-    const here = deps.view;
-    for (const [kind, href] of VIEW_PAGES) {
-      // ⚠️ All three exist now. The `null` case stays: a view that is not built yet is shown and
-      // disabled rather than hidden, because a control that appears later moves the other two,
-      // and because saying "not yet" is more useful than pretending there were only ever two.
-      const pending = href === null;
-      const el = doc.createElement(pending ? 'span' : 'a');
+    /*
+     * ⚠️ BUTTONS SINCE THE THREE PAGES WENT, AND THEY WERE LINKS ON PURPOSE UNTIL THEN. The reason
+     * is recorded in the test that pinned it: real links give back what a button takes away —
+     * opening a view in another tab. That was a true affordance while each view WAS a page.
+     *
+     * It stopped being one when the views became renderers swapped inside one document: a link to
+     * `2d.html` would be a link to a page that no longer exists, and the middle click it afforded
+     * would land on nothing. A button says what this now is — a control that changes the board in
+     * front of you, with no title screen in between.
+     */
+    for (const kind of VIEW_KINDS) {
+      const el = doc.createElement('button');
+      el.type = 'button';
       el.className = 'hud-view';
       el.dataset.view = kind;
-      if (!pending) {
-        (el as HTMLAnchorElement).href = href;
-        // ⚠️ Says WHY the next page is loading. Each view is its own page — 110 KB against 148,
-        // measured — so changing view is a navigation, and a navigation runs the title screen
-        // again. A title screen is for loading the GAME; meeting it every time you look at the
-        // same position from a different angle is being asked to start something you are already
-        // in the middle of. `ui/splash.ts` reads this and steps aside.
-        el.addEventListener('click', () => {
-          try { sessionStorage.setItem('incl_chess_switching', '1'); } catch { /* private mode */ }
-        });
-      }
-      if (kind === here) el.setAttribute('aria-current', 'page');
-      if (pending) el.setAttribute('aria-disabled', 'true');
+      el.addEventListener('click', () => { deps.onView?.(kind); });
       views.appendChild(el);
       viewLinks.push({ kind, el });
     }
@@ -844,16 +841,23 @@ export function createHud(deps: HudDeps): Hud {
   }
 
   function refresh(): void {
+    /*
+     * ⚠️ THE CURRENT ONE IS MARKED HERE AND NOT AT CONSTRUCTION, because it changes now. It used to
+     * be decided once, from the page you were on; a view that can be swapped makes that a capture
+     * like any other, and the symptom would be a switcher permanently pointing at whichever board
+     * the page opened with.
+     *
+     * `aria-current="true"` rather than `"page"`: it is still the current item of a set, and it is
+     * no longer a page. The `pending` branch went with the links — all three views exist, and a
+     * `<span>` standing in for one that did not was the last trace of when two did.
+     */
+    const hereNow = deps.view?.();
     for (const { kind, el } of viewLinks) {
-      el.textContent = i18n.t(`view.${kind === '2.5d' ? '25d' : kind}`);
-      const pending = el.tagName === 'SPAN';
-      el.setAttribute(
-        'aria-label',
-        pending
-          ? `${i18n.t(`view.${kind === '2.5d' ? '25d' : kind}`)}, ${i18n.t('view.soon')}`
-          : i18n.t('view.go', { name: i18n.t(`view.${kind === '2.5d' ? '25d' : kind}`) }),
-      );
-      if (pending) el.title = i18n.t('view.soon');
+      const name = i18n.t(`view.${kind === '2.5d' ? '25d' : kind}`);
+      el.textContent = name;
+      el.setAttribute('aria-label', i18n.t('view.go', { name }));
+      if (kind === hereNow) el.setAttribute('aria-current', 'true');
+      else el.removeAttribute('aria-current');
     }
 
     const side = rules().turn();

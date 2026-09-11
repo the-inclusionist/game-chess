@@ -752,7 +752,20 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
 
   const hud = createHud({
     doc: host,
-    view: deps.kind,
+    view: () => viewKind,
+    /*
+     * ⚠️ THE PANEL ASKS AND THE COMPOSITION ROOT ANSWERS, which is the whole reason `switchView`
+     * is on the shell rather than in the panel. A switcher that knew how to mount a renderer would
+     * be a second place that knows what a Zdog view is, and the panel is the one part of this game
+     * that never needed to.
+     *
+     * `void` because a click handler cannot await: the renderer arrives by dynamic import, and a
+     * failure there is reported by the shell rather than swallowed here.
+     */
+    // `self?` and not `self!`: the binding is null only until this function finishes building the
+    // shell, and nobody can click a button that is not in the document yet. Optional rather than
+    // asserted because an assertion here would be a claim about timing that nothing checks.
+    onView: (kind: ViewKind) => { void self?.switchView(kind); },
     i18n,
     rules: () => rules,
     state: () => game,
@@ -1952,6 +1965,13 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
       syncPosition();
       relayout();
       hud.refresh();
+      /*
+       * ⚠️ REMEMBERED, BECAUSE THE ADDRESS NO LONGER REMEMBERS IT. Each view used to be its own
+       * page, so reloading gave the board back for free. One document showing all three means a
+       * reload would drop the player on whichever view the game opens with — which is the same
+       * defect the remembered `mode` was written to prevent, arriving by a different door.
+       */
+      patchSettings({ view: kind });
     },
     rules: () => rules,
     game: () => game,
