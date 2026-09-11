@@ -2,24 +2,26 @@
   <!--
     SPDX-License-Identifier: AGPL-3.0-or-later
 
-    The install icon. Deliberately a BOARD and not a piece: the Hartwig set's drawing is still
-    under the public-domain review recorded in docs/LICENSES.md (he died in 1956, so Brazil's
-    term ends in 2027), and an app icon is the last place to spend a claim that is not settled
-    yet. Alternating squares are geometry nobody owns.
+    The install icon: a black pawn on a white square, asked for by the Dev on 2026-09-11.
 
-    Palette from app/css/board.css, so the icon reads as the same product: --page behind,
-    --surface-high for the light squares, --accent on the one square that marks a move.
+    ⚠️ THE FONT IS NAMED, NOT EMBEDDED, and the difference is the licence. `font-family` asks the
+    device for STIX Two Math; it does not carry any of that font's outlines into this repository.
+    The fallback chain matters for the same reason — where STIX is absent the glyph still draws,
+    because U+265F is a Unicode character every modern system has in one symbol font or another,
+    and a serif is the closest shape to STIX's.
+
+    📌 And it is a UNICODE PAWN rather than a Hartwig one, deliberately. The Hartwig set's drawing
+    is still under the public-domain review recorded in docs/LICENSES.md — he died in 1956, so
+    Brazil's term ends in 2027 — and an install icon is the last place to spend a claim that is not
+    settled yet.
   -->
-  <rect width="64" height="64" fill="#05070f"/>
-  <g fill="#24344a">
-    <rect x="8"  y="8"  width="12" height="12"/>
-    <rect x="32" y="8"  width="12" height="12"/>
-    <rect x="20" y="20" width="12" height="12"/>
-    <rect x="44" y="20" width="12" height="12"/>
-    <rect x="8"  y="32" width="12" height="12"/>
-    <rect x="32" y="32" width="12" height="12"/>
-    <rect x="20" y="44" width="12" height="12"/>
-    <rect x="44" y="44" width="12" height="12"/>
-  </g>
-  <rect x="44" y="8" width="12" height="12" fill="#FFB300"/>
+  <rect width="64" height="64" fill="#F2EEE4"/>
+  <text
+    x="32" y="32"
+    font-family="'STIX Two Math', 'STIXGeneral', 'Segoe UI Symbol', 'Noto Sans Symbols 2', serif"
+    font-size="40"
+    text-anchor="middle"
+    dominant-baseline="central"
+    fill="#05070f"
+  >&#9823;</text>
 </svg>
