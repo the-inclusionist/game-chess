@@ -538,6 +538,26 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * `createGame` also returns a resolved `declines`. It is where it was; the record says to read the
    * implementation before moving it.
    */
+  /**
+   * Put a colour-vision correction on the board, from wherever it was asked for.
+   *
+   * ⚠️ ONE WRITER, BECAUSE THERE ARE NOW TWO ASKERS: the select in this game's pause menu, and the
+   * 🚥 icon the engine mounts in the accessibility bar. Two copies of three lines would be two
+   * places for the filter and the remembered key to drift apart, and the symptom would be a bar
+   * that changes the board while the panel still shows the old answer.
+   */
+  /*
+   * ⚠️ A `const` ARROW AND NOT A `function`, AND `tsc` IS WHAT INSISTED. A function declaration is
+   * HOISTED, so it could in principle run before the `if (!region) throw` twenty lines above —
+   * which means TypeScript refuses to narrow `region` inside it, and refusing is right. An arrow
+   * cannot be called before its own line, so the guard holds and the narrowing with it.
+   */
+  const applyVision = (key: string): void => {
+    vision = key;
+    region.style.filter = VIZ_FILTER[key] ?? '';
+    hud.refresh();
+  };
+
   const hooks: GanchosDoCartucho & { declaration: typeof declaration } = {
     declaration,
     /*
@@ -566,6 +586,28 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      * the time the engine asks for the table, the binding it names has been filled by `create()`.
      */
     getPauseActs: () => ({ resume: () => engine.pausa.esconder(0) }),
+    /*
+     * ========================= THE 🚥 ICON, AND THE ⚫ ONE THAT IS NOT HERE =========================
+     * 🔴 ENGINE 9 OPENED A DOOR THAT DID NOT EXIST, and its own comment names the misreading I made
+     * when mounting the bar: I wrote that contrast and colour-vision were absent because this game
+     * «already offers both in its pause menu». The engine's record answers that exactly — «verdade
+     * sobre o resultado e falso sobre a causa. Uma lacuna que o consumidor lê como escolha é a pior
+     * forma de lacuna». The icons were unmountable because no game could supply the setter.
+     *
+     * The mapping is mechanical: the engine's axis is `tricro | protan | deuter | tritan`, this
+     * game's keys are `normal` and `fix-*`, and one is the other with a prefix.
+     *
+     * ⚠️ AND `setTemaDoJogador` IS DELIBERATELY NOT PASSED, which is why the ⚫ icon stays absent.
+     * The engine's theme axis is a CONTRAST LEVEL — `padrao | hc3 | hc45 | hc7`, three of them
+     * naming measured ratios. This game's themes are seven NAMED PALETTES, and two of them are high
+     * contrast for different renderers rather than different levels. Wiring them would make this
+     * game assert ratios it has not measured — and `render/palette.ts` records the opposite: five of
+     * the seven have piece fills BELOW 3:1. The engine's own comment says these are two questions
+     * and a game may answer one; this is a game that can correct colour and cannot claim a level.
+     */
+    setCorrecaoDoJogador: (_i: number, correcao: string) => {
+      applyVision(correcao === 'tricro' ? 'normal' : `fix-${correcao}`);
+    },
     /*
      * ⚠️ GAME-OWNED, AND ENGINE 9 IS WHAT SETTLED IT. This sat on the host's side with a comment
      * saying ADR-0139 left the direction open and that the implementation should be read before
@@ -692,11 +734,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
       hud.refresh();
     },
     vision: () => vision,
-    onVision: (key) => {
-      vision = key;
-      region.style.filter = VIZ_FILTER[key] ?? '';
-      hud.refresh();
-    },
+    onVision: (key) => applyVision(key),
     reducedMotion: () => motionReduced,
     onReducedMotion: (on) => { motionReduced = on; hud.refresh(); },
     mode: () => mode,
