@@ -41,6 +41,14 @@ import { VitePWA } from 'vite-plugin-pwa';
  * game's alone, with no sharing to win, so it stays inside the bundle; the architecture
  * document's answer for its 743.9 KB is the 3D view becoming a lazily imported chunk, which is a
  * different mechanism for a different problem. `chess.js` is this game's own rules.
+ *
+ * ⚠️ AND THAT DECISION HAS A CONSEQUENCE THE MANIFEST WAS GETTING WRONG. Measured on the emitted
+ * package: `dist-lib` imports exactly two names — `zdog` and `@the-inclusionist/engine`. `three`
+ * appears nowhere as an import, because it is INLINED into the `view-solid` chunk. So it is a
+ * build-time dependency and not a runtime one, and the `dependencies` entry it used to have asked
+ * every consumer to install ~620 KB that nothing they run ever loads. It is a `devDependency` now.
+ * `scripts/check-cartridge.mjs` is what keeps this paragraph and the code agreeing: every name the
+ * build emits must be a declared peer, and every declared peer must be a name the build emits.
  */
 const LIB_BUILD = {
   outDir: '../dist-lib',

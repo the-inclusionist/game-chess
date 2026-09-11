@@ -17,14 +17,14 @@
     "test:watch": "vitest",
     "test:node": "vitest run --project node",
     "test:browser": "vitest run --project browser",
-    "validate": "npm run typecheck && vitest run && vite build && node scripts/check-precache.mjs",
+    "validate": "npm run typecheck && vitest run && vite build && node scripts/check-precache.mjs && vite build --mode lib && node scripts/check-cartridge.mjs",
     "check:precache": "node scripts/check-precache.mjs",
+    "check:cartridge": "node scripts/check-cartridge.mjs",
     "build:lib": "vite build --mode lib && npm run build:types",
     "build:types": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "chess.js": "^1.4.0",
-    "three": "^0.185.1"
+    "chess.js": "^1.4.0"
   },
   "peerDependencies": {
     "@the-inclusionist/engine": "^9.0.0",
@@ -37,6 +37,7 @@
     "@vitest/browser": "^4.0.0",
     "@vitest/browser-playwright": "^4.0.0",
     "playwright": "^1.49.0",
+    "three": "^0.185.1",
     "typescript": "^5.7.0",
     "vite": "^8.0.0",
     "vite-plugin-pwa": "^1.3.0",
