@@ -159,6 +159,19 @@ html { background: var(--page); }
   #side-column { padding-left: var(--ui-fs, 16px); box-sizing: border-box; }
   #side-column { flex: 0 0 auto; min-width: 0; }
   /*
+   * ========================= A STACK, SO THE BAR CAN STAY PUT =========================
+   * The column held one child and let it fill; it holds two now — the accessibility bar the engine
+   * mounts, and the panel — so it has to say how they share the height. The bar is `0 0 auto` and
+   * the panel takes the rest, which is what keeps the bar PINNED while the panel scrolls under it.
+   *
+   * ⚠️ `min-height: 0` ON THE PANEL IS LOAD-BEARING, NOT TIDINESS. A flex item's default minimum
+   * is its content, so without it the panel refuses to be shorter than its 487 px of controls, the
+   * column grows past the stage, and `#stage`'s `overflow: hidden` clips the bottom of it — which
+   * is the failure this game already decided against: a control that is on the page, focusable and
+   * announced, and unreachable with a pointer.
+   */
+  #side-column { display: flex; flex-direction: column; }
+  /*
    * ⚠️ CENTRED IN THE STAGE. The board region is a whole multiple of 640x360 and the stage is a
    * whole multiple of 360x180, so at k=3 the region is 360 tall inside 540 — the two families do
    * not divide into each other, and they are not meant to. What is left over is margin, and margin
@@ -279,9 +292,33 @@ html { background: var(--page); }
    */
   .chess-hud[hidden] { display: none; }
 
+  /*
+   * ========================= THE ENGINE'S ACCESSIBILITY BAR =========================
+   * The engine writes a flat run of `.pi-btn` buttons in here and the imported stylesheet sizes
+   * them from `--tap` — 24 px at the smallest stage, 44 where there is room — so the row needs a
+   * layout and nothing else. It WRAPS: at the floor the panel is 280 wide and the engine mounts up
+   * to eight icons, which do not fit on one line, and a row that overflows instead of wrapping
+   * would push the last icons past the panel's edge into `#stage`'s clip.
+   *
+   * ⚠️ NOT `overflow: hidden` AND NOT A SCROLLER. This is the control a child reaches for when the
+   * screen is unreadable to them; it is the one row in this game that may not need discovering.
+   */
+  .a11y-bar {
+    flex: 0 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--ui-fs, 16px) * 0.25);
+    padding: calc(var(--ui-fs, 16px) * 0.3) calc(var(--ui-fs, 16px) * 0.3) 0;
+    box-sizing: border-box;
+  }
+
   .chess-hud {
     width: 100%;
-    height: 100%;
+    /* ⚠️ `flex: 1 1 auto; min-height: 0` REPLACED `height: 100%`, and the pair is what lets the
+       panel be shorter than its own content so it can scroll instead of being clipped. See the
+       stack comment on `#side-column`. */
+    flex: 1 1 auto;
+    min-height: 0;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;

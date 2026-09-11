@@ -219,6 +219,33 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   stage.appendChild(enginePause);
 
   /*
+   * ========================= THE ACCESSIBILITY BAR, AND THE HOLE IT FILLS =========================
+   * ⚠️ THE ENGINE'S MEASUREMENT NAMES THIS GAME, and it is right: of six games in the local
+   * catalogue, five mount no accessibility bar at all, and `game-chess` is one of the five. Its
+   * `problems` list has been saying so since 8.0.0 — *"sem barra de acessibilidade na primeira
+   * tela… sem ela a criança não alcança modo cego, TTS, alto contraste nem Libras antes de começar"*.
+   *
+   * ⚠️ AND THE HOLE IS REAL RATHER THAN FORMAL. Searched before building: this game exposes NO
+   * control for blind mode, none for TTS, and the word Libras does not appear once in `app/`. The
+   * sonar is reachable only by knowing the `L` key. Every display setting it does offer — palette,
+   * colour-vision correction, reduced motion, piece design — lives behind the pause menu, which is
+   * behind knowing that START opens one. A child who needs the screen reader to begin with cannot
+   * get to the thing that would read it.
+   *
+   * WHERE: the top of the side panel, by the Dev's decision of 2026-09-11, with the cost accepted
+   * — that panel already holds 487 px of content in 360 and scrolls, and this adds a row. It is a
+   * SIBLING of `.chess-hud` rather than a child, so it survives the teaching mode hiding the panel:
+   * an accessibility control that disappears during a lesson is worse than useless, because it is
+   * gone exactly when a child is being asked to concentrate.
+   *
+   * ⚠️ The element must exist BEFORE `createGame`, which reads the host during boot and writes the
+   * buttons into it with `innerHTML`. Nothing else may put anything here.
+   */
+  const a11yBar = host.createElement('div');
+  a11yBar.className = 'a11y-bar';
+  column.appendChild(a11yBar);
+
+  /*
    * ⚠️ THE REMEMBERED LANGUAGE BEATS THE BROWSER'S, and until now there was no remembered one to
    * beat it with: `setLocale` existed on the interface and was called nowhere in production, so
    * three catalogues shipped and only the browser could pick between them.
@@ -465,6 +492,9 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       doc: host, win: window, cvdHost: host.getElementById('cvd'),
       // Out of the board's nine units and into the stage. See the element's own comment.
       pauseHost: enginePause,
+      // Named rather than left to the fallback: the engine looks for `#title-icons`, which is the
+      // platformer's id, and finding nothing it reported the absence instead of mounting the bar.
+      a11yBarHost: a11yBar,
     },
     /*
      * ========================= WHAT THIS GAME DECLINES, AS 8.0.0 ASKS IT =========================

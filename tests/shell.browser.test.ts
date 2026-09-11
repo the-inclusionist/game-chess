@@ -1175,7 +1175,14 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     expect(hud, 'a panel to measure').not.toBeNull();
     expect(getComputedStyle(hud).overflowY).toMatch(/auto|scroll/);
 
-    hud.style.height = '200px';
+    /*
+     * ⚠️ `max-height` AND NOT `height`, AND THE CHANGE IS THE LESSON. This line set `height` until
+     * the accessibility bar arrived and made the panel a FLEX ITEM of `#side-column` — after which
+     * `flex: 1 1 auto` resolved the size and the height written here was ignored. The test did not
+     * fail loudly: it measured 331 against 331, content fitting a box it had not actually shrunk,
+     * and would have gone on passing while proving nothing. A `max-height` constrains a flex item.
+     */
+    hud.style.maxHeight = '200px';
     expect(hud.scrollHeight, 'content past the foot of the panel').toBeGreaterThan(hud.clientHeight);
 
     const controls = [...hud.querySelectorAll('button, select, input')] as HTMLElement[];
@@ -1360,5 +1367,73 @@ describe('[Engine pause] the engine mounts a card, and this game says only where
 
     expect(document.querySelector<HTMLElement>('.chess-pause')!.hidden, 'ours opened').toBe(false);
     expect(card.hidden, 'theirs did not').toBe(true);
+  });
+});
+
+describe('[A11y bar] the control a child needs before they can read the screen', () => {
+  /*
+   * ========================= THE HOLE THIS FILLS, NAMED =========================
+   * Searched before it was built: this game exposes NO control for blind mode, NONE for TTS, and
+   * the word Libras appears nowhere in `app/`. The sonar is reachable only by knowing the `L` key.
+   * Everything it does offer is behind the pause menu, which is behind knowing START opens one.
+   *
+   * The engine has mounted that bar for every game since 8.0.0 and was reporting this one as
+   * missing it. These tests are what stop it going missing again.
+   */
+  const mount = (name: string): void => {
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    createGameShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      teaches: true,
+      debugName: name, contrastTheme: 'contrast-flat',
+    });
+  };
+
+  it('⚠️ the engine actually wrote buttons into it', () => {
+    mount('__barTest');
+    const bar = document.querySelector('.a11y-bar');
+    expect(bar, 'the host exists').not.toBeNull();
+    const icons = [...bar!.querySelectorAll('button')];
+    /*
+     * A count, not a list of ids: WHICH icons appear is the engine's to decide — it mounts only the
+     * ones that act, so `contrast` and `cvd` are absent here by design (they need setters
+     * `createGame` does not accept, and this game already offers both in its pause menu). What this
+     * game is responsible for is that the bar was given somewhere to be.
+     */
+    expect(icons.length, 'icons mounted').toBeGreaterThan(0);
+    expect(icons.every((b) => b.getAttribute('aria-label')), 'every icon is named').toBeTruthy();
+  });
+
+  it('⚠️ it is a SIBLING of the panel, so a lesson cannot take it away', () => {
+    /*
+     * The teaching mode hides `.chess-hud`. An accessibility control that disappears during a
+     * lesson is worse than useless — it is gone exactly when a child is being asked to concentrate.
+     * Structure rather than behaviour: hiding an element cannot hide its sibling, so this holds
+     * without depending on the order the lesson does things in.
+     */
+    mount('__barSibling');
+    const bar = document.querySelector('.a11y-bar')!;
+    const panel = document.querySelector('.chess-hud')!;
+    expect(panel.contains(bar), 'inside the panel').toBe(false);
+    expect(bar.parentElement?.id, 'in the side column').toBe('side-column');
+    expect(document.getElementById('stage')!.contains(bar), 'inside the stage').toBe(true);
+  });
+
+  it('⚠️ its icons are as big as every other control in this game', () => {
+    // `--tap` is graduated by board size — 24 at the floor, 44 where there is room — and the bar is
+    // sized from it by the engine's own stylesheet. A control that a child cannot hit is not a
+    // control, and these are the ones that matter most.
+    mount('__barTap');
+    const tap = Number.parseFloat(getComputedStyle(document.getElementById('stage')!).getPropertyValue('--tap'));
+    expect(tap, 'a tap size to measure against').toBeGreaterThan(0);
+    const icons = [...document.querySelectorAll('.a11y-bar button')] as HTMLElement[];
+    for (const icon of icons) {
+      const box = icon.getBoundingClientRect();
+      expect(`${Math.round(box.width)}x${Math.round(box.height)} >= ${tap}? `
+        + `${box.width >= tap - 0.5 && box.height >= tap - 0.5}`)
+        .toBe(`${Math.round(box.width)}x${Math.round(box.height)} >= ${tap}? true`);
+    }
   });
 });
