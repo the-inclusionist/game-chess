@@ -1691,3 +1691,47 @@ describe('[Frame] the shell drives the renderer that is drawing now', () => {
     expect(() => { shell.update(1); }, 'the loop still runs after the swap').not.toThrow();
   });
 });
+
+/*
+ * ========================= THE ARGUMENTS ARE HANDED OVER, NOT FETCHED =========================
+ * ADR-0139 §4 puts `params` in what a host gives a cartridge so that a game never reads `location`
+ * itself: a platform page has ONE address for however many games share it, and a game reading it
+ * directly reads whatever the page was opened with rather than what it was given. This one read
+ * `location.search` twice, for `?debug=true`.
+ *
+ * ⚠️ AND THE REASON IT WOULD NEVER HAVE SHOWN ITSELF IS WHY THE TEST IS WORTH HAVING: standalone,
+ * the address and the argument are the same string, so the defect is invisible until the day two
+ * cartridges share a page — and on that day it presents as one game's maintenance switch turning on
+ * in another game.
+ */
+describe('[Params] the maintenance switch is what the shell was given', () => {
+  const NAME = '__paramsTest';
+  const globals = window as unknown as Record<string, unknown>;
+
+  afterEach(() => { delete globals[NAME]; });
+
+  function build(params: URLSearchParams): void {
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    createGameShell({
+      host: document, kind: '2.5d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: NAME, contrastTheme: 'contrast-flat', params,
+    });
+  }
+
+  it('asked for, and it is there', () => {
+    build(new URLSearchParams('debug=true'));
+    expect(globals[NAME], 'the console instrument was installed').toBeTruthy();
+  });
+
+  it('not asked for, and it is not — with the page URL saying nothing either way', () => {
+    /*
+     * The two cases differ in ONE thing, and it is the argument. Same document, same view, same
+     * everything else — so a global that appeared here could only have come from somewhere this
+     * shell was not told to look.
+     */
+    build(new URLSearchParams('debug=false'));
+    expect(globals[NAME], 'nothing installed').toBeUndefined();
+  });
+});

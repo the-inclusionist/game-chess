@@ -39,8 +39,20 @@ export type { GameShell, GameShellDeps } from './game-shell.ts';
  * the host's; the cartridge is started third, with the engine it never built.
  */
 export function createGameShell(deps: GameShellDeps): GameShell {
-  const cartridge = createChessCartridge(deps);
   const host = deps.host;
+  /*
+   * ⚠️ THE ONE PLACE IN THIS REPOSITORY THAT READS THE ADDRESS, and it is here because a HOST is
+   * what an address belongs to. The cartridge used to read `location.search` itself for its
+   * `?debug=true`; ADR-0139 §4 counts that among the faults it removes, since a platform page has
+   * one address for however many games share it, and a game reading it directly reads whatever the
+   * page was opened with rather than what it was given.
+   *
+   * `defaultView` rather than `window`, because `host` is the document a caller handed over and may
+   * not be this one — a test builds its own. An explicit `params` in the deps still wins.
+   */
+  const params = deps.params
+    ?? new URLSearchParams(host.defaultView?.location.search ?? '');
+  const cartridge = createChessCartridge({ ...deps, params });
 
   const engine = createGame({
     // The game's half — `declaration`, `sonarPlayers`, `preset`, `isNavigable`. Read off

@@ -46,10 +46,19 @@ export const dicts = { pt, en, es } as const;
  * `Cartridge` INTERFACE is satisfied and only the sketch's shape is not.
  *
  * 📌 WHAT IS NOT DONE YET, named so it is not mistaken for finished: `create()` takes the engine,
- * where ADR-0139 §4 has it take a whole `GameCtx` — `{ engine, region, rng, t, params }`. Two of
- * those are straightforward here and not yet threaded (`region`, and `params` for the `?debug=true`
- * this game reads off `location.search`); `rng` this game never draws from; and `t` is its own,
- * which the record allows, since a stateless utility may be imported rather than handed over.
+ * where ADR-0139 §4 has it take a whole `GameCtx` — `{ engine, region, rng, t, params }`. Member by
+ * member, because they are not one job:
+ *
+ * · `params` ✅ IS THREADED, and it arrives at CONSTRUCTION rather than in `create`. That departure
+ *   is measured, not casual: `?debug=true` is read while the panel is being built, and the panel
+ *   must exist before `createGame` — the engine is handed `a11yBarHost`, which lives inside it. A
+ *   cartridge whose hosts are its own DOM cannot wait for the engine to learn its arguments.
+ * · `region` — same obstacle, one step larger. The factory finds `#game-region` by id, which is
+ *   wrong on a page with several games and cannot simply move into `create` for the reason above.
+ *   It belongs in the factory's own deps, which is a change to the door rather than to the room.
+ * · `rng` — this game never draws a random number, so there is nothing to take.
+ * · `t` — its own, which the record allows: a stateless utility may be imported rather than handed
+ *   over, and this game's catalogue is not the engine's.
  */
 export { createChessCartridge as createCartridge } from '../app/js/boot/game-shell.ts';
 export type { ChessCartridge } from '../app/js/boot/game-shell.ts';

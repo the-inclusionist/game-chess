@@ -88,6 +88,14 @@ import type { BoardView, ViewFactory } from './view.ts';
 
 export interface GameShellDeps {
   readonly host: Document;
+  /**
+   * The arguments this game was opened with. Omitted means none — see the note where it is read.
+   *
+   * ⚠️ THE SHELL SUPPLIES IT, and that is the point: ADR-0139 §4 puts `params` in the context a host
+   * hands over precisely so a cartridge never reads `location` itself, because on a platform page
+   * there is ONE address and every game reading it directly reads its neighbours' arguments.
+   */
+  readonly params?: URLSearchParams;
   /** Which page this is. Drives the panel's view switcher and the debug global's name. */
   readonly kind: ViewKind;
   readonly view: ViewFactory;
@@ -252,6 +260,26 @@ export interface ChessCartridge {
 
 export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
   const host = deps.host;
+  /**
+   * The query this game was opened with, HANDED OVER rather than read.
+   *
+   * ⚠️ IT WAS `location.search`, TWICE, and ADR-0139 §4 names that as one of the faults the whole
+   * `params` member exists to prevent: inside a platform there is one address for however many
+   * cartridges share the page, so a game reading it directly is a game reading ANOTHER GAME'S
+   * arguments. Standalone it is the same string either way, which is exactly why nothing here would
+   * ever have failed to reveal it.
+   *
+   * ⚠️ AND IT ARRIVES AT CONSTRUCTION, NOT IN `create`, which departs from the record's `GameCtx`
+   * for a measured reason: `?debug=true` is read while the PANEL is being built, and the panel has
+   * to exist before `createGame` does — the engine is handed `a11yBarHost`, which lives inside it.
+   * A cartridge whose hosts are its own DOM cannot wait for the engine to learn its arguments.
+   *
+   * Absent means NO ARGUMENTS, never «go and look»: a test builds a shell without a query and gets
+   * a game with no debug global, which is the answer it wants and the one this file can give
+   * without touching `window`.
+   */
+  const params = deps.params ?? new URLSearchParams();
+  const debugAsked = params.get('debug') === 'true';
   const region = host.getElementById('game-region');
   if (!region) throw new Error('#game-region is required (engine MARCACAO_EXIGIDA)');
   /*
@@ -797,7 +825,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     state: () => game,
 
     // ⚠️ A maintainer's instrument, behind `?debug=true`.
-    debug: /[?&]debug=true/.test(location.search),
+    debug: debugAsked,
     themes: BOARD_THEMES.map((t) => ({ key: t.key, name: t.name })),
     theme: () => themeKey,
     onTheme: (key) => {
@@ -2070,7 +2098,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
       if (engine.problems.length) console.warn('[chess] engine problems:', engine.problems);
       srSay(i18n.t('a11y.boardLabel'));
 
-      if (/[?&]debug=true/.test(location.search)) {
+      if (debugAsked) {
         (window as unknown as Record<string, unknown>)[deps.debugName] = {
           game, rules, mirror, hud, opponent, engine, declaration,
           activate: onActivate, takeBack: () => walkHistory('back'),
