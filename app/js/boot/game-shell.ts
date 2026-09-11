@@ -521,6 +521,42 @@ export function createGameShell(deps: GameShellDeps): GameShell {
      */
     sonarPlayers: () => [{ i: 0, x: cursor.x, y: cursor.y }],
     /*
+     * ========================= HOW MANY ACTIONS THIS GAME ASKS FOR =========================
+     * The engine cannot count them by itself, and without the count the reach notice never appears:
+     * `createGame` only shows it `if (acoesDoJogo.length)`, and `acoesDoJogo` is empty for a game
+     * that declares no preset. So this is not decoration — it is the difference between a child on
+     * a two-button device being told, before she starts, that this game asks for more than her
+     * device offers, and that same child pressing at a board that does not answer.
+     *
+     * ⚠️ TEN POSITIONS, AND THE COUNT IS THE HONEST ONE RATHER THAN THE FLATTERING ONE. Four
+     * directions and a confirm would be enough to push a pawn, and declaring only those would make
+     * the warning quieter by lying about what the game needs: leaving a lesson is `start`, reading
+     * the board without seeing it is the sonar, and getting into the side panel at all is
+     * `action4`. A child who cannot reach those has a game she cannot finish, not a game she can
+     * play with fewer buttons.
+     *
+     * 📌 THE WORDS ARE THIS GAME'S, and they are the same ones printed under the board — the engine
+     * supplies the position and only the game knows what it is called. `ActionWord.short` is left
+     * out on purpose: it falls back to `label`, and every one of these is already short.
+     *
+     * ⚠️ AND THEY FREEZE IN THE BOOT LANGUAGE, which is worth writing down rather than discovering.
+     * `preset` is read once, at `createGame`, and this root uses it only to COUNT — it never builds
+     * the labeller, so nothing on screen shows these strings today. The day something does, a
+     * change of language will need to reach them, and this comment is the note that says where.
+     */
+    preset: {
+      up: { label: i18n.t('keys.move') },
+      down: { label: i18n.t('keys.move') },
+      left: { label: i18n.t('keys.move') },
+      right: { label: i18n.t('keys.move') },
+      action2: { label: i18n.t('keys.select') },
+      action3: { label: i18n.t('keys.cancel') },
+      action1: { label: i18n.t('keys.teacher') },
+      action4: { label: i18n.t('keys.panel') },
+      [SONAR_ACTION]: { label: i18n.t('keys.sonar') },
+      start: { label: i18n.t('keys.pause') },
+    },
+    /*
      * ========================= THE DOWNLOAD THIS GAME HAD JUST DECLINED =========================
      * ⚠️ IT DEFAULTS TO TRUE, AND THE DEFAULT CONTRADICTS THE LINE TWENTY ROWS ABOVE. `create-game`
      * ends its boot with `if (o.baixarPesados !== false) void baixarPesados(...).catch(() => {})`,
