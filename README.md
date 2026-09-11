@@ -99,21 +99,32 @@ would have found it: two lone kings, king and bishop, and king and knight are in
 so `isGameOver()` was already true and the board refused every square before the first step. Each of
 those positions now carries one spare pawn, and the table test asserts the phase is `idle`.
 
-## Three views, three entry points, one game
+## One entry, three views, one game
 
-Each view is its own page, decided by measurement rather than taste. Eagerly-loaded weight, today:
+⚠️ **This was three PAGES until 2026-09-11** — `index.html`, `2d.html` and `3d.html`, one per view,
+switched by links. The measurement that justified them still stands and it is worth keeping: from
+`spike/2d-weight/`, a flat board needs 104 KB and the Zdog one 146, so a single bundle with a
+runtime switch would have made every player download the renderer they were not looking at.
 
-| | raw | gzip |
-|---|---|---|
-| `2d.html` — flat, no renderer | **195.9 KB** | 67.3 KB |
-| `index.html` — Zdog | **241.9 KB** | 80.7 KB |
-| `3d.html` — Three.js | **743.9 KB** | 206.0 KB |
+What changed is the mechanism, not the arithmetic. Each renderer is a dynamic `import()` now, so it
+is a chunk nobody parses unless they choose that view:
 
-A flat board offered as a *mode* inside one bundle would have made every player download the
-renderer they were not looking at — and the spread is now four to one. What they share is the larger
-half: rules, search, declaration, HUD, i18n, and the whole teaching driver, in one chunk all three
-fetch. The lesson prose, the puzzles, and the 2,833 opening names are dynamic imports, so nobody who
-only wants a game carries them.
+| | built |
+|---|---|
+| `view-flat` — the flat board, no renderer | **0.8 KB** |
+| `view-zdog` — the projected board | **38.2 KB** |
+| `view-solid` — Three.js | **540.7 KB** |
+
+That is *better* than three pages, where opening `3d.html` loaded Three.js eagerly whatever you did
+next. And the reason it had to change is not weight at all: a game is becoming a cartridge inside a
+platform, and there a second HTML entry is a second URL rather than a second bundle.
+
+What every view shares is the larger half: rules, search, declaration, HUD, i18n and the whole
+teaching driver. The lesson prose, the puzzles and the 2,833 opening names are dynamic imports too,
+so nobody who only wants a game carries them.
+
+Changing view is a **button** now, not a link, and the choice is remembered in the session — the
+address used to remember it, and one document showing all three leaves it nowhere else to live.
 
 **There is no compositor.** Zdog draws straight into the canvas in the document. It used to go
 through a PixiJS texture and sprite, which cost **465 KB raw and 138 KB gzipped** — measured from
@@ -277,7 +288,7 @@ node scripts/bench-chess-js.mjs
 ## Layout
 
 ```
-app/index.html         2.5D          app/2d.html   2D          app/3d.html   3D
+app/index.html         the one page; the view is chosen inside it and remembered
 app/css/board.css      one stylesheet, after three byte-identical copies of it
 app/js/chess/          rules, state machine, negamax engine + Worker, session — no renderer, no DOM
 app/js/declaration/    the engine's seven fields, said in chess
