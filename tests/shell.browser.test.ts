@@ -1295,3 +1295,55 @@ describe('[Weight] the engine downloads nothing this game declined', () => {
     expect(heavy.join(', ')).toBe('');
   });
 });
+
+describe('[Engine pause] the engine mounts a card, and this game says only where', () => {
+  /*
+   * ========================= WHERE, NOT WHETHER =========================
+   * ADR-0122 removed the decline: from 8.0.0 `createGame` mounts its own `.screen-pause` card and
+   * the game declares only `host.pauseHost`. Absent one it falls back to `#game-region` — which in
+   * this game is not "the game" but the BOARD, nine of the stage's sixteen units.
+   */
+  it('⚠️ puts the engine card in the stage, never inside the board', () => {
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    createGameShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: '__engPauseTest', contrastTheme: 'contrast-flat',
+    });
+
+    const card = document.getElementById('vp-pause-0');
+    // If this ever goes missing the engine stopped mounting it, and the two assertions below would
+    // pass by vacuity — `contains(null)` is false for both boxes.
+    expect(card, 'the engine mounted its pause card').not.toBeNull();
+    expect(document.getElementById('game-region')!.contains(card), 'inside the board').toBe(false);
+    expect(document.getElementById('stage')!.contains(card), 'inside the stage').toBe(true);
+  });
+
+  it('⚠️ and this game never opens it — the pause key is its own menu', () => {
+    /*
+     * The Dev's instruction, 2026-09-11: the engine pauses at the moments it is itself programmed
+     * to, not at ours. So `H` opens `.chess-pause` and leaves the engine's card exactly as it was.
+     * Written as a test because the wiring that would break it is wiring that does not exist —
+     * an absence is only a decision while something says so.
+     */
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    createGameShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: '__engPauseKey', contrastTheme: 'contrast-flat',
+    });
+
+    const card = document.getElementById('vp-pause-0') as HTMLElement;
+    expect(card.hidden, 'the card is born hidden').toBe(true);
+
+    document.getElementById('game-region')!.focus();
+    document.getElementById('game-region')!.dispatchEvent(new KeyboardEvent('keydown', {
+      code: 'KeyH', key: 'h', bubbles: true, cancelable: true,
+    }));
+
+    expect(document.querySelector<HTMLElement>('.chess-pause')!.hidden, 'ours opened').toBe(false);
+    expect(card.hidden, 'theirs did not').toBe(true);
+  });
+});

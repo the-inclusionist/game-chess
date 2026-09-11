@@ -193,6 +193,32 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   const column = host.getElementById('side-column') ?? region;
 
   /*
+   * ========================= WHERE THE ENGINE'S OWN PAUSE CARD GOES =========================
+   * ⚠️ SINCE 8.0.0 THE QUESTION IS WHERE AND NO LONGER WHETHER. ADR-0122 removed the decline, and
+   * `createGame` mounts a `.screen-pause` card by itself; absent a `host.pauseHost` it falls back
+   * to `#game-region` — which here is not "the game", it is the BOARD, nine of the stage's sixteen
+   * units. The card would be a child of the square.
+   *
+   * ⚠️ AND IT IS NOT A FLEX CHILD OF THE STAGE EITHER. `#stage` lays its two columns out by width —
+   * 9 units of board, 7 of panel, no gap — so a third child in flow would take a share of that and
+   * the measured split would stop being the measured split. Out of flow, exactly like `.chess-pause`
+   * beside it, and `pointer-events: none` while it is empty so it cannot swallow a click on the
+   * board underneath.
+   *
+   * ⚠️ THIS GAME'S PAUSE BUTTON DOES NOT OPEN IT — the Dev's instruction, 2026-09-11: the engine
+   * pauses at the moments it is itself programmed to, not at ours. `H`/`Enter`/START keep opening
+   * `.chess-pause`, and `engine.pausa.mostrar` is never called from here.
+   *
+   * 📌 What that means TODAY, written down so the missing wiring reads as a choice: the card is
+   * revealed by the engine's `ui/shell`, per phase, and `createGame` deliberately does not mount
+   * `ui/shell` ("não substitui o boot do main.js, que tem catorze anos de ordem própria"). So the
+   * card is mounted, stays hidden, and nothing reveals it. That is the requested behaviour.
+   */
+  const enginePause = host.createElement('div');
+  enginePause.className = 'engine-pause-host';
+  stage.appendChild(enginePause);
+
+  /*
    * ⚠️ THE REMEMBERED LANGUAGE BEATS THE BROWSER'S, and until now there was no remembered one to
    * beat it with: `setLocale` existed on the interface and was called nowhere in production, so
    * three catalogues shipped and only the browser could pick between them.
@@ -435,7 +461,11 @@ export function createGameShell(deps: GameShellDeps): GameShell {
   });
   const engine = createGame({
     declaration,
-    host: { doc: host, win: window, cvdHost: host.getElementById('cvd') },
+    host: {
+      doc: host, win: window, cvdHost: host.getElementById('cvd'),
+      // Out of the board's nine units and into the stage. See the element's own comment.
+      pauseHost: enginePause,
+    },
     /*
      * ========================= WHAT THIS GAME DECLINES, AS 8.0.0 ASKS IT =========================
      * ⚠️ `semMenuDePausa` IS GONE, AND ITS GOING IS A CHANGE OF QUESTION RATHER THAN A RENAME. Up to

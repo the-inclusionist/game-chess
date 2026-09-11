@@ -425,6 +425,24 @@
    * Over the region and only the region: the engine's own dialogs and the page chrome stay
    * reachable, which is what keeps a pause from being a trap.
    */
+  /*
+   * ========================= THE ENGINE'S PAUSE CARD LIVES HERE =========================
+   * Not a flex child: `#stage` divides its width nine units to the board and seven to the panel,
+   * with no gap, and a third child in flow would take a share of that. Out of flow it costs the
+   * split nothing, and `pointer-events: none` keeps an empty holder from swallowing clicks meant
+   * for the board underneath — the card inside takes them back when it is shown.
+   *
+   * z-index 4, one below `.chess-pause`: if both were ever open at once, the menu a player asked
+   * for is the one that belongs on top.
+   */
+  .engine-pause-host {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+  }
+  .engine-pause-host > *:not([hidden]) { pointer-events: auto; }
+
   .chess-pause[hidden] { display: none; }
   .chess-pause {
     position: absolute;
