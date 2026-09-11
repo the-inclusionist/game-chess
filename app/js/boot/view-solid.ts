@@ -208,7 +208,7 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
 
   return {
     hudControls: {
-      pieceSets: PIECE_DESIGNS.map((d) => ({ key: d.key, label: ctx.i18n.t(d.name) })),
+      pieceSets: () => PIECE_DESIGNS.map((d) => ({ key: d.key, label: ctx.i18n.t(d.name) })),
       pieceSet: () => designKey,
       onPieceSet: (key) => {
         designKey = key;

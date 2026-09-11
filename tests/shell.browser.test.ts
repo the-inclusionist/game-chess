@@ -651,7 +651,7 @@ describe('[Pause] START opens the menu the settings were moved into', () => {
         hudControls: {
           coordinates: () => false,
           onCoordinates: () => {},
-          pieceSets: [{ key: 'outline', label: 'Outline' }, { key: 'solid', label: 'Solid' }],
+          pieceSets: () => [{ key: 'outline', label: 'Outline' }, { key: 'solid', label: 'Solid' }],
           pieceSet: () => 'outline',
           onPieceSet: () => {},
           outline: () => false,

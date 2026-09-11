@@ -125,9 +125,20 @@ export interface HudDeps {
    */
   hintsOn?(): boolean;
 
-  /** The drawings available for the pieces. Only the flat view has any; the projected view draws
-   * geometry and has nothing to choose between. */
-  pieceSets?: readonly { readonly key: string; readonly label: string }[];
+  /**
+   * The drawings available for the pieces, READ WHEN NEEDED rather than captured.
+   *
+   * ⚠️ THE COMMENT HERE SAID "Only the flat view has any; the projected view draws geometry and has
+   * nothing to choose between", AND IT WAS WRONG. Measured 2026-09-11: all three views offer a list
+   * — the flat board offers glyph sets, the two canvas views offer piece DESIGNS. The control has
+   * never been absent; only its contents differ.
+   *
+   * ⚠️ AND THAT IS EXACTLY WHY THIS IS A FUNCTION NOW. It was an array, captured once at
+   * construction, which is correct while a page has one view for its lifetime and wrong the moment
+   * a view can be swapped underneath the panel: the select would go on offering the previous
+   * renderer's drawings, and choosing one would do nothing. Not an error — a dead control.
+   */
+  pieceSets?: () => readonly { readonly key: string; readonly label: string }[];
   pieceSet?(): string;
   onPieceSet?(key: string): void;
   coordinates(): boolean;
@@ -562,14 +573,29 @@ export function createHud(deps: HudDeps): Hud {
   const setSelect = doc.createElement('select');
   setSelect.id = 'hud-set';
   setLabel.htmlFor = setSelect.id;
-  if (deps.pieceSets) {
-    for (const item of deps.pieceSets) {
+  /**
+   * Fill the select from whatever view is mounted now.
+   *
+   * ⚠️ A FUNCTION BECAUSE IT RUNS TWICE: once here, and again from `refresh()` whenever the mounted
+   * view's list is no longer the one on screen. Built inline it could only ever describe the view
+   * that happened to be first.
+   */
+  function fillPieceSets(): void {
+    const items = deps.pieceSets?.() ?? [];
+    const shown = [...setSelect.options].map((o) => o.value).join(',');
+    if (shown === items.map((i) => i.key).join(',')) return;
+    setSelect.replaceChildren();
+    for (const item of items) {
       const option = doc.createElement('option');
       option.value = item.key;
       // Written straight in: a typeface's name is the same string in every language.
       option.textContent = item.label;
       setSelect.appendChild(option);
     }
+  }
+
+  if (deps.pieceSets) {
+    fillPieceSets();
     setBox.append(setLabel, setSelect);
   }
 
@@ -938,6 +964,9 @@ export function createHud(deps: HudDeps): Hud {
 
     if (deps.pieceSets) {
       setLabel.textContent = i18n.t('hud.pieceSet');
+      // The list first: a swapped view brings different drawings, and the value below has to be
+      // chosen from the options that are actually there.
+      fillPieceSets();
       setSelect.value = deps.pieceSet?.() ?? '';
     }
 

@@ -31,7 +31,7 @@ export const createFlatView: ViewFactory = (ctx: ViewContext): BoardView => {
   return {
     hudControls: {
       // The face's own name, not an i18n key: a typeface is a proper noun.
-      pieceSets: AVAILABLE_SETS.map((set) => ({ key: set.key, label: set.label })),
+      pieceSets: () => AVAILABLE_SETS.map((set) => ({ key: set.key, label: set.label })),
       pieceSet: () => setKey,
       onPieceSet: (key) => {
         setKey = key;
