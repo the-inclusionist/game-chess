@@ -9,7 +9,7 @@
 // panel, real grid mirror, real storage. The view is the recording fake the shell's own test uses,
 // because the browser pane is not visible under vitest and a real animation never settles there.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createGameShell, type GameShell } from '../app/js/boot/game-shell.ts';
+import { createGameShell, type GameShell } from '../app/js/boot/standalone.ts';
 import { createLessonMode, type LessonMode } from '../app/js/boot/lesson-mode.ts';
 import { createLessonPanel } from '../app/js/ui/lesson-panel.ts';
 import type { BoardView, ViewContext } from '../app/js/boot/view.ts';

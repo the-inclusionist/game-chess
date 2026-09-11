@@ -23,7 +23,7 @@ import { afterEach, describe, expect, it } from 'vitest';
  * suite a question about a PROPERTY rather than about the screen. See the [Chrome] describe.
  */
 import '../app/css/board.css';
-import { createGameShell } from '../app/js/boot/game-shell.ts';
+import { createGameShell } from '../app/js/boot/standalone.ts';
 import type { BoardView, ViewContext } from '../app/js/boot/view.ts';
 import { clear, saveSettings } from '../app/js/chess/session.ts';
 import { toAlgebraic, type Square } from '../app/js/chess/types.ts';

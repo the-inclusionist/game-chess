@@ -25,7 +25,9 @@
 // by measurement in `spike/2d-weight/` and stated in `vite.config.ts`. `tsc` is blind to this and
 // `vitest` never bundles: nothing will tell you. The size of `dist/` will.
 
-import { createGame } from '@the-inclusionist/engine';
+import type { Engine } from '@the-inclusionist/engine';
+import type { GameDeclaration } from '@the-inclusionist/engine/core/contract.js';
+import type { CreateGameOptions } from '@the-inclusionist/engine';
 import { srAlert, srSay } from '@the-inclusionist/engine/core/a11y-sr.js';
 import { VIZ_FILTER } from '@the-inclusionist/engine/render/viz-modes.js';
 import { createChessDeclaration, SONAR_ACTION } from '../declaration/chess-declaration.ts';
@@ -181,7 +183,38 @@ const LESSON_MARKER: Record<LessonMark, 'lesson' | 'lessonRight' | 'lessonWrong'
   look: 'lesson', right: 'lessonRight', wrong: 'lessonWrong',
 };
 
-export function createGameShell(deps: GameShellDeps): GameShell {
+/**
+ * What this repository hands a shell, and what ADR-0139 calls a `Cartridge`.
+ *
+ * ⚠️ PRODUCED BY A FACTORY, NOT EXPORTED AS MODULE CONSTANTS, and that is a finding rather than a
+ * preference. `architecture.md` sketches a cartridge as `export const declaration` beside
+ * `export default create(ctx)` — which works for a game whose declaration is a fixed description.
+ * Chess's declaration is not: its seven fields read `rules()`, `state()` and `cursor()`, which are
+ * the CURRENT game. As module constants those would need a module-level pointer to the live
+ * instance, which is exactly what spec D14 forbids and why two games could not share a page.
+ *
+ * From a factory the whole problem disappears: every call gets its own state, its own declaration
+ * and its own instance, with nothing at module scope. The `Cartridge` interface is satisfied; only
+ * the sketch's shape is not.
+ */
+export interface ChessCartridge {
+  /** The engine's contract object, built against this instance's state. */
+  readonly declaration: GameDeclaration;
+  /**
+   * The game-owned half of `CreateGameOptions`, per ADR-0139 §1.
+   *
+   * ⚠️ TYPED AS A `Pick` OF THE ENGINE'S OWN OPTIONS, not as a hand-written shape. The split is
+   * meant to be CHECKABLE by re-reading `CreateGameOptions`; a copied interface would drift from
+   * it silently, which is the defect ADR-0139 says the derivation exists to avoid.
+   */
+  readonly hooks: Pick<CreateGameOptions, 'declaration' | 'sonarPlayers' | 'preset' | 'isNavigable'>;
+  /** Where the engine's own bar and pause card fit in this game's layout. */
+  readonly hosts: { readonly a11yBarHost: Element; readonly pauseHost: Element };
+  /** Nothing runs until this is called, and it needs the engine the shell built. */
+  create(engine: Engine): GameShell;
+}
+
+export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
   const host = deps.host;
   const region = host.getElementById('game-region');
   if (!region) throw new Error('#game-region is required (engine MARCACAO_EXIGIDA)');
@@ -549,48 +582,25 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     isNavigable: () => false,
   };
 
-  const engine = createGame({
-    ...hooks,
-    host: {
-      doc: host, win: window, cvdHost: host.getElementById('cvd'),
-      // Out of the board's nine units and into the stage. See the element's own comment.
-      pauseHost: enginePause,
-      // Named rather than left to the fallback: the engine looks for `#title-icons`, which is the
-      // platformer's id, and finding nothing it reported the absence instead of mounting the bar.
-      a11yBarHost: a11yBar,
-    },
-    /*
-     * ========================= WHAT THIS GAME DECLINES, AS 8.0.0 ASKS IT =========================
-     * ⚠️ `semMenuDePausa` IS GONE, AND ITS GOING IS A CHANGE OF QUESTION RATHER THAN A RENAME. Up to
-     * 7.x a game could decline the engine's pause menu; 8.0.0 dropped the field because the answer
-     * stopped being optional — the engine now mounts the card itself and asks only WHERE
-     * (`host.pauseHost`, defaulting to `#game-region`), pushing a `problems` entry when there is
-     * nowhere to put it. The card is born hidden and is revealed by whoever owns the phase, so this
-     * game's own pause menu stays the one a player sees.
-     *
-     * ⚠️ `semVozNeural` IS NEW, AND THE ENGINE NAMES THIS GAME IN THE FIELD'S OWN COMMENT: of six
-     * games in the local catalogue, three load a neural voice and three — soccer, whackwhack and
-     * this one — neither load it nor say so. There is no neural voice here and there was never a
-     * line saying it, which is the difference between declining and forgetting. This is the line.
-     */
-    declines: { semVozNeural: true, semAssistenteDePad: true, semAtorDePausa: true },
-    /*
-     * ========================= THE DOWNLOAD THIS GAME HAD JUST DECLINED =========================
-     * ⚠️ IT DEFAULTS TO TRUE, AND THE DEFAULT CONTRADICTS THE LINE TWENTY ROWS ABOVE. `create-game`
-     * ends its boot with `if (o.baixarPesados !== false) void baixarPesados(...).catch(() => {})`,
-     * and the catalogue behind it is the neural voices plus a vision bundle — the engine's own
-     * comment speaks of "faltam 241 MB". So from the moment this repository moved to 8.0.0, every
-     * boot started fetching voices that `declines.semVozNeural` says this game does not have.
-     *
-     * ⚠️ AND IT COULD NOT HAVE ANNOUNCED ITSELF: the promise is discarded into an empty `catch`, by
-     * design — the engine argues, correctly, that a school with no network would otherwise push
-     * eight failures into a `problems` list built to say what is missing from the HOST. Nothing is
-     * wrong with that decision; what is wrong is a game paying for it silently. Declining the voice
-     * and downloading the voice are the same sentence said twice, and this is the half that costs
-     * bytes on a school's connection.
-     */
-    baixarPesados: false,
-  });
+  /*
+   * ========================= THE ENGINE ARRIVES; IT IS NOT MADE HERE =========================
+   * ADR-0139 §2, and the record calls it the clause the others hang from: a cartridge never calls
+   * `createGame`. Six games each calling it inside one platform would deduplicate the BYTES and
+   * multiply the RUNTIME — N accessibility bars, N TTS instances, N keyboard runtimes competing for
+   * one document — which is a worse failure than shipping the engine twice, and one that appears as
+   * broken behaviour rather than as weight.
+   *
+   * ⚠️ AND IT IS WHAT MAKES ONE SOURCE SERVE TWO SHELLS (ADR-0140). Because the caller is outside,
+   * the caller is free to differ: `boot/standalone.ts` calls `createGame` for this repository's own
+   * PWA, and a platform would hand over the one engine it already built. Nothing in here knows
+   * which it got.
+   *
+   * `let` rather than a parameter because the engine is consumed by handlers defined below, which
+   * are all called after `create()` has run. Measured: exactly four members are read — `keyboard`,
+   * `pausa`, `problems` and `sonar` — so this is a narrow seam rather than a leak.
+   */
+  const hosts = { a11yBarHost: a11yBar, pauseHost: enginePause };
+  let engine!: Engine;
 
   /**
    * ⚠️ THE SHELL BUILDS THE MIRROR, not the view, because all three pages have one. On the flat
@@ -1745,25 +1755,6 @@ export function createGameShell(deps: GameShellDeps): GameShell {
     return { x: move.to.x, y: move.from.y };
   }
 
-  // ⚠️ ONCE, BEFORE ANYTHING HAPPENS. This used to be reached only from an event handler in the
-  // flat root, so on a board that had not been touched yet — every restored game, and every
-  // switch between views — the reviewer was never told to look. The advantage readout sat at a
-  // dash and the score sheet carried no marks until the player happened to move.
-  syncPosition();
-  askOpponent();
-
-  refreshKeyHints();
-  if (engine.problems.length) console.warn('[chess] engine problems:', engine.problems);
-  srSay(i18n.t('a11y.boardLabel'));
-
-  if (/[?&]debug=true/.test(location.search)) {
-    (window as unknown as Record<string, unknown>)[deps.debugName] = {
-      game, rules, mirror, hud, opponent, engine, declaration,
-      activate: onActivate, takeBack: () => walkHistory('back'),
-      replay: () => walkHistory('forward'), askOpponent,
-      ...(view.debug?.() ?? {}),
-    };
-  }
 
   /**
    * ⚠️ THE ORDER HERE IS LOAD-BEARING, and every line of it was a bug waiting.
@@ -1853,5 +1844,38 @@ export function createGameShell(deps: GameShellDeps): GameShell {
       return moved;
     },
   };
-  return self;
+  return {
+    declaration,
+    hooks,
+    /*
+     * ⚠️ THE GAME SAYS WHERE, THE HOST DECIDES. `a11yBarHost` and `pauseHost` are the host's half of
+     * the options by ADR-0139 §1 — but ADR-0122 is explicit that what a game declares about the pause
+     * is only WHERE it fits, and the same is true of the bar: these two elements are positions inside
+     * a layout only this game knows. So the cartridge offers them and the shell passes them on.
+     */
+    hosts,
+    create(received: Engine): GameShell {
+      engine = received;
+      // ⚠️ ONCE, BEFORE ANYTHING HAPPENS. This used to be reached only from an event handler in the
+      // flat root, so on a board that had not been touched yet — every restored game, and every
+      // switch between views — the reviewer was never told to look. The advantage readout sat at a
+      // dash and the score sheet carried no marks until the player happened to move.
+      syncPosition();
+      askOpponent();
+
+      refreshKeyHints();
+      if (engine.problems.length) console.warn('[chess] engine problems:', engine.problems);
+      srSay(i18n.t('a11y.boardLabel'));
+
+      if (/[?&]debug=true/.test(location.search)) {
+        (window as unknown as Record<string, unknown>)[deps.debugName] = {
+          game, rules, mirror, hud, opponent, engine, declaration,
+          activate: onActivate, takeBack: () => walkHistory('back'),
+          replay: () => walkHistory('forward'), askOpponent,
+          ...(view.debug?.() ?? {}),
+        };
+      }
+      return self;
+    },
+  };
 }

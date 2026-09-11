@@ -16,7 +16,7 @@
 // It was 1,103 lines. The frame loop, the camera, the picking and the pointer went to the view;
 // everything else was a copy of something in the other two roots.
 
-import { createGameShell } from './game-shell.ts';
+import { createGameShell } from './standalone.ts';
 import { createZdogView } from './view-zdog.ts';
 
 export function boot(host: Document = document): void {

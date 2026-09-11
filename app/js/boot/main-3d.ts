@@ -18,7 +18,7 @@
 // gave the grid the engine's remappable keys, and it printed "K sonar" in its legend while
 // listening for nothing. All four are the shell's business now, and the shell gets them right once.
 
-import { createGameShell } from './game-shell.ts';
+import { createGameShell } from './standalone.ts';
 import { createSolidView } from './view-solid.ts';
 
 export function boot3d(host: Document = document): void {

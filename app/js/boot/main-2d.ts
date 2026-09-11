@@ -22,7 +22,7 @@
 // It was 661 lines. Everything taken out of it was a copy of something in the other two roots, and
 // three of the faults that copying produced are in the git log immediately above this change.
 
-import { createGameShell } from './game-shell.ts';
+import { createGameShell } from './standalone.ts';
 import { createFlatView } from './view-flat.ts';
 import { CONTRAST_THEME } from '../ui/board-themes.ts';
 
