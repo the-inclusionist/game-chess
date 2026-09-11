@@ -62,6 +62,20 @@ export default defineConfig(({ mode }) => {
   return {
   root: 'app',
   /*
+   * ⚠️ NO `public/` IN THE CARTRIDGE, AND THIS WAS MEASURED AS A DEFECT RATHER THAN FORESEEN. The
+   * first lib build came out at 7.6 MB, of which 7.1 MB was `vendor/` — Vite copies `publicDir`
+   * into every build, so the cartridge was carrying the 7.3 MB Stockfish and the font files.
+   *
+   * ADR-0117's confirmation gate names exactly that: «A CARTRIDGE DECLARES NO DELIVERY — no font
+   * file, no voice, no runtime in a game's own package or `dist`». The platform loads those once
+   * for every cartridge, which is the whole arithmetic of one origin; a cartridge shipping its own
+   * copy is the duplication the record exists to prevent, at 7 MB a game.
+   *
+   * The app build keeps them, because there the game IS the page and the opponent has to come from
+   * somewhere — see the precache gate.
+   */
+  publicDir: lib ? false : undefined,
+  /*
    * ========================= THE STANDALONE BUILD IS A PWA =========================
    * ADR-0140: a game is a standalone PWA *and* a cartridge, from one source, and five of the six
    * games were not PWAs. This is the app half of that record — and §3 of it draws the line this

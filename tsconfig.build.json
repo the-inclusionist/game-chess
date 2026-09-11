@@ -1,0 +1,20 @@
+{
+  /*
+   * ========================= THE DECLARATION BUILD, AND WHY IT NEEDS ITS OWN FILE =========================
+   * `tsconfig.json` sets `noEmit: true`, which is right for a repository whose JavaScript comes from
+   * Vite — and which SILENTLY DEFEATS `tsc --emitDeclarationOnly`. Measured: that command exits 0,
+   * prints nothing and writes nothing, so the first attempt at shipping types looked like it had
+   * worked. A flag that is overridden without a word is worse than one that errors.
+   *
+   * Tests are excluded because a consumer of this package has no use for their types, and including
+   * them would put `tests/` inside the published tree's shape.
+   */
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist-lib/types"
+  },
+  "include": ["src", "app/js"]
+}
