@@ -25,6 +25,48 @@
  * time in CSS would be two places for one number, and the one that drifted would be the one no
  * test reads. These tokens are CHROME: panels, borders, focus rings, text.
  */
+/*
+ * ========================= THE ENGINE'S SHEET, AND WHY IT IS IMPORTED HERE =========================
+ * The engine mounts DOM this game does not write — the accessibility bar of `.pi-btn` buttons with
+ * six state classes, and its pause card — and that markup arrives unstyled unless this sheet comes
+ * with it. The package says so in its own `exports` comment: a consumer that installed it "got
+ * dialogs with no styling".
+ *
+ * ⚠️ AN `@import` HERE, NOT AN `import` IN THE THREE ENTRY MODULES, AND THE REASON IS CASCADE ORDER
+ * RATHER THAN TASTE. Two sheets that both write `:root` tokens and both name `.sr-only` settle
+ * their ties by ORDER, and the order of a JS-injected stylesheet against a `<link>` in the head is
+ * a property of the bundler, which is to say it is not a promise. Written here, everything below is
+ * simply later, and this file wins every tie by construction — including the reclaim block that
+ * follows, which exists because the engine's sheet styles `html` and `body` for a page this game
+ * does not have.
+ *
+ * ⚠️ It does NOT bring fonts down with it: the one `@font-face` in that sheet is `src: local(...)`.
+ * The 404s the package warns about belong to `vendor/fonts.css`, a separate file we do not link.
+ */
+@import '@the-inclusionist/engine/style.css';
+
+/*
+ * ========================= WHAT THE IMPORT CHANGED, MEASURED ON THE PAGE =========================
+ * Read at 1280x720 against the built `dist/`, because 644 lines of somebody else's CSS is not a
+ * thing to reason about. What survived untouched: the stage at 640x360, the board at 360x360 and
+ * the panel at 280x360 — the nine-and-seven split exactly as specified — the splash covering the
+ * viewport, and the engine's own pause card mounted and hidden.
+ *
+ * Two things did change, and only one of them is wrong.
+ *
+ * ⚠️ WRONG: `html` was left painted `#0b1020`, the engine's `--bg`. `body` is this game's `--page`
+ * because `board.css` wins the tie, but `html` is painted by the engine's rule alone — so anything
+ * that shows the canvas behind the body (an overscroll, a viewport taller than the content) flashes
+ * a blue that belongs to another game. Reclaimed below, and only this.
+ *
+ * 📌 KEPT ON PURPOSE: the engine's text spacing now applies page-wide — 1.68px letter, 2.24px word,
+ * 21px line. That is its ADR for WCAG 1.4.12, it is the same spacing every other game in the family
+ * reads at, and the geometry tests that measure a label beside its box and a control against `--tap`
+ * all pass with it. Inheriting it is the point of importing the sheet; overriding it would be
+ * taking the styling and refusing the reason for it.
+ */
+html { background: var(--page); }
+
 :root {
   color-scheme: dark;
 

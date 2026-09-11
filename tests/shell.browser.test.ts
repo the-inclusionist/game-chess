@@ -907,6 +907,21 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     document.body.appendChild(probe);
     expect(getComputedStyle(probe).display).toBe('flex');
     probe.remove();
+
+    /*
+     * ⚠️ AND THE ENGINE'S SHEET, WHICH `board.css` PULLS IN BY `@import`, BECAUSE ARRIVING IS NOT
+     * THE SAME QUESTION. The game's own rules could load while the imported half did not resolve,
+     * and then every assertion about the accessibility bar would be measuring bare buttons — the
+     * same vacuity as above, one layer further in, and invisible for exactly the same reason.
+     *
+     * `.pi-btn` is sized from `--tap`, so a probe with no `--tap` in scope would measure the
+     * engine's own `:root` fallback. The assertion is only that the rule EXISTS.
+     */
+    const icon = document.createElement('button');
+    icon.className = 'pi-btn';
+    document.body.appendChild(icon);
+    expect(getComputedStyle(icon).borderRadius, "the engine's stylesheet").toBe('10px');
+    icon.remove();
   });
 
   it('⚠️ the HUD, the player strips and the engine line all LEAVE during a lesson', async () => {
