@@ -459,6 +459,22 @@ export function createGameShell(deps: GameShellDeps): GameShell {
      * The blind mode that DOES matter here reaches the sonar through `isBlindMode`, as before.
      */
     sonarPlayers: () => [{ i: 0, x: cursor.x, y: cursor.y }],
+    /*
+     * ========================= THE DOWNLOAD THIS GAME HAD JUST DECLINED =========================
+     * ⚠️ IT DEFAULTS TO TRUE, AND THE DEFAULT CONTRADICTS THE LINE TWENTY ROWS ABOVE. `create-game`
+     * ends its boot with `if (o.baixarPesados !== false) void baixarPesados(...).catch(() => {})`,
+     * and the catalogue behind it is the neural voices plus a vision bundle — the engine's own
+     * comment speaks of "faltam 241 MB". So from the moment this repository moved to 8.0.0, every
+     * boot started fetching voices that `declines.semVozNeural` says this game does not have.
+     *
+     * ⚠️ AND IT COULD NOT HAVE ANNOUNCED ITSELF: the promise is discarded into an empty `catch`, by
+     * design — the engine argues, correctly, that a school with no network would otherwise push
+     * eight failures into a `problems` list built to say what is missing from the HOST. Nothing is
+     * wrong with that decision; what is wrong is a game paying for it silently. Declining the voice
+     * and downloading the voice are the same sentence said twice, and this is the half that costs
+     * bytes on a school's connection.
+     */
+    baixarPesados: false,
   });
 
   /**

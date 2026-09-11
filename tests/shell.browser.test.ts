@@ -1242,3 +1242,56 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     expect(shown('.thinking'), 'the engine line came back').not.toBe('none');
   });
 });
+
+describe('[Weight] the engine downloads nothing this game declined', () => {
+  /*
+   * ========================= A DEFAULT THAT CONTRADICTS A DECLARATION =========================
+   * `createGame` ends its boot with `if (o.baixarPesados !== false) void baixarPesados(...)`, and
+   * the catalogue behind it is the neural voices plus a vision bundle — the engine's own comment
+   * speaks of "faltam 241 MB". This game passes `declines.semVozNeural: true`, so from the moment
+   * it moved to 8.0.0 it was declining the voice and fetching the voice in the same breath.
+   *
+   * ⚠️ NOTHING COULD HAVE TOLD US. The promise is discarded into an empty `catch` on purpose, so
+   * the cost is invisible on a fast connection and merely slow on the one that matters — a school's.
+   * A test is the only witness there is.
+   */
+  it('⚠️ fetches none of the heavy catalogue at boot', async () => {
+    /*
+     * ⚠️ THE VACUITY GUARD FIRST, because this assertion has a way of passing for the wrong reason:
+     * `baixarPesados` bails out early when there is no Cache Storage or no `fetch`, reporting
+     * 'sem Cache Storage ou sem fetch'. In a browser without either, "nothing was fetched" would be
+     * true with the option removed as well, and the test would defend nothing.
+     */
+    expect(typeof caches, 'Cache Storage, or the assertion below is vacuous').not.toBe('undefined');
+    expect(typeof fetch, 'fetch, or the assertion below is vacuous').toBe('function');
+
+    const asked: string[] = [];
+    const real = window.fetch;
+    window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+      asked.push(String(input instanceof Request ? input.url : input));
+      return real.call(window, input as RequestInfo, init);
+    }) as typeof fetch;
+
+    try {
+      fixture();
+      clear();
+      saveSettings({ mode: 'two' });
+      createGameShell({
+        host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+        debugName: '__weightTest', contrastTheme: 'contrast-flat',
+      });
+      // The download is the last thing the engine's boot starts, and it is not awaited by anyone.
+      await new Promise((resolve) => { setTimeout(resolve, 50); });
+    } finally {
+      window.fetch = real;
+    }
+
+    /*
+     * The hosts of the catalogue, named rather than counted: this game does fetch things at boot —
+     * the opening book is 230 kB — so "no request at all" would be the wrong assertion and would
+     * break the first time something legitimate was added.
+     */
+    const heavy = asked.filter((url) => /jsdelivr|huggingface|webgazer|storage\.googleapis/.test(url));
+    expect(heavy.join(', ')).toBe('');
+  });
+});
