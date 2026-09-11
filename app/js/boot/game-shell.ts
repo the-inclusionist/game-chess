@@ -82,6 +82,7 @@ import { createScoreboard } from '../ui/scoreboard.ts';
 import { createSplash } from '../ui/splash.ts';
 import { createThinkingPanel } from '../ui/thinking.ts';
 import { actionPreset, hintParts } from '../ui/key-hints.ts';
+import { VIEWS } from './views.ts';
 import { announceActivation, announceMove, announceOutcome } from './narration.ts';
 import type { BoardView, ViewFactory } from './view.ts';
 
@@ -142,7 +143,27 @@ export interface GameShell {
   game(): ReturnType<typeof createGameState>;
   readonly mirror: ReturnType<typeof createGridMirror>;
   readonly hud: Hud;
-  readonly view: BoardView;
+  /**
+   * The renderer currently drawing, ASKED FOR rather than held.
+   *
+   * ⚠️ IT WAS A FIELD, AND A FIELD WOULD LIE THE MOMENT `switchView` RAN — the same trap this file
+   * already names twenty lines above for `rules` and `game`: «a caller that read them once would be
+   * holding the board a lesson has already left». A view can be replaced now, so the rule applies
+   * to it too.
+   */
+  view(): BoardView;
+  /**
+   * Change which renderer draws the board, without leaving the page.
+   *
+   * ⚠️ THIS IS THE THING THAT MAKES THREE PAGES UNNECESSARY. Each view was its own HTML entry and
+   * changing view was a NAVIGATION — right while a page is a game, and wrong for a cartridge, where
+   * a second entry is a second URL rather than a second bundle (ADR-0139, which records this
+   * decision for this game by name).
+   *
+   * Asynchronous because the renderer arrives by dynamic `import()`: the Three.js view is 540.7 KB
+   * that nobody should pay for unless they ask for it.
+   */
+  switchView(kind: ViewKind): Promise<void>;
   readonly opponent: StockfishClient;
   activate(square: Square): void;
   walkHistory(direction: 'back' | 'forward'): Promise<void>;
@@ -695,7 +716,14 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     resolveAction: (code) => engine.keyboard.actionOf(code, 0),
   });
 
-  const view = deps.view({
+  /**
+   * Build a renderer against this game. Extracted so a SWAP can repeat it exactly.
+   *
+   * ⚠️ THE CONTEXT IS NOT A SNAPSHOT — every field is an accessor into the live game, which is what
+   * makes a second call safe: the new renderer reads the same rules, the same state and the same
+   * cursor as the one it replaces, rather than a copy taken when the page loaded.
+   */
+  const mountView = (factory: ViewFactory): BoardView => factory({
     doc: host,
     region,
     i18n,
@@ -708,6 +736,19 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     activate: (square) => onActivate(square),
     keyIntent: (code) => engine.keyboard.actionOf(code, 0),
   });
+
+  /*
+   * ⚠️ `let`, BECAUSE A VIEW CAN BE REPLACED NOW. It was a `const` for as long as a page was a view
+   * — `index.html` was the projected board and `3d.html` was the solid one, and changing view meant
+   * a navigation. Inside a platform that is a second URL rather than a second bundle (ADR-0139), so
+   * the board has to change underneath the same document.
+   *
+   * 📏 Measured before making it mutable: the shell holds the view in ELEVEN places, and ten of
+   * them are calls that a swap handles by itself. The eleventh was the piece-drawing list the panel
+   * captured, fixed in `373e9ed`.
+   */
+  let view = mountView(deps.view);
+  let viewKind = deps.kind;
 
   const hud = createHud({
     doc: host,
@@ -809,7 +850,27 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
 
     opening: () => openingName,
 
-    ...view.hudControls,
+    /*
+     * ========================= DELEGATED, NOT SPREAD =========================
+     * ⚠️ THIS WAS `...view.hudControls`, AND THE SPREAD WAS THE OTHER HALF OF A BUG I ONLY HALF
+     * FIXED. `373e9ed` made the piece-drawing LIST a function so it could be re-read; this line was
+     * still copying the object that holds it, once, from whichever renderer happened to be first.
+     * The test said so: after `switchView` the panel offered nothing at all, because it was still
+     * asking the renderer that had been destroyed.
+     *
+     * Five of the seven are universal — every view lends drawings and coordinates. The outline is
+     * not: 📏 measured, only the projected board has one, so it is announced separately and the
+     * panel hides the control where the current view lends none. A switch that does nothing is
+     * worse than a switch that is not there.
+     */
+    pieceSets: () => view.hudControls.pieceSets?.() ?? [],
+    pieceSet: () => view.hudControls.pieceSet?.() ?? '',
+    onPieceSet: (key: string) => view.hudControls.onPieceSet?.(key),
+    coordinates: () => view.hudControls.coordinates(),
+    onCoordinates: (on: boolean) => view.hudControls.onCoordinates(on),
+    outline: () => view.hudControls.outline?.() ?? false,
+    onOutline: (on: boolean) => view.hudControls.onOutline?.(on),
+    outlineAvailable: () => view.hudControls.onOutline !== undefined,
 
     canTakeBack: () => !walking && game.canTakeBack(),
     canReplay: () => !walking && game.canReplay(),
@@ -1871,7 +1932,27 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
   }
 
   self = {
-    region, i18n, mirror, hud, view, opponent,
+    region, i18n, mirror, hud, opponent,
+    view: () => view,
+    async switchView(kind: ViewKind): Promise<void> {
+      if (kind === viewKind) return;
+      /*
+       * ⚠️ THE OLD ONE IS TORN DOWN BEFORE THE NEW ONE IS ASKED FOR, not after it arrives. The
+       * import may take a moment on a school link, and two renderers drawing the same board into
+       * the same region is a worse thing to look at than an empty board for that moment.
+       */
+      view.destroy();
+      view = mountView(await VIEWS[kind]());
+      viewKind = kind;
+      /*
+       * A fresh renderer starts at its own defaults, so everything the player had chosen has to be
+       * said again: the palette, and then the position it is meant to be drawing.
+       */
+      view.applyTheme(themeKey);
+      syncPosition();
+      relayout();
+      hud.refresh();
+    },
     rules: () => rules,
     game: () => game,
     activate: onActivate, walkHistory, askOpponent, newGame, setTaught,

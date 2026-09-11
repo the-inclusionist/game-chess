@@ -1552,3 +1552,61 @@ describe('[Sonar] the key a player who cannot see the board depends on', () => {
     expect(event.defaultPrevented, 'the sonar key was answered').toBe(true);
   });
 });
+
+describe('[Switch] the board changes renderer without leaving the page', () => {
+  it('⚠️ swaps the view, and the panel follows it', async () => {
+    /*
+     * ========================= WHY THIS IS NOT A NAVIGATION =========================
+     * Each view was its own HTML entry, and changing view meant loading a page. That is right while
+     * a page IS the game and wrong for a cartridge: inside a platform a second entry is a second
+     * URL, not a second bundle (ADR-0139 records this decision for this game by name).
+     *
+     * ⚠️ AND THE ASSERTION THAT MATTERS IS THE SECOND ONE. Swapping the renderer is the easy half;
+     * the half that breaks quietly is everything that CAPTURED the old one. The piece-drawing list
+     * is the case in point — the panel used to hold the array it was built with, so after a swap the
+     * select would offer the previous renderer's drawings and choosing one would do nothing. Not an
+     * error: a dead control.
+     */
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    const shell = createGameShell({
+      host: document, kind: '2.5d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: '__switchTest', contrastTheme: 'contrast-flat',
+    });
+
+    const before = shell.view();
+    const optionsOf = (): string => [...document.querySelectorAll<HTMLOptionElement>('#hud-set option')]
+      .map((o) => o.value).join(',');
+    /*
+     * ⚠️ THE FAKE OFFERS NO DRAWINGS AT ALL, and that turns out to be the sharper fixture. This
+     * assertion was written the other way round — "the fake offers its own" — and failed on its own
+     * setup, because the fake view in this file lends the panel only the coordinate switch. Empty
+     * BEFORE and filled AFTER is a stronger statement than one list differing from another: it can
+     * only be true if the panel asked the renderer that is drawing now.
+     */
+    const setsBefore = optionsOf();
+    expect(setsBefore, 'the fake lends no drawings').toBe('');
+
+    await shell.switchView('2d');
+
+    expect(shell.view(), 'a different renderer is drawing').not.toBe(before);
+    expect(optionsOf(), 'the panel is offering the flat board drawings').not.toBe('');
+  });
+
+  it('asking for the view already showing is a no-op', () => {
+    // Cheap, and it guards the tear-down: a swap that destroyed and rebuilt the same renderer would
+    // throw away the board for no reason a player could see.
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    const shell = createGameShell({
+      host: document, kind: '2.5d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: '__switchSame', contrastTheme: 'contrast-flat',
+    });
+    const before = shell.view();
+    return shell.switchView('2.5d').then(() => {
+      expect(shell.view(), 'untouched').toBe(before);
+    });
+  });
+});

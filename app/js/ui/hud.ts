@@ -75,6 +75,16 @@ export interface HudDeps {
   outline?(): boolean;
   onOutline?(on: boolean): void;
   /**
+   * Whether the renderer drawing RIGHT NOW has an outline to switch.
+   *
+   * ⚠️ SEPARATE FROM `onOutline` BECAUSE A DELEGATING WRAPPER IS ALWAYS PRESENT. Once the shell
+   * stopped copying the view's controls and started forwarding to whichever view is mounted, the
+   * mere existence of `onOutline` stopped meaning "this board has an outline" — the wrapper exists
+   * even when the view behind it lends nothing. 📏 Measured: only the projected board has one.
+   * Absent, the control behaves as it always did.
+   */
+  outlineAvailable?(): boolean;
+  /**
    * The named board palettes, when the view has any. Six of them do not fit a checkbox, and the
    * two high-contrast entries are not variants of each other — they differ in their PIECES — so
    * this is a list and not a toggle.
@@ -979,6 +989,9 @@ export function createHud(deps: HudDeps): Hud {
 
     outlineLabel.textContent = i18n.t('hud.outline');
     outlineInput.checked = deps.outline?.() ?? false;
+    // A switch for a board that has no outline is a switch that does nothing, which is the defect
+    // this repository keeps finding. Hidden rather than disabled: there is nothing to explain.
+    if (deps.outlineAvailable) outlineBox.hidden = !deps.outlineAvailable();
 
     coordsLabel.textContent = i18n.t('hud.coordinates');
     coordsInput.checked = deps.coordinates();
