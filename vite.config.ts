@@ -21,7 +21,45 @@ import { VitePWA } from 'vite-plugin-pwa';
 // engine's neural voice. It is reached through a dynamic import gated on an engine selection that
 // defaults to the browser's own speech, so nothing fetches it at boot. It is deploy weight, not
 // load weight. See docs/spike-1-file-dependency.md.
-export default defineConfig({
+/*
+ * ========================= THE SECOND TARGET, AND WHY IT EXISTS =========================
+ * ADR-0140 §1: one source tree, two builds, switched by mode.
+ *
+ *   · APP (default) — `app/index.html` and its two siblings, engine BUNDLED, PWA on. This
+ *     repository's own artifact: a development, test, audit and demonstration route.
+ *   · LIB (`--mode lib`) — `src/index.ts`, the cartridge. Engine and Zdog EXTERNAL. No HTML, no
+ *     service worker, nothing that assumes it owns a page.
+ *
+ * ⚠️ ONE INSTALLED ENGINE STILL TRAVELS N TIMES IF N BUNDLES INLINE IT, which is the leak this
+ * target closes and `peerDependencies` does not. Declaring a peer decides what is INSTALLED;
+ * `external` decides what is EMITTED. The cartridge writes a literal
+ * `import … from '@the-inclusionist/engine'` and leaves resolution to whoever consumes it, so the
+ * platform's single Rollup pass can emit the engine once into a chunk every game shares.
+ *
+ * 📌 WHAT IS EXTERNAL AND WHAT IS NOT, and the line is the one the record draws: the engine and
+ * the SHARED render libraries. Zdog is shared — whackwhack draws with it too. Three is this
+ * game's alone, with no sharing to win, so it stays inside the bundle; the architecture
+ * document's answer for its 743.9 KB is the 3D view becoming a lazily imported chunk, which is a
+ * different mechanism for a different problem. `chess.js` is this game's own rules.
+ */
+const LIB_BUILD = {
+  outDir: '../dist-lib',
+  emptyOutDir: true,
+  target: 'es2022',
+  lib: {
+    entry: fileURLToPath(new URL('./src/index.ts', import.meta.url)),
+    formats: ['es' as const],
+    fileName: 'index',
+  },
+  rollupOptions: {
+    external: [/^@the-inclusionist\/engine/, 'zdog'],
+  },
+};
+
+export default defineConfig(({ mode }) => {
+  // The one switch. Everything below reads it rather than being written twice.
+  const lib = mode === 'lib';
+  return {
   root: 'app',
   /*
    * ========================= THE STANDALONE BUILD IS A PWA =========================
@@ -46,7 +84,7 @@ export default defineConfig({
    * side: «precached at install, never fetched lazily at first use». The test asserts the file is
    * in the manifest, because a number in a config is not evidence.
    */
-  plugins: [
+  plugins: lib ? [] : [
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
@@ -77,7 +115,7 @@ export default defineConfig({
       },
     }),
   ],
-  build: {
+  build: lib ? LIB_BUILD : {
     outDir: '../dist',
     emptyOutDir: true,
     target: 'es2022',
@@ -153,4 +191,5 @@ export default defineConfig({
       },
     ],
   },
+  };
 });

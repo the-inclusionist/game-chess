@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# The cartridge build (ADR-0140). Output, like dist/ — the published artifact comes from CI.
+dist-lib/
 .vite/
 *.local
 .DS_Store
