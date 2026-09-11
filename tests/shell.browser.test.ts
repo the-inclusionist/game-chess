@@ -1437,3 +1437,42 @@ describe('[A11y bar] the control a child needs before they can read the screen',
     }
   });
 });
+
+describe('[Menu nav] the engine never takes the board keys', () => {
+  it('⚠️ arrows still reach the cursor with the engine card revealed', () => {
+    /*
+     * ========================= A TEST FOR A DAY THAT HAS NOT COME =========================
+     * `isNavigable` defaults to YES, and the engine's `menu-nav` listens on the WINDOW in the
+     * capture phase: with a yes, it consumes any key carrying menu intent — arrows, Enter, Space,
+     * Escape — as soon as it finds a card of its own open. Every one of those keys is the board's
+     * here, so this game answers NO.
+     *
+     * ⚠️ IT CHANGES NOTHING TODAY, which is exactly why the test has to force the condition. The
+     * only card the engine could find is the one this game never reveals, so an honest assertion
+     * has to reveal it by hand — otherwise the test passes with the answer either way and defends
+     * nothing at all. Revealed, a YES would move the engine's selection instead of the cursor.
+     */
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    const shell = createGameShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: '__navTest', contrastTheme: 'contrast-flat',
+    });
+
+    const card = document.getElementById('vp-pause-0') as HTMLElement;
+    expect(card, "the engine's card, to reveal").not.toBeNull();
+    card.hidden = false;
+
+    document.getElementById('game-region')!.focus();
+    const before = shell.mirror.cursor();
+    document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', {
+      code: 'ArrowRight', key: 'ArrowRight', bubbles: true, cancelable: true,
+    }));
+    const after = shell.mirror.cursor();
+
+    expect(`${before.x},${before.y} -> ${after.x},${after.y}`)
+      .not.toBe(`${before.x},${before.y} -> ${before.x},${before.y}`);
+    card.hidden = true;
+  });
+});

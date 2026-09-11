@@ -535,6 +535,24 @@ export function createGameShell(deps: GameShellDeps): GameShell {
      * bytes on a school's connection.
      */
     baixarPesados: false,
+    /*
+     * ========================= IT IS NEVER TIME FOR THE ENGINE TO NAVIGATE A MENU HERE =========================
+     * The engine asks "is it now time to navigate a menu?" and, absent an answer, says YES — which
+     * is right for the game it was written for (a quiz, always in its menus) and wrong here. Its
+     * `menu-nav` listens on the WINDOW, in the capture phase, and with a yes it will consume any
+     * key carrying menu intent — the arrows, Enter, Space, Escape — the moment it finds a card of
+     * its own open. Every one of those keys is the board's in this game.
+     *
+     * It changes nothing today, because the only card it could find is the one this game never
+     * reveals. It is written for the day that stops being true: an engine that starts opening its
+     * pause card by itself would otherwise take the arrow keys away from a chessboard, in the
+     * capture phase, and the symptom would be a cursor that stops moving for no reason on screen.
+     *
+     * ⚠️ AND IT DOES NOT COST THE ACCESSIBILITY BAR, which was the thing to check before answering:
+     * `menuNavKey` tests `naBarraDe` BEFORE this guard, on purpose — that mode runs while the game
+     * is PLAYING, which is the whole point of it. Saying no here leaves the bar exactly as it was.
+     */
+    isNavigable: () => false,
   });
 
   /**
