@@ -96,6 +96,16 @@ export interface GameShellDeps {
    * there is ONE address and every game reading it directly reads its neighbours' arguments.
    */
   readonly params?: URLSearchParams;
+  /**
+   * The element this cartridge may write inside, and outside which it may not — ADR-0139 §4's
+   * `region`, as much of it as this game can take today.
+   *
+   * ⚠️ OPTIONAL, AND THE DEFAULT IS AN ID LOOKUP, which is not a hedge: the standalone page is a
+   * host too, `#game-region` is the id its markup uses, and it is the engine's required markup
+   * besides. What the field buys is that a host with several games on one page can say WHICH
+   * element is ours, instead of us answering with whichever came first in the document.
+   */
+  readonly region?: HTMLElement;
   /** Which page this is. Drives the panel's view switcher and the debug global's name. */
   readonly kind: ViewKind;
   readonly view: ViewFactory;
@@ -302,8 +312,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    */
   const params = deps.params ?? new URLSearchParams();
   const debugAsked = params.get('debug') === 'true';
-  const board = host.getElementById('chess-board');
-  if (!board) throw new Error('#chess-board is required — this game has nowhere to draw');
   /**
    * ⚠️ THE REGION IS THE BOARD PLUS THE PANEL, and it used to be only the board.
    *
@@ -311,20 +319,70 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * «o tabuleiro + menu lateral constituem o game-region». What was `#stage` took the name, and the
    * board became `#chess-board`. It is not a rename — it decides what this cartridge's ROOT is, and
    * `cartridge-contract.md` is literal about what a root means: a cartridge «may write inside it and
-   * nothing outside it». Chess wrote into three places, because its region was one ninth of what it
-   * draws, and all three are inside this one element now.
+   * nothing outside it».
+   *
+   * ⚠️ AND IT IS HANDED OVER NOW RATHER THAN LOOKED UP, which is the half of ADR-0139 §4's `region`
+   * that this game could actually do. Finding it by id is right for a game that owns its page and
+   * wrong for one of several on a platform's: `getElementById` answers with the FIRST `#game-region`
+   * in the document, which on that page is whoever got there first. The id lookup survives as the
+   * DEFAULT, because the standalone page is a host too and this is the id its markup uses — and
+   * because `#game-region` is the engine's required markup (`MARCACAO_EXIGIDA`), the one id here
+   * that was never ours to choose.
    *
    * Keys are bound to the REGION and not to the board, which is why the distinction is load-bearing
    * rather than cosmetic: the panel is a sibling of the board, so an event from the lesson list
    * never bubbles through it, and `action4` exists precisely to move between the two.
-   *
-   * ⚠️ `#game-region` IS ALSO THE ENGINE'S REQUIRED MARKUP (`MARCACAO_EXIGIDA`), so it is the ONE id
-   * here that is not ours to choose. That is why the fallback below is the board rather than a
-   * throw: a host that gives us no region gets a game that still draws, plus a line in
-   * `engine.problems` saying what it failed to provide. The board is the thing we cannot do without.
    */
-  const region = host.getElementById('game-region') ?? board;
-  const column = host.getElementById('side-column') ?? board;
+  const region = deps.region ?? host.getElementById('game-region');
+  if (!region) throw new Error('a region is required — this game has nowhere to draw');
+
+  /**
+   * The board and the panel, ASKED OF THE REGION and not of the document — and built when it has
+   * none.
+   *
+   * ⚠️ THE SCOPE IS THE POINT, not the convenience. `host.getElementById('side-column')` on a
+   * platform page answers with whichever cartridge's column comes first in the document; a query
+   * rooted at our own region cannot reach another game's.
+   *
+   * ⚠️ AND BUILT-IF-ABSENT IS THE SAME ARGUMENT `#below-board` MAKES further down, applied one level
+   * up: «markup that exists only to be filled in by this module belongs to this module». Neither of
+   * these has any content of its own. A host that hands over a bare `<div>` gets a working game
+   * rather than a list of divs it has to copy out of our page — which was the objection to giving a
+   * cartridge five elements instead of one root.
+   *
+   * They are ADOPTED when the host did author them, because the standalone page has reasons to:
+   * its CSS is written against these ids, and the title screen paints on the first frame from an
+   * inline stylesheet that names them.
+   */
+  const within = (id: string): HTMLElement => {
+    const found = region.querySelector<HTMLElement>(`#${id}`);
+    if (found) return found;
+    const made = host.createElement('div');
+    made.id = id;
+    region.appendChild(made);
+    return made;
+  };
+  const board = within('chess-board');
+  // The board takes the keyboard cursor, so it has to be reachable by Tab whether we built it or
+  // the page did. `tabindex` on an authored one is already there; setting it again costs nothing.
+  board.tabIndex = 0;
+  const column = within('side-column');
+
+  /**
+   * The keyboard legend, WHEREVER IT IS AT THE MOMENT — and it moves exactly once.
+   *
+   * ⚠️ THE REGION IS ASKED FIRST, AND THAT ORDER IS THE WHOLE FUNCTION. The page authors this line
+   * outside the region, because its content is written by this module and its place is not the
+   * board; the pause menu then ADOPTS the element into `pause.root`, which is inside the region. So
+   * at boot it is found on the host, and on every later call — a change of language — it is found
+   * in the region, where the host query would also have found it and would also have found any
+   * other game's.
+   *
+   * One element, one writer. Building a second here is how a keyboard legend starts disagreeing
+   * with the keys, which is the defect this line has already had twice.
+   */
+  const keyHintLine = (): HTMLElement | null =>
+    region.querySelector<HTMLElement>('.hint') ?? host.querySelector<HTMLElement>('.hint');
 
   /*
    * ========================= WHERE THE ENGINE'S OWN PAUSE CARD GOES =========================
@@ -1458,7 +1516,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * list is for — and the people most likely to read it are the ones with no other way in.
    */
   function refreshKeyHints(): void {
-    const line = host.querySelector('.hint');
+    const line = keyHintLine();
     if (!line) return;
     line.replaceChildren();
     /*
@@ -1500,12 +1558,12 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      */
     settings: hud.settings,
     /*
-     * ⚠️ THE SAME `<p class="hint">` THE THREE PAGES ALREADY CARRY, moved rather than copied. It is
+     * ⚠️ THE SAME `<p class="hint">` THE PAGE ALREADY CARRIES, moved rather than copied. It is
      * filled by `refreshKeyHints()` from the catalogue at boot and on every change of language, and
      * moving the element keeps that one writer — a second line built here would be a second place
      * for the keys to be wrong.
      */
-    keys: host.querySelector('.hint') as HTMLElement | undefined ?? undefined,
+    keys: keyHintLine() ?? undefined,
     actions: () => [
       { label: 'pause.resume', run: () => pause.hide() },
       ...(lessonMode

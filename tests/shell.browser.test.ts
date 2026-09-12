@@ -1768,6 +1768,77 @@ describe('[Frame] the shell drives the renderer that is drawing now', () => {
  * region does NOT reach: a listener on the region ELEMENT, which the host keeps; a renderer holding
  * GPU buffers; and the frame loop, which would otherwise draw into what was just destroyed.
  */
+/*
+ * ========================= A BARE ELEMENT IS ENOUGH =========================
+ * ADR-0139 §4 hands a cartridge one `region` and `cartridge-contract.md` says it «may write inside
+ * it and nothing outside it». Every other test in this file authors the page's own markup first,
+ * which is the standalone shape and cannot ask the contract's question: given a `<div>` and nothing
+ * else, does this game come up, and does it stay inside?
+ *
+ * ⚠️ THAT DISTINCTION IS WHY THE SUITE PASSING PROVED NOTHING HERE. The board and the panel are
+ * built when the region has none, and with every fixture authoring them the built branch never ran.
+ * A branch no test reaches is a promise to a host that has not been kept yet.
+ */
+describe('[Region] a host that hands over a bare element gets a game', () => {
+  /** The engine's required markup, and one empty div for the game. Nothing chess-shaped at all. */
+  function bareHost(): HTMLElement {
+    document.body.replaceChildren();
+    const root = document.createElement('div');
+    root.id = 'somebody-elses-id';
+    root.style.width = '640px';
+    root.style.height = '360px';
+    const status = document.createElement('div');
+    status.id = 'sr-status';
+    status.setAttribute('role', 'status');
+    const alert = document.createElement('div');
+    alert.id = 'sr-alert';
+    alert.setAttribute('role', 'alert');
+    document.body.append(root, status, alert);
+    return root;
+  }
+
+  it('⚠️ builds the board and the panel inside it, and plays', () => {
+    clear();
+    saveSettings({ mode: 'two' });
+    const root = bareHost();
+
+    const shell = makeShell({
+      host: document, kind: '2.5d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: '__bareRegion', contrastTheme: 'contrast-flat', region: root,
+    });
+
+    expect(root.querySelector('#chess-board'), 'the board was built').toBeTruthy();
+    expect(root.querySelector('#side-column'), 'the panel was built').toBeTruthy();
+    expect(shell.region, 'and the shell knows what its region is').toBe(root);
+
+    // Playable, which is the only thing that makes the two divs above worth anything.
+    expect(root.querySelectorAll('[role="gridcell"]').length, 'a whole board').toBe(64);
+    shell.activate({ x: 4, y: 6 });
+    expect(shell.game().selection(), 'a pawn can be picked up').not.toBeNull();
+  });
+
+  it('⚠️ writes nothing outside the element it was given', () => {
+    clear();
+    saveSettings({ mode: 'two' });
+    const root = bareHost();
+    const before = [...document.body.children];
+
+    makeShell({
+      host: document, kind: '2.5d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: '__bareRegionScope', contrastTheme: 'contrast-flat', region: root,
+    });
+
+    /*
+     * ⚠️ COUNTED AT THE TOP LEVEL, which is where a stray append lands: everything this shell builds
+     * is appended to the board, the column or the region, so anything that escaped its own root
+     * would become a new child of `body`. That is exactly what the old code did in three places —
+     * the panel went to a `#side-column` found by id anywhere in the document, and the key legend
+     * to a `.hint` likewise.
+     */
+    expect([...document.body.children], 'no new top-level element').toEqual(before);
+  });
+});
+
 describe('[Teardown] the shell lets go of what the region does not hold', () => {
   /** A view that counts what was asked of it, including after it should have stopped being asked. */
   function countingView(count: { destroys: number; frames: number; keys: number }) {
