@@ -23,7 +23,7 @@ import { afterEach, describe, expect, it } from 'vitest';
  * suite a question about a PROPERTY rather than about the screen. See the [Chrome] describe.
  */
 import '../app/css/board.css';
-import { createGameShell } from '../app/js/boot/standalone.ts';
+import { createGameShell, type GameShell } from '../app/js/boot/standalone.ts';
 import type { BoardView, ViewContext } from '../app/js/boot/view.ts';
 import { clear, saveSettings } from '../app/js/chess/session.ts';
 import { CONTRAST_THEME } from '../app/js/ui/board-themes.ts';
@@ -70,7 +70,30 @@ function fakeView(record: Recorded) {
 
 const settle = (): Promise<void> => new Promise((r) => { setTimeout(r, 0); });
 
+/**
+ * Every shell built here, so every one of them can be let go of afterwards.
+ *
+ * ⚠️ THIS IS NOT HOUSEKEEPING, IT IS THE FIX FOR A FAULT THIS SUITE ALREADY SHOWED. Since the frame
+ * loop moved to the shell, building one starts a `startLoop` that runs until something stops it —
+ * correct on the page, where nothing ends before the document does, and thirty concurrent clocks in
+ * a file that builds thirty shells. It cost a run: the sonar case failed on time at 24 s, against
+ * 157 ms on its own, and passed on the next run. Intermittence is what this repository paid for once
+ * already (`2b7e8bd`), and a suite that is right two runs in three is not a suite.
+ *
+ * Tearing down also exercises `teardown` on every single one of these, which is a better test of it
+ * than any one case could be: if it throws on a shell in any state this file can produce, that test
+ * goes red.
+ */
+const live: GameShell[] = [];
+function makeShell(deps: Parameters<typeof createGameShell>[0]): GameShell {
+  const shell = createGameShell(deps);
+  live.push(shell);
+  return shell;
+}
+
 afterEach(() => {
+  // Before the DOM goes, so a teardown that reaches for an element still finds the one it built in.
+  while (live.length > 0) live.pop()!.teardown();
   clear();
   saveSettings({});
   document.body.replaceChildren();
@@ -82,7 +105,7 @@ describe('[Shell] the walk travels every ply, and lets go of the board afterward
     saveSettings({ mode: 'two' });
     fixture();
     const record: Recorded = { legs: [], hidden: [] };
-    const shell = createGameShell({
+    const shell = makeShell({
       host: document, kind: '2d', view: fakeView(record), visibleMirror: true,
       debugName: '__shellTest', contrastTheme: 'contrast-flat',
     });
@@ -115,7 +138,7 @@ describe('[Shell] the walk travels every ply, and lets go of the board afterward
     saveSettings({ mode: 'two' });
     fixture();
     const record: Recorded = { legs: [], hidden: [] };
-    const shell = createGameShell({
+    const shell = makeShell({
       host: document,
       kind: '2d',
       visibleMirror: true,
@@ -151,7 +174,7 @@ describe('[Shell] the walk travels every ply, and lets go of the board afterward
     saveSettings({ mode: 'two' });
     fixture();
     const record: Recorded = { legs: [], hidden: [] };
-    const shell = createGameShell({
+    const shell = makeShell({
       host: document, kind: '2d', view: fakeView(record), visibleMirror: true,
       debugName: '__shellTest', contrastTheme: 'contrast-flat',
     });
@@ -182,7 +205,7 @@ describe('[NewGame] a lesson changes the board without rebuilding anything aroun
     fixture();
     clear();
     saveSettings({ mode: 'two' });
-    return createGameShell({
+    return makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       debugName: '__shellTest', contrastTheme: 'contrast-flat',
     });
@@ -275,7 +298,7 @@ describe('[Taught] the shell can point at squares', () => {
   it('marks them on the board and names them in the label', () => {
     fixture();
     clear();
-    const shell = createGameShell({
+    const shell = makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       debugName: '__shellTest', contrastTheme: 'contrast-flat',
     });
@@ -304,7 +327,7 @@ describe('[Keyboard] the keys work from where the splash leaves you', () => {
     fixture();
     clear();
     saveSettings({ mode: 'two' });
-    return createGameShell({
+    return makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       debugName: '__shellKeys', contrastTheme: 'contrast-flat',
     });
@@ -391,7 +414,7 @@ describe('[Panel keys] being IN the side panel is not the same as getting into i
     fixture();
     clear();
     saveSettings({ mode: 'two' });
-    return createGameShell({
+    return makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       debugName: '__shellPanel', contrastTheme: 'contrast-flat',
     });
@@ -461,7 +484,7 @@ describe('[Opening] the name reaches the screen, not only the lookup', () => {
     fixture();
     clear();
     saveSettings({ mode: 'two' });
-    return createGameShell({
+    return makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       debugName: '__openingTest', contrastTheme: 'contrast-flat',
     });
@@ -494,7 +517,7 @@ describe('[Opening] the name reaches the screen, not only the lookup', () => {
     fixture();
     clear();
     saveSettings({ mode: 'two' });
-    createGameShell({
+    makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       teaches: true,
       debugName: '__hudHotSeat', contrastTheme: 'contrast-flat',
@@ -573,7 +596,7 @@ describe('[Camera keys] a modified arrow is not board navigation', () => {
         },
       };
     };
-    return createGameShell({
+    return makeShell({
       host: document, kind: '2d', view, visibleMirror: true,
       debugName: '__cameraTest', contrastTheme: 'contrast-flat',
     });
@@ -666,7 +689,7 @@ describe('[Pause] START opens the menu the settings were moved into', () => {
         destroy: () => {},
       };
     };
-    return createGameShell({
+    return makeShell({
       host: document, kind: '2d', view, visibleMirror: true,
       teaches,
       debugName: '__pauseTest', contrastTheme: 'contrast-flat',
@@ -815,7 +838,7 @@ describe('[Opponent] the reply lands on the board, which is the defect that surv
     clear();
     // Player is White, so the engine has Black and is asked the moment White has moved.
     saveSettings({ mode: 'w' });
-    return createGameShell({
+    return makeShell({
       host: document, kind: '2d', view: fakeView(record), visibleMirror: true,
       makeOpponent: engine(reply),
       debugName: '__opponentTest', contrastTheme: 'contrast-flat',
@@ -927,7 +950,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     fixture();
     clear();
     saveSettings({ mode: 'two' });
-    return createGameShell({
+    return makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       teaches: true,
       debugName: '__chromeTest', contrastTheme: 'contrast-flat',
@@ -1011,7 +1034,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     fixture();
     clear();
     saveSettings({ mode: 'w' });
-    const shell = createGameShell({
+    const shell = makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       teaches: true,
       makeOpponent: () => ({
@@ -1074,7 +1097,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     fixture();
     clear();
     saveSettings({ mode: 'two' });
-    createGameShell({
+    makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       debugName: '__stripsTest', contrastTheme: 'contrast-flat',
     });
@@ -1133,7 +1156,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     fixture();
     clear();
     saveSettings({ mode: 'two' });
-    const shell = createGameShell({
+    const shell = makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       teaches: true,
       debugName: '__boundsTest', contrastTheme: 'contrast-flat',
@@ -1209,7 +1232,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     fixture();
     clear();
     saveSettings({ mode: 'two' });
-    createGameShell({
+    makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       teaches: true,
       debugName: '__scrollTest', contrastTheme: 'contrast-flat',
@@ -1257,7 +1280,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     fixture();
     clear();
     saveSettings({ mode: 'two' });
-    createGameShell({
+    makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       teaches: true,
       debugName: '__tapTest', contrastTheme: 'contrast-flat',
@@ -1342,7 +1365,7 @@ describe('[Weight] the engine downloads nothing this game declined', () => {
       fixture();
       clear();
       saveSettings({ mode: 'two' });
-      createGameShell({
+      makeShell({
         host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
         debugName: '__weightTest', contrastTheme: 'contrast-flat',
       });
@@ -1373,7 +1396,7 @@ describe('[Engine pause] the engine mounts a card, and this game says only where
     fixture();
     clear();
     saveSettings({ mode: 'two' });
-    createGameShell({
+    makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       debugName: '__engPauseTest', contrastTheme: 'contrast-flat',
     });
@@ -1396,7 +1419,7 @@ describe('[Engine pause] the engine mounts a card, and this game says only where
     fixture();
     clear();
     saveSettings({ mode: 'two' });
-    createGameShell({
+    makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       debugName: '__engPauseKey', contrastTheme: 'contrast-flat',
     });
@@ -1428,7 +1451,7 @@ describe('[A11y bar] the control a child needs before they can read the screen',
     fixture();
     clear();
     saveSettings({ mode: 'two' });
-    createGameShell({
+    makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       teaches: true,
       debugName: name, contrastTheme: 'contrast-flat',
@@ -1499,7 +1522,7 @@ describe('[Menu nav] the engine never takes the board keys', () => {
     fixture();
     clear();
     saveSettings({ mode: 'two' });
-    const shell = createGameShell({
+    const shell = makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       debugName: '__navTest', contrastTheme: 'contrast-flat',
     });
@@ -1538,7 +1561,7 @@ describe('[Sonar] the key a player who cannot see the board depends on', () => {
     fixture();
     clear();
     saveSettings({ mode: 'two' });
-    createGameShell({
+    makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       debugName: '__sonarTest', contrastTheme: 'contrast-flat',
     });
@@ -1571,7 +1594,7 @@ describe('[Switch] the board changes renderer without leaving the page', () => {
     fixture();
     clear();
     saveSettings({ mode: 'two' });
-    const shell = createGameShell({
+    const shell = makeShell({
       host: document, kind: '2.5d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       debugName: '__switchTest', contrastTheme: 'contrast-flat',
     });
@@ -1601,7 +1624,7 @@ describe('[Switch] the board changes renderer without leaving the page', () => {
     fixture();
     clear();
     saveSettings({ mode: 'two' });
-    const shell = createGameShell({
+    const shell = makeShell({
       host: document, kind: '2.5d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       debugName: '__switchSame', contrastTheme: 'contrast-flat',
     });
@@ -1653,7 +1676,7 @@ describe('[Frame] the shell drives the renderer that is drawing now', () => {
     clear();
     saveSettings({ mode: 'two' });
     const count = { frames: 0, afterDestroy: 0 };
-    const shell = createGameShell({
+    const shell = makeShell({
       host: document, kind: '2.5d', view: countingView(count), visibleMirror: true,
       debugName: '__frameTest', contrastTheme: 'contrast-flat',
     });
@@ -1676,7 +1699,7 @@ describe('[Frame] the shell drives the renderer that is drawing now', () => {
     clear();
     saveSettings({ mode: 'two' });
     const count = { frames: 0, afterDestroy: 0 };
-    const shell = createGameShell({
+    const shell = makeShell({
       host: document, kind: '2.5d', view: countingView(count), visibleMirror: true,
       debugName: '__frameSwap', contrastTheme: 'contrast-flat',
     });
@@ -1734,6 +1757,93 @@ describe('[Frame] the shell drives the renderer that is drawing now', () => {
  * bar buttons first, under a screen that covers them at `z-index: 100`. `fixed` and `z-index` hide a
  * thing from the eye; only `inert` hides it from the keyboard.
  */
+/*
+ * ========================= LETTING GO IS A CLAIM, SO IT IS ASKED =========================
+ * ADR-0139 puts `teardown` beside `update`, and the contract adds that the shell empties `region`
+ * afterwards. It would be easy to read that as sufficient and write a `teardown` that does nothing —
+ * it would look right, every test would pass, and the leak would arrive on the day two cartridges
+ * share a page, as a game that keeps taking keys after it is gone.
+ *
+ * ⚠️ SO WHAT IS ASKED IS NOT «WAS IT CALLED». Each assertion below is a thing that emptying the
+ * region does NOT reach: a listener on the region ELEMENT, which the host keeps; a renderer holding
+ * GPU buffers; and the frame loop, which would otherwise draw into what was just destroyed.
+ */
+describe('[Teardown] the shell lets go of what the region does not hold', () => {
+  /** A view that counts what was asked of it, including after it should have stopped being asked. */
+  function countingView(count: { destroys: number; frames: number; keys: number }) {
+    return (ctx: ViewContext): BoardView => {
+      ctx.region.appendChild(ctx.mirror.root);
+      return {
+        hudControls: { coordinates: () => false, onCoordinates: () => {} },
+        applyTheme: () => {},
+        drawPosition: () => {},
+        drawMarks: () => {},
+        travel: () => Promise.resolve(),
+        frame: () => { count.frames += 1; },
+        onKey: () => { count.keys += 1; return false; },
+        relayout: () => {},
+        destroy: () => { count.destroys += 1; },
+      };
+    };
+  }
+
+  it('⚠️ takes its keydown off the region, which the host keeps', () => {
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    const count = { destroys: 0, frames: 0, keys: 0 };
+    const shell = makeShell({
+      host: document, kind: '2.5d', view: countingView(count), visibleMirror: true,
+      debugName: '__teardownKeys', contrastTheme: 'contrast-flat',
+    });
+    const region = document.getElementById('game-region') as HTMLElement;
+
+    const press = (): void => {
+      region.dispatchEvent(new KeyboardEvent('keydown', { key: 'q', code: 'KeyQ', bubbles: true }));
+    };
+    press();
+    expect(count.keys, 'the listener is there to begin with').toBeGreaterThan(0);
+
+    const before = count.keys;
+    shell.teardown();
+    press();
+    /*
+     * ⚠️ THE REGION IS STILL IN THE DOCUMENT — that is the whole point. The contract empties its
+     * CHILDREN; the element itself is the host's and survives, so a listener on it survives too.
+     */
+    expect(region.isConnected, 'the element outlives the cartridge').toBe(true);
+    expect(count.keys, 'and no longer hears anything').toBe(before);
+  });
+
+  it('destroys the renderer, once, and stops asking it for frames', () => {
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    const count = { destroys: 0, frames: 0, keys: 0 };
+    const shell = makeShell({
+      host: document, kind: '2.5d', view: countingView(count), visibleMirror: true,
+      debugName: '__teardownFrames', contrastTheme: 'contrast-flat',
+    });
+
+    shell.update(1);
+    expect(count.frames, 'drawing before').toBe(1);
+
+    shell.teardown();
+    expect(count.destroys, 'the renderer was let go').toBe(1);
+
+    shell.update(1);
+    expect(count.frames, 'and nothing is drawn into it afterwards').toBe(1);
+
+    /*
+     * ⚠️ IDEMPOTENT, AND NOT AS A COURTESY. The host tears a cartridge down and so does this file's
+     * `afterEach`; a second `destroy()` on a renderer that has already released its context is the
+     * kind of throw that surfaces as a failure in whatever test runs next.
+     */
+    shell.teardown();
+    expect(count.destroys, 'a second teardown is not a second destroy').toBe(1);
+  });
+});
+
 describe('[Splash] nothing behind the title screen answers a Tab', () => {
   /** The page fixture, plus the title screen markup the shell only wires when it is present. */
   function withSplash(): void {
@@ -1751,7 +1861,7 @@ describe('[Splash] nothing behind the title screen answers a Tab', () => {
     withSplash();
     clear();
     saveSettings({ mode: 'two' });
-    createGameShell({
+    makeShell({
       host: document, kind: '2.5d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       debugName: '__inertTest', contrastTheme: 'contrast-flat',
     });
@@ -1775,7 +1885,7 @@ describe('[Contrast] the palette reaches everything the region holds', () => {
     fixture();
     clear();
     saveSettings({ mode: 'two', theme: CONTRAST_THEME });
-    createGameShell({
+    makeShell({
       host: document, kind: '2.5d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       debugName: '__contrastTest', contrastTheme: CONTRAST_THEME,
     });
@@ -1800,7 +1910,7 @@ describe('[Params] the maintenance switch is what the shell was given', () => {
     fixture();
     clear();
     saveSettings({ mode: 'two' });
-    createGameShell({
+    makeShell({
       host: document, kind: '2.5d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       debugName: NAME, contrastTheme: 'contrast-flat', params,
     });

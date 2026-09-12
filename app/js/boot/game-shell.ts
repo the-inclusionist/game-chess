@@ -186,6 +186,28 @@ export interface GameShell {
    * to hit the window.
    */
   update(dt: number): void;
+  /**
+   * Let go of everything this game is holding — the other half of `update`, and the member
+   * ADR-0139 names beside it.
+   *
+   * ⚠️ WHAT «EMPTY THE REGION» DOES NOT RELEASE IS THE WHOLE POINT OF THIS. The contract says the
+   * shell empties `region` afterwards, and it would be easy to read that as sufficient. It is not:
+   * measured in this file, four things outlive it, and each one is a different kind of leak.
+   *
+   *   · `window`'s resize listener — not in the region at all.
+   *   · The pause menu's `keydown`, registered in CAPTURE ON THE DOCUMENT. A torn-down cartridge
+   *     would keep taking keys from whatever ran next, and take them first.
+   *   · This shell's own `keydown`, on the region ELEMENT, which the host keeps — only its children
+   *     are emptied.
+   *   · The opponent: a Web Worker holding 6.98 MB of WebAssembly, which no DOM operation reaches.
+   *
+   * The view is destroyed too, and there the cost is GPU memory: `render3d/pieces.ts` says Three
+   * does not free a geometry when its mesh leaves the scene.
+   *
+   * ⚠️ IDEMPOTENT, because a shell can be torn down by the host and by a test, and the second call
+   * must not run `destroy` twice on a view that has already let its context go.
+   */
+  teardown(): void;
   readonly opponent: StockfishClient;
   activate(square: Square): void;
   walkHistory(direction: 'back' | 'forward'): Promise<void>;
@@ -1499,7 +1521,13 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
   });
   region.appendChild(pause.root);
 
-  region.addEventListener('keydown', (event) => {
+  /**
+   * ⚠️ NAMED SO IT CAN BE TAKEN OFF AGAIN. It was an inline arrow, which is fine for a page that
+   * ends when the document does and wrong for a cartridge: the host keeps the region and empties its
+   * children, so a listener on the region ITSELF survives a teardown and the next game inherits it.
+   * See `teardown` at the foot of this file.
+   */
+  const onRegionKey = (event: KeyboardEvent): void => {
     /*
      * ⚠️ START FIRST, BEFORE ANYTHING ELSE LOOKS AT THE KEY. It has to work while a lesson is
      * refusing input, while a piece is in flight, and while the menu itself is open — a pause that
@@ -1653,7 +1681,8 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
       return;
     }
     if (view.onKey?.(event)) event.preventDefault();
-  });
+  };
+  region.addEventListener('keydown', onRegionKey);
 
   const relayout = (): void => { applyLayout({ doc: host, win: window }); view.relayout(); };
   relayout();
@@ -2034,6 +2063,26 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     region, i18n, mirror, hud, opponent,
     view: () => view,
     update: (dt: number) => { if (mounted) view.frame?.(dt); },
+
+    teardown: () => {
+      /*
+       * ⚠️ THE SAME FLAG THE VIEW SWAP USES, and reusing it is the point rather than a shortcut:
+       * both states are «there is no renderer to draw into right now», and a frame that arrived
+       * after a teardown would throw inside `startLoop`, which answers a throw by removing its
+       * callback for good. One flag, one question, no second place to forget.
+       */
+      if (!mounted) return;
+      mounted = false;
+      // Outside the region, so emptying the region does not reach them.
+      window.removeEventListener('resize', relayout);
+      region.removeEventListener('keydown', onRegionKey);
+      // In CAPTURE on the document: this one would take keys from whatever ran next, and first.
+      pause.destroy();
+      // A Web Worker with 6.98 MB of WebAssembly in it. No DOM operation frees this.
+      opponent.destroy();
+      // GPU buffers: Three does not free a geometry when its mesh leaves the scene.
+      view.destroy();
+    },
     async switchView(kind: ViewKind): Promise<void> {
       if (kind === viewKind) return;
       /*

@@ -94,14 +94,25 @@ export function createGameShell(deps: GameShellDeps): GameShell {
    * `2` is the frame ceiling, unchanged from both call sites it replaces: a tab that comes back after
    * a minute in the background must not advance an animation by three thousand frames at once.
    *
-   * 📌 Nothing stops this ticker, because in this shell nothing ends before the document does. A
-   * platform that swaps cartridges needs the other half — `teardown()`, the sibling ADR-0139 names
-   * beside `update` — and it is not written yet; saying so here is cheaper than discovering it as a
-   * leak on the day two games share a page.
+   * ⚠️ AND THE CLOCK IS STOPPED BY `teardown`, WHICH IS NOT WHERE IT WOULD SEEM TO BELONG. The
+   * cartridge cannot stop it — it never built it, and ADR-0139 is why. So the shell that started it
+   * wraps the cartridge's own teardown with the one thing the cartridge has no handle on. In THIS
+   * shell nothing ends before the document does; it was a test suite that made the omission cost
+   * something, building thirty shells in one file and leaving thirty clocks ticking.
    */
-  startLoop(createFrameTicker(), (dt) => { shell.update(dt); }, 2, { aoFalhar: engine.aoFalhar });
+  const ticker = createFrameTicker();
+  startLoop(ticker, (dt) => { shell.update(dt); }, 2, { aoFalhar: engine.aoFalhar });
 
-  return shell;
+  /*
+   * ⚠️ A SPREAD IS SAFE HERE ONLY BECAUSE NOTHING ON `GameShell` IS A GETTER — every member is a
+   * value or a method, so copying the own properties copies the same closures and they keep talking
+   * to the same instance. The day one becomes a getter this line would freeze its value at the
+   * moment of the copy, silently. Checked when written; worth re-checking before adding one.
+   */
+  return {
+    ...shell,
+    teardown: () => { ticker.destroy(); shell.teardown(); },
+  };
 }
 
 /**

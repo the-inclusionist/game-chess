@@ -87,6 +87,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Before the DOM goes. A shell left standing keeps a frame loop and a Stockfish worker running
+  // for the rest of the file — see the note on `live` in `tests/shell.browser.test.ts`.
+  shell?.teardown();
   document.body.replaceChildren();
   localStorage.removeItem('incl_chess_learned');
 });
@@ -785,6 +788,9 @@ describe('[No opponent] a lesson never blocks on the engine', () => {
     box.dispatchEvent(new Event('change', { bubbles: true }));
     // No hang, no engine, and the lesson is still answerable.
     expect(document.querySelector('#side-column .lesson-say')?.textContent ?? '').not.toBe('');
+    // A second shell in this test, so a second clock and a second opponent. The `afterEach` only
+    // knows about the one the harness built.
+    stranded.teardown();
   });
 });
 
