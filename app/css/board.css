@@ -93,7 +93,7 @@ html { background: var(--page); }
   --ok: #7DD3A0;
 
   /*
-   * ⚠️ FALLBACKS ONLY. `ui/layout` writes both on `#stage` every time it measures — before the
+   * ⚠️ FALLBACKS ONLY. `ui/layout` writes both on `#game-region` every time it measures — before the
    * first frame and on every resize. They are here so a page between parse and first layout is
    * merely plain rather than broken.
    */
@@ -114,7 +114,7 @@ html { background: var(--page); }
   }
 
   /*
-   * The engine's ui/layout measures THIS element and sizes #game-region from it, locking the
+   * The engine's ui/layout measures THIS element and sizes #chess-board from it, locking the
    * scale to whole PHYSICAL pixels so scanlines stay regular at any device pixel ratio.
    */
   /*
@@ -125,7 +125,7 @@ html { background: var(--page); }
    * exactly as wide as the board and the side menu together.
    */
   /* The 2:1 stage: board on the left, panel on the right, both sized in `ui/layout`. */
-  #stage {
+  #game-region {
     display: flex;
     align-items: stretch;
     /* Centred: what the board and the panel do not use is margin, not panel. */
@@ -166,7 +166,7 @@ html { background: var(--page); }
    *
    * ⚠️ `min-height: 0` ON THE PANEL IS LOAD-BEARING, NOT TIDINESS. A flex item's default minimum
    * is its content, so without it the panel refuses to be shorter than its 487 px of controls, the
-   * column grows past the stage, and `#stage`'s `overflow: hidden` clips the bottom of it — which
+   * column grows past the stage, and `#game-region`'s `overflow: hidden` clips the bottom of it — which
    * is the failure this game already decided against: a control that is on the page, focusable and
    * announced, and unreachable with a pointer.
    */
@@ -182,12 +182,12 @@ html { background: var(--page); }
    * the board itself, and the bar under it. The two canvas views take no part in this — their
    * canvas is `position: absolute; inset: 0` and keeps the whole region whatever is in flow.
    */
-  #stage > #game-region {
+  #game-region > #chess-board {
     align-self: center;
     display: flex;
     flex-direction: column;
   }
-  #game-region > #below-board { flex: 0 0 auto; width: 100%; box-sizing: border-box; }
+  #chess-board > #below-board { flex: 0 0 auto; width: 100%; box-sizing: border-box; }
   #stage-wrap {
     flex: 1 1 auto;
     min-height: 0;
@@ -214,14 +214,14 @@ html { background: var(--page); }
   /* The region the engine listens to. Keyboard is bound HERE, never on window. */
 
 
-  #game-region {
+  #chess-board {
     position: relative;
     outline-offset: 4px;
   }
-  #game-region:focus-visible { outline: 3px solid var(--focus); }
+  #chess-board:focus-visible { outline: 3px solid var(--focus); }
 
   /*
-   * The canvas fills whatever ui/layout sized #game-region to. Setting a width here WITHOUT a
+   * The canvas fills whatever ui/layout sized #chess-board to. Setting a width here WITHOUT a
    * matching height is what stretched the board: `max-width: 100vw` clipped the width to 721px
    * while the height stayed 720, giving 2.25x across and 4x down.
    */
@@ -298,7 +298,7 @@ html { background: var(--page); }
    * them from `--tap` — 24 px at the smallest stage, 44 where there is room — so the row needs a
    * layout and nothing else. It WRAPS: at the floor the panel is 280 wide and the engine mounts up
    * to eight icons, which do not fit on one line, and a row that overflows instead of wrapping
-   * would push the last icons past the panel's edge into `#stage`'s clip.
+   * would push the last icons past the panel's edge into `#game-region`'s clip.
    *
    * ⚠️ NOT `overflow: hidden` AND NOT A SCROLLER. This is the control a child reaches for when the
    * screen is unreadable to them; it is the one row in this game that may not need discovering.
@@ -389,10 +389,10 @@ html { background: var(--page); }
   .hud-view:hover { background: var(--surface-high); }
   .hud-view[aria-current="page"] { background: var(--focus); color: var(--surface); border-color: var(--focus); }
   .hud-view[aria-disabled="true"] { opacity: 0.4; cursor: default; }
-  #game-region[data-contrast="high"] .hud-view {
+  #chess-board[data-contrast="high"] .hud-view {
     color: #FFFFFF; background: #000000; border-color: #FFFFFF;
   }
-  #game-region[data-contrast="high"] .hud-view[aria-current="page"] {
+  #chess-board[data-contrast="high"] .hud-view[aria-current="page"] {
     color: #000000; background: #FFFFFF;
   }
 
@@ -448,7 +448,7 @@ html { background: var(--page); }
   @media (prefers-reduced-motion: reduce) {
     .hud-hint[data-busy="true"] { animation: none; opacity: 0.75; }
   }
-  #game-region[data-contrast="high"] .hud-hint {
+  #chess-board[data-contrast="high"] .hud-hint {
     color: #000000; background: #FFFFFF; border-color: #FFFFFF;
   }
 
@@ -518,7 +518,7 @@ html { background: var(--page); }
    */
   /*
    * ========================= THE ENGINE'S PAUSE CARD LIVES HERE =========================
-   * Not a flex child: `#stage` divides its width nine units to the board and seven to the panel,
+   * Not a flex child: `#game-region` divides its width nine units to the board and seven to the panel,
    * with no gap, and a third child in flow would take a share of that. Out of flow it costs the
    * split nothing, and `pointer-events: none` keeps an empty holder from swallowing clicks meant
    * for the board underneath — the card inside takes them back when it is shown.
@@ -854,8 +854,8 @@ html { background: var(--page); }
   .board-eval[data-lead="white"] { color: #F2F6FA; }
   .board-eval[data-lead="black"] { color: #B79BE8; }
 
-  #game-region[data-contrast="high"] .player-strip,
-  #game-region[data-contrast="high"] .board-eval { color: #FFFFFF; }
+  #chess-board[data-contrast="high"] .player-strip,
+  #chess-board[data-contrast="high"] .board-eval { color: #FFFFFF; }
 
 
   /*
@@ -942,10 +942,10 @@ html { background: var(--page); }
   /* 3 px like every other control here. 2 px already met 2.4.13's minimum perimeter; one ring
      thinner than the rest is a difference that means nothing and reads as an oversight. */
   .hud-choice input:focus-visible + label { outline: 3px solid var(--focus); outline-offset: 2px; }
-  #game-region[data-contrast="high"] .hud-choice label {
+  #chess-board[data-contrast="high"] .hud-choice label {
     color: #FFFFFF; background: #000000; border-color: #FFFFFF;
   }
-  #game-region[data-contrast="high"] .hud-choice input:checked + label {
+  #chess-board[data-contrast="high"] .hud-choice input:checked + label {
     color: #000000; background: #FFFFFF;
   }
   /* --tap is 22*k, which is 44px at the k=2 floor: the WCAG 2.5.5 target size, inherited. */
@@ -1005,18 +1005,18 @@ html { background: var(--page); }
     outline: 3px solid var(--focus);
     outline-offset: 2px;
   }
-  #game-region[data-contrast="high"] .chess-hud a:focus-visible,
-  #game-region[data-contrast="high"] .chess-hud button:focus-visible,
-  #game-region[data-contrast="high"] .chess-hud select:focus-visible,
-  #game-region[data-contrast="high"] .chess-hud input[type="checkbox"]:focus-visible,
-  #game-region[data-contrast="high"] .hud-choice input:focus-visible + label {
+  #chess-board[data-contrast="high"] .chess-hud a:focus-visible,
+  #chess-board[data-contrast="high"] .chess-hud button:focus-visible,
+  #chess-board[data-contrast="high"] .chess-hud select:focus-visible,
+  #chess-board[data-contrast="high"] .chess-hud input[type="checkbox"]:focus-visible,
+  #chess-board[data-contrast="high"] .hud-choice input:focus-visible + label {
     outline-color: #FFFFFF;
   }
-  #game-region[data-contrast="high"] .chess-hud legend { color: #FFFFFF; }
+  #chess-board[data-contrast="high"] .chess-hud legend { color: #FFFFFF; }
 
   /*
    * ⚠️ THE ON STATE OF THE TEACHER SWITCH WAS SURVIVING BY ACCIDENT. `[aria-pressed="true"]`
-   * paints it violet on white, and `#game-region[data-contrast="high"] .hud-hint` overrides both
+   * paints it violet on white, and `#chess-board[data-contrast="high"] .hud-hint` overrides both
    * of those — an id beats two classes — so in high contrast the pressed and unpressed buttons
    * were the same black-on-white. What still told them apart was the inset ring, which that rule
    * happens not to set: a state visible only because nobody thought to overwrite it.
@@ -1024,22 +1024,22 @@ html { background: var(--page); }
    * Said on purpose now, in this palette's own inks: a heavy black ring inside the white button,
    * 21:1 against it, plus `aria-pressed` for anyone who is not looking.
    */
-  #game-region[data-contrast="high"] .hud-hint[aria-pressed="true"] {
+  #chess-board[data-contrast="high"] .hud-hint[aria-pressed="true"] {
     color: #000000; background: #FFFFFF;
     box-shadow: inset 0 0 0 4px #000000, inset 0 0 0 7px #FFFFFF;
   }
 
   /* The panel switches with the board: same surface, same eye. */
-  #game-region[data-contrast="high"] .chess-hud {
+  #chess-board[data-contrast="high"] .chess-hud {
     background: #000000; color: #FFFFFF; border-left-color: #FFFFFF;
   }
-  #game-region[data-contrast="high"] .chess-hud h2,
-  #game-region[data-contrast="high"] .chess-hud label { color: #FFFFFF; }
-  #game-region[data-contrast="high"] .hud-nav button {
+  #chess-board[data-contrast="high"] .chess-hud h2,
+  #chess-board[data-contrast="high"] .chess-hud label { color: #FFFFFF; }
+  #chess-board[data-contrast="high"] .hud-nav button {
     color: #FFFFFF; background: #000000; border-color: #FFFFFF;
   }
-  #game-region[data-contrast="high"] .hud-swatch[data-side="w"] { background: #FFFFFF; }
-  #game-region[data-contrast="high"] .hud-swatch[data-side="b"] { background: #000000; border-color: #FFFFFF; }
+  #chess-board[data-contrast="high"] .hud-swatch[data-side="w"] { background: #FFFFFF; }
+  #chess-board[data-contrast="high"] .hud-swatch[data-side="b"] { background: #000000; border-color: #FFFFFF; }
 
   /*
    * The board coordinates. Real DOM text over the canvas, because Zdog has no text primitive —
@@ -1066,7 +1066,7 @@ html { background: var(--page); }
     line-height: 1;
     will-change: transform;
   }
-  #game-region[data-contrast="high"] .coords { color: #FFFFFF; text-shadow: none; }
+  #chess-board[data-contrast="high"] .coords { color: #FFFFFF; text-shadow: none; }
 
   /*
    * ========================= THE CONTRAST TABLE =========================
@@ -1128,13 +1128,13 @@ html { background: var(--page); }
   .theme-report [data-state="carried"] { color: #E8C25A; }
   .theme-report [data-state="short"] { color: #FF8B6B; font-weight: 700; }
   .theme-report-floor { margin: 0.5em 0 0; color: var(--ink-dim); max-width: 32em; }
-  #game-region[data-contrast="high"] .theme-report {
+  #chess-board[data-contrast="high"] .theme-report {
     background: #000000; color: #FFFFFF; border-color: #FFFFFF;
   }
-  #game-region[data-contrast="high"] .theme-report h2,
-  #game-region[data-contrast="high"] .theme-report th[aria-current] { color: #FFFFFF; }
-  #game-region[data-contrast="high"] .theme-report-floor,
-  #game-region[data-contrast="high"] .theme-report th[scope="row"] { color: #FFFFFF; }
+  #chess-board[data-contrast="high"] .theme-report h2,
+  #chess-board[data-contrast="high"] .theme-report th[aria-current] { color: #FFFFFF; }
+  #chess-board[data-contrast="high"] .theme-report-floor,
+  #chess-board[data-contrast="high"] .theme-report th[scope="row"] { color: #FFFFFF; }
   /*
    * ⚠️ THE CELLS KEEP THEIR THREE TONES IN HIGH CONTRAST TOO. There was one rule here that painted
    * every cell `#FFFFFF`, on the reasoning that white on black is the safest thing there is — and
@@ -1145,13 +1145,13 @@ html { background: var(--page); }
    * amber 13.7, salmon 8.9), so nothing is given up. And the character in each cell still carries
    * the state on its own, for anyone the colour does not reach.
    */
-  #game-region[data-contrast="high"] .theme-report [data-state="pass"] { color: #FFFFFF; }
-  #game-region[data-contrast="high"] .theme-report [data-state="carried"] { color: var(--focus); }
-  #game-region[data-contrast="high"] .theme-report [data-state="short"] { color: #FF9E80; }
+  #chess-board[data-contrast="high"] .theme-report [data-state="pass"] { color: #FFFFFF; }
+  #chess-board[data-contrast="high"] .theme-report [data-state="carried"] { color: var(--focus); }
+  #chess-board[data-contrast="high"] .theme-report [data-state="short"] { color: #FF9E80; }
 
   /*
    * ========================= THE ENGINE'S THINKING, UNDER THE BOARD =========================
-   * Outside `#game-region`, because the panel inside it is 88 logical pixels wide and this is four
+   * Outside `#chess-board`, because the panel inside it is 88 logical pixels wide and this is four
    * numbers that change several times a second. Under the board because that is what it is about.
    *
    * `role="status"` with `aria-live="off"`: readable on demand, silent by default. A UCI engine
@@ -1520,7 +1520,7 @@ html { background: var(--page); }
   }
   .board-2d [role="gridcell"] .cell-coord[data-kind="file"] { right: 3%; bottom: 1%; }
   .board-2d [role="gridcell"] .cell-coord[data-kind="rank"] { left: 4%; top: 1%; }
-  #game-region:not([data-coords="on"]) .cell-coord { display: none; }
+  #chess-board:not([data-coords="on"]) .cell-coord { display: none; }
 
   /*
    * ⚠️ THE SQUARES ARE NOT WRITTEN HERE ANY MORE, and the two lines that used to write them are
@@ -1532,7 +1532,7 @@ html { background: var(--page); }
    * `prefers-contrast: more` already selects the `contrast-flat` THEME, and a theme decides every
    * ink through custom properties. One source, and the switch chooses which source.
    */
-  #game-region[data-contrast="high"] .board-2d { border-color: #FFFFFF; }
+  #chess-board[data-contrast="high"] .board-2d { border-color: #FFFFFF; }
   /*
    * ⚠️ NO PIECE COLOURS HERE ANY MORE. High contrast on the flat board is a THEME —
    * `contrast-flat` in `ui/board-themes.ts` — because the two high-contrast palettes differ in
@@ -1540,4 +1540,4 @@ html { background: var(--page); }
    * on wearing the projected board's yellow long after that stopped making sense. The switch
    * selects a theme; the theme decides every ink.
    */
-  #game-region[data-contrast="high"] .cell-coord { color: #FFFFFF; }
+  #chess-board[data-contrast="high"] .cell-coord { color: #FFFFFF; }

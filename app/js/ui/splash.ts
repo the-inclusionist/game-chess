@@ -14,7 +14,7 @@
 //
 // ========================= WHAT IT DOES FOR A SCREEN READER =========================
 // The status line is `role="status"`, so "loading the engine" and then "ready" are announced
-// without stealing focus, and `#game-region` is `inert` until START — a board that cannot yet be
+// without stealing focus, and `#chess-board` is `inert` until START — a board that cannot yet be
 // played should not be reachable by Tab either. Focus moves to START when it appears and into the
 // region when it is pressed, so the keyboard never lands somewhere that does nothing.
 

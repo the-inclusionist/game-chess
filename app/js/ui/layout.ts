@@ -79,10 +79,10 @@ export interface LayoutResult {
 
 export function applyLayout(host: LayoutHost): LayoutResult | null {
   const wrap = host.doc.getElementById('stage-wrap');
+  const board = host.doc.getElementById('chess-board');
   const region = host.doc.getElementById('game-region');
-  const stage = host.doc.getElementById('stage');
   const column = host.doc.getElementById('side-column');
-  if (!wrap || !region) return null;
+  if (!wrap || !board) return null;
 
   const dpr = host.win.devicePixelRatio || 1;
   /*
@@ -158,9 +158,9 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
   const stageH = height;
   const stageW = (height * STAGE_COLS) / BOARD_COLS;
 
-  if (stage) {
-    stage.style.width = `${stageW}px`;
-    stage.style.height = `${stageH}px`;
+  if (region) {
+    region.style.width = `${stageW}px`;
+    region.style.height = `${stageH}px`;
   }
   /*
    * ⚠️ THE REGION IS AS TALL AS WHAT IT MUST CONTAIN, and that differs by page.
@@ -179,8 +179,8 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
    * board was DOM. The raster is square now, so both pages want the same box and there is nothing
    * left to ask the document about.
    */
-  region.style.width = `${width}px`;
-  region.style.height = `${height}px`;
+  board.style.width = `${width}px`;
+  board.style.height = `${height}px`;
   /*
    * The remaining seven of the sixteen columns, exactly — not a remainder to be clamped.
    *
@@ -230,9 +230,11 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
     if (boardSide >= 540) return 34;
     return 24;
   };
-  // ⚠️ ON THE STAGE, NOT ON THE REGION. The panel is a sibling of the board now, so variables set
-  // on the board would not reach it — and every control in it is sized from `--tap`.
-  const vars = stage ?? region;
+  // ⚠️ ON THE REGION, NOT ON THE BOARD. The panel is a sibling of the board, so variables set on the
+  // board would not reach it — and every control in it is sized from `--tap`. The region contains
+  // both, which is what makes one write enough; while `#game-region` meant only the board, this line
+  // had to reach past it to the stage to say the same thing.
+  const vars = region ?? board;
   vars.style.setProperty('--ui-fs', `${8 * ui}px`);
   vars.style.setProperty('--tap', `${tapFor(width)}px`);
   /*

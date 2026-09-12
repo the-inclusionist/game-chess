@@ -48,8 +48,8 @@ let left: number;
 beforeEach(() => {
   document.body.innerHTML = `
     <div id="stage-wrap" style="width: 640px; height: 360px">
-      <div id="stage">
-        <div id="game-region" tabindex="0"></div>
+      <div id="game-region">
+        <div id="chess-board" tabindex="0"></div>
         <div id="side-column"></div>
       </div>
     </div>
@@ -564,7 +564,7 @@ describe('[Actions] the four buttons reach the lesson', () => {
     // ⚠️ `key` AS WELL AS `code`. The engine resolves intents from the physical `code`, but the
     // pause menu also answers to `Escape` by name — a synthetic event carrying only `code` has an
     // empty `key`, and the first version of these tests dispatched an Escape that matched neither.
-    document.getElementById('game-region')!.dispatchEvent(
+    document.getElementById('chess-board')!.dispatchEvent(
       new KeyboardEvent('keydown', { code, key: code, bubbles: true, cancelable: true }),
     );
   };
@@ -731,8 +731,8 @@ describe('[No opponent] a lesson never blocks on the engine', () => {
   it('unlocks and shows the answer with an opponent that never arrives', async () => {
     document.body.innerHTML = `
       <div id="stage-wrap" style="width: 1200px; height: 700px">
-        <div id="stage">
-          <div id="game-region" tabindex="0"></div>
+        <div id="game-region">
+          <div id="chess-board" tabindex="0"></div>
           <div id="side-column"></div>
         </div>
       </div>
@@ -796,7 +796,7 @@ describe('[Tactics] a puzzle is a lesson, all the way through the column', () =>
    * finishes it, which is the part that proves the ply offset survived the trip.
    */
   const press = (code: string): void => {
-    document.getElementById('game-region')!
+    document.getElementById('chess-board')!
       .dispatchEvent(new KeyboardEvent('keydown', { code, key: code, bubbles: true, cancelable: true }));
   };
 

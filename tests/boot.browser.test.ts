@@ -29,8 +29,8 @@ import { saveSettings } from '../app/js/chess/session.ts';
 function fixture(): void {
   document.body.innerHTML = `
     <div id="stage-wrap" style="width: 640px; height: 360px">
-      <div id="stage">
-        <div id="game-region" tabindex="0"></div>
+      <div id="game-region">
+        <div id="chess-board" tabindex="0"></div>
         <div id="side-column"></div>
       </div>
     </div>
@@ -51,18 +51,18 @@ describe('[Boot] the composition root actually composes', () => {
   it('puts the board, the mirror, the coordinates and the panel on the screen', async () => {
     fixture();
     await bootChess(document, '2.5d');
-    const region = document.getElementById('game-region');
+    const region = document.getElementById('chess-board');
     expect(region?.querySelector('#board-canvas')).not.toBeNull();
     expect(region?.querySelectorAll('[role="gridcell"]')).toHaveLength(64);
     expect(region?.querySelectorAll('.coords-label')).toHaveLength(16);
     /*
      * ⚠️ IN THE STAGE, NOT IN THE REGION. The side panel used to be absolutely positioned over the
      * board's right 27.5% and was therefore a child of it — which is why it could never be widened
-     * without covering the board. It is a sibling now, in `#side-column`, and `#stage` is what
+     * without covering the board. It is a sibling now, in `#side-column`, and `#game-region` is what
      * holds both. Asserting through the stage is asserting the thing that is still true: the panel
      * reached the document.
      */
-    expect(document.querySelector('#stage .chess-hud')).not.toBeNull();
+    expect(document.querySelector('#game-region .chess-hud')).not.toBeNull();
     expect(region?.querySelector('.chess-hud')).toBeNull();
   });
 
@@ -79,7 +79,7 @@ describe('[Boot] the composition root actually composes', () => {
   it('hides the canvas from the screen reader and keeps the mirror ahead of it', async () => {
     fixture();
     await bootChess(document, '2.5d');
-    const region = document.getElementById('game-region')!;
+    const region = document.getElementById('chess-board')!;
     const canvas = region.querySelector('#board-canvas')!;
     expect(canvas.getAttribute('aria-hidden')).toBe('true');
     const grid = region.querySelector('[role="grid"]')!;
@@ -101,18 +101,18 @@ describe('[Boot] the flat composition root composes too', () => {
   it('puts a VISIBLE board and the panel on the screen, and no canvas', async () => {
     fixture();
     await bootChess(document, '2d');
-    const region = document.getElementById('game-region');
+    const region = document.getElementById('chess-board');
     expect(region?.querySelector('.board-2d')).not.toBeNull();
     expect(region?.querySelectorAll('[role="gridcell"]')).toHaveLength(64);
     expect(region?.querySelectorAll('.cell-coord')).toHaveLength(16);
     /*
      * ⚠️ IN THE STAGE, NOT IN THE REGION. The side panel used to be absolutely positioned over the
      * board's right 27.5% and was therefore a child of it — which is why it could never be widened
-     * without covering the board. It is a sibling now, in `#side-column`, and `#stage` is what
+     * without covering the board. It is a sibling now, in `#side-column`, and `#game-region` is what
      * holds both. Asserting through the stage is asserting the thing that is still true: the panel
      * reached the document.
      */
-    expect(document.querySelector('#stage .chess-hud')).not.toBeNull();
+    expect(document.querySelector('#game-region .chess-hud')).not.toBeNull();
     expect(region?.querySelector('.chess-hud')).toBeNull();
     // The whole point of the second entry: this view never builds a renderer.
     expect(region?.querySelector('canvas')).toBeNull();
@@ -161,17 +161,17 @@ describe('[Boot] the solid composition root composes too', () => {
   it('puts a canvas, the mirror and the panel on the screen', async () => {
     fixture();
     await bootChess(document, '3d');
-    const region = document.getElementById('game-region');
+    const region = document.getElementById('chess-board');
     expect(region?.querySelector('canvas')).not.toBeNull();
     expect(region?.querySelectorAll('[role="gridcell"]')).toHaveLength(64);
     /*
      * ⚠️ IN THE STAGE, NOT IN THE REGION. The side panel used to be absolutely positioned over the
      * board's right 27.5% and was therefore a child of it — which is why it could never be widened
-     * without covering the board. It is a sibling now, in `#side-column`, and `#stage` is what
+     * without covering the board. It is a sibling now, in `#side-column`, and `#game-region` is what
      * holds both. Asserting through the stage is asserting the thing that is still true: the panel
      * reached the document.
      */
-    expect(document.querySelector('#stage .chess-hud')).not.toBeNull();
+    expect(document.querySelector('#game-region .chess-hud')).not.toBeNull();
     expect(region?.querySelector('.chess-hud')).toBeNull();
   });
 
@@ -192,7 +192,7 @@ describe('[Boot] the solid composition root composes too', () => {
      */
     fixture();
     await bootChess(document, '3d');
-    const region = document.getElementById('game-region')!;
+    const region = document.getElementById('chess-board')!;
     const canvas = region.querySelector('canvas')!;
     expect(canvas.getAttribute('aria-hidden')).toBe('true');
     const grid = region.querySelector('[role="grid"]')!;

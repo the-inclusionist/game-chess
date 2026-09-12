@@ -45,4 +45,4 @@ export function boot(host: Document = document): Promise<void> {
   return bootChess(host, '2.5d');
 }
 
-if (typeof document !== 'undefined' && document.getElementById('game-region')) boot();
+if (typeof document !== 'undefined' && document.getElementById('chess-board')) boot();

@@ -326,9 +326,15 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
     frame: () => { scene.render(); },
 
     relayout: () => {
-      // ⚠️ THE ENGINE STILL SIZES THE REGION and it must: `#game-region` is what the panel, the
-      // strips and every `--ui-fs` are laid out against. Without it the region has no size at all
-      // and the canvas comes out one pixel by one, which is exactly what the first run did.
+      /*
+       * ⚠️ SOMETHING ELSE SIZES THIS BOX AND THIS VIEW ONLY READS IT. Without that, the canvas
+       * comes out one pixel by one, which is exactly what the first run did.
+       *
+       * ⚠️ AND «THE ENGINE» IS WHAT THIS LINE USED TO SAY, MEASURED AND WRONG. The engine's own
+       * `ui/layout()` is never called by `createGame` — checked on the running page: `#game-region`
+       * carries no `--ui-fs` written by it. This game has its OWN `ui/layout.ts`, whose header says
+       * so in its first paragraph, and that is what sizes the board.
+       */
       const box = region.getBoundingClientRect();
       scene.resize(Math.max(1, box.width), Math.max(1, box.height));
     },

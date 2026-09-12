@@ -32,8 +32,8 @@ import type { EngineMove } from '../app/js/chess/engine/client.ts';
 function fixture(): void {
   document.body.innerHTML = `
     <div id="stage-wrap" style="width: 640px; height: 360px">
-      <div id="stage">
-        <div id="game-region" tabindex="0"></div>
+      <div id="game-region">
+        <div id="chess-board" tabindex="0"></div>
         <div id="side-column"></div>
       </div>
     </div>
@@ -291,7 +291,7 @@ describe('[Keyboard] the keys work from where the splash leaves you', () => {
   /*
    * ========================= ⚠️ THE BUG THIS PINS =========================
    * `ui/grid-mirror.ts` listens on its OWN root, so it only ever heard keys pressed while focus was
-   * already inside the grid. The splash leaves focus on `#game-region` — the grid's PARENT — so
+   * already inside the grid. The splash leaves focus on `#chess-board` — the grid's PARENT — so
    * pressing START and then a direction key did nothing at all, every time, until a square happened
    * to be clicked first. Every key looked correctly mapped, and the mapping was never the problem.
    */
@@ -318,8 +318,8 @@ describe('[Keyboard] the keys work from where the splash leaves you', () => {
 
   it('⚠️ moves the cursor with focus on the REGION, not only on a cell', () => {
     const shell = shellFor();
-    document.getElementById('game-region')!.focus();
-    expect(document.activeElement?.id).toBe('game-region');
+    document.getElementById('chess-board')!.focus();
+    expect(document.activeElement?.id).toBe('chess-board');
 
     const start = shell.mirror.cursor();
     press('KeyD');
@@ -330,9 +330,9 @@ describe('[Keyboard] the keys work from where the splash leaves you', () => {
 
   it('confirms and cancels from there too', () => {
     const shell = shellFor();
-    document.getElementById('game-region')!.focus();
+    document.getElementById('chess-board')!.focus();
     shell.mirror.focusSquare(at('e2'));
-    document.getElementById('game-region')!.focus();
+    document.getElementById('chess-board')!.focus();
 
     press('KeyJ');
     expect(shell.game().selection()).toEqual(at('e2'));
@@ -361,13 +361,13 @@ describe('[Keyboard] the keys work from where the splash leaves you', () => {
      * out, so what this now proves is that the RESOLVED path reaches the menu.
      */
     const shell = shellFor();
-    document.getElementById('game-region')!.focus();
+    document.getElementById('chess-board')!.focus();
     press('KeyH');
     expect(document.querySelector<HTMLElement>('.chess-pause')!.hidden).toBe(false);
     press('Escape', 'Escape');
     expect(document.querySelector<HTMLElement>('.chess-pause')!.hidden).toBe(true);
 
-    document.getElementById('game-region')!.focus();
+    document.getElementById('chess-board')!.focus();
     press('Enter', 'Enter');
     expect(document.querySelector<HTMLElement>('.chess-pause')!.hidden).toBe(false);
     expect(shell.region).toBeTruthy();
@@ -398,7 +398,7 @@ describe('[Panel keys] being IN the side panel is not the same as getting into i
 
   it('⚠️ walks the panel with the arrows, and leaves the board alone', () => {
     const shell = shellFor();
-    document.getElementById('game-region')!.focus();
+    document.getElementById('chess-board')!.focus();
     const cursor = shell.mirror.cursor();
 
     press('KeyI');
@@ -415,7 +415,7 @@ describe('[Panel keys] being IN the side panel is not the same as getting into i
 
   it('comes back to the board on action4, and the arrows drive it again', () => {
     const shell = shellFor();
-    document.getElementById('game-region')!.focus();
+    document.getElementById('chess-board')!.focus();
     press('KeyI');
     press('KeyI');
     expect(document.getElementById('side-column')!.contains(document.activeElement)).toBe(false);
@@ -427,7 +427,7 @@ describe('[Panel keys] being IN the side panel is not the same as getting into i
 
   it('stops at the ends rather than wrapping, like the board does', () => {
     shellFor();
-    document.getElementById('game-region')!.focus();
+    document.getElementById('chess-board')!.focus();
     press('KeyI');
     const first = document.activeElement;
     press('KeyW');
@@ -546,7 +546,7 @@ describe('[Camera keys] a modified arrow is not board navigation', () => {
    * ask whether the key ever got there.
    */
   const press = (code: string, key: string, shift: boolean): void => {
-    document.getElementById('game-region')!.dispatchEvent(new KeyboardEvent('keydown', {
+    document.getElementById('chess-board')!.dispatchEvent(new KeyboardEvent('keydown', {
       code, key, shiftKey: shift, bubbles: true, cancelable: true,
     }));
   };
@@ -581,7 +581,7 @@ describe('[Camera keys] a modified arrow is not board navigation', () => {
   it('⚠️ offers a shifted arrow to the view instead of moving the cursor', () => {
     const seen: string[] = [];
     const shell = shellWithKeys(seen);
-    document.getElementById('game-region')!.focus();
+    document.getElementById('chess-board')!.focus();
     const before = shell.mirror.cursor();
 
     press('ArrowLeft', 'ArrowLeft', true);
@@ -595,7 +595,7 @@ describe('[Camera keys] a modified arrow is not board navigation', () => {
     // arrows would make that line wrong in the other direction.
     const seen: string[] = [];
     const shell = shellWithKeys(seen);
-    document.getElementById('game-region')!.focus();
+    document.getElementById('chess-board')!.focus();
     const before = shell.mirror.cursor();
 
     press('KeyA', 'A', true);
@@ -606,7 +606,7 @@ describe('[Camera keys] a modified arrow is not board navigation', () => {
   it('still moves the cursor on a BARE arrow, which is the thing not to break', () => {
     const seen: string[] = [];
     const shell = shellWithKeys(seen);
-    document.getElementById('game-region')!.focus();
+    document.getElementById('chess-board')!.focus();
     const before = shell.mirror.cursor();
 
     press('ArrowRight', 'ArrowRight', false);
@@ -630,7 +630,7 @@ describe('[Pause] START opens the menu the settings were moved into', () => {
    * which is exactly what the old build looked like before the move.
    */
   const press = (code: string, key: string): void => {
-    document.getElementById('stage')!.dispatchEvent(new KeyboardEvent('keydown', {
+    document.getElementById('game-region')!.dispatchEvent(new KeyboardEvent('keydown', {
       code, key, bubbles: true, cancelable: true,
     }));
   };
@@ -674,15 +674,15 @@ describe('[Pause] START opens the menu the settings were moved into', () => {
 
   /*
    * ⚠️ THIS GAME'S DIALOG BY NAME, NOT "the dialog on the page". Since engine 8.0.0 there are two:
-   * `createGame` mounts the engine's own pause card — `role="dialog"`, inside `#game-region` — and
-   * `#game-region` comes first in document order, so a bare `[role="dialog"]` answered with the
+   * `createGame` mounts the engine's own pause card — `role="dialog"`, inside `#chess-board` — and
+   * `#chess-board` comes first in document order, so a bare `[role="dialog"]` answered with the
    * engine's card and every assertion below asked the wrong element about the right thing.
    */
   const dialog = (): HTMLElement | null => document.querySelector('.chess-pause');
 
   it('⚠️ carries every display setting the redesign moved there', () => {
     shellFor(false);
-    document.getElementById('game-region')!.focus();
+    document.getElementById('chess-board')!.focus();
     press('KeyH', 'h');
 
     const open = dialog();
@@ -746,7 +746,7 @@ describe('[Pause] START opens the menu the settings were moved into', () => {
      * `contains` is what "moved, not copied" actually means.
      */
     shellFor(false);
-    document.getElementById('game-region')!.focus();
+    document.getElementById('chess-board')!.focus();
     press('KeyH', 'h');
     const coords = document.getElementById('hud-coords')!;
     expect(dialog()!.contains(coords)).toBe(true);
@@ -757,7 +757,7 @@ describe('[Pause] START opens the menu the settings were moved into', () => {
     // while playing would leave a child inside a lesson with no exit that is not the browser's.
     const shell = shellFor(true);
     expect(shell.teach()).toBe(true);
-    document.getElementById('game-region')!.focus();
+    document.getElementById('chess-board')!.focus();
     press('KeyH', 'h');
     expect(dialog()).not.toBeNull();
     expect(dialog()!.querySelector('#hud-coords')).not.toBeNull();
@@ -917,7 +917,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
    * worth asserting, and until this import there was no way to ask.
    */
   const press = (code: string, key: string): void => {
-    document.getElementById('stage')!.dispatchEvent(new KeyboardEvent('keydown', {
+    document.getElementById('game-region')!.dispatchEvent(new KeyboardEvent('keydown', {
       code, key, bubbles: true, cancelable: true,
     }));
   };
@@ -1080,14 +1080,14 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
 
     /*
      * ⚠️ AGAINST THE BOARD, NOT THE REGION, and the difference is the whole later spec. The strips
-     * used to live in the margin ABOVE `#game-region`, so comparing them to the region was the same
+     * used to live in the margin ABOVE `#chess-board`, so comparing them to the region was the same
      * question. They are inside it now, at the top of the board's own nine units — because nothing
      * may be drawn outside the sixteen-by-nine stage — and the thing they must not cover is the
      * grid.
      */
     const strips = document.querySelector('.board-players') as HTMLElement | null;
     const board = (document.querySelector('.board-2d')
-      ?? document.getElementById('game-region')) as HTMLElement;
+      ?? document.getElementById('chess-board')) as HTMLElement;
     expect(strips, 'the player strips are on the page').not.toBeNull();
 
     const row = strips!.getBoundingClientRect();
@@ -1105,7 +1105,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
      * and is narrower. Comparing the row to the GRID would demand it shrink with the board, which
      * is neither what was asked for nor what looks right.
      */
-    const panel = document.getElementById('game-region')!.getBoundingClientRect();
+    const panel = document.getElementById('chess-board')!.getBoundingClientRect();
     expect(`width ${Math.round(row.width)} of ${Math.round(panel.width)}`)
       .toBe(`width ${Math.round(panel.width)} of ${Math.round(panel.width)}`);
   });
@@ -1138,7 +1138,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
       debugName: '__boundsTest', contrastTheme: 'contrast-flat',
     });
 
-    const stageEl = document.getElementById('stage')!;
+    const stageEl = document.getElementById('game-region')!;
     const stage = stageEl.getBoundingClientRect();
 
     /*
@@ -1147,7 +1147,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
      * score table and everything under it, which sit past the stage's foot because the panel holds
      * more than 360 px of content and SCROLLS. They are clipped, not painted.
      *
-     * So an element counts only if nothing between it and the stage clips it away. `#stage` itself
+     * So an element counts only if nothing between it and the stage clips it away. `#game-region` itself
      * is `overflow: hidden`, which makes the spec structural rather than a promise each child has
      * to keep — this walk is what proves no child is relying on that to hide a mistake.
      */
@@ -1168,7 +1168,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     const strays = (): string[] => [...document.querySelectorAll('body *')]
       .filter((el) => {
         if (el.closest('.sr-only') || el.classList.contains('sr-only')) return false;
-        if (el.id === 'stage-wrap' || el.id === 'stage' || el.closest('#splash')) return false;
+        if (el.id === 'stage-wrap' || el.id === 'game-region' || el.closest('#splash')) return false;
         const r = el.getBoundingClientRect();
         if (r.width < 1 || r.height < 1) return false;
         const out = r.left < stage.left - 1 || r.right > stage.right + 1
@@ -1181,7 +1181,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     expect(strays().join(', ')).toBe('');
 
     // And with the pause menu open, which the spec singled out by name.
-    document.getElementById('stage')!.dispatchEvent(new KeyboardEvent('keydown', {
+    document.getElementById('game-region')!.dispatchEvent(new KeyboardEvent('keydown', {
       code: 'KeyH', key: 'h', bubbles: true, cancelable: true,
     }));
     expect(document.querySelector('.chess-pause'), 'the pause menu opened').not.toBeNull();
@@ -1262,8 +1262,8 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
       debugName: '__tapTest', contrastTheme: 'contrast-flat',
     });
 
-    const stage = document.getElementById('stage')!;
-    const board = Math.round(document.getElementById('game-region')!.getBoundingClientRect().width);
+    const stage = document.getElementById('game-region')!;
+    const board = Math.round(document.getElementById('chess-board')!.getBoundingClientRect().width);
     const tap = Number.parseFloat(getComputedStyle(stage).getPropertyValue('--tap'));
 
     /*
@@ -1365,7 +1365,7 @@ describe('[Engine pause] the engine mounts a card, and this game says only where
   /*
    * ========================= WHERE, NOT WHETHER =========================
    * ADR-0122 removed the decline: from 8.0.0 `createGame` mounts its own `.screen-pause` card and
-   * the game declares only `host.pauseHost`. Absent one it falls back to `#game-region` — which in
+   * the game declares only `host.pauseHost`. Absent one it falls back to `#chess-board` — which in
    * this game is not "the game" but the BOARD, nine of the stage's sixteen units.
    */
   it('⚠️ puts the engine card in the stage, never inside the board', () => {
@@ -1381,8 +1381,8 @@ describe('[Engine pause] the engine mounts a card, and this game says only where
     // If this ever goes missing the engine stopped mounting it, and the two assertions below would
     // pass by vacuity — `contains(null)` is false for both boxes.
     expect(card, 'the engine mounted its pause card').not.toBeNull();
-    expect(document.getElementById('game-region')!.contains(card), 'inside the board').toBe(false);
-    expect(document.getElementById('stage')!.contains(card), 'inside the stage').toBe(true);
+    expect(document.getElementById('chess-board')!.contains(card), 'inside the board').toBe(false);
+    expect(document.getElementById('game-region')!.contains(card), 'inside the stage').toBe(true);
   });
 
   it('⚠️ and this game never opens it — the pause key is its own menu', () => {
@@ -1403,8 +1403,8 @@ describe('[Engine pause] the engine mounts a card, and this game says only where
     const card = document.getElementById('vp-pause-0') as HTMLElement;
     expect(card.hidden, 'the card is born hidden').toBe(true);
 
-    document.getElementById('game-region')!.focus();
-    document.getElementById('game-region')!.dispatchEvent(new KeyboardEvent('keydown', {
+    document.getElementById('chess-board')!.focus();
+    document.getElementById('chess-board')!.dispatchEvent(new KeyboardEvent('keydown', {
       code: 'KeyH', key: 'h', bubbles: true, cancelable: true,
     }));
 
@@ -1461,7 +1461,7 @@ describe('[A11y bar] the control a child needs before they can read the screen',
     const panel = document.querySelector('.chess-hud')!;
     expect(panel.contains(bar), 'inside the panel').toBe(false);
     expect(bar.parentElement?.id, 'in the side column').toBe('side-column');
-    expect(document.getElementById('stage')!.contains(bar), 'inside the stage').toBe(true);
+    expect(document.getElementById('game-region')!.contains(bar), 'inside the stage').toBe(true);
   });
 
   it('⚠️ its icons are as big as every other control in this game', () => {
@@ -1469,7 +1469,7 @@ describe('[A11y bar] the control a child needs before they can read the screen',
     // sized from it by the engine's own stylesheet. A control that a child cannot hit is not a
     // control, and these are the ones that matter most.
     mount('__barTap');
-    const tap = Number.parseFloat(getComputedStyle(document.getElementById('stage')!).getPropertyValue('--tap'));
+    const tap = Number.parseFloat(getComputedStyle(document.getElementById('game-region')!).getPropertyValue('--tap'));
     expect(tap, 'a tap size to measure against').toBeGreaterThan(0);
     const icons = [...document.querySelectorAll('.a11y-bar button')] as HTMLElement[];
     for (const icon of icons) {
@@ -1507,7 +1507,7 @@ describe('[Menu nav] the engine never takes the board keys', () => {
     expect(card, "the engine's card, to reveal").not.toBeNull();
     card.hidden = false;
 
-    document.getElementById('game-region')!.focus();
+    document.getElementById('chess-board')!.focus();
     const before = shell.mirror.cursor();
     document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', {
       code: 'ArrowRight', key: 'ArrowRight', bubbles: true, cancelable: true,
@@ -1542,7 +1542,7 @@ describe('[Sonar] the key a player who cannot see the board depends on', () => {
       debugName: '__sonarTest', contrastTheme: 'contrast-flat',
     });
 
-    const region = document.getElementById('game-region')!;
+    const region = document.getElementById('chess-board')!;
     region.focus();
     const event = new KeyboardEvent('keydown', {
       code: 'KeyL', key: 'l', bubbles: true, cancelable: true,

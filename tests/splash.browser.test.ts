@@ -19,9 +19,9 @@ function markup(): {
       <progress id="splash-progress" max="1" value="0"></progress>
       <p id="splash-doors" hidden><button id="splash-play" type="button">JOGAR</button><button id="splash-learn" type="button">APRENDER</button></p>
     </div>
-    <div id="game-region" tabindex="0"></div>`;
+    <div id="chess-board" tabindex="0"></div>`;
   return {
-    region: document.getElementById('game-region') as HTMLElement,
+    region: document.getElementById('chess-board') as HTMLElement,
     start: document.getElementById('splash-play') as HTMLButtonElement,
     learn: document.getElementById('splash-learn') as HTMLButtonElement,
     /*
@@ -145,8 +145,8 @@ describe('[Splash] the way out appears only when it is real', () => {
   });
 
   it('does nothing at all on a page with no splash in it', () => {
-    document.body.innerHTML = '<div id="game-region"></div>';
-    const region = document.getElementById('game-region') as HTMLElement;
+    document.body.innerHTML = '<div id="chess-board"></div>';
+    const region = document.getElementById('chess-board') as HTMLElement;
     const splash = createSplash({
       doc: document, i18n: createI18n('pt'), ready: Promise.resolve(), region,
     });

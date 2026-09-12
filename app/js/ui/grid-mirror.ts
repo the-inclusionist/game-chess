@@ -137,7 +137,7 @@ export interface GridMirror {
    *
    * ⚠️ THIS EXISTS BECAUSE THE LISTENER WAS IN THE WRONG PLACE. It lives on this grid's own root,
    * so it only ever saw keys pressed while focus was already INSIDE the grid — and the splash
-   * leaves focus on `#game-region`, the grid's parent. A player who pressed START and then a
+   * leaves focus on `#chess-board`, the grid's parent. A player who pressed START and then a
    * direction key got nothing at all, every time, until they happened to click a square first.
    *
    * The composition root offers unclaimed keys here from the stage, which is where the whole game

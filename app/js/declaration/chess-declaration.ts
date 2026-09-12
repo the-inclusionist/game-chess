@@ -102,18 +102,22 @@ export function createChessDeclaration(deps: DeclarationDeps): GameDeclaration {
      * it. A blindness simulation aimed at the canvas would black out the board and leave the score
      * sheet perfectly legible, which simulates nothing.
      *
-     * `#stage` is everything that is "the game as seen" — the board AND the panel beside it. It
-     * was `#game-region`, which stopped being enough the day the panel moved out of the board: a
-     * blindness aimed at the region would have blacked the board and left the move list and the
-     * lesson perfectly readable, which is the very defect ADR-0087 was written about. The engine's
-     * menus and dialogs live outside it, which is what keeps a simulated blindness from locking a
-     * child inside the mode.
+     * `#game-region` is everything that is "the game as seen" — the board AND the panel beside it.
+     *
+     * ⚠️ THE WORLD AND THE REGION ARE THE SAME ELEMENT AGAIN, AND THEY WERE NOT FOR A WHILE. While
+     * `#game-region` meant only the board, this field had to name `#stage` instead, because a
+     * blindness aimed at the board alone would have blacked it out and left the move list and the
+     * lesson perfectly readable — the very defect ADR-0087 was written about. The Dev's decision of
+     * 2026-09-11 — the board plus the side menu ARE the game region — closes that gap at the source
+     * rather than routing around it: there is one element, it is the cartridge's root, and it is
+     * what a simulation covers. The engine's menus and dialogs live outside it, which is what keeps
+     * a simulated blindness from locking a child inside the mode.
      *
      * And `none` would be a lie here for a reason the engine states better than this file could:
      * blindfold chess exists, so a game whose board is DOM is not a game where empathy makes no
      * sense — it is one where it asks more of whoever writes it.
      */
-    world: () => ({ kind: 'element', selector: '#stage' }),
+    world: () => ({ kind: 'element', selector: '#game-region' }),
 
     /*
      * ⚠️ ONE, AND CHESS IS THE CLEANEST CASE THE ENGINE'S ADR-0104 COULD HAVE ASKED FOR. Nothing here is ever

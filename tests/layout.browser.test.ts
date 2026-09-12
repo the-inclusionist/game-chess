@@ -27,8 +27,8 @@ import { LOGICAL_H, LOGICAL_W } from '../app/js/render/resolution.ts';
 function page(width: number, height: number, opts: { canvas?: boolean } = {}): void {
   document.body.innerHTML = `
     <div id="stage-wrap" style="width:${width}px;height:${height}px">
-      <div id="stage">
-        <div id="game-region">${opts.canvas ? '<canvas id="board-canvas"></canvas>' : ''}</div>
+      <div id="game-region">
+        <div id="chess-board">${opts.canvas ? '<canvas id="board-canvas"></canvas>' : ''}</div>
         <div id="side-column"></div>
       </div>
     </div>
@@ -41,7 +41,7 @@ const win = (devicePixelRatio: number): Window =>
 const px = (el: HTMLElement | null, prop: 'width' | 'height'): number =>
   Number.parseFloat((el?.style[prop] ?? '0').replace('px', ''));
 
-const stage = (): HTMLElement | null => document.getElementById('stage');
+const stage = (): HTMLElement | null => document.getElementById('game-region');
 const column = (): HTMLElement | null => document.getElementById('side-column');
 
 afterEach(() => { document.body.replaceChildren(); });
@@ -76,7 +76,7 @@ describe('[Stage] sixteen units by nine, and nine of them are a square board', (
     for (let w = 700; w <= 2600; w += 53) {
       page(w, Math.round(w / 2), { canvas: true });
       applyLayout({ doc: document, win: win(1) });
-      const region = document.getElementById('game-region');
+      const region = document.getElementById('chess-board');
       expect(`${w}: ${px(region, 'width')} x ${px(region, 'height')}`)
         .toBe(`${w}: ${px(region, 'height')} x ${px(region, 'height')}`);
     }
@@ -87,7 +87,7 @@ describe('[Stage] sixteen units by nine, and nine of them are a square board', (
       page(w, Math.round(w / 2), { canvas: true });
       applyLayout({ doc: document, win: win(1) });
       const unit = px(stage(), 'width') / 16;
-      const boardUnits = px(document.getElementById('game-region'), 'width') / unit;
+      const boardUnits = px(document.getElementById('chess-board'), 'width') / unit;
       const panelUnits = px(column(), 'width') / unit;
       expect(`${w}: board ${boardUnits.toFixed(3)} panel ${panelUnits.toFixed(3)}`)
         .toBe(`${w}: board 9.000 panel 7.000`);
@@ -106,7 +106,7 @@ describe('[Stage] sixteen units by nine, and nine of them are a square board', (
     page(1400, 800, { canvas: true });
     applyLayout({ doc: document, win: win(1) });
     expect(px(stage(), 'width')).toBe(1280);
-    expect(px(document.getElementById('game-region'), 'width')).toBe(720);
+    expect(px(document.getElementById('chess-board'), 'width')).toBe(720);
   });
 });
 
@@ -150,7 +150,7 @@ describe('[Bounds] nothing is drawn outside the stage', () => {
     for (let w = 700; w <= 2600; w += 41) {
       page(w, Math.round(w / 2), { canvas: true });
       applyLayout({ doc: document, win: win(1) });
-      const used = px(document.getElementById('game-region'), 'width') + px(column(), 'width');
+      const used = px(document.getElementById('chess-board'), 'width') + px(column(), 'width');
       expect(`${w}: ${used} of ${px(stage(), 'width')}`)
         .toBe(`${w}: ${px(stage(), 'width')} of ${px(stage(), 'width')}`);
     }

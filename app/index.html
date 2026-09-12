@@ -15,7 +15,7 @@
   /*
    * ========================= THE TITLE SCREEN =========================
    * Over everything, including the page's own chrome, because until START there is nothing behind
-   * it worth reaching. `#game-region` carries `inert` for the same reason: a board that cannot be
+   * it worth reaching. `#chess-board` carries `inert` for the same reason: a board that cannot be
    * played should not be reachable by Tab either.
    *
    * The type is `clamp`ed rather than fixed so the name is large on a projector and still fits a
@@ -148,17 +148,28 @@
      Anything missing does not throw — it becomes an entry in engine.problems. -->
 <div id="stage-wrap">
   <!--
-    ⚠️ `#stage` IS "THE GAME AS SEEN"; `#game-region` IS ONLY THE BOARD. They were one element,
-    with the side panel absolutely positioned over the board's right 27.5% and the camera pushed
-    left to make room. That is why the panel could never be widened: widening it covered the board.
+    ⚠️ `#game-region` IS THE WHOLE GAME — THE BOARD AND THE PANEL BESIDE IT. It used to be only the
+    board, with `#stage` wrapped around the pair, and the Dev settled it on 2026-09-11: the board
+    plus the side menu ARE the game region. The stage element is gone; this one took its place and
+    its id.
 
-    Split, the board region stays an exact integer multiple of 640x360 — which is what keeps the
-    canvas pixel art — and the panel takes whatever the 2:1 stage has left over. It is also the
-    element the engine's `world()` now names, because a blindness that blanked the board and left
-    the move list readable would simulate nothing.
+    Three things fall out of that, and each one was wrong before:
+
+      · IT IS THE CARTRIDGE'S ROOT. `cartridge-contract.md` gives a cartridge one element and says
+        it «may write inside it and nothing outside it». Chess wrote into three — the board, the
+        column, and beside the wrap — because its region was only a ninth of what it draws.
+      · IT IS WHAT `world()` NAMES, and now the region and the world are the same element again.
+        They had to be split when the panel moved out of the board, because a blindness that blanked
+        the board and left the move list readable simulates nothing.
+      · IT IS WHAT THE TITLE SCREEN MAKES `inert`. Measured on the running page before this changed:
+        with the splash up, the board was inert and the panel was not, so Tab reached 22 controls
+        behind a screen covering them.
+
+    Inside, the split that the 16x9 stage specifies: nine units of board — a perfect square, an exact
+    integer multiple of the raster, which is what keeps the pixel art whole — and seven of panel.
   -->
-  <div id="stage">
-    <div id="game-region" tabindex="0"></div>
+  <div id="game-region">
+    <div id="chess-board" tabindex="0"></div>
     <div id="side-column"></div>
   </div>
 </div>

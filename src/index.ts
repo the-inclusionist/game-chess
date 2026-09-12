@@ -53,9 +53,14 @@ export const dicts = { pt, en, es } as const;
  *   is measured, not casual: `?debug=true` is read while the panel is being built, and the panel
  *   must exist before `createGame` — the engine is handed `a11yBarHost`, which lives inside it. A
  *   cartridge whose hosts are its own DOM cannot wait for the engine to learn its arguments.
- * · `region` — same obstacle, one step larger. The factory finds `#game-region` by id, which is
- *   wrong on a page with several games and cannot simply move into `create` for the reason above.
- *   It belongs in the factory's own deps, which is a change to the door rather than to the room.
+ * · `region` — HALF DONE, and the half that is done is the one that had no name. Chess used to
+ *   write into three places at once — the board, the side column, and beside the stage wrap —
+ *   because its region was one ninth of what it draws, and the contract's «may write inside it and
+ *   nothing outside it» had nothing to point at. Since the Dev's decision of 2026-09-11 the region
+ *   is the board PLUS the panel, so everything this game draws is inside one element. What remains
+ *   is that the factory still FINDS that element by id rather than being handed it, which is wrong
+ *   on a page with several games; it belongs in the factory's own deps, and cannot move into
+ *   `create` for the reason given above `params`.
  * · `rng` — this game never draws a random number, so there is nothing to take.
  * · `t` — its own, which the record allows: a stateless utility may be imported rather than handed
  *   over, and this game's catalogue is not the engine's.

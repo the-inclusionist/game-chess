@@ -261,17 +261,17 @@ describe('[World] what a simulated blindness is allowed to reach', () => {
      * two the HUD, the move list and the coordinate labels are DOM beside it. A blindness aimed at
      * the canvas blacks out the board and leaves the score sheet legible, which simulates nothing.
      *
-     * ⚠️ AND `#game-region` STOPPED BEING ENOUGH the day the panel moved out of the board. It used
+     * ⚠️ AND `#chess-board` STOPPED BEING ENOUGH the day the panel moved out of the board. It used
      * to be the answer, back when the side panel was absolutely positioned over the board's right
      * 27.5% and was therefore inside it. Now the panel is a SIBLING — so a blindness aimed at the
      * region would black the board and leave the lesson and the move list perfectly readable,
      * which is precisely the defect the engine's ADR-0087 was written about.
      *
-     * And it must not be the DOCUMENT either: the engine's menus live outside `#stage`, and that
+     * And it must not be the DOCUMENT either: the engine's menus live outside `#game-region`, and that
      * is what stops a simulation from locking a child inside itself.
      */
     const { declaration } = build();
-    expect(declaration.world()).toEqual({ kind: 'element', selector: '#stage' });
+    expect(declaration.world()).toEqual({ kind: 'element', selector: '#game-region' });
   });
 
   it('never declares that it has no world', () => {

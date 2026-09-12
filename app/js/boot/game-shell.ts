@@ -280,24 +280,43 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    */
   const params = deps.params ?? new URLSearchParams();
   const debugAsked = params.get('debug') === 'true';
-  const region = host.getElementById('game-region');
-  if (!region) throw new Error('#game-region is required (engine MARCACAO_EXIGIDA)');
-  /*
-   * ⚠️ THE STAGE IS BOARD PLUS PANEL; THE REGION IS ONLY THE BOARD. Keys are bound HERE rather
-   * than on the region, because the panel is a sibling now — an event from the lesson list would
-   * never bubble through the board, and `action4` exists precisely to move between the two.
+  const board = host.getElementById('chess-board');
+  if (!board) throw new Error('#chess-board is required — this game has nowhere to draw');
+  /**
+   * ⚠️ THE REGION IS THE BOARD PLUS THE PANEL, and it used to be only the board.
+   *
+   * The Dev settled it on 2026-09-11, asked which of two elements should carry the engine's id:
+   * «o tabuleiro + menu lateral constituem o game-region». What was `#stage` took the name, and the
+   * board became `#chess-board`. It is not a rename — it decides what this cartridge's ROOT is, and
+   * `cartridge-contract.md` is literal about what a root means: a cartridge «may write inside it and
+   * nothing outside it». Chess wrote into three places, because its region was one ninth of what it
+   * draws, and all three are inside this one element now.
+   *
+   * Keys are bound to the REGION and not to the board, which is why the distinction is load-bearing
+   * rather than cosmetic: the panel is a sibling of the board, so an event from the lesson list
+   * never bubbles through it, and `action4` exists precisely to move between the two.
+   *
+   * ⚠️ `#game-region` IS ALSO THE ENGINE'S REQUIRED MARKUP (`MARCACAO_EXIGIDA`), so it is the ONE id
+   * here that is not ours to choose. That is why the fallback below is the board rather than a
+   * throw: a host that gives us no region gets a game that still draws, plus a line in
+   * `engine.problems` saying what it failed to provide. The board is the thing we cannot do without.
    */
-  const stage = host.getElementById('stage') ?? region;
-  const column = host.getElementById('side-column') ?? region;
+  const region = host.getElementById('game-region') ?? board;
+  const column = host.getElementById('side-column') ?? board;
 
   /*
    * ========================= WHERE THE ENGINE'S OWN PAUSE CARD GOES =========================
    * ⚠️ SINCE 8.0.0 THE QUESTION IS WHERE AND NO LONGER WHETHER. ADR-0122 removed the decline, and
    * `createGame` mounts a `.screen-pause` card by itself; absent a `host.pauseHost` it falls back
-   * to `#game-region` — which here is not "the game", it is the BOARD, nine of the stage's sixteen
-   * units. The card would be a child of the square.
+   * to `#game-region`.
    *
-   * ⚠️ AND IT IS NOT A FLEX CHILD OF THE STAGE EITHER. `#stage` lays its two columns out by width —
+   * ⚠️ AND THAT FALLBACK USED TO BE THE DEFECT THIS LINE EXISTS TO AVOID, AND HAS STOPPED BEING ONE.
+   * While `#game-region` was the BOARD, falling back put the card inside nine of the stage's sixteen
+   * units — a card the size of a square. Now that the region is board plus panel, the engine's own
+   * fallback lands exactly where the line below puts it. It is still said explicitly, because a
+   * silent agreement between two repositories is the kind that breaks without anyone editing it.
+   *
+   * ⚠️ AND IT IS NOT A FLEX CHILD OF THE REGION EITHER. `#game-region` lays its two columns out by width —
    * 9 units of board, 7 of panel, no gap — so a third child in flow would take a share of that and
    * the measured split would stop being the measured split. Out of flow, exactly like `.chess-pause`
    * beside it, and `pointer-events: none` while it is empty so it cannot swallow a click on the
@@ -314,7 +333,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    */
   const enginePause = host.createElement('div');
   enginePause.className = 'engine-pause-host';
-  stage.appendChild(enginePause);
+  region.appendChild(enginePause);
 
   /*
    * ========================= THE ACCESSIBILITY BAR, AND THE HOLE IT FILLS =========================
@@ -493,7 +512,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
   const splash = createSplash({
     doc: host,
     i18n,
-    region,
+    region: board,
     /*
      * ⚠️ ONE WAIT, SHARED, and an earlier version split it — opening `APRENDER` before the engine
      * on the grounds that a lesson runs as a hot seat. That was wrong about what study IS:
@@ -617,7 +636,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    */
   const applyVision = (key: string): void => {
     vision = key;
-    region.style.filter = VIZ_FILTER[key] ?? '';
+    board.style.filter = VIZ_FILTER[key] ?? '';
     hud.refresh();
   };
 
@@ -767,7 +786,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    */
   const mountView = (factory: ViewFactory): BoardView => factory({
     doc: host,
-    region,
+    region: board,
     i18n,
     rules: () => rules,
     state: () => game,
@@ -837,7 +856,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
       const contrast = key.startsWith('contrast-');
       if (paletteHigh !== contrast) {
         paletteHigh = contrast;
-        region.dataset.contrast = contrast ? 'high' : '';
+        board.dataset.contrast = contrast ? 'high' : '';
       }
       hud.refresh();
     },
@@ -954,9 +973,9 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * the mismatch WCAG 1.3.2 is about. Putting them first in the DOM fixes the picture and the
    * reading order with one change, and there is nothing focusable in them to reorder.
    */
-  region.prepend(players.root);
+  board.prepend(players.root);
   // Outside the panel, over the board: see `.theme-report` in the stylesheet.
-  region.appendChild(hud.report);
+  board.appendChild(hud.report);
   /*
    * ⚠️ UNDER THE ACCESSIBILITY BAR, AND BEFORE THE PANEL, which is the whole of what was asked for:
    * the three view buttons went into the pause menu in `32d5227` and the Dev reported them missing
@@ -994,7 +1013,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    */
   const below = host.createElement('div');
   below.id = 'below-board';
-  region.appendChild(below);
+  board.appendChild(below);
   below.appendChild(blunderBar.root);
   // Below the blunder bar: a warning about the move just played is more urgent than the engine's
   // running commentary.
@@ -1354,7 +1373,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     return at && at.lesson === id ? at.step : undefined;
   }
   paletteHigh = themeKey.startsWith('contrast-');
-  region.dataset.contrast = paletteHigh ? 'high' : '';
+  board.dataset.contrast = paletteHigh ? 'high' : '';
 
   /*
    * ================= ⚠️ ONE KEYDOWN, ON `#game-region`, NEVER ON `window` =================
@@ -1465,9 +1484,9 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
         : []),
     ],
   });
-  stage.appendChild(pause.root);
+  region.appendChild(pause.root);
 
-  stage.addEventListener('keydown', (event) => {
+  region.addEventListener('keydown', (event) => {
     /*
      * ⚠️ START FIRST, BEFORE ANYTHING ELSE LOOKS AT THE KEY. It has to work while a lesson is
      * refusing input, while a piece is in flight, and while the menu itself is open — a pause that
@@ -1574,7 +1593,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     /*
      * ⚠️ THE BOARD IS OFFERED THE KEY LAST, AND THAT IS THE BUG THIS FIXES. `ui/grid-mirror.ts`
      * listens on its own root, so it only ever heard keys pressed while focus was already INSIDE
-     * the grid — and the splash leaves focus on `#game-region`, its parent. Press START, then a
+     * the grid — and the splash leaves focus on `#chess-board`, its parent. Press START, then a
      * direction: nothing happened, every time, until a square happened to be clicked first.
      *
      * Offered here it is heard from anywhere in the stage. `defaultPrevented` is what keeps a key
