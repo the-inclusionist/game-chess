@@ -14,9 +14,9 @@
 //
 // ========================= WHAT IT DOES FOR A SCREEN READER =========================
 // The status line is `role="status"`, so "loading the engine" and then "ready" are announced
-// without stealing focus, and `#chess-board` is `inert` until START — a board that cannot yet be
-// played should not be reachable by Tab either. Focus moves to START when it appears and into the
-// region when it is pressed, so the keyboard never lands somewhere that does nothing.
+// without stealing focus, and `#game-region` is `inert` until START — a game that cannot yet be
+// played should not be reachable by Tab either. Focus moves to START when it appears and onto the
+// BOARD when it is pressed, so the keyboard never lands somewhere that does nothing.
 
 import type { I18n } from '../i18n/index.ts';
 
@@ -37,8 +37,27 @@ export interface SplashDeps {
    * `setProgress` and `chess/engine/preload.ts`.
    */
   readonly ready: Promise<unknown>;
-  /** The element to make inert while the splash is up, and to focus once it is gone. */
+  /**
+   * The element made inert while the splash is up — the WHOLE game, board and panel.
+   *
+   * ⚠️ IT WAS THE BOARD, AND THAT LEFT THE PANEL REACHABLE BEHIND THE TITLE SCREEN. Measured on the
+   * running page before this changed: with the splash up, `#chess-board` was inert and
+   * `#side-column` was not, so Tab reached 22 controls under a screen covering them — starting with
+   * the four buttons of the accessibility bar. `position: fixed` and `z-index: 100` hide a thing
+   * from the eye; only `inert` hides it from the keyboard, and a child who navigates by Tab was the
+   * one person the title screen did not cover.
+   */
   readonly region: HTMLElement;
+  /**
+   * The element focused once the splash is gone — the BOARD, not the region.
+   *
+   * ⚠️ TWO JOBS THAT USED TO BE ONE ELEMENT, and they pull apart the moment the region stops being
+   * the board: inert has to cover everything, and focus has to land somewhere the arrow keys do
+   * something. Landing on the region would put the cursor on a box whose own keydown handler passes
+   * directions to the grid — which works — but the focus ring would outline the whole game, and the
+   * player would be told they are «in» something the size of the screen.
+   */
+  readonly board: HTMLElement;
   onStart?(): void;
 }
 
@@ -75,7 +94,7 @@ export interface Splash {
 const PATIENCE_MS = 30_000;
 
 export function createSplash(deps: SplashDeps): Splash {
-  const { doc, i18n, region } = deps;
+  const { doc, i18n, region, board } = deps;
   const root = doc.getElementById('splash');
   const doors = doc.getElementById('splash-doors');
   const bar = doc.getElementById('splash-progress') as HTMLProgressElement | null;
@@ -162,7 +181,7 @@ export function createSplash(deps: SplashDeps): Splash {
       root.remove();
       // Into the game, not merely out of the splash: the element that just held focus is gone,
       // and focus with nowhere to go falls to the body, where the arrow keys do nothing.
-      region.focus();
+      board.focus();
       deps.onStart?.();
       resolve(door);
     };

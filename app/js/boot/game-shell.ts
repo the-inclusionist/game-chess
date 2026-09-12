@@ -512,7 +512,9 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
   const splash = createSplash({
     doc: host,
     i18n,
-    region: board,
+    // Inert covers the whole game; focus lands on the board. See the two fields' own notes.
+    region,
+    board,
     /*
      * ⚠️ ONE WAIT, SHARED, and an earlier version split it — opening `APRENDER` before the engine
      * on the grounds that a lesson runs as a hot seat. That was wrong about what study IS:
@@ -851,12 +853,21 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
       themeKey = key;
       view.applyTheme(key);
       prefs.save({ theme: key });
-      // Choosing a palette by hand is a statement about the board, and leaving the panel in a
-      // high-contrast skin while the board is not would be a lie the checkbox told.
+      /*
+       * Choosing a palette by hand is a statement about the whole game, and leaving the panel in an
+       * ordinary skin while the board is high-contrast would be a lie the checkbox told.
+       *
+       * ⚠️ AND IT TOLD IT, FOR AS LONG AS THIS ATTRIBUTE SAT ON THE BOARD. The panel is a sibling of
+       * the board, so all twenty-odd `.chess-hud`, `.hud-*` and `.theme-report` rules written under
+       * this attribute matched NOTHING — a descendant selector cannot cross to a sibling. Measured
+       * on the running page: `#game-region.contains(.chess-hud)` was false. The intent above is
+       * older than the defect; what it was missing was an element that contains both, which the
+       * region now is.
+       */
       const contrast = key.startsWith('contrast-');
       if (paletteHigh !== contrast) {
         paletteHigh = contrast;
-        board.dataset.contrast = contrast ? 'high' : '';
+        region.dataset.contrast = contrast ? 'high' : '';
       }
       hud.refresh();
     },
@@ -1373,7 +1384,9 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     return at && at.lesson === id ? at.step : undefined;
   }
   paletteHigh = themeKey.startsWith('contrast-');
-  board.dataset.contrast = paletteHigh ? 'high' : '';
+  // ⚠️ ON THE REGION, WHICH CONTAINS THE PANEL. See the note at the palette control: while this sat
+  // on the board, every high-contrast rule aimed at the panel matched nothing at all.
+  region.dataset.contrast = paletteHigh ? 'high' : '';
 
   /*
    * ================= ⚠️ ONE KEYDOWN, ON `#game-region`, NEVER ON `window` =================

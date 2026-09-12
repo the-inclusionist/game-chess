@@ -389,10 +389,10 @@ html { background: var(--page); }
   .hud-view:hover { background: var(--surface-high); }
   .hud-view[aria-current="page"] { background: var(--focus); color: var(--surface); border-color: var(--focus); }
   .hud-view[aria-disabled="true"] { opacity: 0.4; cursor: default; }
-  #chess-board[data-contrast="high"] .hud-view {
+  #game-region[data-contrast="high"] .hud-view {
     color: #FFFFFF; background: #000000; border-color: #FFFFFF;
   }
-  #chess-board[data-contrast="high"] .hud-view[aria-current="page"] {
+  #game-region[data-contrast="high"] .hud-view[aria-current="page"] {
     color: #000000; background: #FFFFFF;
   }
 
@@ -448,7 +448,7 @@ html { background: var(--page); }
   @media (prefers-reduced-motion: reduce) {
     .hud-hint[data-busy="true"] { animation: none; opacity: 0.75; }
   }
-  #chess-board[data-contrast="high"] .hud-hint {
+  #game-region[data-contrast="high"] .hud-hint {
     color: #000000; background: #FFFFFF; border-color: #FFFFFF;
   }
 
@@ -854,8 +854,8 @@ html { background: var(--page); }
   .board-eval[data-lead="white"] { color: #F2F6FA; }
   .board-eval[data-lead="black"] { color: #B79BE8; }
 
-  #chess-board[data-contrast="high"] .player-strip,
-  #chess-board[data-contrast="high"] .board-eval { color: #FFFFFF; }
+  #game-region[data-contrast="high"] .player-strip,
+  #game-region[data-contrast="high"] .board-eval { color: #FFFFFF; }
 
 
   /*
@@ -942,10 +942,10 @@ html { background: var(--page); }
   /* 3 px like every other control here. 2 px already met 2.4.13's minimum perimeter; one ring
      thinner than the rest is a difference that means nothing and reads as an oversight. */
   .hud-choice input:focus-visible + label { outline: 3px solid var(--focus); outline-offset: 2px; }
-  #chess-board[data-contrast="high"] .hud-choice label {
+  #game-region[data-contrast="high"] .hud-choice label {
     color: #FFFFFF; background: #000000; border-color: #FFFFFF;
   }
-  #chess-board[data-contrast="high"] .hud-choice input:checked + label {
+  #game-region[data-contrast="high"] .hud-choice input:checked + label {
     color: #000000; background: #FFFFFF;
   }
   /* --tap is 22*k, which is 44px at the k=2 floor: the WCAG 2.5.5 target size, inherited. */
@@ -1005,18 +1005,18 @@ html { background: var(--page); }
     outline: 3px solid var(--focus);
     outline-offset: 2px;
   }
-  #chess-board[data-contrast="high"] .chess-hud a:focus-visible,
-  #chess-board[data-contrast="high"] .chess-hud button:focus-visible,
-  #chess-board[data-contrast="high"] .chess-hud select:focus-visible,
-  #chess-board[data-contrast="high"] .chess-hud input[type="checkbox"]:focus-visible,
-  #chess-board[data-contrast="high"] .hud-choice input:focus-visible + label {
+  #game-region[data-contrast="high"] .chess-hud a:focus-visible,
+  #game-region[data-contrast="high"] .chess-hud button:focus-visible,
+  #game-region[data-contrast="high"] .chess-hud select:focus-visible,
+  #game-region[data-contrast="high"] .chess-hud input[type="checkbox"]:focus-visible,
+  #game-region[data-contrast="high"] .hud-choice input:focus-visible + label {
     outline-color: #FFFFFF;
   }
-  #chess-board[data-contrast="high"] .chess-hud legend { color: #FFFFFF; }
+  #game-region[data-contrast="high"] .chess-hud legend { color: #FFFFFF; }
 
   /*
    * ⚠️ THE ON STATE OF THE TEACHER SWITCH WAS SURVIVING BY ACCIDENT. `[aria-pressed="true"]`
-   * paints it violet on white, and `#chess-board[data-contrast="high"] .hud-hint` overrides both
+   * paints it violet on white, and `#game-region[data-contrast="high"] .hud-hint` overrides both
    * of those — an id beats two classes — so in high contrast the pressed and unpressed buttons
    * were the same black-on-white. What still told them apart was the inset ring, which that rule
    * happens not to set: a state visible only because nobody thought to overwrite it.
@@ -1024,22 +1024,22 @@ html { background: var(--page); }
    * Said on purpose now, in this palette's own inks: a heavy black ring inside the white button,
    * 21:1 against it, plus `aria-pressed` for anyone who is not looking.
    */
-  #chess-board[data-contrast="high"] .hud-hint[aria-pressed="true"] {
+  #game-region[data-contrast="high"] .hud-hint[aria-pressed="true"] {
     color: #000000; background: #FFFFFF;
     box-shadow: inset 0 0 0 4px #000000, inset 0 0 0 7px #FFFFFF;
   }
 
   /* The panel switches with the board: same surface, same eye. */
-  #chess-board[data-contrast="high"] .chess-hud {
+  #game-region[data-contrast="high"] .chess-hud {
     background: #000000; color: #FFFFFF; border-left-color: #FFFFFF;
   }
-  #chess-board[data-contrast="high"] .chess-hud h2,
-  #chess-board[data-contrast="high"] .chess-hud label { color: #FFFFFF; }
-  #chess-board[data-contrast="high"] .hud-nav button {
+  #game-region[data-contrast="high"] .chess-hud h2,
+  #game-region[data-contrast="high"] .chess-hud label { color: #FFFFFF; }
+  #game-region[data-contrast="high"] .hud-nav button {
     color: #FFFFFF; background: #000000; border-color: #FFFFFF;
   }
-  #chess-board[data-contrast="high"] .hud-swatch[data-side="w"] { background: #FFFFFF; }
-  #chess-board[data-contrast="high"] .hud-swatch[data-side="b"] { background: #000000; border-color: #FFFFFF; }
+  #game-region[data-contrast="high"] .hud-swatch[data-side="w"] { background: #FFFFFF; }
+  #game-region[data-contrast="high"] .hud-swatch[data-side="b"] { background: #000000; border-color: #FFFFFF; }
 
   /*
    * The board coordinates. Real DOM text over the canvas, because Zdog has no text primitive —
@@ -1066,7 +1066,7 @@ html { background: var(--page); }
     line-height: 1;
     will-change: transform;
   }
-  #chess-board[data-contrast="high"] .coords { color: #FFFFFF; text-shadow: none; }
+  #game-region[data-contrast="high"] .coords { color: #FFFFFF; text-shadow: none; }
 
   /*
    * ========================= THE CONTRAST TABLE =========================
@@ -1128,13 +1128,13 @@ html { background: var(--page); }
   .theme-report [data-state="carried"] { color: #E8C25A; }
   .theme-report [data-state="short"] { color: #FF8B6B; font-weight: 700; }
   .theme-report-floor { margin: 0.5em 0 0; color: var(--ink-dim); max-width: 32em; }
-  #chess-board[data-contrast="high"] .theme-report {
+  #game-region[data-contrast="high"] .theme-report {
     background: #000000; color: #FFFFFF; border-color: #FFFFFF;
   }
-  #chess-board[data-contrast="high"] .theme-report h2,
-  #chess-board[data-contrast="high"] .theme-report th[aria-current] { color: #FFFFFF; }
-  #chess-board[data-contrast="high"] .theme-report-floor,
-  #chess-board[data-contrast="high"] .theme-report th[scope="row"] { color: #FFFFFF; }
+  #game-region[data-contrast="high"] .theme-report h2,
+  #game-region[data-contrast="high"] .theme-report th[aria-current] { color: #FFFFFF; }
+  #game-region[data-contrast="high"] .theme-report-floor,
+  #game-region[data-contrast="high"] .theme-report th[scope="row"] { color: #FFFFFF; }
   /*
    * ⚠️ THE CELLS KEEP THEIR THREE TONES IN HIGH CONTRAST TOO. There was one rule here that painted
    * every cell `#FFFFFF`, on the reasoning that white on black is the safest thing there is — and
@@ -1145,9 +1145,9 @@ html { background: var(--page); }
    * amber 13.7, salmon 8.9), so nothing is given up. And the character in each cell still carries
    * the state on its own, for anyone the colour does not reach.
    */
-  #chess-board[data-contrast="high"] .theme-report [data-state="pass"] { color: #FFFFFF; }
-  #chess-board[data-contrast="high"] .theme-report [data-state="carried"] { color: var(--focus); }
-  #chess-board[data-contrast="high"] .theme-report [data-state="short"] { color: #FF9E80; }
+  #game-region[data-contrast="high"] .theme-report [data-state="pass"] { color: #FFFFFF; }
+  #game-region[data-contrast="high"] .theme-report [data-state="carried"] { color: var(--focus); }
+  #game-region[data-contrast="high"] .theme-report [data-state="short"] { color: #FF9E80; }
 
   /*
    * ========================= THE ENGINE'S THINKING, UNDER THE BOARD =========================
@@ -1532,7 +1532,7 @@ html { background: var(--page); }
    * `prefers-contrast: more` already selects the `contrast-flat` THEME, and a theme decides every
    * ink through custom properties. One source, and the switch chooses which source.
    */
-  #chess-board[data-contrast="high"] .board-2d { border-color: #FFFFFF; }
+  #game-region[data-contrast="high"] .board-2d { border-color: #FFFFFF; }
   /*
    * ⚠️ NO PIECE COLOURS HERE ANY MORE. High contrast on the flat board is a THEME —
    * `contrast-flat` in `ui/board-themes.ts` — because the two high-contrast palettes differ in
@@ -1540,4 +1540,4 @@ html { background: var(--page); }
    * on wearing the projected board's yellow long after that stopped making sense. The switch
    * selects a theme; the theme decides every ink.
    */
-  #chess-board[data-contrast="high"] .cell-coord { color: #FFFFFF; }
+  #game-region[data-contrast="high"] .cell-coord { color: #FFFFFF; }

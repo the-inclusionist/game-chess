@@ -26,6 +26,7 @@ import '../app/css/board.css';
 import { createGameShell } from '../app/js/boot/standalone.ts';
 import type { BoardView, ViewContext } from '../app/js/boot/view.ts';
 import { clear, saveSettings } from '../app/js/chess/session.ts';
+import { CONTRAST_THEME } from '../app/js/ui/board-themes.ts';
 import { toAlgebraic, type Square } from '../app/js/chess/types.ts';
 import type { EngineMove } from '../app/js/chess/engine/client.ts';
 
@@ -1704,6 +1705,91 @@ describe('[Frame] the shell drives the renderer that is drawing now', () => {
  * cartridges share a page — and on that day it presents as one game's maintenance switch turning on
  * in another game.
  */
+/*
+ * ========================= HIGH CONTRAST HAS TO REACH THE PANEL =========================
+ * `board.css` carries 32 rules under `[data-contrast="high"]`, and about twenty of them name
+ * `.chess-hud`, `.hud-*` or `.theme-report` — every control a child actually reads. The attribute was
+ * written on the BOARD, and the panel is a sibling of the board, so a descendant selector could not
+ * reach it: those twenty matched nothing, in every palette, for as long as the panel has been out
+ * there. Measured on the running page — `#game-region.contains(.chess-hud)` was false.
+ *
+ * ⚠️ AND THE INTENT WAS ALREADY WRITTEN DOWN, three lines from the defect: «leaving the panel in an
+ * ordinary skin while the board is high-contrast would be a lie the checkbox told». It told it. What
+ * the intent lacked was an element containing both, which the region now is.
+ *
+ * ⚠️ ASSERTED THROUGH `getComputedStyle` AND NOT THROUGH THE ATTRIBUTE. The attribute was TRUE the
+ * whole time, on the wrong element; a test that read it would have passed throughout. What has to be
+ * asked is what the panel is painted, which needs the real stylesheet — imported at the head of this
+ * file for exactly this class of question.
+ */
+/*
+ * ========================= THE TITLE SCREEN COVERS THE WHOLE GAME =========================
+ * `tests/splash.browser.test.ts` proves the splash makes inert WHATEVER IT IS GIVEN. That is worth
+ * having and it is not this: it reads the behaviour through the same hand that sets it up, so it
+ * passes just as happily when the shell hands over the wrong element — verified by mutation, the
+ * whole splash suite stayed green with the board passed as the region.
+ *
+ * This asks the other half, and asks it of the SHELL: with the title screen up, is the panel
+ * reachable? Measured on the running page before it was: 22 controls were, the four accessibility
+ * bar buttons first, under a screen that covers them at `z-index: 100`. `fixed` and `z-index` hide a
+ * thing from the eye; only `inert` hides it from the keyboard.
+ */
+describe('[Splash] nothing behind the title screen answers a Tab', () => {
+  /** The page fixture, plus the title screen markup the shell only wires when it is present. */
+  function withSplash(): void {
+    fixture();
+    const splash = document.createElement('div');
+    splash.id = 'splash';
+    splash.innerHTML = '<p id="splash-status" role="status"></p>'
+      + '<progress id="splash-progress" max="1" value="0"></progress>'
+      + '<p id="splash-doors" hidden><button id="splash-play" type="button">JOGAR</button>'
+      + '<button id="splash-learn" type="button">APRENDER</button></p>';
+    document.body.prepend(splash);
+  }
+
+  it('⚠️ the PANEL is inert too, not only the board', () => {
+    withSplash();
+    clear();
+    saveSettings({ mode: 'two' });
+    createGameShell({
+      host: document, kind: '2.5d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: '__inertTest', contrastTheme: 'contrast-flat',
+    });
+
+    const region = document.getElementById('game-region') as HTMLElement;
+    const column = document.getElementById('side-column') as HTMLElement;
+    const control = column.querySelector('button, select, input') as HTMLElement | null;
+    expect(control, 'the panel has something to reach').toBeTruthy();
+
+    expect(region.inert, 'the whole game is inert').toBe(true);
+    expect(control!.closest('[inert]'), 'and the panel is under it').toBe(region);
+    // The property is what the code sets; reachability is what the child meets. The defect was a
+    // true property on the wrong element, so this asks the second question.
+    control!.focus();
+    expect(document.activeElement, 'so nothing in it takes focus').not.toBe(control);
+  });
+});
+
+describe('[Contrast] the palette reaches everything the region holds', () => {
+  it('⚠️ paints the PANEL and not only the board', () => {
+    fixture();
+    clear();
+    saveSettings({ mode: 'two', theme: CONTRAST_THEME });
+    createGameShell({
+      host: document, kind: '2.5d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: '__contrastTest', contrastTheme: CONTRAST_THEME,
+    });
+
+    const region = document.getElementById('game-region') as HTMLElement;
+    const hud = document.querySelector('.chess-hud') as HTMLElement;
+    expect(region.dataset.contrast, 'the region carries the state').toBe('high');
+    expect(region.contains(hud), 'and the panel is inside it').toBe(true);
+    // `#game-region[data-contrast="high"] .chess-hud { background: #000000; color: #FFFFFF }`
+    expect(getComputedStyle(hud).backgroundColor, 'the panel is painted').toBe('rgb(0, 0, 0)');
+    expect(getComputedStyle(hud).color).toBe('rgb(255, 255, 255)');
+  });
+});
+
 describe('[Params] the maintenance switch is what the shell was given', () => {
   const NAME = '__paramsTest';
   const globals = window as unknown as Record<string, unknown>;

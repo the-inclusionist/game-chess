@@ -8,8 +8,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createI18n } from '../app/js/i18n/index.ts';
 import { createSplash } from '../app/js/ui/splash.ts';
 
+/*
+ * ⚠️ THE REGION AND THE BOARD ARE TWO ELEMENTS HERE, AND THAT IS THE POINT OF THE FIXTURE. This
+ * built one, called it the region, and handed it over for both jobs — which is exactly the shape the
+ * page had, and exactly why the defect was invisible: with one element, «make it inert» and «focus
+ * it» cannot disagree. On the page the panel is a sibling of the board, so making the board inert
+ * left twenty-two controls reachable by Tab behind a title screen covering them.
+ */
 function markup(): {
-  region: HTMLElement; start: HTMLButtonElement; learn: HTMLButtonElement; doors: HTMLElement;
+  region: HTMLElement; board: HTMLElement;
+  start: HTMLButtonElement; learn: HTMLButtonElement; doors: HTMLElement;
 } {
   document.body.innerHTML = `
     <div id="splash" role="dialog" aria-modal="true" aria-labelledby="splash-title">
@@ -19,9 +27,13 @@ function markup(): {
       <progress id="splash-progress" max="1" value="0"></progress>
       <p id="splash-doors" hidden><button id="splash-play" type="button">JOGAR</button><button id="splash-learn" type="button">APRENDER</button></p>
     </div>
-    <div id="chess-board" tabindex="0"></div>`;
+    <div id="game-region">
+      <div id="chess-board" tabindex="0"></div>
+      <div id="side-column"><button id="panel-control" type="button">painel</button></div>
+    </div>`;
   return {
-    region: document.getElementById('chess-board') as HTMLElement,
+    region: document.getElementById('game-region') as HTMLElement,
+    board: document.getElementById('chess-board') as HTMLElement,
     start: document.getElementById('splash-play') as HTMLButtonElement,
     learn: document.getElementById('splash-learn') as HTMLButtonElement,
     /*
@@ -49,11 +61,11 @@ describe('[Splash] the way out appears only when it is real', () => {
      * what the eye reads and `disabled` is what a click and a screen reader read; a button that is
      * only one of the two is a button that lies.
      */
-    const { region, start, learn, doors } = markup();
+    const { region, board, start, learn, doors } = markup();
     let arrive: () => void = () => {};
     const ready = new Promise<void>((resolve) => { arrive = resolve; });
 
-    createSplash({ doc: document, i18n: createI18n('pt'), ready, region });
+    createSplash({ doc: document, i18n: createI18n('pt'), ready, region, board });
     expect(doors.hidden).toBe(true);
     expect(start.disabled).toBe(true);
     expect(learn.disabled).toBe(true);
@@ -76,9 +88,9 @@ describe('[Splash] the way out appears only when it is real', () => {
      * percentage goes into the SAME live region the loading message uses, because a `<progress>`
      * announces its value only when a screen reader is asked to look.
      */
-    const { region } = markup();
+    const { region, board } = markup();
     const splash = createSplash({
-      doc: document, i18n: createI18n('pt'), ready: new Promise(() => {}), region,
+      doc: document, i18n: createI18n('pt'), ready: new Promise(() => {}), region, board,
     });
     const bar = document.getElementById('splash-progress') as HTMLProgressElement;
     expect(bar.hidden).toBe(false);
@@ -94,19 +106,19 @@ describe('[Splash] the way out appears only when it is real', () => {
 
   it('puts the bar away once there is a way in', async () => {
     // A full bar left on screen reads as a thing still happening.
-    const { region } = markup();
+    const { region, board } = markup();
     let arrive: () => void = () => {};
     const ready = new Promise<void>((resolve) => { arrive = resolve; });
-    createSplash({ doc: document, i18n: createI18n('pt'), ready, region });
+    createSplash({ doc: document, i18n: createI18n('pt'), ready, region, board });
     arrive();
     await settle();
     expect((document.getElementById('splash-progress') as HTMLProgressElement).hidden).toBe(true);
   });
 
   it('opens onto the game, with focus somewhere the arrow keys work', async () => {
-    const { region, start } = markup();
+    const { region, board, start } = markup();
     const splash = createSplash({
-      doc: document, i18n: createI18n('pt'), ready: Promise.resolve(), region,
+      doc: document, i18n: createI18n('pt'), ready: Promise.resolve(), region, board,
     });
     await settle();
 
@@ -114,15 +126,45 @@ describe('[Splash] the way out appears only when it is real', () => {
     await splash.done;
     expect(document.getElementById('splash')).toBeNull();
     expect(region.inert).toBe(false);
-    // Focus with nowhere to go falls to the body, where this game's keyboard does nothing: the
-    // keys are listened for on the region, never on window.
-    expect(document.activeElement).toBe(region);
+    /*
+     * Focus with nowhere to go falls to the body, where this game's keyboard does nothing: the keys
+     * are listened for on the region, never on window.
+     *
+     * ⚠️ ON THE BOARD, NOT ON THE REGION, and the two stopped being the same element when the region
+     * grew to hold the panel. The region would work — its own handler passes directions down — but
+     * it would put the focus ring around the whole game and tell the player they are «in» something
+     * the size of the screen. Inert covers everything; focus lands on the one square thing.
+     */
+    expect(document.activeElement).toBe(board);
+  });
+
+  it('⚠️ covers the PANEL too, not only the board', async () => {
+    /*
+     * Measured on the running page before this was true: with the title screen up, `#chess-board`
+     * was inert and `#side-column` was not, so Tab reached 22 controls underneath it — the four
+     * buttons of the accessibility bar first. `position: fixed` and `z-index: 100` hide a thing from
+     * the eye; only `inert` hides it from the keyboard, and someone navigating by Tab was the one
+     * person the title screen did not cover.
+     *
+     * It is asserted through the PANEL's own control rather than through `region.inert`, because the
+     * property is what the code sets and reachability is what the child experiences — and the whole
+     * defect was a true property on the wrong element.
+     */
+    const { region, board } = markup();
+    createSplash({
+      doc: document, i18n: createI18n('pt'), ready: new Promise(() => {}), region, board,
+    });
+
+    const control = document.getElementById('panel-control') as HTMLButtonElement;
+    expect(control.closest('[inert]'), 'the panel is under the inert element').toBe(region);
+    control.focus();
+    expect(document.activeElement, 'and it cannot be focused').not.toBe(control);
   });
 
   it('still offers START when the engine fails, and says so', async () => {
-    const { region, doors } = markup();
+    const { region, board, doors } = markup();
     createSplash({
-      doc: document, i18n: createI18n('pt'), ready: Promise.reject(new Error('no wasm')), region,
+      doc: document, i18n: createI18n('pt'), ready: Promise.reject(new Error('no wasm')), region, board,
     });
     await settle();
 
@@ -134,9 +176,9 @@ describe('[Splash] the way out appears only when it is real', () => {
 
   it('offers START anyway if the engine simply never answers', async () => {
     vi.useFakeTimers();
-    const { region, doors } = markup();
+    const { region, board, doors } = markup();
     createSplash({
-      doc: document, i18n: createI18n('pt'), ready: new Promise(() => {}), region,
+      doc: document, i18n: createI18n('pt'), ready: new Promise(() => {}), region, board,
     });
     expect(doors.hidden).toBe(true);
 
@@ -145,10 +187,11 @@ describe('[Splash] the way out appears only when it is real', () => {
   });
 
   it('does nothing at all on a page with no splash in it', () => {
-    document.body.innerHTML = '<div id="chess-board"></div>';
-    const region = document.getElementById('chess-board') as HTMLElement;
+    document.body.innerHTML = '<div id="game-region"><div id="chess-board"></div></div>';
+    const region = document.getElementById('game-region') as HTMLElement;
+    const board = document.getElementById('chess-board') as HTMLElement;
     const splash = createSplash({
-      doc: document, i18n: createI18n('pt'), ready: Promise.resolve(), region,
+      doc: document, i18n: createI18n('pt'), ready: Promise.resolve(), region, board,
     });
     expect(region.inert).toBe(false);
     // ⚠️ `play`, not nothing. A game with no title screen is a game already begun — answering
