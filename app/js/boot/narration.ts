@@ -25,7 +25,7 @@
 // the difference between them belongs to the caller — see `boot/main.ts`, which says the move
 // first precisely so a player who cannot see the board does not wait out the animation.
 
-import { srAlert, srSay } from '@the-inclusionist/engine/core/a11y-sr.js';
+import type { Announcer } from '@the-inclusionist/engine/core/a11y-sr.js';
 import type { MoveResult, Rules } from '../chess/rules.ts';
 import type { Activation, Outcome } from '../chess/state.ts';
 import { toAlgebraic } from '../chess/types.ts';
@@ -72,9 +72,9 @@ export function moveSentence(i18n: I18n, move: MoveResult): string {
  * wins by checkmate" — the first of which is true, useless, and occupies the assertive region that
  * the second one needs. `announceOutcome` owns the ending.
  */
-export function announceMove(i18n: I18n, move: MoveResult): void {
-  srSay(moveSentence(i18n, move));
-  if (!move.checkmate && move.check) srAlert(i18n.t('status.check'));
+export function announceMove(announcer: Announcer, i18n: I18n, move: MoveResult): void {
+  announcer.say(moveSentence(i18n, move));
+  if (!move.checkmate && move.check) announcer.alert(i18n.t('status.check'));
 }
 
 /**
@@ -88,11 +88,11 @@ export function announceMove(i18n: I18n, move: MoveResult): void {
  * `illegal` DOES speak, and says what is on the square rather than "illegal": the player already
  * knows the move did not happen, and what they need next is what is there instead.
  */
-export function announceActivation(i18n: I18n, rules: Rules, result: Activation): void {
+export function announceActivation(announcer: Announcer, i18n: I18n, rules: Rules, result: Activation): void {
   if (result.kind === 'selected') {
     const piece = rules.pieceAt(result.square);
     const where = toAlgebraic(result.square);
-    srSay(piece
+    announcer.say(piece
       ? `${i18n.t('a11y.selected', { piece: i18n.describePiece(piece).text, square: where })}. `
         + i18n.t('a11y.legalMoves', { count: result.targets.length })
       : i18n.t('square.empty', { square: where }));
@@ -100,19 +100,19 @@ export function announceActivation(i18n: I18n, rules: Rules, result: Activation)
   }
 
   if (result.kind === 'deselected') {
-    srSay(i18n.t('a11y.noSelection'));
+    announcer.say(i18n.t('a11y.noSelection'));
     return;
   }
 
   if (result.kind === 'moved') {
-    announceMove(i18n, result.move);
+    announceMove(announcer, i18n, result.move);
     return;
   }
 
   if (result.kind === 'illegal') {
     const piece = rules.pieceAt(result.square);
     const square = toAlgebraic(result.square);
-    srSay(piece
+    announcer.say(piece
       ? i18n.t('square.occupied', { square, piece: i18n.describePiece(piece).text })
       : i18n.t('square.empty', { square }));
   }
@@ -129,15 +129,15 @@ export function announceActivation(i18n: I18n, rules: Rules, result: Activation)
  * with no legal move and a king that is not in check, and calling it "draw" hides the very thing a
  * learner most needs explained.
  */
-export function announceOutcome(i18n: I18n, outcome: Outcome | null): void {
+export function announceOutcome(announcer: Announcer, i18n: I18n, outcome: Outcome | null): void {
   if (!outcome) return;
   if (outcome.kind === 'checkmate') {
-    srAlert(i18n.t('status.checkmate', { side: i18n.t(`turn.${outcome.winner}`) }));
+    announcer.alert(i18n.t('status.checkmate', { side: i18n.t(`turn.${outcome.winner}`) }));
     return;
   }
   if (outcome.kind === 'stalemate') {
-    srAlert(i18n.t('status.stalemate'));
+    announcer.alert(i18n.t('status.stalemate'));
     return;
   }
-  srAlert(i18n.t('status.draw'));
+  announcer.alert(i18n.t('status.draw'));
 }

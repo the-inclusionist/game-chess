@@ -4,7 +4,7 @@
 // the DERIVATION — that a scheme which changed produces a line that changed, and that an action
 // bound to nothing is not advertised at all.
 import { describe, expect, it } from 'vitest';
-import type { KeyScheme } from '@the-inclusionist/engine/input/keyboard-runtime.js';
+import type { KeyScheme } from '@the-inclusionist/engine/core/entity.js';
 import { actionPreset, gameActions, hintParts, keyLabel } from '../app/js/ui/key-hints.ts';
 
 /** The engine's own solo defaults, read off the running page at `?debug=true` on 8.0.0. */
@@ -83,7 +83,7 @@ describe('[Key hints] the line follows the scheme, which is the point', () => {
 });
 
 describe('[Actions] the table the line and the reach count both read', () => {
-  it('⚠️ asks for ten positions, and the preset names every one', () => {
+  it('⚠️ asks for nine positions, and the preset names every one', () => {
     /*
      * The count is what gates the reach notice: `createGame` shows it only `if (acoesDoJogo.length)`,
      * and `presetActions` counts the positions the preset names. Trimming this list would make the
@@ -92,13 +92,13 @@ describe('[Actions] the table the line and the reach count both read', () => {
      */
     const actions = gameActions('leftTrigger');
     expect(actions.map(([a]) => a).join(',')).toBe(
-      'up,left,down,right,action2,action3,action1,action4,leftTrigger,start',
+      'up,left,down,right,action2,action3,action1,action4,leftTrigger',
     );
 
     const preset = actionPreset((key) => key.replace('keys.', ''), 'leftTrigger');
     expect(Object.keys(preset).length, 'a name for every position').toBe(actions.length);
     expect(Object.values(preset).every((w) => w.label.length > 0), 'no empty labels').toBe(true);
-    expect(preset.start?.label).toBe('pause');
+    expect(preset.start, 'start is reserved by the engine (ADR-0144 §4), never in the preset').toBeUndefined();
     expect(preset.leftTrigger?.label).toBe('sonar');
   });
 

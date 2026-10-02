@@ -27,8 +27,8 @@
 
 import type { Engine } from '@the-inclusionist/engine';
 import type { GameDeclaration } from '@the-inclusionist/engine/core/contract.js';
-import type { GanchosDoCartucho } from '@the-inclusionist/engine';
-import { srAlert, srSay } from '@the-inclusionist/engine/core/a11y-sr.js';
+import type { CartridgeHooks } from '@the-inclusionist/engine';
+import { createAnnouncer, type Announcer } from '@the-inclusionist/engine/core/a11y-sr.js';
 import { VIZ_FILTER } from '@the-inclusionist/engine/render/viz-modes.js';
 import { createChessDeclaration, SONAR_ACTION } from '../declaration/chess-declaration.ts';
 import type { Suggestion } from '../chess/engine/client.ts';
@@ -278,12 +278,12 @@ export interface ChessCartridge {
   /**
    * The game-owned half of `CreateGameOptions`, per ADR-0139 §1.
    *
-   * ⚠️ TYPED BY THE ENGINE'S OWN `GanchosDoCartucho`, NOT BY A HAND-WRITTEN `Pick`. It was a Pick,
+   * ⚠️ TYPED BY THE ENGINE'S OWN `CartridgeHooks`, NOT BY A HAND-WRITTEN `Pick`. It was a Pick,
    * which was right while the engine named no type for this half — and became a COPY the moment
    * engine 9 exported one. A copy of a definition is the drift this derivation exists to avoid, and
    * the engine's version is also the corrected one: fifteen fields rather than the ten I listed.
    */
-  readonly hooks: GanchosDoCartucho & { readonly declaration: GameDeclaration };
+  readonly hooks: CartridgeHooks & { readonly declaration: GameDeclaration };
   /** Where the engine's own bar and pause card fit in this game's layout. */
   readonly hosts: { readonly a11yBarHost: Element; readonly pauseHost: Element };
   /** Nothing runs until this is called, and it needs the engine the shell built. */
@@ -335,6 +335,22 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    */
   const region = deps.region ?? host.getElementById('game-region');
   if (!region) throw new Error('a region is required — this game has nowhere to draw');
+
+  /**
+   * THIS CARTRIDGE'S OWN ANNOUNCER (ADR-0232 D4).
+   *
+   * ⚠️ `core/a11y-sr` was a module-level pair of functions in engine 9. In 11 it is a factory and
+   * each root builds its own, so the Libras mirror and the sound caption follow this instance and
+   * not the next one on the page. The engine's `engine.say`/`engine.alert` are the LARGER channel —
+   * they mirror to deaf mode — and could replace this one; this file does not use them because the
+   * CLOSURES below are evaluated before `create(engine)` runs, and a reference to `engine` here is
+   * null until then.
+   */
+  const win = host.defaultView;
+  const announcer: Announcer = createAnnouncer({
+    doc: host,
+    raf: win ? win.requestAnimationFrame.bind(win) : undefined,
+  });
 
   /**
    * The board and the panel, ASKED OF THE REGION and not of the document — and built when it has
@@ -404,7 +420,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    *
    * ⚠️ THIS GAME'S PAUSE BUTTON DOES NOT OPEN IT — the Dev's instruction, 2026-09-11: the engine
    * pauses at the moments it is itself programmed to, not at ours. `H`/`Enter`/START keep opening
-   * `.chess-pause`, and `engine.pausa.mostrar` is never called from here.
+   * `.chess-pause`, and `engine.pause.show` is never called from here.
    *
    * 📌 What that means TODAY, written down so the missing wiring reads as a choice: the card is
    * revealed by the engine's `ui/shell`, per phase, and `createGame` deliberately does not mount
@@ -722,7 +738,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     hud.refresh();
   };
 
-  const hooks: GanchosDoCartucho & { declaration: typeof declaration } = {
+  const hooks: CartridgeHooks & { declaration: typeof declaration } = {
     declaration,
     /*
      * ========================= WHAT EACH PAUSE ITEM DOES, AND WHY IT IS NOT DECORATION =========================
@@ -749,7 +765,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      * times: the reference lives inside a function body that nothing calls during construction. By
      * the time the engine asks for the table, the binding it names has been filled by `create()`.
      */
-    getPauseActs: () => ({ resume: () => engine.pausa.esconder(0) }),
+    getPauseActs: () => ({ resume: () => engine.pause.hide(0) }),
     /*
      * ========================= THE 🚥 ICON, AND THE ⚫ ONE THAT IS NOT HERE =========================
      * 🔴 ENGINE 9 OPENED A DOOR THAT DID NOT EXIST, and its own comment names the misreading I made
@@ -769,7 +785,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      * the seven have piece fills BELOW 3:1. The engine's own comment says these are two questions
      * and a game may answer one; this is a game that can correct colour and cannot claim a level.
      */
-    setCorrecaoDoJogador: (_i: number, correcao: string) => {
+    setPlayerCorrection: (_i: number, correcao: string) => {
       applyVision(correcao === 'tricro' ? 'normal' : `fix-${correcao}`);
     },
     /*
@@ -779,7 +795,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      * than ten, and `declines` is one of the five the record's first version had left out — its own
      * test («could a PAGE answer this without knowing which game is running?») puts them here.
      */
-    declines: { semVozNeural: true, semAssistenteDePad: true, semAtorDePausa: true },
+    declines: { noNeuralVoice: true, noPauseActor: true },
     /*
      * ⚠️ `viz: 'normal'` LEFT, and the absence is the news. The sonar no longer reads a visual mode
      * off the player: the engine's root answers `visaoComprometida` for it, from the two-axis
@@ -787,7 +803,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      * eyesight of its own — so the answer stays the same one `'normal'` used to give: not impaired.
      * The blind mode that DOES matter here reaches the sonar through `isBlindMode`, as before.
      */
-    sonarPlayers: () => [{ i: 0, x: cursor.x, y: cursor.y }],
     /*
      * ========================= HOW MANY ACTIONS THIS GAME ASKS FOR =========================
      * The engine cannot count them by itself, and without the count the reach notice never appears:
@@ -802,6 +817,20 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      * be two lists of one fact with nothing obliging them to agree — which is the shape that
      * produced a key line advertising keys nothing listened to.
      */
+    /**
+     * The eighteen GAME-KEYED accommodations (ADR-0153), answered minimally in Wave 1 — every one
+     * `false`. Four have a real subject in chess (`pieceSets`, `hints`, `ownerColors`,
+     * `contrastOutlines`) and open up in Wave 2 through `gameOptions`; declaring their keys here
+     * before the dictionaries carry them would only put four lines in `engine.problems`.
+     */
+    accommodations: {
+      cameraSway: false, easyMode: false, wheelchairMode: false, detectionLeniency: false,
+      intensity: false, hints: false, reducedCharacterMotion: false, caneSpacing: false,
+      textPace: false, lexicalDifficulty: false, wordHighlight: false, pieceSets: false,
+      distinguishableSuits: false, timingWindow: false, aimAssist: false, repeatedInput: false,
+      ownerColors: false, contrastOutlines: false,
+    },
+
     preset: actionPreset((key) => i18n.t(key), SONAR_ACTION),
     /*
      * ========================= IT IS NEVER TIME FOR THE ENGINE TO NAVIGATE A MENU HERE =========================
@@ -841,6 +870,14 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * `pausa`, `problems` and `sonar` — so this is a narrow seam rather than a leak.
    */
   const hosts = { a11yBarHost: a11yBar, pauseHost: enginePause };
+  /**
+   * The engine arrives in `create(received)`. Everywhere BELOW this line `engine` reads it
+   * through a non-null assertion — correct, because every caller runs after `create` has set it.
+   * The ref beside it exists for the handful of CLOSURES evaluated during construction, before
+   * `create` runs: `engineT` passed to the HUD is the one; a second one may be added as the
+   * surface grows. `engineRef.current` is null until `create` sets it.
+   */
+  const engineRef: { current: Engine | null } = { current: null };
   let engine!: Engine;
 
   /**
@@ -906,6 +943,10 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
   let mounted = true;
 
   const hud = createHud({
+    // Lazy — the HUD is built before `create(engine)` runs and refreshes once in that
+    // moment. Returning the key is honest: it is what `Translator.t` returns for a key the
+    // dictionary lacks.
+    engineT: (key: string) => (engineRef.current ? engineRef.current.t(key) : key),
     doc: host,
     view: () => viewKind,
     /*
@@ -1319,7 +1360,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
       // Filled at the end of construction; `startLesson` cannot run before that.
       shell: self!,
       panel,
-      say: (text) => { srSay(text); refreshLessonMenu(); },
+      say: (text) => { announcer.say(text); refreshLessonMenu(); },
       /*
        * ⚠️ A PUZZLE IS RESOLVED HERE RATHER THAN IN THE DRIVER, because resolving one means
        * fetching a file — which is the composition root's business. The driver only ever sees a
@@ -1765,7 +1806,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     if (stumbles >= STUMBLES_BEFORE_HELP && !hintsOn) {
       hintsOn = true;
       prefs.save({ hints: hintsOn });
-      srSay(i18n.t('protected.teaching'));
+      announcer.say(i18n.t('protected.teaching'));
       // Turning the switch on is not enough: the arrows are drawn when a suggestion arrives, and
       // nothing else is going to ask for one — the position has not changed and will not until
       // the player answers the warning that is on screen because of it.
@@ -1780,10 +1821,10 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     blunderHeld = null;
     blunderBar.show(null);
     if (takeBack) {
-      srSay(i18n.t('protected.tookBack'));
+      announcer.say(i18n.t('protected.tookBack'));
       void walkHistory('back');
     } else {
-      srSay(i18n.t('protected.kept'));
+      announcer.say(i18n.t('protected.kept'));
       hud.refresh();
       askOpponent();
     }
@@ -1800,7 +1841,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     hinted = moves.map((m) => ({ from: m.move.from, to: m.move.to, behind: m.behind }));
     syncMarks();
     const say = (m: Suggestion): string => `${toAlgebraic(m.move.from)} ${toAlgebraic(m.move.to)}`;
-    srSay(moves.length > 1
+    announcer.say(moves.length > 1
       ? i18n.t('a11y.hintMany', { move: say(moves[0]), others: moves.slice(1).map(say).join(', ') })
       : i18n.t('a11y.hintOne', { move: say(moves[0]) }));
   }
@@ -1822,14 +1863,14 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     hinting = true;
     thinking.setBusy(true);
     hud.refresh();
-    srSay(i18n.t('a11y.hintAsked'));
+    announcer.say(i18n.t('a11y.hintAsked'));
     try {
       const hint = await opponent.requestHint(rules.fen());
-      if (!hint) { srSay(i18n.t('a11y.hintNone')); return; }
+      if (!hint) { announcer.say(i18n.t('a11y.hintNone')); return; }
       hintFen = rules.fen();
       showHint(hint.ties.length ? hint.ties : [{ move: hint.move, behind: 0 }]);
     } catch {
-      srSay(i18n.t('status.engineFailed'));
+      announcer.say(i18n.t('status.engineFailed'));
     } finally {
       hinting = false;
       thinking.setBusy(false);
@@ -1940,7 +1981,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
 
     searching = true;
     thinking.setBusy(true);
-    srSay(i18n.t('status.thinking'));
+    announcer.say(i18n.t('status.thinking'));
 
     opponent.requestMove(rules.fen())
       .then((reply) => {
@@ -1956,8 +1997,8 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
         if (!move) return;
         game.animationDone();
         syncPosition([move.to], move.piece);
-        announceMove(i18n, move);
-        announceOutcome(i18n, game.outcome());
+        announceMove(announcer, i18n, move);
+        announceOutcome(announcer, i18n, game.outcome());
         // The reply is the move nobody was watching for, so it is the one that most needs to be
         // seen travelling rather than to have simply appeared somewhere else.
         void fly(move.from, move.to);
@@ -1967,7 +2008,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
         thinking.setBusy(false);
         // Saying nothing would leave the game on "thinking" for good, and a child waiting for a
         // reply cannot tell that apart from a game that is broken.
-        srAlert(i18n.t('status.engineFailed'));
+        announcer.alert(i18n.t('status.engineFailed'));
         console.error('[chess] engine failed', error);
       });
   }
@@ -1978,7 +2019,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     const result = game.activate(square);
     if (result.kind !== 'moved') {
       syncPosition();
-      announceActivation(i18n, rules, result);
+      announceActivation(announcer, i18n, rules, result);
       observer?.(square, result);
       return;
     }
@@ -1989,8 +2030,8 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     // not wait a third of a second to be told what happened.
     game.animationDone();
     syncPosition([move.to], move.piece);
-    announceActivation(i18n, rules, result);
-    announceOutcome(i18n, game.outcome());
+    announceActivation(announcer, i18n, rules, result);
+    announceOutcome(announcer, i18n, game.outcome());
     // ⚠️ THE OBSERVER WAITS FOR THE PIECE TO LAND. See `ActivationObserver`: a lesson undoes a
     // wrong move, and undoing one the child never saw teaches nothing.
     void fly(move.from, move.to).then(() => { askOpponent(); observer?.(square, result); });
@@ -2013,7 +2054,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
 
     let step = direction === 'back' ? game.takeBackStep() : game.replayStep();
     if (!step) {
-      srSay(i18n.t(direction === 'back' ? 'a11y.nothingToTakeBack' : 'a11y.nothingToReplay'));
+      announcer.say(i18n.t(direction === 'back' ? 'a11y.nothingToTakeBack' : 'a11y.nothingToReplay'));
       hud.refresh();
       return;
     }
@@ -2061,7 +2102,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
 
     syncPosition();
     // Said at the end, because mid-walk the board belongs to whoever has just been rewound past.
-    srSay(i18n.t(direction === 'back' ? 'a11y.tookBack' : 'a11y.replayed', {
+    announcer.say(i18n.t(direction === 'back' ? 'a11y.tookBack' : 'a11y.replayed', {
       side: i18n.t(`turn.${rules.turn()}`),
     }));
     askOpponent();
@@ -2224,16 +2265,18 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     hosts,
     create(received: Engine): GameShell {
       engine = received;
+      engineRef.current = received;
       // ⚠️ ONCE, BEFORE ANYTHING HAPPENS. This used to be reached only from an event handler in the
       // flat root, so on a board that had not been touched yet — every restored game, and every
       // switch between views — the reviewer was never told to look. The advantage readout sat at a
       // dash and the score sheet carried no marks until the player happened to move.
       syncPosition();
+      hud.refresh();  // Now that engine.t is callable, resolve the engine-owned labels (vision modes).
       askOpponent();
 
       refreshKeyHints();
       if (engine.problems.length) console.warn('[chess] engine problems:', engine.problems);
-      srSay(i18n.t('a11y.boardLabel'));
+      announcer.say(i18n.t('a11y.boardLabel'));
 
       if (debugAsked) {
         (window as unknown as Record<string, unknown>)[deps.debugName] = {

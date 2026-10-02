@@ -18,7 +18,7 @@
 // stops following her from one game to the next, and a school network has a second address to
 // allow.
 import { createGame } from '@the-inclusionist/engine';
-import { srAlert } from '@the-inclusionist/engine/core/a11y-sr.js';
+import { createAnnouncer } from '@the-inclusionist/engine/core/a11y-sr.js';
 import { startLoop } from '@the-inclusionist/engine/core/loop.js';
 import { createFrameTicker } from '../render/frame-ticker.ts';
 import { createChessCartridge } from './game-shell.ts';
@@ -71,7 +71,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
      * the platform does not re-fetch anything. This game declares no neural voice, so the ~241 MB
      * catalogue behind this flag is bytes it would download and never use.
      */
-    baixarPesados: false,
+    downloadHeavy: false,
   });
 
   const shell = cartridge.create(engine);
@@ -101,7 +101,7 @@ export function createGameShell(deps: GameShellDeps): GameShell {
    * something, building thirty shells in one file and leaving thirty clocks ticking.
    */
   const ticker = createFrameTicker();
-  startLoop(ticker, (dt) => { shell.update(dt); }, 2, { aoFalhar: engine.aoFalhar });
+  startLoop(ticker, (dt) => { shell.update(dt); }, 2, { speed: engine.gameSpeed, onFailure: engine.onFailure });
 
   /*
    * ⚠️ A SPREAD IS SAFE HERE ONLY BECAUSE NOTHING ON `GameShell` IS A GETTER — every member is a
@@ -147,7 +147,11 @@ export async function startChess(deps: Omit<GameShellDeps, 'view'>): Promise<Gam
 export function bootFailed(error: unknown): void {
   console.error('[chess] the board could not be loaded', error);
   try {
-    srAlert('Não foi possível carregar o tabuleiro. Verifique a ligação e recarregue a página.');
+    const win = typeof window === 'undefined' ? undefined : window;
+    const doc = win?.document ?? (globalThis as unknown as { document?: Document }).document;
+    if (!doc) throw error;
+    const announcer = createAnnouncer({ doc, raf: win?.requestAnimationFrame.bind(win) });
+    announcer.alert('Não foi possível carregar o tabuleiro. Verifique a ligação e recarregue a página.');
   } catch {
     // The live region may not exist if the failure happened before the document was ready.
   }

@@ -27,11 +27,11 @@
     "chess.js": "^1.4.0"
   },
   "peerDependencies": {
-    "@the-inclusionist/engine": "^9.0.0",
+    "@the-inclusionist/engine": "^11.0.0",
     "zdog": "^1.1.3"
   },
   "devDependencies": {
-    "@the-inclusionist/engine": "^9.0.0",
+    "@the-inclusionist/engine": "^11.0.0",
     "@types/node": "^22.0.0",
     "@types/three": "^0.185.4",
     "@vitest/browser": "^4.0.0",

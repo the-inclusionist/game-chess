@@ -13,7 +13,7 @@
 // So the line is computed from `KeyScheme` — the same object `engine.keyboard.kbFor(0)` returns and
 // the same one a remap writes into. Pure, and in its own file, because the part worth testing is
 // the derivation and not the `<kbd>` elements around it.
-import type { KeyScheme } from '@the-inclusionist/engine/input/keyboard-runtime.js';
+import type { KeyScheme } from '@the-inclusionist/engine/core/entity.js';
 
 /**
  * A key code as a person reads it on the key.
@@ -74,8 +74,9 @@ const VERBS: readonly (readonly [keyof KeyScheme, string])[] = [
  *
  * ⚠️ THE COUNT IS THE HONEST ONE RATHER THAN THE FLATTERING ONE. Four directions and a confirm
  * would be enough to push a pawn, and declaring only those would make the reach warning quieter by
- * lying about what the game needs: leaving a lesson is `start`, reading the board without seeing it
- * is the sonar, and getting into the side panel at all is `action4`. A child who cannot reach those
+ * lying about what the game needs: the sonar is one, and getting into the side panel at all is
+ * `action4`. The engine reserves `start` and `select` for the pause and the menus (ADR-0144 §4),
+ * so a preset that claims either is refused at boot. A child who cannot reach those
  * has a game she cannot finish, not a game she can play with fewer buttons.
  */
 export function gameActions(sonar: keyof KeyScheme | null): readonly (readonly [keyof KeyScheme, string])[] {
@@ -83,7 +84,6 @@ export function gameActions(sonar: keyof KeyScheme | null): readonly (readonly [
     ...MOVE.map((d) => [d, 'keys.move'] as const),
     ...VERBS,
     ...(sonar ? [[sonar, 'keys.sonar'] as const] : []),
-    ['start', 'keys.pause'] as const,
   ];
 }
 

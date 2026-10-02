@@ -150,7 +150,7 @@ export function createChessDeclaration(deps: DeclarationDeps): GameDeclaration {
      * DEVICE requires latching and it must not be switched off; there the control stays reachable so she can
      * read why. Here there is no reason that would help her.
      */
-    seguraTeclas: () => false,
+    holdsKeys: () => false,
 
     /**
      * NO POINTER IS REQUIRED HERE, and the field exists so a device without one can refuse a game
@@ -193,7 +193,7 @@ export function createChessDeclaration(deps: DeclarationDeps): GameDeclaration {
      * keyboard, and handing both seats the same physical key would be a collision rather than a
      * convenience — the sonar speaks about the cursor, and there is one cursor.
      */
-    mapeamentoDoTeclado: (_jogadores: number, assento: number) => (
+    keyboardMapping: (_jogadores: number, assento: number) => (
       assento === 0 ? { [SONAR_ACTION]: ['KeyL'] } : null
     ),
 

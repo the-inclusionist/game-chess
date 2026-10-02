@@ -76,7 +76,7 @@ describe('[Ticker] the shape core/loop.ts actually requires', () => {
     const clock = fakeClock();
     ticker = createFrameTicker(clock);
     const seen: number[] = [];
-    startLoop(ticker, (dt) => seen.push(dt), 2);
+    startLoop(ticker, (dt) => seen.push(dt), 2, { speed: () => 1, onFailure: () => {} });
 
     clock.advance(0);
     clock.advance(1000 / 60);
@@ -87,7 +87,7 @@ describe('[Ticker] the shape core/loop.ts actually requires', () => {
     const clock = fakeClock();
     ticker = createFrameTicker(clock);
     const seen: number[] = [];
-    startLoop(ticker, (dt) => seen.push(dt), 2);
+    startLoop(ticker, (dt) => seen.push(dt), 2, { speed: () => 1, onFailure: () => {} });
 
     clock.advance(0);
     clock.advance(30_000);   // half a minute in another tab
@@ -101,7 +101,8 @@ describe('[Ticker] the shape core/loop.ts actually requires', () => {
     let calls = 0;
     let announced: unknown = null;
     startLoop(ticker, () => { calls++; throw new Error('boom'); }, 2, {
-      aoFalhar: (erro) => { announced = erro; },
+      speed: () => 1,
+      onFailure: (erro: unknown) => { announced = erro; },
     });
 
     clock.advance(0);

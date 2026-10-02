@@ -16,6 +16,13 @@ const sq = (name: string): Square => {
 let hud: Hud | null = null;
 afterEach(() => { hud?.destroy(); hud = null; document.body.replaceChildren(); });
 
+const ENGINE_VIZ_PT: Record<string, string> = {
+  'viz.fix-protan': 'Correção protanopia',
+  'viz.fix-deuter': 'Correção deuteranopia',
+  'viz.fix-tritan': 'Correção tritanopia',
+};
+const engineTStub = (key: string): string => ENGINE_VIZ_PT[key] ?? key;
+
 function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   const rules = createRules(fen);
   const state = createGameState({ rules, opponent: false });
@@ -32,6 +39,7 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   const onTakeBack = vi.fn(() => { state.takeBack(); hud!.refresh(); });
   const onReplay = vi.fn(() => { state.replay(); hud!.refresh(); });
   hud = createHud({
+    engineT: engineTStub,
     doc: document, i18n: createI18n(locale), rules: () => rules, state: () => state,
     vision: () => vision, onVision,
     reducedMotion: () => motion, onReducedMotion,

@@ -18,7 +18,6 @@
 // PixiJS still earns its keep: it composites the Zdog frame, it owns the layer order, and the
 // post-processing applies to the BOARD. Only the text argument was mistaken.
 
-import { t as engineT } from '@the-inclusionist/engine/core/i18n.js';
 import { VIZ_CORRECTIONS } from '@the-inclusionist/engine/render/viz-modes.js';
 import type { Rules } from '../chess/rules.ts';
 import type { GameState } from '../chess/state.ts';
@@ -45,6 +44,12 @@ export interface HudDeps {
   /** Asked to change the board. The composition root owns what that means. */
   readonly onView?: (kind: ViewKind) => void;
   readonly i18n: I18n;
+  /**
+   * Translates a key in the ENGINE's catalogue — the vision modes carry a dictionary key the
+   * engine owns. ⚠️ Lazy, because the HUD is built before `create(engine)` runs; by the time
+   * `refresh()` reads a vision label the engine is here. Pass `(k) => engine.t(k)`.
+   */
+  readonly engineT?: (key: string) => string;
   /**
    * ⚠️ ACCESSORS, NOT OBJECTS, AND THAT IS WHAT KEEPS THE FOCUS ON THE BOARD.
    *
@@ -511,10 +516,10 @@ export function createHud(deps: HudDeps): Hud {
   //
   // The engine has the same line in its own games. That is worth fixing upstream, and it is not
   // this repository's to fix.
-  for (const mode of [{ key: 'normal', nome: '' }, ...VIZ_CORRECTIONS]) {
+  for (const mode of [{ key: 'normal', name: '' }, ...VIZ_CORRECTIONS]) {
     const option = doc.createElement('option');
     option.value = mode.key;
-    option.dataset.nome = mode.nome;
+    option.dataset.nome = mode.name;
     visionSelect.appendChild(option);
   }
   visionBox.append(visionLabel, visionSelect);
@@ -884,7 +889,7 @@ export function createHud(deps: HudDeps): Hud {
     for (const option of visionSelect.options) {
       option.textContent = option.value === 'normal'
         ? i18n.t('viz.trichromatic')
-        : engineT(option.dataset.nome ?? '');
+        : (deps.engineT ?? ((k) => k))(option.dataset.nome ?? '');
     }
     visionSelect.value = deps.vision();
 
