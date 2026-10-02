@@ -2175,6 +2175,170 @@ em cheio, e os testes de boot já queimaram este repositório uma vez em zona mo
 temporal. Mitigação: fazer a Onda 3 só depois de a Onda 1 e a 2 estarem commitadas
 e verdes em `main`, para o `git bisect` ter chão onde cair.
 
+## ⚠️ Publicar — infraestrutura partilhada em `o-inclusionista.jrocha.dev.br`
+
+**Contexto** (recebido em 2026-10-02, do trabalho de publicação do `game-platformer`
+que estreou o padrão). Cada jogo do catálogo publica em **Cloudflare Pages**, com
+um **Router Worker** em `jrocha.dev.br` a servir **todos os jogos sob UMA mesma
+origem**: `o-inclusionista.jrocha.dev.br/<slug>/*`. A razão da origem única é
+medida e é a razão inteira: os ~1,2 GiB de ficheiros pesados (vozes neurais,
+visão por câmara, reconhecimento, modelos de leitura) são descarregados **uma vez
+por criança** em vez de uma por jogo, porque o navegador partilha o balde
+`incl-pesados-v2` por origem e não por caminho (ADR-0117).
+
+Este jogo é um dos 300 do catálogo, não um projecto autónomo com domínio próprio.
+Portanto o que entra aqui é a parte do xadrez, não a infraestrutura: o Router
+Worker, a tabela `GAMES`, o balde R2 `the-inclusionist-lfs` (EU, jurisdicional) e
+o secret `CLOUDFLARE_API_TOKEN` são da plataforma e já existem.
+
+### 2.1 Ficheiros de infra a copiar de `game-platformer`
+
+Lista mínima, medida em 02/10. O xadrez copia este conjunto, trocando o `<slug>`
+por `game-chess`. Nenhum destes ficheiros existe hoje aqui:
+
+- **`wrangler.toml`** na raiz:
+  ```toml
+  name = "game-chess"
+  compatibility_date = "2024-11-15"
+  pages_build_output_dir = "dist"
+  [vars]
+  INCL_BASE = "/game-chess/"
+  [[r2_buckets]]
+  binding = "LFS"
+  bucket_name = "the-inclusionist-lfs"
+  jurisdiction = "eu"
+  ```
+  📌 Com o `wrangler.toml` presente, o painel do Cloudflare Pages fica
+  **somente leitura** para *bindings* — a verdade passa a ser o ficheiro. Isto é
+  por desenho e evita que mexer no painel introduza divergência.
+
+  ⚠️ O **`jurisdiction = "eu"`** no binding do R2 é o erro «R2 bucket not found»
+  mais comum: o nosso balde é jurisdicional (`.eu.r2.cloudflarestorage.com`) e,
+  sem a linha, o Worker procura-o na jurisdição padrão.
+- **`functions/heavy/[[path]].ts`** proxia `/heavy/<host><path>` para o R2 com a
+  tabela `MIRROR_FOLDERS` da engine **inlined** (o esbuild do CF Pages não
+  resolve de forma estável o import do pacote da engine; mais honesto copiar a
+  tabela).
+- **`scripts/post-build-cloudflare.mjs`** escreve `dist/_headers` com os
+  caminhos prefixados por `INCL_BASE`.
+- **`.github/workflows/*`**: o workflow do Pages é automático via integração
+  GitHub; só precisa de ser copiado o `deploy-router-worker.yml` **se** este
+  repositório também mexer no Router Worker (opcional por jogo).
+
+### 2.2 Mudanças dentro de `app/` e no `vite.config.ts` do xadrez
+
+O xadrez hoje tem `root: 'app'` e `outDir: '../dist'` sem `base`, portanto o
+`dist` nasce com `href="/"` por omissão. Para o subpath passar a ser servível,
+muda-se **isto**:
+
+- **`vite.config.ts`** aceita o subpath:
+  ```ts
+  base: process.env.INCL_BASE || '/',
+  build: {
+    outDir: '../dist' + (process.env.INCL_BASE || '').replace(/\/$/, ''),
+    emptyOutDir: true,
+  },
+  ```
+- **`app/index.html`** ganha `<base href="/" />` logo no topo do `<head>`. É o
+  que leva **qualquer `fetch()` em runtime** a cair na raiz do domínio — fora do
+  subpath — para alcançar `/heavy/*`.
+
+🔴 **AS QUATRO OCORRÊNCIAS DE CAMINHO ABSOLUTO DO STOCKFISH TÊM DE RECEBER O
+PREFIXO.** Medidas em 02/10, antes de tocar em nada:
+
+- `app/js/chess/engine/preload.ts:21–22` — dois caminhos no array de precache do
+  loader.
+- `app/js/chess/engine/stockfish-client.ts:23–24` — `ENGINE_URL` e `WASM_URL`.
+
+Com o `<base href="/" />` a resolver `fetch('/x')` para a raiz do domínio em vez
+do subpath, estas quatro linhas quebram em silêncio (o service worker não cacheia,
+o Worker tenta carregar o motor, 404). A receita é a mesma do platformer, só com
+o prefixo `vendor/engine/`:
+```ts
+const ENGINE_URL = `${import.meta.env.BASE_URL}vendor/engine/stockfish-18-lite-single.js`;
+const WASM_URL   = `${import.meta.env.BASE_URL}vendor/engine/stockfish-18-lite-single.wasm`;
+```
+
+⚠️ **E o `scripts/check-precache.mjs` (gate deste repositório) tem de aceitar
+ambos os prefixos.** Hoje ele exige `stockfish-18-lite-single.wasm` como string
+literal no SW; depois da mudança o SW passará a inlinar `/game-chess/vendor/…`.
+O gate continua honesto se procurar apenas o nome do ficheiro, não o caminho —
+já é assim por desenho. Verificar no instante da mudança.
+
+### 2.3 Dentro de `src/` — o que o cartucho do xadrez já declara
+
+- **`uses`**: hoje o xadrez não declara nenhum. Declina `noNeuralVoice: true` e
+  `noPauseActor: true` em `hooks.declines`. Para publicar, a decisão não muda —
+  este jogo **não** usa `uses.neuralVoice` (não lê em voz alta uma frase pensada
+  para ser lida) nem `uses.reading` (não há escrita a reconhecer). A linha fica
+  tal como está; se um dia o modo de ensino ganhar «leia esta palavra», ganha-se
+  `reading: true` e os modelos entram em `heavy/`.
+
+- **Palavras do preset**: ✅ **já estão** (commit `32e458d` da Wave 1.5). O
+  xadrez tem `hooks.dictionaries` com as seis chaves `keys.move`, `keys.select`,
+  `keys.cancel`, `keys.teacher`, `keys.panel`, `keys.sonar` em pt/en/es. A Wave 2
+  acrescentou mais ~40 chaves (gameOptions). Portanto o aviso do platformer —
+  «sem isso os painéis Mapear teclado abrem vazios sem erro em lugar nenhum» —
+  já está respondido para este jogo.
+
+### 2.4 Deploy
+
+- `git push` para `main` dispara o build no Cloudflare Pages via integração do
+  GitHub.
+- Se o CF Pages constrói o SHA errado (o painel mostra «Retry deployment» com o
+  mesmo SHA): empurrar um commit vazio OU «Create deployment» no painel.
+
+### Parte da engine — pedidos que vêm por via indirecta, não por este jogo
+
+A **Decisão (A)** do xadrez de 2026-10-02 (adoptar a pausa e o HUD únicos da
+engine) revelou perdas que **não são deste jogo consertar** — a `SettingsStore`
+da engine é global, e os painéis que ela monta só editam o assento 0. O xadrez
+não sofre com isto hoje porque **é um jogo de um a dois jogadores no mesmo
+tabuleiro** (hot seat), não um multiplayer dividido em assentos. Portanto o
+pedido do platformer para a sessão da engine não precisa de ser renovado por
+aqui; fica registado como *contexto* porque o próximo visitante deste plano verá
+no `game-platformer` o retrato completo:
+
+1. **Pausa e HUD por assento numa raiz só** — hoje o cartão `#vp-pause-0` é
+   único, e START dos jogadores 2–4 não o abre porque `leadsTheScreen === 0`.
+2. **Painéis que editam o assento que `setPauseActor` indicou** — hoje
+   `blindMode`, `cbSafe`, `wheelchair`, `oneButton`, `hcOutlineFg`, `letterCase`,
+   `captionsOn` são globais. O Dev decidiu em 02/10: «só o jogador 1 pausa, mas
+   cada um tem a sua própria configuração» — a engine ainda não cumpre a
+   segunda metade.
+3. **Cores por papel no painel visual** — `offer: { roles: false }` tira as
+   cores da reconfiguração; as da v9 continuam a valer mas já não se mudam.
+4. **«Sair» por assento** (hoje só sai do assento 0).
+5. **Gamepad no título** cai no anel genérico (perde-se o `◀▶` sobre o número
+   de jogadores).
+6. **`inclusionist-heavy --base`** não gera o layout que o
+   `/heavy/<host><path>` do Pages espera. O espelho é cópia manual de
+   `~/Claude/inclusionist-heavy-mirror/heavy/` para o `dist/` até isto decidir.
+
+### Checklist para o xadrez, copia-cola
+
+1. Copiar de `game-platformer`: `wrangler.toml`, `functions/heavy/[[path]].ts`,
+   `scripts/post-build-cloudflare.mjs` e, se aplicável, os workflows em
+   `.github/workflows/*`. Trocar `<slug>` por `game-chess` e as `[vars]`.
+2. **`vite.config.ts`**: `base: process.env.INCL_BASE || '/'` e o `outDir`
+   compondo o subpath.
+3. **`app/index.html`**: `<base href="/" />` no topo do `<head>`.
+4. **Prefixar os quatro caminhos do Stockfish** com `${import.meta.env.BASE_URL}`:
+   duas linhas em `preload.ts`, duas em `stockfish-client.ts`.
+5. **`uses`**: sem alterações — o xadrez não pede voz neural nem leitura.
+6. **Dicionários do preset**: ✅ já aterrados em `32e458d`.
+7. **Linha nova em `GAMES`** do Router Worker: `'game-chess':
+   'game-chess.pages.dev'`. Esta mudança é feita no repositório do Worker, não
+   neste.
+8. **Primeiro `git push`** → Cloudflare Pages cria o projeto automaticamente.
+9. **Verificar os quatro gates no instante da mudança**: `check-precache.mjs`
+   procura pelo nome do ficheiro (não pelo caminho) — se já procura, continua
+   verde; senão, ajustar a lista para aceitar o prefixo.
+
+⚠️ Esta secção é **para quando a Onda 2b estiver fechada**: publicar com um
+cartão de pausa duplicado seria publicar o defeito. Primeiro acabar a
+retirada do `chess-pause`; depois pôr este jogo no Pages.
+
 ## ⚠️ O TRABALHO ANTERIOR: revisar a interface
 
 Motivo dado pelo usuário: depois de o modo de aprendizagem entrar, a interface
