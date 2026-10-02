@@ -833,7 +833,15 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      * each in `app/js/i18n/{pt,en,es}.ts` and we project just those six here.
      */
     dictionaries: (() => {
-      const keys = ['keys.move', 'keys.select', 'keys.cancel', 'keys.teacher', 'keys.panel', 'keys.sonar'];
+      const keys = [
+        'keys.move', 'keys.select', 'keys.cancel', 'keys.teacher', 'keys.panel', 'keys.sonar',
+        // Wave 2a: labels for the chess-specific `gameOptions` the engine draws. The option
+        // itself takes `hud.pieceSet` (already in the catalogue), the hint goes to the engine's
+        // footer, and the three value labels are the typeface names — proper nouns, same text
+        // in pt/en/es, kept so the engine's own panel reads them without reaching for ours.
+        'hud.pieceSet', 'go.pieceSet.hint',
+        'pieceSet.symbols', 'pieceSet.math', 'pieceSet.pecita',
+      ];
       const project = (locale: 'pt' | 'en' | 'es'): Readonly<Record<string, string>> => {
         const scoped = createI18n(locale);
         return Object.fromEntries(keys.map((k) => [k, scoped.t(k)]));
@@ -848,6 +856,33 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
       distinguishableSuits: false, timingWindow: false, aimAssist: false, repeatedInput: false,
       ownerColors: false, contrastOutlines: false,
     },
+
+    /**
+     * Chess's own options, drawn by the engine's `options` panel (ADR-0182). Wave 2a opens the
+     * first one — `piece-set` — through this door to prove the mechanism; Wave 2b expands to the
+     * other five and dismantles the `.chess-pause` card that still houses them today.
+     *
+     * ⚠️ READ EVERY TIME, NOT CAPTURED. The engine redraws each row on opening and after each
+     * write (ADR-0232 D3 erratum), so a value fed in through a closure that captured the view at
+     * build time would stop updating the moment `switchView` runs. Reads delegate to
+     * `view.hudControls`, which is already the shell's one point of truth for the per-view
+     * controls (ADR-0139 §4 half we did ship).
+     */
+    gameOptions: [
+      {
+        id: 'piece-set',
+        labelKey: 'hud.pieceSet',
+        hintKey: 'go.pieceSet.hint',
+        kind: 'list',
+        values: [
+          { value: 'symbols', labelKey: 'pieceSet.symbols' },
+          { value: 'math', labelKey: 'pieceSet.math' },
+          { value: 'pecita', labelKey: 'pieceSet.pecita' },
+        ],
+        read: (): string => view.hudControls.pieceSet?.() ?? 'symbols',
+        write: (value: string): void => { view.hudControls.onPieceSet?.(value); },
+      },
+    ],
 
     preset: actionPreset(SONAR_ACTION),
     /*
