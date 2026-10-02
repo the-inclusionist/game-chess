@@ -95,11 +95,11 @@ describe('[Actions] the table the line and the reach count both read', () => {
       'up,left,down,right,action2,action3,action1,action4,leftTrigger',
     );
 
-    const preset = actionPreset((key) => key.replace('keys.', ''), 'leftTrigger');
+    const preset = actionPreset('leftTrigger');
     expect(Object.keys(preset).length, 'a name for every position').toBe(actions.length);
-    expect(Object.values(preset).every((w) => w.label.length > 0), 'no empty labels').toBe(true);
+    expect(Object.values(preset).every((w) => w.labelKey.length > 0), 'no empty labelKey').toBe(true);
     expect(preset.start, 'start is reserved by the engine (ADR-0144 §4), never in the preset').toBeUndefined();
-    expect(preset.leftTrigger?.label).toBe('sonar');
+    expect(preset.leftTrigger?.labelKey).toBe('keys.sonar');
   });
 
   it('⚠️ drops the sonar from BOTH when the game declares none', () => {
@@ -107,7 +107,7 @@ describe('[Actions] the table the line and the reach count both read', () => {
     // what that buys, asserted rather than assumed.
     const actions = gameActions(null);
     expect(actions.some(([, label]) => label === 'keys.sonar')).toBe(false);
-    expect(Object.keys(actionPreset((k) => k, null))).not.toContain('leftTrigger');
+    expect(Object.keys(actionPreset(null))).not.toContain('leftTrigger');
     expect(line(hintParts(OURS, { camera: false, sonar: null })))
       .not.toContain('keys.sonar');
   });

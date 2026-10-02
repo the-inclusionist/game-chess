@@ -823,6 +823,24 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      * `contrastOutlines`) and open up in Wave 2 through `gameOptions`; declaring their keys here
      * before the dictionaries carry them would only put four lines in `engine.problems`.
      */
+    /**
+     * Chess's dictionary entries the engine itself resolves (preset labels now; accommodations,
+     * gameOptions and howToPlay in Wave 2). Chess's own i18n keeps all of its catalogue — pieces,
+     * sides, patterns, phrases — because the engine's translator takes flat records only.
+     *
+     * ⚠️ The three keys below cover `keys.move`, `keys.select`, `keys.cancel`, `keys.teacher`,
+     * `keys.panel`, `keys.sonar` — the labelKeys of chess's `preset`. Chess's own catalogue has
+     * each in `app/js/i18n/{pt,en,es}.ts` and we project just those six here.
+     */
+    dictionaries: (() => {
+      const keys = ['keys.move', 'keys.select', 'keys.cancel', 'keys.teacher', 'keys.panel', 'keys.sonar'];
+      const project = (locale: 'pt' | 'en' | 'es'): Readonly<Record<string, string>> => {
+        const scoped = createI18n(locale);
+        return Object.fromEntries(keys.map((k) => [k, scoped.t(k)]));
+      };
+      return { pt: project('pt'), en: project('en'), es: project('es') };
+    })(),
+
     accommodations: {
       cameraSway: false, easyMode: false, wheelchairMode: false, detectionLeniency: false,
       intensity: false, hints: false, reducedCharacterMotion: false, caneSpacing: false,
@@ -831,7 +849,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
       ownerColors: false, contrastOutlines: false,
     },
 
-    preset: actionPreset((key) => i18n.t(key), SONAR_ACTION),
+    preset: actionPreset(SONAR_ACTION),
     /*
      * ========================= IT IS NEVER TIME FOR THE ENGINE TO NAVIGATE A MENU HERE =========================
      * The engine asks "is it now time to navigate a menu?" and, absent an answer, says YES — which

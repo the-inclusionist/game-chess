@@ -96,10 +96,14 @@ export function gameActions(sonar: keyof KeyScheme | null): readonly (readonly [
  * has to reach them too, and this is the note that says where to look.
  */
 export function actionPreset(
-  t: (key: string) => string,
   sonar: keyof KeyScheme | null,
-): Record<string, { readonly label: string }> {
-  return Object.fromEntries(gameActions(sonar).map(([action, label]) => [action, { label: t(label) }]));
+): Record<string, { readonly labelKey: string }> {
+  // The KEY, not the resolved text. ADR-0232 D3 erratum of 2026-09-25: a game declares the KEY of
+  // each word, resolved at every drawing — a word baked in at boot sticks to the boot language
+  // forever (📏 measured: a preset built with `t` in Portuguese still said «Acima» after
+  // `setLocale('en')`). The engine registers chess's dictionary (`hooks.dictionaries`) and
+  // translates these keys itself.
+  return Object.fromEntries(gameActions(sonar).map(([action, key]) => [action, { labelKey: key }]));
 }
 
 /**
