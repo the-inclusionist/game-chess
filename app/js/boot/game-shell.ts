@@ -600,6 +600,41 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * and it is the price of the rating dial and of a hint that is genuinely full strength.
    */
   let elo = remembered.elo ?? DEFAULT_ELO;
+  /**
+   * The three settings whose write side-effects live BOTH inside the HUD deps AND inside the
+   * engine's `gameOptions` panel. Extracted so the two never drift: Onda 2a opens the engine
+   * panel, and chess-pause still exists in the DOM — Onda 2b retires the duplicate. Keeping one
+   * body means the day a side-effect is added, it covers both doors.
+   *
+   * ⚠️ `applyTheme` IS NOT `view.applyTheme`. The latter repaints the renderer; this one updates
+   * the model, persists it, swaps the contrast attribute on the region, redraws the HUD, AND calls
+   * `view.applyTheme`. The two have the same verb and different scopes; the comment is the fence.
+   */
+  const applyTheme = (key: string): void => {
+    themeKey = key;
+    view.applyTheme(key);
+    prefs.save({ theme: key });
+    const contrast = key.startsWith('contrast-');
+    if (paletteHigh !== contrast) {
+      paletteHigh = contrast;
+      region.dataset.contrast = contrast ? 'high' : '';
+    }
+    hud.refresh();
+  };
+
+  const applyStrength = (next: number): void => {
+    elo = next;
+    opponent.setStrength(next);
+    prefs.save({ elo: next });
+    hud.refresh();
+    // A change mid-search would otherwise be answered at the OLD rating.
+    if (game.phase() === 'thinking') {
+      opponent.cancel();
+      searching = false;
+      askOpponent();
+    }
+  };
+
   const opponent = (deps.makeOpponent ?? createStockfishClient)({
     onThought: (thought: Thought) => thinking.update(thought),
   });
@@ -833,14 +868,28 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      * each in `app/js/i18n/{pt,en,es}.ts` and we project just those six here.
      */
     dictionaries: (() => {
+      /*
+       * Every key the engine's own surfaces resolve from CHESS's catalogue: the preset's labels,
+       * each gameOption's label + hint, each list value's label. The three catalogues in
+       * `app/js/i18n/{pt,en,es}.ts` carry the words; this is the projection into the flat shape
+       * `CreateGameOptions.dictionaries` wants.
+       *
+       * A KEY THE DICTIONARY LACKS LEAVES A ROW UNNAMED (ADR-0232 D3). The engine's `problems`
+       * list says which — keep this list exhaustive against every `labelKey`/`hintKey` below.
+       */
       const keys = [
         'keys.move', 'keys.select', 'keys.cancel', 'keys.teacher', 'keys.panel', 'keys.sonar',
-        // Wave 2a: labels for the chess-specific `gameOptions` the engine draws. The option
-        // itself takes `hud.pieceSet` (already in the catalogue), the hint goes to the engine's
-        // footer, and the three value labels are the typeface names — proper nouns, same text
-        // in pt/en/es, kept so the engine's own panel reads them without reaching for ours.
         'hud.pieceSet', 'go.pieceSet.hint',
         'pieceSet.symbols', 'pieceSet.math', 'pieceSet.pecita',
+        'hud.boardTheme', 'go.boardTheme.hint',
+        'theme.brown', 'theme.wikipedia', 'theme.xboard', 'theme.jose',
+        'theme.cbsafe', 'theme.contrast1', 'theme.contrast2',
+        'hud.mode', 'go.mode.hint', 'mode.w.long', 'mode.b.long', 'mode.two.long',
+        'hud.strength', 'go.strength.hint',
+        'elo.1000', 'elo.1200', 'elo.1400', 'elo.1600', 'elo.1800', 'elo.2000',
+        'elo.2200', 'elo.2300', 'elo.2400', 'elo.2500', 'elo.3000',
+        'hud.outline', 'go.outline.hint',
+        'hud.coordinates', 'go.coordinates.hint',
       ];
       const project = (locale: 'pt' | 'en' | 'es'): Readonly<Record<string, string>> => {
         const scoped = createI18n(locale);
@@ -873,7 +922,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
         id: 'piece-set',
         labelKey: 'hud.pieceSet',
         hintKey: 'go.pieceSet.hint',
-        kind: 'list',
+        kind: 'list' as const,
         values: [
           { value: 'symbols', labelKey: 'pieceSet.symbols' },
           { value: 'math', labelKey: 'pieceSet.math' },
@@ -881,6 +930,70 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
         ],
         read: (): string => view.hudControls.pieceSet?.() ?? 'symbols',
         write: (value: string): void => { view.hudControls.onPieceSet?.(value); },
+      },
+      {
+        /*
+         * Palette. The seven BOARD_THEMES (two high-contrast included) cycle through
+         * `applyTheme`, which carries the side-effects chess-pause's own radio carried: persist,
+         * repaint, swap `data-contrast`, refresh HUD.
+         */
+        id: 'board-theme',
+        labelKey: 'hud.boardTheme',
+        hintKey: 'go.boardTheme.hint',
+        kind: 'list' as const,
+        values: BOARD_THEMES.map((t) => ({ value: t.key, labelKey: t.name })),
+        read: (): string => themeKey,
+        write: (value: string): void => { applyTheme(value); },
+      },
+      {
+        /*
+         * Who plays. `chooseMode` saves to sessionStorage and reloads — same path as chess-pause.
+         */
+        id: 'mode',
+        labelKey: 'hud.mode',
+        hintKey: 'go.mode.hint',
+        kind: 'list' as const,
+        values: [
+          { value: 'w',   labelKey: 'mode.w.long' },
+          { value: 'b',   labelKey: 'mode.b.long' },
+          { value: 'two', labelKey: 'mode.two.long' },
+        ],
+        read: (): string => mode,
+        write: (value: string): void => { chooseMode(value as GameMode); },
+      },
+      {
+        /*
+         * Opponent strength. STRENGTH_LADDER.name is already the elo-i18n key; `applyStrength`
+         * persists, retargets Stockfish mid-search, and refreshes the HUD.
+         */
+        id: 'strength',
+        labelKey: 'hud.strength',
+        hintKey: 'go.strength.hint',
+        kind: 'list' as const,
+        values: STRENGTH_LADDER.map((rung) => ({ value: String(rung.elo), labelKey: rung.name })),
+        read: (): string => String(elo),
+        write: (value: string): void => { applyStrength(Number.parseInt(value, 10)); },
+      },
+      {
+        /*
+         * Piece outline. VIEW-DEPENDENT: the flat board has none (its glyphs are typefaces); a
+         * read falls back to false there, and a write is a no-op. Not perfect UX while chess-pause
+         * still coexists; Onda 2b considers persisting it across views.
+         */
+        id: 'outline',
+        labelKey: 'hud.outline',
+        hintKey: 'go.outline.hint',
+        kind: 'switch' as const,
+        read: (): boolean => view.hudControls.outline?.() ?? false,
+        write: (on: boolean): void => { view.hudControls.onOutline?.(on); },
+      },
+      {
+        id: 'coordinates',
+        labelKey: 'hud.coordinates',
+        hintKey: 'go.coordinates.hint',
+        kind: 'switch' as const,
+        read: (): boolean => view.hudControls.coordinates(),
+        write: (on: boolean): void => { view.hudControls.onCoordinates(on); },
       },
     ],
 
@@ -1023,28 +1136,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     debug: debugAsked,
     themes: BOARD_THEMES.map((t) => ({ key: t.key, name: t.name })),
     theme: () => themeKey,
-    onTheme: (key) => {
-      themeKey = key;
-      view.applyTheme(key);
-      prefs.save({ theme: key });
-      /*
-       * Choosing a palette by hand is a statement about the whole game, and leaving the panel in an
-       * ordinary skin while the board is high-contrast would be a lie the checkbox told.
-       *
-       * ⚠️ AND IT TOLD IT, FOR AS LONG AS THIS ATTRIBUTE SAT ON THE BOARD. The panel is a sibling of
-       * the board, so all twenty-odd `.chess-hud`, `.hud-*` and `.theme-report` rules written under
-       * this attribute matched NOTHING — a descendant selector cannot cross to a sibling. Measured
-       * on the running page: `#game-region.contains(.chess-hud)` was false. The intent above is
-       * older than the defect; what it was missing was an element that contains both, which the
-       * region now is.
-       */
-      const contrast = key.startsWith('contrast-');
-      if (paletteHigh !== contrast) {
-        paletteHigh = contrast;
-        region.dataset.contrast = contrast ? 'high' : '';
-      }
-      hud.refresh();
-    },
+    onTheme: applyTheme,
     vision: () => vision,
     onVision: (key) => applyVision(key),
     reducedMotion: () => motionReduced,
@@ -1066,18 +1158,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     }),
     strengths: STRENGTH_LADDER.map((rung) => ({ elo: rung.elo, name: rung.name })),
     strength: () => elo,
-    onStrength: (next) => {
-      elo = next;
-      opponent.setStrength(next);
-      prefs.save({ elo: next });
-      hud.refresh();
-      // A change mid-search would otherwise be answered at the OLD rating.
-      if (game.phase() === 'thinking') {
-        opponent.cancel();
-        searching = false;
-        askOpponent();
-      }
-    },
+    onStrength: applyStrength,
 
     // No engine in a two-player game, so nobody to ask.
     ...(mode === 'two' ? {} : {
