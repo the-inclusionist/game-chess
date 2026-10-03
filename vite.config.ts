@@ -67,8 +67,20 @@ const LIB_BUILD = {
 export default defineConfig(({ mode }) => {
   // The one switch. Everything below reads it rather than being written twice.
   const lib = mode === 'lib';
+  /*
+   * ========================= THE SUBPATH THE PLATFORM SERVES THIS GAME AT =========================
+   * ADR-0117: the catalogue lives at `o-inclusionista.jrocha.dev.br/<slug>/*` so a child's accessibility
+   * profile and the ~1.2 GiB of heavy models stay on one origin. `INCL_BASE` is set in `wrangler.toml`
+   * to `/game-chess/` for the CF Pages build; locally it is absent and `base` falls back to `'/'`, so
+   * `npm run dev` and the test fixtures keep working at the document root. The ternary writes
+   * `dist/game-chess/` when the env is set and plain `dist/` when it is not, which matches what the
+   * CF Pages build picks up (its output root is `dist/`).
+   */
+  const incl = process.env.INCL_BASE ?? '/';
+  const subpath = incl.replace(/\/+$/, '');
   return {
   root: 'app',
+  base: lib ? undefined : incl,
   /*
    * ⚠️ NO `public/` IN THE CARTRIDGE, AND THIS WAS MEASURED AS A DEFECT RATHER THAN FORESEEN. The
    * first lib build came out at 7.6 MB, of which 7.1 MB was `vendor/` — Vite copies `publicDir`
@@ -138,7 +150,12 @@ export default defineConfig(({ mode }) => {
     }),
   ],
   build: lib ? LIB_BUILD : {
-    outDir: '../dist',
+    /*
+     * ⚠️ `../dist${subpath}` — EMPTY in dev builds, `../dist/game-chess` in the CF Pages build.
+     * The `_headers` file the post-build script writes lands in `dist/`, not inside the subpath
+     * folder, because CF Pages only reads `_headers` at the root of `pages_build_output_dir`.
+     */
+    outDir: '../dist' + subpath,
     emptyOutDir: true,
     target: 'es2022',
     /*

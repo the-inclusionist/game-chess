@@ -19,9 +19,17 @@ import type { EngineClient, EngineMove } from './client.ts';
 import { HINT_LINES, sameLevel } from './same-level.ts';
 import { limitFor, parseBestMove, parseInfo, parseSpinOption, type Thought } from './uci.ts';
 
-/** Where the vendored build lives, served from this origin. */
-const ENGINE_URL = '/vendor/engine/stockfish-18-lite-single.js';
-const WASM_URL = '/vendor/engine/stockfish-18-lite-single.wasm';
+/**
+ * Where the vendored build lives, served from this origin.
+ *
+ * ⚠️ `BASE_URL`-PREFIXED (Wave «Publicar», 2026-10-02): the platform serves this game at
+ * `o-inclusionista.jrocha.dev.br/game-chess/`, so the Stockfish asset lives under
+ * `/game-chess/vendor/engine/...`. A leading `/` would resolve against the DOMAIN root — where
+ * the Pages Function at `/heavy/*` is the only thing — and the worker would 404. Local
+ * `npm run dev` sets `BASE_URL` to `'/'`, so the path collapses back to `/vendor/engine/...`.
+ */
+const ENGINE_URL = `${import.meta.env.BASE_URL}vendor/engine/stockfish-18-lite-single.js`;
+const WASM_URL = `${import.meta.env.BASE_URL}vendor/engine/stockfish-18-lite-single.wasm`;
 
 /** How long the opponent thinks, how long a hint thinks, how long a verdict takes. Milliseconds. */
 const MOVE_MS = 600;

@@ -3,6 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  ⚠️ `<base href="/" />` NEEDED BY WAVE «Publicar» (ADR-0117, 2026-10-02): the platform serves
+  this game under `o-inclusionista.jrocha.dev.br/game-chess/`, but the shared R2 proxy for the
+  engine's heavy files lives at the DOMAIN ROOT at `/heavy/*`. Without an explicit `<base>`,
+  `document.baseURI` would be `.../game-chess/`, and the engine's `new URL('heavy/...', baseURI)`
+  resolves to `.../game-chess/heavy/...` — one route 404s per heavy file. With `base='/'`, the
+  same code resolves to `/heavy/...` on the root and finds the proxy. Relative asset `href`s in
+  this file (CSS, JS) still land under the subpath because Vite rewrites them at build time;
+  base only shifts what `new URL(..., baseURI)` resolves against in runtime.
+-->
+<base href="/" />
 <title>Xadrez de Hartwig</title>
 <link rel="stylesheet" href="./css/board.css">
 <style>

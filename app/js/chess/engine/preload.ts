@@ -16,10 +16,18 @@
 // cost is the bar having told the truth about a download that then happened again. Worth stating
 // because it is the failure mode, and it is a slow page rather than a broken one.
 
-/** The two files the worker needs, largest first so the bar moves in the order it matters. */
+/**
+ * The two files the worker needs, largest first so the bar moves in the order it matters.
+ *
+ * ⚠️ `BASE_URL`-PREFIXED (Wave «Publicar», 2026-10-02): the platform serves this game at
+ * `o-inclusionista.jrocha.dev.br/game-chess/`, so the Stockfish asset lives at
+ * `/game-chess/vendor/engine/...`. A leading `/` would resolve against the DOMAIN root (where
+ * nothing is served) and the precache would 404 silently. Local `npm run dev` sets `BASE_URL`
+ * to `'/'`, so the path collapses back to `/vendor/engine/...` and nothing moves.
+ */
 const PARTS: readonly string[] = [
-  '/vendor/engine/stockfish-18-lite-single.wasm',
-  '/vendor/engine/stockfish-18-lite-single.js',
+  `${import.meta.env.BASE_URL}vendor/engine/stockfish-18-lite-single.wasm`,
+  `${import.meta.env.BASE_URL}vendor/engine/stockfish-18-lite-single.js`,
 ];
 
 /** What the wasm weighs, for when the server does not say. Measured: 7,295,411 bytes. */

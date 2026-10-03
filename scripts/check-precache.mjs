@@ -14,8 +14,14 @@
 // Run after `vite build`, as the last step of `npm run validate`.
 import { readFileSync, existsSync } from 'node:fs';
 
-const SW = 'dist/sw.js';
-const MANIFEST = 'dist/manifest.webmanifest';
+/*
+ * ⚠️ `INCL_BASE`-AWARE (Wave «Publicar», 2026-10-02): `vite build` writes to `dist${INCL_BASE}` so
+ * the CF Pages Pages picks the right output root up. The dev build still writes to `dist/`, so an
+ * empty `INCL_BASE` resolves back to the previous paths.
+ */
+const subpath = (process.env.INCL_BASE ?? '').replace(/\/+$/, '');
+const SW = `dist${subpath}/sw.js`;
+const MANIFEST = `dist${subpath}/manifest.webmanifest`;
 
 /** What has to be in the precache, and why each one is named rather than counted. */
 const REQUIRED = [

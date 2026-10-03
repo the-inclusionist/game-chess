@@ -1,0 +1,33 @@
+# Cloudflare Pages (ADR-0117) — este ficheiro define o projeto de Pages deste jogo. Fica na raiz do repo
+# porque e' convencao do wrangler; a maior parte do que ele configura, no entanto, so se le em deploy.
+#
+# ⚠️ UM PROJETO POR JOGO ENQUANTO HOUVER UM JOGO SO. Quando o segundo cartucho chegar, este `wrangler.toml`
+# migra para um repo de plataforma e os jogos sao copiados para `platform/dist/game-<slug>/`. Ate la, cada
+# jogo e' um deploy proprio em `o-inclusionista.jrocha.dev.br/game-<slug>/`, e a Pages Function abaixo
+# aponta todos ao mesmo bucket R2 — origem partilhada, cache partilhado.
+
+name = "game-chess"
+compatibility_date = "2024-11-15"
+pages_build_output_dir = "dist"
+
+# O caminho do jogo sob a origem. Lido por `vite.config.ts` em build (ver `base: process.env.INCL_BASE`).
+# A trava de seguranca do CF Pages: variaveis que comecam por `INCL_` sao do produto; mantem-se o prefixo.
+[vars]
+INCL_BASE = "/game-chess/"
+
+# O bucket R2 que serve `/heavy/*` — PARTILHADO por todos os jogos da origem (ADR-0117).
+# 🔴 ESTE BUCKET JA EXISTE E JA ESTA CHEIO, feito pelo Dev com `the-inclusionist-lfs/upload-to-r2.ps1`
+# em 02/10. Serve-se publicamente em `https://lfs-oinclusionista.jrocha.dev.br` — o endereço que o catálogo
+# da engine aponta para Vosk, Whisper, Moonshine, eSpeak, fontes e Libras. Mas o bucket tambem contem copias
+# dos ficheiros upstream (Kokoro, MediaPipe, onnxruntime) no layout `MIRROR_FOLDERS` do heavy-mirror, para
+# o `inclusionist-heavy --base` fazer a entrega de qualquer jogo sem rede externa.
+#
+# ⚠️ O LAYOUT DO BUCKET E' PASTAS NO FORMATO DO LFS, nao `heavy/<host><path>` da entrega. A Pages Function
+# traduz, por via de `MIRROR_FOLDERS`.
+[[r2_buckets]]
+binding = "LFS"
+bucket_name = "the-inclusionist-lfs"
+# 🔴 BUCKET NA JURISDICAO EUROPEIA, medido pelo URL S3 `.eu.r2.cloudflarestorage.com` do Dev. Sem este
+# campo o binding procura no namespace global e o deploy do Pages Functions falha com `bucket not found`,
+# mesmo com o nome certo e as permissoes abertas — como o Dev viu no deploy de 02/10 19h53.
+jurisdiction = "eu"
