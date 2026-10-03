@@ -463,12 +463,31 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
    */
   function moveCursor(action: string): boolean {
     const delta = DELTA[action];
-    if (!delta) return false;
-    setCursor(
-      { x: clamp(cursor.x + delta[0], FILES - 1), y: clamp(cursor.y + delta[1], RANKS - 1) },
-      true,
-    );
-    return true;
+    if (delta) {
+      setCursor(
+        { x: clamp(cursor.x + delta[0], FILES - 1), y: clamp(cursor.y + delta[1], RANKS - 1) },
+        true,
+      );
+      return true;
+    }
+    /*
+     * ⚠️ RANK JUMP (Wave 3 Step 2, 2026-10-02): `leftShoulder` and `rightShoulder` jump to the
+     * ends of the current rank. Chess's `keyboardMapping` binds Home and End to these, so the
+     * same gesture that always ran on a desktop keyboard now reaches through the engine's
+     * virtual controller too — a child who remapped the pad can jump corners from the pad.
+     * `handleKey` below still has the `event.key === 'Home'/'End'` branches for the tests that
+     * build the mirror without wiring `resolveAction`; the two paths merge when the shell's
+     * `onCommand` replaces `onRegionKey` in Wave 3 Step 4.
+     */
+    if (action === 'leftShoulder') {
+      setCursor({ x: 0, y: cursor.y }, true);
+      return true;
+    }
+    if (action === 'rightShoulder') {
+      setCursor({ x: FILES - 1, y: cursor.y }, true);
+      return true;
+    }
+    return false;
   }
   function activate(): void {
     deps.onActivate(cursor);

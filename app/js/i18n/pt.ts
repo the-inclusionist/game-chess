@@ -232,6 +232,8 @@ export const pt: Catalog = {
     'keys.teacher': 'professor',
     'keys.panel': 'muda de painel',
     'keys.sonar': 'sonar',
+    'keys.rankStart': 'início da fileira',
+    'keys.rankEnd': 'fim da fileira',
     'keys.pause': 'pausa',
     'keys.turn': 'gira o tabuleiro',
     'keys.zoom': 'aproxima',

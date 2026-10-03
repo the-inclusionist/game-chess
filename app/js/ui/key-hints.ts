@@ -84,6 +84,10 @@ export function gameActions(sonar: keyof KeyScheme | null): readonly (readonly [
     ...MOVE.map((d) => [d, 'keys.move'] as const),
     ...VERBS,
     ...(sonar ? [[sonar, 'keys.sonar'] as const] : []),
+    // ⚠️ Wave 3 Step 2: Home/End were event.key branches in grid-mirror; they are now
+    // engine-named actions, so a child who remaps the pad can reach them from any transport.
+    ['leftShoulder', 'keys.rankStart'] as const,
+    ['rightShoulder', 'keys.rankEnd'] as const,
   ];
 }
 

@@ -211,6 +211,8 @@ export const es: Catalog = {
     'keys.teacher': 'profesor',
     'keys.panel': 'cambia de panel',
     'keys.sonar': 'sonar',
+    'keys.rankStart': 'inicio de la fila',
+    'keys.rankEnd': 'final de la fila',
     'keys.pause': 'pausa',
     'keys.turn': 'gira el tablero',
     'keys.zoom': 'acerca',

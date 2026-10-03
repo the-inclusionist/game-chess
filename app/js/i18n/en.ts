@@ -210,6 +210,8 @@ export const en: Catalog = {
     'keys.teacher': 'teacher',
     'keys.panel': 'switch panel',
     'keys.sonar': 'sonar',
+    'keys.rankStart': 'rank start',
+    'keys.rankEnd': 'rank end',
     'keys.pause': 'pause',
     'keys.turn': 'turn the board',
     'keys.zoom': 'zoom',

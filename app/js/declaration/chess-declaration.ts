@@ -194,7 +194,18 @@ export function createChessDeclaration(deps: DeclarationDeps): GameDeclaration {
      * convenience — the sonar speaks about the cursor, and there is one cursor.
      */
     keyboardMapping: (_jogadores: number, assento: number) => (
-      assento === 0 ? { [SONAR_ACTION]: ['KeyL'] } : null
+      /*
+       * ⚠️ Wave 3 Step 2 (2026-10-02): Home and End were a `grid-mirror` `event.key` branch
+       * — unreachable from the touch pad, the gamepad or the eyes, and not remappable. They
+       * come through the engine's own canonical slots now: `leftShoulder` for the start of a
+       * rank, `rightShoulder` for its end. Both only for seat 0; a second seat shares the first
+       * seat's board and does not need its own corner-jump keys.
+       */
+      assento === 0 ? {
+        [SONAR_ACTION]: ['KeyL'],
+        leftShoulder:  ['Home'],
+        rightShoulder: ['End'],
+      } : null
     ),
 
     tick: 'player',

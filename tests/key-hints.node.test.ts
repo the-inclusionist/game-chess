@@ -83,16 +83,21 @@ describe('[Key hints] the line follows the scheme, which is the point', () => {
 });
 
 describe('[Actions] the table the line and the reach count both read', () => {
-  it('⚠️ asks for nine positions, and the preset names every one', () => {
+  it('⚠️ asks for eleven positions, and the preset names every one', () => {
     /*
      * The count is what gates the reach notice: `createGame` shows it only `if (acoesDoJogo.length)`,
      * and `presetActions` counts the positions the preset names. Trimming this list would make the
      * warning quieter by understating what the game needs, which is the failure worth pinning — a
      * child on a two-button device would be told she can play a game she cannot finish.
+     *
+     * ⚠️ ELEVEN SINCE WAVE 3 STEP 2 (2026-10-02): `leftShoulder` and `rightShoulder` joined the
+     * list when Home and End moved from `grid-mirror.handleKey`'s event.key branch into chess's
+     * `keyboardMapping` — the same rank-jump gesture, remappable from the pad, reachable from
+     * every transport the engine covers.
      */
     const actions = gameActions('leftTrigger');
     expect(actions.map(([a]) => a).join(',')).toBe(
-      'up,left,down,right,action2,action3,action1,action4,leftTrigger',
+      'up,left,down,right,action2,action3,action1,action4,leftTrigger,leftShoulder,rightShoulder',
     );
 
     const preset = actionPreset('leftTrigger');
