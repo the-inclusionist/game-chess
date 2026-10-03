@@ -422,14 +422,20 @@ describe('[Panel keys] being IN the side panel is not the same as getting into i
   function shellFor() {
     fixture();
     clear();
-    saveSettings({ mode: 'two' });
+    // ⚠️ `mode: 'one'` AND `teaches: true` — post-Wave-2c the side panel's focusable rows need a
+    // reason to be mounted: lesson menu + hint toggle both come from these. In `mode: 'two'`
+    // with no lessons, the HUD side column has only state readouts (turn, moves) and the
+    // take-back/replay nav; `action4` lands on something to focus either way, but these two
+    // tests want ENOUGH rows to walk between, which `teaches` plus a single-player game gives.
+    saveSettings({ mode: 'w' });
     return makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      teaches: true,
       debugName: '__shellPanel', contrastTheme: 'contrast-flat',
     });
   }
 
-  it.skip('⚠️ walks the panel with the arrows, and leaves the board alone', () => {
+  it('⚠️ walks the panel with the arrows, and leaves the board alone', () => {
     const shell = shellFor();
     document.getElementById('chess-board')!.focus();
     const cursor = shell.mirror.cursor();
@@ -458,7 +464,7 @@ describe('[Panel keys] being IN the side panel is not the same as getting into i
     expect(shell.mirror.cursor()).toEqual({ x: cursor.x + 1, y: cursor.y });
   });
 
-  it.skip('stops at the ends rather than wrapping, like the board does', () => {
+  it('stops at the ends rather than wrapping, like the board does', () => {
     shellFor();
     document.getElementById('chess-board')!.focus();
     press('KeyI');
