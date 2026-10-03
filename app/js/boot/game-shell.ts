@@ -1183,8 +1183,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     onTheme: applyTheme,
     reducedMotion: () => motionReduced,
     onReducedMotion: (on) => { motionReduced = on; hud.refresh(); },
-    mode: () => mode,
-    onMode: chooseMode,
 
     markAt: (ply) => reviewer.markAt(ply),
     scoreboard: scoreboard.root,

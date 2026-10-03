@@ -101,8 +101,6 @@ export interface HudDeps {
    * Who is playing. Changing it starts a new game — there is no honest way to change who owns the
    * pieces in the middle of one — so the composition root does exactly that.
    */
-  mode?(): GameMode;
-  onMode?(mode: GameMode): void;
 
   /**
    * The opponent's rating, from `STRENGTH_LADDER`.
@@ -405,31 +403,6 @@ export function createHud(deps: HudDeps): Hud {
   // platform then supplies the group semantics, arrow-key movement between the options, one tab
   // stop for the whole set and the announcement "2 of 3" — none of which would come free from a
   // row of buttons, and all of which would have to be rebuilt correctly here.
-  const groupOf = (
-    name: string, values: readonly string[], id: (v: string) => string,
-  ): { box: HTMLElement; legend: HTMLElement; options: { input: HTMLInputElement; label: HTMLElement }[] } => {
-    const box = doc.createElement('fieldset');
-    box.className = 'hud-choice';
-    const legend = doc.createElement('legend');
-    box.appendChild(legend);
-    // ⚠️ The label is KEPT, not looked up later. `createHud` calls its own `refresh()` while it is
-    // being built, before the panel is in the document — so a `document.querySelector` for it finds
-    // nothing and every button comes out blank. Holding the element is also simply cheaper.
-    const options = values.map((value) => {
-      const input = doc.createElement('input');
-      input.type = 'radio';
-      input.name = name;
-      input.value = value;
-      input.id = id(value);
-      const label = doc.createElement('label');
-      label.htmlFor = input.id;
-      box.append(input, label);
-      return { input, label };
-    });
-    return { box, legend, options };
-  };
-
-
   // ========================= THE CAPTURES MOVED TO THE BOARD =========================
   // They used to be here, and here is where they were least useful: a player deciding on a move
   // is looking at the board, and a row of glyphs they have to look away to read is a row of
@@ -509,7 +482,10 @@ export function createHud(deps: HudDeps): Hud {
   motionLabel.className = 'hud-check';
   motionBox.append(motionInput, motionLabel);
 
-  const modeGroup = groupOf('hud-mode', ['w', 'b', 'two'], (v) => `hud-mode-${v}`);
+  // ⚠️ `modeGroup` RETIRED (Wave 2d, 2026-10-02): the who-plays choice lives in
+  // `hooks.gameOptions` as `{id: 'mode', kind: 'list'}` and the engine's `.ctrl-row` panel
+  // renders it. The HUD's own radio group was built here and appended to `settings`, which has
+  // not reached the DOM since Wave 2c.
 
   // --- protected mode ---------------------------------------------------------
   // A switch and not a difficulty: it does not change how the opponent plays, it changes what
@@ -677,11 +653,6 @@ export function createHud(deps: HudDeps): Hud {
   settings.append(motionBox);
   if (deps.onOutline) settings.appendChild(outlineBox);
   settings.appendChild(coordsBox);
-
-  function onModeInput(event: Event): void {
-    deps.onMode?.((event.target as HTMLInputElement).value as GameMode);
-  }
-  for (const { input } of modeGroup.options) input.addEventListener('change', onModeInput);
 
   function onProtectedChange(): void { deps.onProtected?.(protectedInput.checked); }
   protectedInput.addEventListener('change', onProtectedChange);
@@ -940,17 +911,6 @@ export function createHud(deps: HudDeps): Hud {
       hintButton.dataset.busy = String(deps.hintBusy?.() ?? false);
     }
 
-    if (deps.onMode) {
-      modeGroup.legend.textContent = i18n.t('hud.mode');
-      const chosen = deps.mode?.() ?? 'w';
-      for (const { input, label } of modeGroup.options) {
-        label.textContent = i18n.t(`mode.${input.value}`);
-        // The short label fits three across an 88-pixel column; the full phrase is what is spoken.
-        label.setAttribute('aria-label', i18n.t(`mode.${input.value}.long`));
-        input.checked = input.value === chosen;
-      }
-    }
-
     if (deps.pieceSets) {
       setLabel.textContent = i18n.t('hud.pieceSet');
       // The list first: a swapped view brings different drawings, and the value below has to be
@@ -988,7 +948,6 @@ export function createHud(deps: HudDeps): Hud {
     report,
     refresh,
     destroy() {
-      for (const { input } of modeGroup.options) input.removeEventListener('change', onModeInput);
       hintButton.removeEventListener('click', onHintClick);
       lessonButton.removeEventListener('click', onLessonClick);
       localeSelect.removeEventListener('change', onLocaleChange);
