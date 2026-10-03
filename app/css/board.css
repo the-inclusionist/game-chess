@@ -261,12 +261,20 @@ html { background: var(--page); }
     position: absolute;
     top: calc(var(--ui-fs, 16px) * 2.6);
     /*
-     * ⚠️ SQUARE CANVAS AT ITS AVAILABLE HEIGHT (2026-10-03). The canvas internal is 360×360
-     * (Zdog's `LOGICAL_W/H`), so letting CSS stretch it to a non-square shape squashes the
-     * drawing. `height` = whatever's left after the top strip; `aspect-ratio: 1` forces the
-     * matching width, and `left: 50%; transform: translateX(-50%)` keeps it centred.
+     * ⚠️ SQUARE CANVAS, SMALLER THAN THE BOX IT SITS IN (2026-10-03). The canvas internal is
+     * 360×360 (Zdog's `LOGICAL_W/H`), so a non-square CSS box squashes the drawing —
+     * `aspect-ratio: 1` with `left: 50%; translateX(-50%)` keeps it square and centred.
+     *
+     * The `5.0` (rather than the `2.6` the top strip alone needs) is the Dev's "diminuir o
+     * tabuleiro" of 2026-10-03, and it is what makes room for the coordinates. Measured on the
+     * running page: the painted board + pieces fill 335 of the canvas's 360 internal pixels, so
+     * only 12 px of margin per side — while `ui/coordinates` needs about 23 to put its labels
+     * beside and below the board. Taking 5 em off the square leaves ~40 px of `#chess-board`
+     * clear on the left and under the board, which is where the rank numbers and file letters
+     * land. Shrinking HERE rather than at `CAMERA.zoom` keeps the piece-ink and ball-fill ratio
+     * tests on the resolution they were calibrated against.
      */
-    height: calc(100% - var(--ui-fs, 16px) * 2.6);
+    height: calc(100% - var(--ui-fs, 16px) * 5.0);
     aspect-ratio: 1;
     left: 50%;
     transform: translateX(-50%);
@@ -1145,8 +1153,22 @@ html { background: var(--page); }
    * player reaches for.
    */
   .coords {
+    /*
+     * ⚠️ THIS BOX MUST MATCH `#board-canvas` EXACTLY (2026-10-03). `ui/coordinates.put()` writes
+     * `translate(...)` values measured from the CANVAS's own top-left — "positioned against the
+     * canvas rather than against the page", as the note there says. That held while the canvas
+     * was `inset: 0` of `#chess-board` and the two boxes coincided. The moment the canvas was
+     * shrunk to make room for these very labels, the overlay stopped lining up with the frame
+     * its numbers are expressed in, and every label drifted left by the canvas's own offset.
+     *
+     * So the four properties below are COPIES of the canvas's, and they have to stay copies.
+     */
     position: absolute;
-    inset: 0;
+    top: calc(var(--ui-fs, 16px) * 2.6);
+    height: calc(100% - var(--ui-fs, 16px) * 5.0);
+    aspect-ratio: 1;
+    left: 50%;
+    transform: translateX(-50%);
     pointer-events: none;
     /* ADR-0163 floor: text ≥ 16 px at 640×360. The old `calc(... * 0.62)` dropped to ~10 px — a label
        a child with low vision cannot read. 8 letters at 16 px fit the 360 px board edge with room. */
