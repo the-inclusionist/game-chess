@@ -2312,6 +2312,44 @@ e verdes em `main`, para o `git bisect` ter chão onde cair.
 
 ## ⚠️ Publicar — infraestrutura partilhada em `o-inclusionista.jrocha.dev.br`
 
+### Estado — 2026-10-02
+
+✅ **Lado do cartucho feito** no commit `fe6a61d`. As três subsecções que
+pediam ficheiros ou código do xadrez (2.1 ficheiros de infra, 2.2 mudanças
+em `app/` e `vite.config.ts`, 2.3 declarações do cartucho) estão aterradas:
+
+- `wrangler.toml` na raiz, com `INCL_BASE = "/game-chess/"` e o binding R2
+  jurisdicional (eu).
+- `functions/heavy/[[path]].ts` idêntico ao do platformer (uma função serve
+  todos os jogos do domínio; chess só adiciona o seu binding).
+- `scripts/post-build-cloudflare.mjs` adaptado — `prefix` passa a ser
+  `/game-chess`.
+- `vite.config.ts` lê `INCL_BASE` para `base` e para `outDir`.
+- `app/index.html` tem `<base href="/" />` logo no topo do `<head>`.
+- As quatro ocorrências do caminho absoluto do Stockfish passam por
+  `${import.meta.env.BASE_URL}vendor/engine/…` (`preload.ts` e
+  `stockfish-client.ts`).
+- `scripts/check-precache.mjs` passou a ler `dist${INCL_BASE}/sw.js` para
+  o portão funcionar nos dois modos.
+
+Verificação local (ambos os caminhos):
+
+```
+MSYS_NO_PATHCONV=1 INCL_BASE=/game-chess/ npm run build
+   → dist/game-chess/* com `<base href="/" />`, assets prefixados,
+     stockfish-18-lite-single.wasm no sw.js, post-build cuspe
+     dist/_headers com prefixo /game-chess/.
+npm run build (sem INCL_BASE)
+   → dist/* como antes; check-precache verde.
+```
+
+⏸️ **Lado do Dev** (secção 2.4 abaixo e as linhas de infra fora deste
+repositório): ligar o repo ao projecto do Cloudflare Pages, confirmar que
+o Router Worker em `jrocha.dev.br` encaminha `o-inclusionista.jrocha.dev.br/game-chess/*`
+para o projecto desta Pages, e que o balde R2 responde ao binding deste
+jogo. Fica no plano porque é o passo que leva o commit a estar em frente
+de uma criança.
+
 **Contexto** (recebido em 2026-10-02, do trabalho de publicação do `game-platformer`
 que estreou o padrão). Cada jogo do catálogo publica em **Cloudflare Pages**, com
 um **Router Worker** em `jrocha.dev.br` a servir **todos os jogos sob UMA mesma
