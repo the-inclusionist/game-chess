@@ -65,8 +65,6 @@ export interface HudDeps {
    * know what an ECO code is; whoever owns the game looks it up and hands over the answer.
    */
   opening?(): string | null;
-  reducedMotion(): boolean;
-  onReducedMotion(on: boolean): void;
   /**
    * The piece-outline switch. OPTIONAL: the projected board has an outline to turn off and the
    * flat board has none, and a control that had to be repurposed to stay on both pages ended up
@@ -447,14 +445,11 @@ export function createHud(deps: HudDeps): Hud {
   // which is richer than a single switch and is the right shape for a platformer. None of those
   // elements exist here: this game moves exactly one thing, a piece crossing the board. So the
   // control is one switch, seeded from the system preference the person already expressed.
-  const motionBox = doc.createElement('p');
-  const motionInput = doc.createElement('input');
-  motionInput.type = 'checkbox';
-  motionInput.id = 'hud-motion';
-  const motionLabel = doc.createElement('label');
-  motionLabel.htmlFor = motionInput.id;
-  motionLabel.className = 'hud-check';
-  motionBox.append(motionInput, motionLabel);
+  // ⚠️ MOTION SWITCH RETIRED (Wave 2d, 2026-10-02): the HUD's checkbox was zombie code
+  // since Wave 2c and no `gameOption` was ever opened for motion. Chess reads
+  // `window.matchMedia('(prefers-reduced-motion: reduce)').matches` at boot and uses it for the
+  // views' animation speed; there is no in-game override until a `gameOption` or an engine a11y
+  // icon arrives for it.
 
   // ⚠️ `modeGroup` RETIRED (Wave 2d, 2026-10-02): the who-plays choice lives in
   // `hooks.gameOptions` as `{id: 'mode', kind: 'list'}` and the engine's `.ctrl-row` panel
@@ -580,7 +575,6 @@ export function createHud(deps: HudDeps): Hud {
   // card. The next commit removes the whole settings panel from this file.
   if (deps.pieceSets) settings.appendChild(setBox);
   if (deps.themes) settings.appendChild(themeBox);
-  settings.append(motionBox);
 
   function onHintClick(): void { deps.onHint?.(); }
   hintButton.addEventListener('click', onHintClick);
@@ -590,8 +584,6 @@ export function createHud(deps: HudDeps): Hud {
 
 
 
-  function onMotionChange(): void { deps.onReducedMotion(motionInput.checked); }
-  motionInput.addEventListener('change', onMotionChange);
 
 
   function onSetChange(): void { deps.onPieceSet?.(setSelect.value); }
@@ -750,9 +742,6 @@ export function createHud(deps: HudDeps): Hud {
     // These labels come from the ENGINE's catalogue, not this game's: the modes are the engine's
     // and it already names them in all three languages. Restating them here would be a second
     // copy to drift.
-    motionLabel.textContent = i18n.t('hud.reducedMotion');
-    motionInput.checked = deps.reducedMotion();
-
     /*
      * ================= ⚠️ THESE THREE ARE NOT THE HINT'S, AND THEY USED TO BE =================
      * The lesson list, the language selector and the opening name sat inside `if (deps.onHint)`
@@ -839,7 +828,6 @@ export function createHud(deps: HudDeps): Hud {
     destroy() {
       hintButton.removeEventListener('click', onHintClick);
       lessonButton.removeEventListener('click', onLessonClick);
-      motionInput.removeEventListener('change', onMotionChange);
       setSelect.removeEventListener('change', onSetChange);
       themeSelect.removeEventListener('change', onThemeChange);
       themeSelect.removeEventListener('mousedown', showReport);

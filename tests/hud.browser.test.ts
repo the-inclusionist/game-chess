@@ -22,15 +22,12 @@ afterEach(() => { hud?.destroy(); hud = null; document.body.replaceChildren(); }
 function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   const rules = createRules(fen);
   const state = createGameState({ rules, opponent: false });
-  let motion = false;
-  const onReducedMotion = vi.fn((on: boolean) => { motion = on; });
   const viewAsks: string[] = [];
   // The composition root cancels the search and redraws around these; the panel only asks.
   const onTakeBack = vi.fn(() => { state.takeBack(); hud!.refresh(); });
   const onReplay = vi.fn(() => { state.replay(); hud!.refresh(); });
   hud = createHud({
     doc: document, i18n: createI18n(locale), rules: () => rules, state: () => state,
-    reducedMotion: () => motion, onReducedMotion,
     view: () => '2.5d',
     // Recorded rather than acted on: the panel's job is to ASK for a view, and what that means is
     // the composition root's. A harness that mounted a renderer here would be testing the shell.
@@ -70,7 +67,6 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
     hud!.refresh();
   };
   return { rules, state, hud, play, viewAsks,
-           onReducedMotion, getMotion: () => motion,
            onTakeBack, onReplay };
 }
 
@@ -166,23 +162,10 @@ describe('[i18n] the panel follows the interface language', () => {
 // cvd icon drives chess's `setPlayerCorrection` hook, so the correction is still reachable; the
 // select the tests tracked went away because it was never shown to a child in the first place.
 
-describe('[Reduced motion] one switch, because one thing moves', () => {
-  it('offers a labelled checkbox', () => {
-    build();
-    const label = document.querySelector<HTMLLabelElement>('label[for="hud-motion"]')!;
-    expect(label.textContent).toBe('Movimento reduzido');
-    expect(label.htmlFor).toBe('hud-motion');
-  });
-
-  it('reports a change', () => {
-    const { onReducedMotion, getMotion } = build();
-    const box = document.querySelector<HTMLInputElement>('#hud-motion')!;
-    box.checked = true;
-    box.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(onReducedMotion).toHaveBeenCalledWith(true);
-    expect(getMotion()).toBe(true);
-  });
-});
+// ⚠️ `[Reduced motion] one switch, because one thing moves` DELETED (Wave 2d, 2026-10-02):
+// the HUD's own motion checkbox was zombie code since Wave 2c and is gone. Chess still reads
+// the OS `prefers-reduced-motion` pref at boot and feeds `motionReduced` to the views, but
+// there is no in-game override until a `gameOption` or an engine a11y icon arrives for it.
 
 // ⚠️ `[Outline] on by default, and switchable` DELETED (Wave 2d, 2026-10-02): the HUD's
 // own outline switch was zombie code since Wave 2c and is gone. The piece-outline toggle lives

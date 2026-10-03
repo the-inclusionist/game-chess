@@ -1181,8 +1181,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     themes: BOARD_THEMES.map((t) => ({ key: t.key, name: t.name })),
     theme: () => themeKey,
     onTheme: applyTheme,
-    reducedMotion: () => motionReduced,
-    onReducedMotion: (on) => { motionReduced = on; hud.refresh(); },
 
     markAt: (ply) => reviewer.markAt(ply),
     scoreboard: scoreboard.root,
