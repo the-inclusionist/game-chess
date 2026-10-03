@@ -222,6 +222,79 @@ describe('[Keyboard] the arrows walk the board', () => {
   });
 });
 
+/*
+ * ========================= THE KEY-FREE API, FOR THE ONCOMMAND PATH =========================
+ * ⚠️ `moveCursor` and `activate` are the entries the shell's `onCommand` handler (Wave 3) reaches
+ * — virtual commands arrive with an action NAME, not a KeyboardEvent, so these are tested with
+ * neither event dispatch nor `press(...)`. The pair also powers `handleKey`'s body: an arrow key
+ * through the DOM goes through moveCursor, and action2 through activate. These tests pin the
+ * key-free contract so a refactor that moves the body elsewhere cannot silently change the
+ * cursor's bounds, the clamp, or the activation path.
+ */
+describe('[Command API] moveCursor and activate work without an event', () => {
+  it('moveCursor(left/right/up/down) returns true and shifts the cursor', () => {
+    const { mirror: m } = build();
+    m.focusSquare(sq('d4'));
+    expect(m.moveCursor('right')).toBe(true);
+    expect(toAlgebraic(m.cursor())).toBe('e4');
+    expect(m.moveCursor('up')).toBe(true);
+    expect(toAlgebraic(m.cursor())).toBe('e5');
+    expect(m.moveCursor('left')).toBe(true);
+    expect(toAlgebraic(m.cursor())).toBe('d5');
+    expect(m.moveCursor('down')).toBe(true);
+    expect(toAlgebraic(m.cursor())).toBe('d4');
+  });
+
+  it('moveCursor clamps at the board edges, not wraps', () => {
+    // Same clamp rule as `handleKey` — a board has corners, and a player who runs into one
+    // should feel the edge rather than being teleported to the far file.
+    const { mirror: m } = build();
+    m.focusSquare(sq('a1'));
+    expect(m.moveCursor('left')).toBe(true);
+    expect(toAlgebraic(m.cursor()), 'cannot go further left').toBe('a1');
+    expect(m.moveCursor('down')).toBe(true);
+    expect(toAlgebraic(m.cursor()), 'cannot go further down').toBe('a1');
+    m.focusSquare(sq('h8'));
+    expect(m.moveCursor('right')).toBe(true);
+    expect(toAlgebraic(m.cursor()), 'cannot go further right').toBe('h8');
+    expect(m.moveCursor('up')).toBe(true);
+    expect(toAlgebraic(m.cursor()), 'cannot go further up').toBe('h8');
+  });
+
+  it('moveCursor(leftShoulder/rightShoulder) jumps to the file edge on the current rank', () => {
+    // Wave 3 Step 3: Home and End became `leftShoulder` and `rightShoulder` in chess's
+    // keyboardMapping, so a child who remaps the pad can jump the rank from any transport.
+    const { mirror: m } = build();
+    m.focusSquare(sq('d4'));
+    expect(m.moveCursor('leftShoulder')).toBe(true);
+    expect(toAlgebraic(m.cursor())).toBe('a4');
+    m.focusSquare(sq('d4'));
+    expect(m.moveCursor('rightShoulder')).toBe(true);
+    expect(toAlgebraic(m.cursor())).toBe('h4');
+  });
+
+  it('moveCursor returns false and does nothing for an unknown action', () => {
+    const { mirror: m } = build();
+    m.focusSquare(sq('d4'));
+    const before = m.cursor();
+    expect(m.moveCursor('action1')).toBe(false);
+    expect(m.moveCursor('')).toBe(false);
+    expect(m.moveCursor('nonsense')).toBe(false);
+    expect(m.cursor(), 'cursor unchanged for unknown actions').toEqual(before);
+  });
+
+  it('activate() calls onActivate with the current cursor square', () => {
+    const { onActivate, mirror: m } = build();
+    m.focusSquare(sq('e2'));
+    m.activate();
+    expect(onActivate).toHaveBeenCalledWith(sq('e2'));
+    // Activating again from the same cursor should re-fire; `handleKey` already does this through
+    // action2, so the key-free path has to behave the same.
+    m.activate();
+    expect(onActivate).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('[Activation] the keyboard uses the same door as the pointer', () => {
   it('a click on a cell activates that square', () => {
     const { onActivate } = build();
