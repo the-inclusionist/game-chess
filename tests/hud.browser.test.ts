@@ -16,12 +16,9 @@ const sq = (name: string): Square => {
 let hud: Hud | null = null;
 afterEach(() => { hud?.destroy(); hud = null; document.body.replaceChildren(); });
 
-const ENGINE_VIZ_PT: Record<string, string> = {
-  'viz.fix-protan': 'Correção protanopia',
-  'viz.fix-deuter': 'Correção deuteranopia',
-  'viz.fix-tritan': 'Correção tritanopia',
-};
-const engineTStub = (key: string): string => ENGINE_VIZ_PT[key] ?? key;
+// ⚠️ `engineT` RETIRED in Wave 2 item 2: the vision select's labels now come from chess's own
+// catalogues (which mirror the engine's `viz.fix-*` entries), so the HUD does not reach into
+// the engine's dictionary any more. Tests here build the HUD with chess's own `i18n` alone.
 
 function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   const rules = createRules(fen);
@@ -39,7 +36,6 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   const onTakeBack = vi.fn(() => { state.takeBack(); hud!.refresh(); });
   const onReplay = vi.fn(() => { state.replay(); hud!.refresh(); });
   hud = createHud({
-    engineT: engineTStub,
     doc: document, i18n: createI18n(locale), rules: () => rules, state: () => state,
     vision: () => vision, onVision,
     reducedMotion: () => motion, onReducedMotion,

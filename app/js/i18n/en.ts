@@ -43,6 +43,11 @@ export const en: Catalog = {
     'hud.reducedMotion': 'Reduced motion',
     'hud.outline':    'Piece outline',
     'viz.trichromatic': 'Standard vision',
+    // ⚠️ Mirror the engine's `viz.fix-*` entries so `hud.ts` can translate the vision
+    // select's labels through chess's own `i18n`.
+    'viz.fix-protan': 'Protanopia correction',
+    'viz.fix-deuter': 'Deuteranopia correction',
+    'viz.fix-tritan': 'Tritanopia correction',
     'hud.vision':     'Colour vision',
     'hud.takeBack':   'Take back',
     'hud.replay':     'Play forward',

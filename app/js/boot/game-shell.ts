@@ -1067,8 +1067,12 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * The engine arrives in `create(received)`. Everywhere BELOW this line `engine` reads it
    * through a non-null assertion — correct, because every caller runs after `create` has set it.
    * The ref beside it exists for the handful of CLOSURES evaluated during construction, before
-   * `create` runs: `engineT` passed to the HUD is the one; a second one may be added as the
-   * surface grows. `engineRef.current` is null until `create` sets it.
+   * `create` runs. `engineRef.current` is null until `create` sets it.
+   *
+   * ⚠️ `engineT` RETIRED in Wave 2 item 2 (2026-10-02): the vision select's option labels now go
+   * through chess's own `i18n` (which mirrors the engine's `viz.fix-*` entries), so the HUD no
+   * longer needs a lazy translator ref. The engineRef stays for `onLocaleChange` and any future
+   * closure that genuinely needs to reach the engine during construction.
    */
   const engineRef: { current: Engine | null } = { current: null };
   let engine!: Engine;
@@ -1136,10 +1140,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
   let mounted = true;
 
   const hud = createHud({
-    // Lazy — the HUD is built before `create(engine)` runs and refreshes once in that
-    // moment. Returning the key is honest: it is what `Translator.t` returns for a key the
-    // dictionary lacks.
-    engineT: (key: string) => (engineRef.current ? engineRef.current.t(key) : key),
     doc: host,
     view: () => viewKind,
     /*

@@ -44,6 +44,11 @@ export const es: Catalog = {
     'hud.reducedMotion': 'Movimiento reducido',
     'hud.outline':    'Contorno de piezas',
     'viz.trichromatic': 'Visión estándar',
+    // ⚠️ Reproduce las entradas `viz.fix-*` de la engine para que `hud.ts` pueda
+    // traducir las etiquetas del selector de visión a través del propio `i18n` del ajedrez.
+    'viz.fix-protan': 'Corrección protanopía',
+    'viz.fix-deuter': 'Corrección deuteranopía',
+    'viz.fix-tritan': 'Corrección tritanopía',
     'hud.vision':     'Visión de color',
     'hud.takeBack':   'Deshacer jugada',
     'hud.replay':     'Rehacer jugada',

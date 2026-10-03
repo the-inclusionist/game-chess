@@ -48,6 +48,12 @@ export const pt: Catalog = {
     'hud.reducedMotion': 'Movimento reduzido',
     'hud.outline':    'Contorno das peças',
     'viz.trichromatic': 'Visão padrão',
+    // ⚠️ Mirror the engine's `viz.fix-*` entries so `hud.ts` can translate the vision
+    // select's labels through chess's own `i18n` and does not have to reach the engine's
+    // dictionary through a lazy ref (Wave 2 item 2, 2026-10-02).
+    'viz.fix-protan': 'Correção protanopia',
+    'viz.fix-deuter': 'Correção deuteranopia',
+    'viz.fix-tritan': 'Correção tritanopia',
     'hud.vision':     'Visão de cores',
     'hud.takeBack':   'Voltar lance',
     'hud.replay':     'Avançar lance',

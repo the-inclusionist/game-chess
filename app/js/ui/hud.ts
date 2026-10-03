@@ -45,12 +45,6 @@ export interface HudDeps {
   readonly onView?: (kind: ViewKind) => void;
   readonly i18n: I18n;
   /**
-   * Translates a key in the ENGINE's catalogue — the vision modes carry a dictionary key the
-   * engine owns. ⚠️ Lazy, because the HUD is built before `create(engine)` runs; by the time
-   * `refresh()` reads a vision label the engine is here. Pass `(k) => engine.t(k)`.
-   */
-  readonly engineT?: (key: string) => string;
-  /**
    * ⚠️ ACCESSORS, NOT OBJECTS, AND THAT IS WHAT KEEPS THE FOCUS ON THE BOARD.
    *
    * A lesson step with a new position is a new `Rules` and a new `GameState` — `chess/rules.ts`
@@ -896,9 +890,14 @@ export function createHud(deps: HudDeps): Hud {
     // copy to drift.
     visionLabel.textContent = i18n.t('hud.vision');
     for (const option of visionSelect.options) {
+      // ⚠️ `viz.fix-*` keys are mirrored in chess's own catalogues (Wave 2 item 2): the vision
+      // select's option labels now go through `i18n.t`, which is a direct call instead of the
+      // lazy ref the old `engineT` prop needed because `hud.ts` is built before `create(engine)`
+      // runs. The engine's own dictionary still answers the same keys for the engine's own UI;
+      // this file no longer reaches into it.
       option.textContent = option.value === 'normal'
         ? i18n.t('viz.trichromatic')
-        : (deps.engineT ?? ((k) => k))(option.dataset.nome ?? '');
+        : i18n.t(option.dataset.nome ?? '');
     }
     visionSelect.value = deps.vision();
 
