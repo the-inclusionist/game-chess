@@ -15,14 +15,16 @@
 
 import * as THREE from 'three';
 import { SAME_LEVEL_CP } from '../chess/engine/same-level.ts';
-import type { Square } from '../chess/types.ts';
-import { squareCenter } from '../render/board-geometry.ts';
+import { FILES, RANKS, type Square } from '../chess/types.ts';
+import { squareCenter, squareIndex } from '../render/board-geometry.ts';
 import { hintHue, projectedPalette } from '../render/palette.ts';
 import { DEFAULT_DESIGN, PIECE_DESIGNS } from '../render/pieces/sets.ts';
 import { TILE } from '../render/resolution.ts';
 import { specs3dFor } from '../render3d/geometry3d.ts';
 import { buildPiece3d, disposePiece3d } from '../render3d/pieces.ts';
 import { createScene3d } from '../render3d/scene.ts';
+import type { Quad } from '../render/picking.ts';
+import { createCoordinates } from '../ui/coordinates.ts';
 import { boardTheme } from '../ui/board-themes.ts';
 import type { BoardView, ViewContext, ViewFactory } from './view.ts';
 
@@ -71,29 +73,78 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
   region.insertBefore(mirror.root, canvas);
 
   /*
-   * ⚠️ FILE AND RANK LABELS, STATIC AROUND THE CANVAS (2026-10-03). The Dev's correction of
-   * 2026-10-03: the 3D view must carry the same "número de cada fileira" and file letters that
-   * the 2.5D view's `.coords` paints. Three's perspective makes a projected label jump as the
-   * camera moves, which is a different cost from Zdog's orthographic one, so this view uses
-   * STATIC labels in the surround the canvas CSS now reserves — eight rank numbers down the
-   * left, eight file letters along the bottom, each inside its own cell.
+   * ⚠️ FILE AND RANK LABELS THAT TURN WITH THE BOARD (2026-10-03). This view carried STATIC
+   * labels for a few hours — a CSS column and row pinned to the canvas's edges — on the reasoning
+   * that Three's perspective would make projected labels jump. The Dev's screenshots settled it
+   * the other way: a label that does not follow the board when the board is dragged is a label
+   * pointing at the wrong rank. So the 3D view uses the SAME `ui/coordinates` module the 2.5D one
+   * does, fed by quads this file projects through Three's own camera.
    */
-  const labelsRoot = doc.createElement('div');
-  labelsRoot.className = 'board-3d-coords';
-  labelsRoot.setAttribute('aria-hidden', 'true');
-  for (let i = 0; i < 8; i++) {
-    const rank = doc.createElement('span');
-    rank.className = 'rank';
-    rank.textContent = String(8 - i);
-    labelsRoot.appendChild(rank);
-  }
-  for (const ch of 'abcdefgh') {
-    const file = doc.createElement('span');
-    file.className = 'file';
-    file.textContent = ch;
-    labelsRoot.appendChild(file);
-  }
-  region.appendChild(labelsRoot);
+  const coordinates = createCoordinates({ doc, visible: prefs.remembered.coordinates ?? true });
+  region.appendChild(coordinates.root);
+
+  /*
+   * The 64 squares' corners, projected to canvas pixels measured FROM THE CANVAS CENTRE — which
+   * is the space `ui/coordinates` works in (it was written against Zdog's illustration space, and
+   * that is what `viewport.zoom = 1` below declares this to be).
+   *
+   * ⚠️ CORNER ORDER IS THE MODULE'S CONTRACT, copied from Zdog's flat Rect path:
+   * 0 = far-left, 1 = far-right, 2 = near-right, 3 = near-left. "Far" is the black end (smaller
+   * `z`, since rank 8 is `y = 0`); "near" is the player's. Getting this wrong puts the file
+   * letters along the far edge, behind the black pieces, which is silent and looks deliberate.
+   */
+  const projected = new THREE.Vector3();
+  const projectQuads = (): Quad[] => {
+    const out: Quad[] = new Array<Quad>(FILES * RANKS);
+    const half = TILE / 2;
+    const w = canvas.width;
+    const h = canvas.height;
+    /*
+     * ⚠️ BOTH AXES NEGATED, AND IT IS THE SCENE'S `camera.up` THAT ASKS FOR IT. `render3d/scene`
+     * sets `camera.up = (0, -1, 0)` because this board keeps the table's convention — Zdog's Y
+     * points DOWN, and the two renderers share `render/pieces/geometry.ts` verbatim rather than
+     * each carrying its own sign. An inverted up vector is a 180° roll, so `project()` hands back
+     * NDC that is mirrored in x AND y. Measured on the running page before this line existed:
+     * file "a" landed at viewport x = 333 (the right edge) and rank 8 below rank 6.
+     */
+    const toPixels = (x: number, z: number): { x: number; y: number } => {
+      projected.set(x, 0, z).project(scene.camera);
+      return { x: (-projected.x * w) / 2, y: (-projected.y * h) / 2 };
+    };
+    for (let y = 0; y < RANKS; y++) {
+      for (let x = 0; x < FILES; x++) {
+        const centre = squareCenter({ x, y } as Square, TILE);
+        out[squareIndex({ x, y } as Square)] = {
+          corners: [
+            toPixels(centre.x - half, centre.z - half),
+            toPixels(centre.x + half, centre.z - half),
+            toPixels(centre.x + half, centre.z + half),
+            toPixels(centre.x - half, centre.z + half),
+          ],
+          depth: 0,
+        };
+      }
+    }
+    return out;
+  };
+
+  /**
+   * Repositions the labels against the camera as it stands now.
+   *
+   * ⚠️ `zoom: 1` IS NOT A PLACEHOLDER. `coordinates.put()` computes
+   * `(point.x * zoom + width / 2) * upscale`; `projectQuads` has already applied the camera, so
+   * the points arrive in canvas pixels and the only work left is the centring and the CSS
+   * upscale. Zdog's own viewport carries a zoom because its points arrive unzoomed.
+   */
+  const placeCoords = (): void => {
+    const box = canvas.getBoundingClientRect();
+    if (box.width < 1) return;
+    coordinates.place(
+      projectQuads(),
+      { width: canvas.width, height: canvas.height, zoom: 1 },
+      box.width / canvas.width,
+    );
+  };
 
   const theme = boardTheme(themeKey);
   const scene = createScene3d({
@@ -236,8 +287,12 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
        * re-projected every frame from a live perspective matrix. That is real work and it has not
        * been done — see `docs/` and the debts in the plan.
        */
-      coordinates: () => false,
-      onCoordinates: () => { /* nothing to show or hide */ },
+      coordinates: () => coordinates.visible(),
+      onCoordinates: (on: boolean) => {
+        coordinates.setVisible(on);
+        prefs.save({ coordinates: on });
+        placeCoords();
+      },
     },
 
     applyTheme: (key) => {
@@ -348,7 +403,7 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
      * which announces a dead board to whoever has a console open; the shell passes the engine's,
      * which reaches the screen reader.
      */
-    frame: () => { scene.render(); },
+    frame: () => { scene.render(); placeCoords(); },
 
     relayout: () => {
       /*
@@ -362,6 +417,7 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
        */
       const box = region.getBoundingClientRect();
       scene.resize(Math.max(1, box.width), Math.max(1, box.height));
+      placeCoords();
     },
 
     debug: () => ({
@@ -374,7 +430,7 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
        * is a board that has to be drawable on demand — otherwise it is black and the reason is
        * indistinguishable from a fault.
        */
-      step: () => { scene.render(); },
+      step: () => { scene.render(); placeCoords(); },
     }),
 
     destroy: () => {
@@ -387,8 +443,8 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
        * 3D case) over the live board.
        */
       canvas.remove();
-      // Rank/file label row goes with the canvas.
-      labelsRoot.remove();
+      // The label overlay goes with the canvas.
+      coordinates.destroy();
     },
   };
 };

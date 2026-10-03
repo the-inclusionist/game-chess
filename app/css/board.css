@@ -927,50 +927,13 @@ html { background: var(--page); }
    * The region IS the board now — nine of the stage's sixteen units — so the canvas is all of it.
    */
   /*
-   * ⚠️ 3D VIEW'S OWN FILE AND RANK LABELS (2026-10-03). The Zdog view uses `.coords` with
-   * projection extrapolation; Three's perspective camera makes projection a different and
-   * jumpier cost, so this view puts the labels STATICALLY in the surround that the canvas
-   * reserves. Eight rank numbers down the left strip of `#chess-board`, eight file letters
-   * along the bottom; each spans one eighth of the board drawing's own extent.
+   * ⚠️ `.board-3d-coords` DELETED on 2026-10-03. The 3D view carried a STATIC column and row
+   * of labels for a few hours, pinned to the canvas's edges by `nth-child` arithmetic. The
+   * Dev's screenshots settled that a label which does not follow the board when the board is
+   * dragged is a label pointing at the wrong rank, so this view uses the same `.coords`
+   * overlay the 2.5D one does — `boot/view-solid.ts` feeds it quads projected through Three's
+   * own camera on every frame.
    */
-  .board-3d-coords {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    color: #6f6552;
-    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
-    font-size: var(--ui-fs, 16px);
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-  }
-  .board-3d-coords .rank {
-    position: absolute;
-    left: 0;
-    width: calc(var(--ui-fs, 16px) * 1.4);
-    text-align: center;
-  }
-  .board-3d-coords .rank:nth-child(1) { top: calc(var(--ui-fs, 16px) * 2.6 + (100% - var(--ui-fs, 16px) * 6.6) * 0.0625); }
-  .board-3d-coords .rank:nth-child(2) { top: calc(var(--ui-fs, 16px) * 2.6 + (100% - var(--ui-fs, 16px) * 6.6) * 0.1875); }
-  .board-3d-coords .rank:nth-child(3) { top: calc(var(--ui-fs, 16px) * 2.6 + (100% - var(--ui-fs, 16px) * 6.6) * 0.3125); }
-  .board-3d-coords .rank:nth-child(4) { top: calc(var(--ui-fs, 16px) * 2.6 + (100% - var(--ui-fs, 16px) * 6.6) * 0.4375); }
-  .board-3d-coords .rank:nth-child(5) { top: calc(var(--ui-fs, 16px) * 2.6 + (100% - var(--ui-fs, 16px) * 6.6) * 0.5625); }
-  .board-3d-coords .rank:nth-child(6) { top: calc(var(--ui-fs, 16px) * 2.6 + (100% - var(--ui-fs, 16px) * 6.6) * 0.6875); }
-  .board-3d-coords .rank:nth-child(7) { top: calc(var(--ui-fs, 16px) * 2.6 + (100% - var(--ui-fs, 16px) * 6.6) * 0.8125); }
-  .board-3d-coords .rank:nth-child(8) { top: calc(var(--ui-fs, 16px) * 2.6 + (100% - var(--ui-fs, 16px) * 6.6) * 0.9375); }
-  .board-3d-coords .file {
-    position: absolute;
-    bottom: calc(var(--ui-fs, 16px) * 0.1);
-    width: calc((100% - var(--ui-fs, 16px) * 2.8) / 8);
-    text-align: center;
-  }
-  .board-3d-coords .file:nth-child(9) { left: calc(var(--ui-fs, 16px) * 1.4 + ((100% - var(--ui-fs, 16px) * 2.8) / 8) * 0); }
-  .board-3d-coords .file:nth-child(10) { left: calc(var(--ui-fs, 16px) * 1.4 + ((100% - var(--ui-fs, 16px) * 2.8) / 8) * 1); }
-  .board-3d-coords .file:nth-child(11) { left: calc(var(--ui-fs, 16px) * 1.4 + ((100% - var(--ui-fs, 16px) * 2.8) / 8) * 2); }
-  .board-3d-coords .file:nth-child(12) { left: calc(var(--ui-fs, 16px) * 1.4 + ((100% - var(--ui-fs, 16px) * 2.8) / 8) * 3); }
-  .board-3d-coords .file:nth-child(13) { left: calc(var(--ui-fs, 16px) * 1.4 + ((100% - var(--ui-fs, 16px) * 2.8) / 8) * 4); }
-  .board-3d-coords .file:nth-child(14) { left: calc(var(--ui-fs, 16px) * 1.4 + ((100% - var(--ui-fs, 16px) * 2.8) / 8) * 5); }
-  .board-3d-coords .file:nth-child(15) { left: calc(var(--ui-fs, 16px) * 1.4 + ((100% - var(--ui-fs, 16px) * 2.8) / 8) * 6); }
-  .board-3d-coords .file:nth-child(16) { left: calc(var(--ui-fs, 16px) * 1.4 + ((100% - var(--ui-fs, 16px) * 2.8) / 8) * 7); }
 
   .stage-3d {
     /*
@@ -979,7 +942,7 @@ html { background: var(--page); }
      */
     position: absolute;
     top: calc(var(--ui-fs, 16px) * 2.6);
-    height: calc(100% - var(--ui-fs, 16px) * 2.6);
+    height: calc(100% - var(--ui-fs, 16px) * 5.0);
     aspect-ratio: 1;
     left: 50%;
     transform: translateX(-50%);

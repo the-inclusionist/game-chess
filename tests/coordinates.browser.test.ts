@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import Zdog from 'zdog';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createBoard } from '../app/js/render/board.ts';
-import { LOGICAL_H, LOGICAL_W } from '../app/js/render/resolution.ts';
+import { LOGICAL_H, LOGICAL_W, TILE } from '../app/js/render/resolution.ts';
+import { squareCenter } from '../app/js/render/board-geometry.ts';
 import { createZdogStage, type ZdogStage } from '../app/js/render/zdog-stage.ts';
 import { createCoordinates, type Coordinates } from '../app/js/ui/coordinates.ts';
 
@@ -76,58 +78,82 @@ describe('[Coordinates] sixteen labels, hidden from the reader that already has 
   });
 });
 
-describe('[Coordinates] a straight column and a straight row, outside the board', () => {
-  /*
-   * ⚠️ `projectPoint` AND ITS `OUTSET` CONSTANT WENT WITH THE DIAGONAL (2026-10-03). They existed
-   * to re-derive, from Zdog itself, where a point `OUTSET` beyond one square's own edge lands on
-   * screen — the right question while each label followed its own square outward. The labels
-   * share an axis now, so the thing to check is that they LINE UP, which needs no second copy of
-   * the camera's arithmetic.
-   */
+describe('[Coordinates] the extrapolation is exact, not close', () => {
+  /** The label for file `x` sits 0.72 of a tile beyond the near EDGE of rank 1, in world units. */
+  const OUTSET = 0.72;
 
-  /*
-   * ⚠️ THESE TWO USED TO ASSERT THE DIAGONAL, and they were right about the code at the time:
-   * each label was pushed `OUTSET` beyond its OWN square's edge, so the correct answer was the
-   * camera's projection of that extrapolated world point. The Dev's drawing of 2026-10-03 is
-   * what retired that rule — a pitched board makes "beyond my own edge" a DIAGONAL, so rank 8
-   * walked off the stage's left while rank 1 sat under the near pieces. The labels form a
-   * straight column and a straight row now, and these two say so instead.
+  /**
+   * Projects a world point on the board plane by putting a real (invisible) Rect there and letting
+   * ZDOG project it. This is the answer the camera itself gives, obtained without the module's
+   * arithmetic — which is the only way the comparison proves anything. Comparing the module against
+   * a re-implementation of its own formula would only prove that two copies of a formula agree.
    */
-  it('puts the eight rank numbers in a STRAIGHT COLUMN, at every angle', () => {
+  function projectPoint(z: ZdogStage, at: { x: number; z: number }): { x: number; y: number } {
+    const probe = new Zdog.Rect({
+      addTo: z.root,
+      width: 2,
+      height: 2,
+      translate: { x: at.x, y: 0, z: at.z },
+      rotate: { x: Zdog.TAU / 4 },
+      visible: false,
+    });
+    z.update();
+    const points = probe.pathCommands.map((cmd) => cmd.endRenderPoint);
+    const centre = {
+      x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
+      y: points.reduce((sum, p) => sum + p.y, 0) / points.length,
+    };
+    probe.remove();
+    return centre;
+  }
+
+  it('reaches the point the CAMERA would put there, at every angle', () => {
+    // Zdog projects orthographically — it rotates and scales and never divides by depth — so an
+    // orthographic projection of a plane is affine, and extrapolating in screen space is the same
+    // answer as projecting the extrapolated world point. If that were false, the two would drift
+    // apart as the camera turned, which is why three angles are checked rather than one.
     const { stage: z, board, coords: c } = build();
 
     for (const [pitch, yaw] of [[-1, 0], [-0.6, 0.8], [-1.2, -1.4]] as const) {
       z.setCamera(pitch, yaw);
       z.render();
       c.place(board.quads(), z.viewport(), 1);
+      const view = z.viewport();
 
-      const xs = Array.from({ length: 8 }, (_, y) => positionOf(labels('rank')[y]).x);
-      // One X for all eight. Hundredths, because the value is read back out of the CSSOM, which
-      // rounds a transform's pixels; the failure being ruled out is a diagonal, not a rounding.
-      for (const x of xs) expect(x).toBeCloseTo(xs[0], 2);
+      for (let x = 0; x < 8; x++) {
+        // Rank 1 is y = 7; its near edge is half a tile beyond its centre.
+        const home = squareCenter({ x, y: 7 }, TILE);
+        const world = { x: home.x, z: home.z + TILE * (0.5 + OUTSET) };
+        const projected = projectPoint(z, world);
 
-      // And each one keeps its own HEIGHT — the thing that says which rank it names. Rank 8 is
-      // index 0 (`y` counts from black), so the column reads downward in screen order.
-      const ys = Array.from({ length: 8 }, (_, y) => positionOf(labels('rank')[y]).y);
-      const ascending = ys.every((v, i) => i === 0 || v > ys[i - 1]);
-      const descending = ys.every((v, i) => i === 0 || v < ys[i - 1]);
-      expect(`monotonic: ${ascending || descending}`).toBe('monotonic: true');
+        const want = {
+          x: projected.x * view.zoom + view.width / 2,
+          y: projected.y * view.zoom + view.height / 2,
+        };
+        const got = positionOf(labels('file')[x]);
+        // Two decimal places, because the value is read back out of the CSSOM, which rounds a
+        // transform's pixels. The error being ruled out here would be whole pixels, not hundredths.
+        expect(got.x).toBeCloseTo(want.x, 2);
+        expect(got.y).toBeCloseTo(want.y, 2);
+      }
     }
   });
 
-  it('puts the eight file letters in a STRAIGHT ROW, under the board', () => {
+  it('does the same for the ranks, on the other edge', () => {
     const { stage: z, board, coords: c } = build();
     z.setCamera(-0.9, 0.5);
     z.render();
     c.place(board.quads(), z.viewport(), 1);
+    const view = z.viewport();
 
-    const ys = Array.from({ length: 8 }, (_, x) => positionOf(labels('file')[x]).y);
-    for (const y of ys) expect(y).toBeCloseTo(ys[0], 2);
-
-    const xs = Array.from({ length: 8 }, (_, x) => positionOf(labels('file')[x]).x);
-    const ascending = xs.every((v, i) => i === 0 || v > xs[i - 1]);
-    const descending = xs.every((v, i) => i === 0 || v < xs[i - 1]);
-    expect(`monotonic: ${ascending || descending}`).toBe('monotonic: true');
+    for (let y = 0; y < 8; y++) {
+      const home = squareCenter({ x: 0, y }, TILE);
+      const world = { x: home.x - TILE * (0.5 + OUTSET), z: home.z };
+      const projected = projectPoint(z, world);
+      const got = positionOf(labels('rank')[y]);
+      expect(got.x).toBeCloseTo(projected.x * view.zoom + view.width / 2, 2);
+      expect(got.y).toBeCloseTo(projected.y * view.zoom + view.height / 2, 2);
+    }
   });
 
   it('puts every label OUTSIDE the board it labels', () => {
