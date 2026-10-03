@@ -31,8 +31,14 @@ export const CAMERA = {
    * Doubled with the source resolution. The WORLD is unchanged — TILE is still 16 and every piece
    * keeps its size — so the same geometry simply rasterises twice as finely and the board occupies
    * the same fraction of the screen it always did.
+   *
+   * ⚠️ 2.3 → 2.0 on 2026-10-03 by the Dev's measured report: at 2.3 the pieces on the far rank
+   * project high enough (pitch of -1 tilts the board forward, so rank-8 pieces draw tall) to
+   * overflow the canvas top. The 2.5D view's edges then come off-screen on a 360-px canvas.
+   * Dropping to 2.0 keeps the board centred and visible on a 640×360 stage; the extra 15%
+   * margin is what gives the tops of the back-rank pieces room to project without clipping.
    */
-  zoom: 2.3,
+  zoom: 2.0,
   /**
    * ⚠️ ZERO NOW, AND IT USED TO BE -42. The board was pushed left because the HUD was drawn OVER
    * the right 27.5% of this canvas — which is also why the panel could never be widened without

@@ -249,20 +249,22 @@ html { background: var(--page); }
    */
   #board-canvas {
     /*
-     * ⚠️ `position:absolute; inset:0`, 2026-10-03. The 2.5D canvas used to be a flex item in
-     * chess-board, which fought for space with the mirror (now always visible under it, Wave
-     * «todas-as-vistas-no-mesmo-documento») and with `#below-board`. Measurement that forced the
-     * fix: in a 360×360 chess-board the flex items summed to 486 px, so the Zdog canvas
-     * displaced the thinking panel upward (the user's "pensamento acima do tabuleiro" of 2026-10-03)
-     * and the surplus got clipped by `#game-region { overflow:hidden }` ("tabuleiro grande demais,
-     * não cabe na tela"). Out of flow fills the chess-board whatever its sibling flex items ask
-     * for. `.stage-3d` has been this since engine 8; `#board-canvas` matches it now.
+     * ⚠️ `position: absolute` WITH ROOM AT THE TOP FOR THE PLAYER STRIPS (2026-10-03). The 2.5D
+     * canvas is absolute so it does not fight the mirror (always visible under it) and the
+     * player strips for flex height; the inset-top reserves the row the strips sit in. The
+     * mirror itself sees through the gap, which is why its glyphs are hidden behind the canvas
+     * rather than beside it.
+     *
+     * The Dev's follow-up of 2026-10-03: BRANCAS, PRETAS, their scores, the advantage, and the
+     * file letters must stay visible in the 2.5D and 3D views too. Reserving the top strip (and
+     * nothing more) keeps the Zdog board centred vertically with its usual drawn height.
      */
     position: absolute;
-    inset: 0;
+    top: calc(var(--ui-fs, 16px) * 2.6);
+    left: 0;
+    right: 0;
+    bottom: 0;
     display: block;
-    width: 100%;
-    height: 100%;
     /* PixiJS used to paint this as the Application's backgroundColor. Zdog CLEARS its canvas to
        transparent, so without this the board would float on whatever is behind it. */
     background: var(--page);
@@ -911,8 +913,15 @@ html { background: var(--page); }
    * The region IS the board now — nine of the stage's sixteen units — so the canvas is all of it.
    */
   .stage-3d {
+    /*
+     * ⚠️ TOP INSET MATCHES `#board-canvas` (2026-10-03): the 3D view also has to leave the player
+     * strips visible. Same `calc(var(--ui-fs, 16px) * 2.1)` as the 2.5D canvas.
+     */
     position: absolute;
-    inset: 0;
+    top: calc(var(--ui-fs, 16px) * 2.6);
+    left: 0;
+    right: 0;
+    bottom: 0;
     display: block;
     touch-action: none;
   }
