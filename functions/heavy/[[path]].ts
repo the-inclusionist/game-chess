@@ -85,6 +85,24 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
 
   const headers = new Headers();
   obj.writeHttpMetadata(headers);
+  // 🔴 OVERRIDE DO CONTENT-TYPE POR EXTENSAO, APOS `writeHttpMetadata` (medido em 03/10, 00h20): os ficheiros
+  // foram carregados no R2 sem Content-Type explicito e o bucket serve com default `text/plain; charset=utf-8`.
+  // Isso quebrava os `.mjs` (MediaPipe `vision_bundle.mjs`, ONNX Runtime `ort.webgpu.bundle.min.mjs`) — o navegador
+  // recusa `import` de modulo com MIME `text/plain` por spec («Strict MIME type checking is enforced for module
+  // scripts per HTML spec»). Consequencias eram cumulativas: cada bug afetava uma subparte diferente — camera
+  // (MediaPipe), reconhecimento de voz Whisper/Moonshine (ONNX runtime), parte do fluxo de leitura.
+  const ext = key.slice(key.lastIndexOf('.') + 1).toLowerCase();
+  const MIME: Readonly<Record<string, string>> = {
+    mjs: 'text/javascript; charset=utf-8',
+    js: 'text/javascript; charset=utf-8',
+    wasm: 'application/wasm',
+    json: 'application/json; charset=utf-8',
+    task: 'application/octet-stream',   // MediaPipe `.task` (face/hand/gesture landmarkers)
+    onnx: 'application/octet-stream',   // ONNX models
+    bin: 'application/octet-stream',    // Kokoro voices
+    gz: 'application/gzip',             // Vosk `.tar.gz`
+  };
+  if (MIME[ext]) headers.set('content-type', MIME[ext]);
   headers.set('etag', obj.httpEtag);
   // 📌 IMMUTABLE porque a engine chega com `?sha256=<hash>` no URL (`platform/heavy.js:284`).
   headers.set('cache-control', 'public, max-age=31536000, immutable');
