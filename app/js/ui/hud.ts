@@ -58,10 +58,6 @@ export interface HudDeps {
   rules(): Rules;
   state(): GameState;
   /** A key from the engine's VIZ_MODES, or 'normal'. */
-  /** The languages on offer, and the one in use. Absent means the game cannot change language. */
-  locales?: readonly { readonly code: string; readonly name: string }[];
-  locale?(): string;
-  onLocale?(code: string): void;
   /**
    * The opening the game is in, already named, or null.
    *
@@ -309,22 +305,10 @@ export function createHud(deps: HudDeps): Hud {
   openingBox.className = 'hud-opening';
   openingBox.hidden = true;
 
-  const localeBox = doc.createElement('p');
-  localeBox.className = 'hud-field';
-  const localeLabel = doc.createElement('label');
-  const localeSelect = doc.createElement('select');
-  localeSelect.id = 'hud-locale';
-  localeLabel.htmlFor = localeSelect.id;
-  localeBox.append(localeLabel, localeSelect);
-  if (deps.locales) {
-    for (const { code, name } of deps.locales) {
-      const option = doc.createElement('option');
-      option.value = code;
-      option.textContent = name;
-      localeSelect.appendChild(option);
-    }
-    settings.appendChild(localeBox);
-  }
+  // ⚠️ LOCALE SELECT RETIRED (Wave 2d, 2026-10-02): chess hears `engine.onLocaleChange`
+  // and the engine's a11y-bar 🌐 icon is the user-facing door. The HUD had a parallel select
+  // appended to `settings` (not in the DOM since Wave 2c); comments across the codebase have
+  // been claiming it was gone for weeks.
 
   const views = doc.createElement('nav');
   views.className = 'hud-views';
@@ -604,8 +588,6 @@ export function createHud(deps: HudDeps): Hud {
   function onLessonClick(): void { deps.onLesson?.(lessonSelect.value); }
   lessonButton.addEventListener('click', onLessonClick);
 
-  function onLocaleChange(): void { deps.onLocale?.(localeSelect.value); }
-  localeSelect.addEventListener('change', onLocaleChange);
 
 
   function onMotionChange(): void { deps.onReducedMotion(motionInput.checked); }
@@ -809,10 +791,6 @@ export function createHud(deps: HudDeps): Hud {
       // silently reset the select to the first lesson under their hand.
       if (list.some((l) => l.id === chosen)) lessonSelect.value = chosen;
     }
-    if (deps.locales) {
-      localeLabel.textContent = i18n.t('hud.language');
-      localeSelect.value = deps.locale?.() ?? '';
-    }
     const opening = deps.opening?.() ?? null;
     openingBox.hidden = opening === null;
     // ⚠️ The NAME is not translated; the label around it is. See `openings/opening.ts`: "Ruy
@@ -861,7 +839,6 @@ export function createHud(deps: HudDeps): Hud {
     destroy() {
       hintButton.removeEventListener('click', onHintClick);
       lessonButton.removeEventListener('click', onLessonClick);
-      localeSelect.removeEventListener('change', onLocaleChange);
       motionInput.removeEventListener('change', onMotionChange);
       setSelect.removeEventListener('change', onSetChange);
       themeSelect.removeEventListener('change', onThemeChange);

@@ -1218,13 +1218,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      * for this game's Portuguese word for Spanish — which is the one string a language menu must
      * not translate.
      */
-    locales: [
-      { code: 'pt', name: 'Português' },
-      { code: 'en', name: 'English' },
-      { code: 'es', name: 'Español' },
-    ],
-    locale: () => i18n.getLocale(),
-    onLocale: (code) => { void changeLocale(code); },
 
     opening: () => openingName,
 
