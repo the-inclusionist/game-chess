@@ -33,6 +33,7 @@ function fixture(): void {
         <div id="chess-board" tabindex="0"></div>
         <div id="side-column"></div>
       </div>
+      <div class="pause-icons" id="title-icons" role="group" aria-label="Atalhos de acessibilidade"></div>
     </div>
     <div id="sr-status" role="status" aria-live="polite"></div>
     <div id="sr-alert" role="alert" aria-live="assertive"></div>

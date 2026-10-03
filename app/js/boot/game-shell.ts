@@ -284,7 +284,7 @@ export interface ChessCartridge {
    */
   readonly hooks: CartridgeHooks & { readonly declaration: GameDeclaration };
   /** Where the engine's own bar and pause card fit in this game's layout. */
-  readonly hosts: { readonly a11yBarHost: Element; readonly pauseHost: Element };
+  readonly hosts: { readonly a11yBarHost: Element | undefined; readonly pauseHost: Element };
   /** Nothing runs until this is called, and it needs the engine the shell built. */
   create(engine: Engine): GameShell;
 }
@@ -466,18 +466,91 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * behind knowing that START opens one. A child who needs the screen reader to begin with cannot
    * get to the thing that would read it.
    *
-   * WHERE: the top of the side panel, by the Dev's decision of 2026-09-11, with the cost accepted
-   * — that panel already holds 487 px of content in 360 and scrolls, and this adds a row. It is a
-   * SIBLING of `.chess-hud` rather than a child, so it survives the teaching mode hiding the panel:
-   * an accessibility control that disappears during a lesson is worse than useless, because it is
-   * gone exactly when a child is being asked to concentrate.
+   * WHERE: at the top of `#stage-wrap`, inside `#title-icons`, which the engine's own CSS places
+   * `position:absolute; top:0; left:50%; transform:translateX(-50%)`. The Dev's correction of
+   * 2026-10-03: a bar in the side panel's top-right is a bar in the way of the game — and worse,
+   * chess's own placement left the caption as a flex child of the panel, so changing the caption
+   * text pushed the panel's rows down and read as a screen tremor to a sensitive child. The
+   * engine's convention is `#title-icons .pause-icons-cap { position:absolute; top:100% }` and
+   * only applies when the element has the id the engine recognises.
    *
-   * ⚠️ The element must exist BEFORE `createGame`, which reads the host during boot and writes the
-   * buttons into it with `innerHTML`. Nothing else may put anything here.
+   * ⚠️ ABSENT IS NOT A CRASH. The standalone page carries `#title-icons`; a cartridge mounted in
+   * someone else's page may not — the engine then looks for `#title-icons` itself and, finding
+   * none, adds a line to `problems`. That is the right failure mode: say so, keep playing. Chess
+   * does not fabricate the element here, because a parent that already supplies one would end up
+   * with two bars.
    */
-  const a11yBar = host.createElement('div');
-  a11yBar.className = 'a11y-bar';
-  column.appendChild(a11yBar);
+  const a11yBar = host.getElementById('title-icons') ?? undefined;
+
+  /*
+   * ========================= THE A11Y BAR RETRACTS WHEN IDLE =========================
+   * The Dev's request of 2026-10-03: after five seconds of inactivity the bar retracts upward to
+   * give the game its screen; it comes back on hover, focus, or a pointer touching the top of the
+   * stage. The timer is PAUSED while the engine's pause card is open — a child who paused the
+   * game to find an icon needs it to stay put.
+   *
+   * ⚠️ WHY `data-collapsed` AND NOT `[hidden]`. `hidden` removes the element from the layout; the
+   * CSS wants the bar to STAY in the layout (as an absolute child of `#stage-wrap`) and only
+   * transform away. A data attribute toggles the collapsed CSS without touching display.
+   *
+   * ⚠️ WHY A `MutationObserver` RATHER THAN A HOOK. The engine's `.screen-pause` card manages its
+   * own `hidden` state, and chess has no hook that fires on open/close. Watching `hidden` on the
+   * engine's card is one line and survives engine-side changes to the open path (ADR-0106 §4
+   * does not promise a stable hook name).
+   */
+  const IDLE_MS = 5_000;
+  let idleTimer: ReturnType<typeof setTimeout> | null = null;
+  let paused = false;
+  // `win` is already in scope from the announcer construction above.
+  const collapseNow = (): void => { a11yBar?.setAttribute('data-collapsed', 'true'); };
+  const expandNow = (): void => { a11yBar?.removeAttribute('data-collapsed'); };
+  const armIdle = (): void => {
+    if (!a11yBar || !win) return;
+    if (idleTimer !== null) clearTimeout(idleTimer);
+    if (paused) return; // paused: keep whatever state the bar is in
+    idleTimer = setTimeout(collapseNow, IDLE_MS);
+  };
+  const nudgeFromPointer = (event: PointerEvent | MouseEvent): void => {
+    if (!a11yBar) return;
+    // The "top strip" reach: a cursor within 60 px of the stage's top edge brings the bar back
+    // and resets the idle clock. More than that and the pointer is already deep in the game, so
+    // a touch inside the board does not keep rearming the timer.
+    const stage = a11yBar.parentElement?.getBoundingClientRect();
+    if (!stage) return;
+    const closeToTop = event.clientY - stage.top <= 60;
+    if (closeToTop) expandNow();
+    armIdle();
+  };
+  const nudgeFromTouch = (event: TouchEvent): void => {
+    const t = event.touches[0] ?? event.changedTouches[0];
+    if (!t || !a11yBar) return;
+    const stage = a11yBar.parentElement?.getBoundingClientRect();
+    if (!stage) return;
+    const closeToTop = t.clientY - stage.top <= 60;
+    if (closeToTop) expandNow();
+    armIdle();
+  };
+  if (a11yBar && win) {
+    win.document.addEventListener('pointermove', nudgeFromPointer, { passive: true });
+    win.document.addEventListener('touchstart', nudgeFromTouch, { passive: true });
+    // Keyboard interaction with any control also counts as activity.
+    win.document.addEventListener('keydown', armIdle, { passive: true });
+    // Watch the engine's pause card — chess has no open/close hook for it.
+    const pauseCard = host.getElementById('vp-pause-0');
+    if (pauseCard) {
+      const mo = new MutationObserver(() => {
+        paused = !pauseCard.hidden;
+        if (paused) {
+          expandNow();
+          if (idleTimer !== null) { clearTimeout(idleTimer); idleTimer = null; }
+        } else {
+          armIdle();
+        }
+      });
+      mo.observe(pauseCard, { attributes: true, attributeFilter: ['hidden'] });
+    }
+    armIdle();
+  }
 
   /*
    * ⚠️ THE REMEMBERED LANGUAGE BEATS THE BROWSER'S, and until now there was no remembered one to

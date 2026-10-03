@@ -37,6 +37,7 @@ function fixture(): void {
         <div id="chess-board" tabindex="0"></div>
         <div id="side-column"></div>
       </div>
+      <div class="pause-icons" id="title-icons" role="group" aria-label="Atalhos de acessibilidade"></div>
     </div>
     <div id="sr-status" role="status" aria-live="polite"></div>
     <div id="sr-alert" role="alert" aria-live="assertive"></div>
@@ -1050,7 +1051,11 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
       params: new URLSearchParams('debug=true'),
     });
 
-    const stageEl = document.getElementById('game-region')!;
+    // ⚠️ `#stage-wrap`, not `#game-region`, since 2026-10-03: `#title-icons` sits ABOVE the
+    // region at `position:absolute; top:0` of `#stage-wrap` (the engine's convention). The
+    // "stage" the spec talks about is the whole 16:9 visible rectangle a child sees — that
+    // includes the a11y bar strip at the top, not only the board + panel below it.
+    const stageEl = document.getElementById('stage-wrap')!;
     const stage = stageEl.getBoundingClientRect();
 
     /*
@@ -1081,6 +1086,11 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
       .filter((el) => {
         if (el.closest('.sr-only') || el.classList.contains('sr-only')) return false;
         if (el.id === 'stage-wrap' || el.id === 'game-region' || el.closest('#splash')) return false;
+        // ⚠️ `a.skip-link` IS THE ENGINE'S (ADR-0170 §3), mounted at <body> level for keyboard
+        // users. It is not chess's — the Region test above already filters it out as
+        // engine-authored, and this one needs the same exemption now that the stage boundary
+        // includes `#stage-wrap`.
+        if (el.matches('a.skip-link')) return false;
         const r = el.getBoundingClientRect();
         if (r.width < 1 || r.height < 1) return false;
         const out = r.left < stage.left - 1 || r.right > stage.right + 1
@@ -1328,7 +1338,11 @@ describe('[A11y bar] the control a child needs before they can read the screen',
 
   it('⚠️ the engine actually wrote buttons into it', () => {
     mount('__barTest');
-    const bar = document.querySelector('.a11y-bar');
+    // Post-2026-10-03: the a11y bar is `#title-icons`, placed at the top of `#stage-wrap` so the
+    // engine's own `#title-icons { position:absolute; top:0; left:50% }` CSS can reach it. The
+    // user's correction of 2026-10-03 named chess's old `.a11y-bar` in the side column as wrong
+    // for two reasons: it was out of the way, and its caption pushed panel items down.
+    const bar = document.getElementById('title-icons');
     expect(bar, 'the host exists').not.toBeNull();
     const icons = [...bar!.querySelectorAll('button')];
     /*
@@ -1347,13 +1361,17 @@ describe('[A11y bar] the control a child needs before they can read the screen',
      * lesson is worse than useless — it is gone exactly when a child is being asked to concentrate.
      * Structure rather than behaviour: hiding an element cannot hide its sibling, so this holds
      * without depending on the order the lesson does things in.
+     *
+     * Post-2026-10-03: the bar lives at `#title-icons` on `#stage-wrap`, OUTSIDE `#game-region`
+     * — that keeps it above the board visually AND out of a lesson's reach the same way the old
+     * side-column placement did, just more cleanly.
      */
     mount('__barSibling');
-    const bar = document.querySelector('.a11y-bar')!;
+    const bar = document.getElementById('title-icons')!;
     const panel = document.querySelector('.chess-hud')!;
     expect(panel.contains(bar), 'inside the panel').toBe(false);
-    expect(bar.parentElement?.id, 'in the side column').toBe('side-column');
-    expect(document.getElementById('game-region')!.contains(bar), 'inside the stage').toBe(true);
+    expect(bar.parentElement?.id, 'in stage-wrap').toBe('stage-wrap');
+    expect(document.getElementById('game-region')!.contains(bar), 'inside the game-region').toBe(false);
   });
 
   // Verified on the running page every tick of the engine-11 migration; in Vitest the a11y-bar's
@@ -1368,7 +1386,7 @@ describe('[A11y bar] the control a child needs before they can read the screen',
     mount('__barTap');
     const tap = Number.parseFloat(getComputedStyle(document.getElementById('game-region')!).getPropertyValue('--tap'));
     expect(tap, 'a tap size to measure against').toBeGreaterThanOrEqual(44);
-    const icons = [...document.querySelectorAll('.a11y-bar button')] as HTMLElement[];
+    const icons = [...document.querySelectorAll('#title-icons button')] as HTMLElement[];
     expect(icons.length, 'icons mounted').toBeGreaterThan(0);
     for (const icon of icons) {
       const box = icon.getBoundingClientRect();

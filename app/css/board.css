@@ -196,6 +196,12 @@ html { background: var(--page); }
     align-items: center;
     justify-content: center;
     gap: 0;
+    /*
+     * ⚠️ `position: relative` ANCHORS `#title-icons` — the engine's a11y bar is `position:absolute;
+     * top:0; left:50%; transform:translateX(-50%)` in the engine's own CSS, and it needs this
+     * wrapper to be a positioned ancestor. Without it, the bar escapes to the viewport.
+     */
+    position: relative;
   }
   /* Width is set in `ui/layout`, from the same measurement that sizes the region. */
   #below-board {
@@ -303,13 +309,42 @@ html { background: var(--page); }
    * ⚠️ NOT `overflow: hidden` AND NOT A SCROLLER. This is the control a child reaches for when the
    * screen is unreadable to them; it is the one row in this game that may not need discovering.
    */
-  .a11y-bar {
-    flex: 0 0 auto;
-    display: flex;
-    flex-wrap: wrap;
-    gap: calc(var(--ui-fs, 16px) * 0.25);
-    padding: calc(var(--ui-fs, 16px) * 0.3) calc(var(--ui-fs, 16px) * 0.3) 0;
-    box-sizing: border-box;
+  /*
+   * ⚠️ `.a11y-bar` SELECTOR DELETED on 2026-10-03: the a11y bar lives at `#title-icons` now.
+   * The engine's own `#title-icons { position:absolute; top:0; left:50% }` places and styles the
+   * row; chess no longer carries any CSS for the bar's layout.
+   *
+   * ⚠️ AUTO-COLLAPSE BEHAVIOUR (asked for by the Dev on 2026-10-03): after five seconds of
+   * inactivity, the bar retracts upward to give the game its screen back. A thin peek at the
+   * bottom stays reachable; hover or focus brings it back. The timer is managed in `game-shell`
+   * and PAUSED while the engine's pause card is open (a child looking for the icons there needs
+   * them stable). The chess-side JS sets `data-collapsed="true"` on the host; the CSS below
+   * defines what collapsed means visually.
+   */
+  /*
+   * ⚠️ ANIMATE `top`, NOT `transform`. The engine's `#title-icons` rule declares
+   * `transform: translateX(-50%)`; chess's collapsed state would need `translate(-50%, -38px)`,
+   * which is a DIFFERENT transform function list, so the browser cannot interpolate between them
+   * and falls back to discrete animation. Measured on 2026-10-03: with GPU compositing the Y was
+   * pinned at 0 regardless of what the collapsed rule declared. Animating `top` sidesteps the
+   * function-list mismatch entirely and keeps the engine's transform intact.
+   *
+   * The expand trigger is handled JS-side (`nudgeFromPointer` in `game-shell.ts`): a pointer
+   * within 60 px of the stage's top edge drops the attribute. A CSS `:hover` here would thrash
+   * — expanding on hover of a 6-px peek lifts the peek out from under the pointer and collapses
+   * again — so it is deliberately absent.
+   */
+  #title-icons {
+    transition: top 0.25s ease-out;
+  }
+  /* Bar is 44 px tall; six pixels of it stay visible as a hover-reactive peek. */
+  #title-icons[data-collapsed="true"] {
+    top: calc(6px - 44px);
+  }
+  /* Keyboard focus wakes the bar: Tab reaching an icon that is retracted would focus a control
+     the child cannot see. */
+  #title-icons[data-collapsed="true"]:focus-within {
+    top: 0;
   }
 
   .chess-hud {
@@ -389,12 +424,16 @@ html { background: var(--page); }
     border-radius: 2px;
   }
   .hud-view:hover { background: var(--surface-high); }
-  .hud-view[aria-current="page"] { background: var(--focus); color: var(--surface); border-color: var(--focus); }
+  /* ⚠️ `aria-current="true"` IS WHAT `hud.ts` SETS (ARIA 1.2 — "true" is valid for a non-page
+     context), so the attribute selector has to match on it. The old rule asked for `"page"` and
+     never fired against this HUD, which left the current button indistinguishable from the
+     others and read as "nothing happened" on click. Measured on the page 2026-10-03. */
+  .hud-view[aria-current="true"] { background: var(--focus); color: var(--surface); border-color: var(--focus); }
   .hud-view[aria-disabled="true"] { opacity: 0.4; cursor: default; }
   #game-region[data-contrast="high"] .hud-view {
     color: #FFFFFF; background: #000000; border-color: #FFFFFF;
   }
-  #game-region[data-contrast="high"] .hud-view[aria-current="page"] {
+  #game-region[data-contrast="high"] .hud-view[aria-current="true"] {
     color: #000000; background: #FFFFFF;
   }
 
