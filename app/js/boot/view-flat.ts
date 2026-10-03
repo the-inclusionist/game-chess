@@ -76,6 +76,19 @@ export const createFlatView: ViewFactory = (ctx: ViewContext): BoardView => {
       setTheme: (key: string) => { mirror.setTheme(key); },
     }),
 
-    destroy: () => { mirror.destroy(); },
+    destroy: () => {
+      /*
+       * ⚠️ THE MIRROR IS THE SHELL'S, NOT THIS VIEW'S. 2026-10-03: this used to call
+       * `mirror.destroy()`, which `grid-mirror.destroy()` reads as "take the root off the DOM and
+       * tear down the listeners". That is the OPPOSITE of what the view transition wants: the
+       * mirror is shared across all three views (the shell builds one and hands it to each
+       * through `ViewContext`), and the next view immediately `insertBefore`s it back. Mirror
+       * listeners stripped, root reattached silently dead. The symptom under this bug was the
+       * grid cells no longer answering Enter after a switch away from and back to the flat view.
+       *
+       * Nothing else to let go of here: the flat view attaches no canvas or ornament of its own,
+       * it hands over the mirror and reads flags (coords/flip) on `region.dataset`.
+       */
+    },
   };
 };

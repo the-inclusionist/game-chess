@@ -355,6 +355,13 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
     destroy: () => {
       clearArrows();
       scene.destroy();
+      /*
+       * ⚠️ TAKE THE CANVAS OFF THE REGION, 2026-10-03. `scene.destroy()` releases Three's GPU
+       * buffers but leaves the `canvas.stage-3d` in the DOM; the next `switchView` would stack a
+       * new renderer's canvas on top and the dead 3D canvas would keep painting (black, in the
+       * 3D case) over the live board.
+       */
+      canvas.remove();
     },
   };
 };

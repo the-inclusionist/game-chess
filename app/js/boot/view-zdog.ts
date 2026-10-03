@@ -394,6 +394,16 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
     destroy: () => {
       stage.destroy();
       coordinates.destroy();
+      /*
+       * ⚠️ TAKE THE CANVAS AND COORDINATE LABELS OFF THE REGION, 2026-10-03. `stage.destroy()`
+       * clears the Zdog children but leaves the canvas element in the DOM; `coordinates.destroy()`
+       * does the same for the labels. Nothing in the shell was pulling them, so a `switchView`
+       * stacked each old view's canvas on top of the new one — the user's report of 2026-10-03 is
+       * that the view buttons were clickable but the board did not change, because the dead 2.5D
+       * canvas was still painting over the fresh renderer's output.
+       */
+      canvas.remove();
+      coordinates.root.remove();
     },
   };
 };
