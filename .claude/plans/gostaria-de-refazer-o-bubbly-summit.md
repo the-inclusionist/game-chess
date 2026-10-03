@@ -2185,10 +2185,9 @@ engine continua a mostrar os três valores do 2D.
   (seguro para remover), mas o `themeSelect` do HUD é também âncora
   do relatório de contraste em modo `debug` (`fillReport`). Removê-lo
   obriga a decidir o que fazer com o relatório. Deferido.
-- ⏸️ `motion`: não está em `gameOptions`; removê-lo perde o controlo
-  dentro do jogo. Pede decisão do Dev.
-- ⏸️ `outline` / `coords`: switches simples, no `gameOptions`, seguros
-  para remover em passos próximos.
+- ✅ `motion`: removido em `4a35f97` (lido em 2026-10-04; o ⏸️ aqui estava vencido).
+- ✅ `outline` / `coords`: removidos em `d286cf8`.
+- ✅ `locale`: removido em `0e16900` — nem sequer estava nesta lista.
 
 **Onda 4 — oportunidades sem bloqueio.** Nenhuma destas é requerida pela 11.
 
@@ -2511,6 +2510,176 @@ no `game-platformer` o retrato completo:
 ⚠️ Esta secção é **para quando a Onda 2b estiver fechada**: publicar com um
 cartão de pausa duplicado seria publicar o defeito. Primeiro acabar a
 retirada do `chess-pause`; depois pôr este jogo no Pages.
+
+## ⚠️ A REVISÃO DE INTERFACE AO VIVO — 2026-10-03 e 04
+
+Esta secção não nasceu do plano: nasceu de o Dev **abrir o jogo e olhar**, relatório
+a relatório, durante dois dias. Fica registada aqui porque metade do que ela
+encontrou eram defeitos **antigos** que nenhuma medição de DOM tinha apanhado — que
+é exactamente a lacuna declarada mais abaixo, em «O TRABALHO ANTERIOR».
+
+### O que foi relatado e fechado
+
+| Relato do Dev | Causa | Commit |
+|---|---|---|
+| Os botões 2D/2,5D/3D não funcionam | a legenda da barra de a11y era filha flex do painel e empurrava as linhas para baixo entre cliques | `b0e6be6` |
+| Mudar de vista deixava o tabuleiro antigo | cada `destroy()` desmontava o conteúdo da cena e deixava o `<canvas>` no DOM; o `view-flat` destruía o espelho PARTILHADO | `c020829` |
+| Em 2D nada é desenhado | `visibleMirror` era por arranque, não por vista: arrancar em 2,5D e trocar para 2D encontrava um espelho construído sem glifos | `6c6232d` |
+| Pensamento da engine acima do tabuleiro | `#below-board` vivia dentro de `#chess-board` e disputava espaço flex com a tela | `6c6232d` |
+| Tabuleiro 2,5D grande demais, bordas fora do ecrã | os recuos de CSS não pegavam: os atributos HTML `width`/`height` que o Zdog escreve ganham de `width: auto` | `03506c1`, `fb69006` |
+| Letras e números não cabiam | `CAMERA.zoom` 2.3 → 2.0, e o tabuleiro passou a ter goteira própria | `fb69006` |
+| Rótulos não acompanhavam o tabuleiro ao rodar | `.coords` era `inset: 0` de `#chess-board` enquanto `put()` mede a partir da TELA | `3e063eb`, `f035d3b` |
+
+### ⚠️ Os dois defeitos que o conserto dos rótulos trouxe à superfície
+
+Os rótulos de coordenadas foram a primeira coisa neste projecto a **imprimir uma
+afirmação sobre a orientação do tabuleiro**. Enquanto não existiam, duas faltas
+graves na vista 3D eram invisíveis — um tabuleiro de xadrez sem letras é simétrico
+em tudo o que o olho confere.
+
+**1. O tabuleiro 3D estava ESPELHADO — desde que a vista foi escrita** (`1d3c8a9`).
+
+Os eixos da mesa (x direita, y BAIXO, z para o observador) são uma base **canhota**;
+o Three.js é destro. O `camera.up.set(0, -1, 0)` acerta a vertical mas **não converte
+a mão**: o vector «direita» da câmera sai `up × z_cam = (-1, 0, 0)`, logo o `+x` do
+mundo cai na ESQUERDA do ecrã, e a coluna `a` — que vive em x negativo — era desenhada
+à direita. As colunas corriam `h..a`.
+
+A conversão passa a acontecer uma vez, em `sceneCenter` (`render3d/scene.ts`), e todo
+o consumidor 3D de uma posição passa por lá: casas, marcas, peças, setas de dica e a
+projecção de onde os rótulos são postos. As duas luzes são espelhadas junto, para a
+iluminação manter a relação com que foi afinada. O `pick` não precisou de nada —
+lança raios nas malhas reais.
+
+⚠️ **O ERRO DE MÉTODO QUE PRODUZIU UM SEGUNDO DEFEITO, e que vale mais do que o
+conserto:** em `e955ce1` eu aliara os rótulos à câmera **conformando-os a uma medição
+do tabuleiro a correr** (clique à esquerda → `g1`, à direita → `b1`) e concluíra «a
+convenção desta câmera é h..a». A medição estava certa; a conclusão não — aquilo não
+era convenção a seguir, era o defeito. Eu tinha notado a divergência entre 2,5D e 3D
+na mesma investigação e arquivara-a como «problema separado que ele não pediu». Era a
+causa. Resultado: as letras saíram invertidas e o Dev relatou «arrumou um problema e
+criou outro».
+
+**Regra que fica:** antes de alinhar B a uma medição de A, procurar um terceiro ponto
+que diga quem tem razão — aqui o 2D e o 2,5D, que põem `a` à esquerda. Divergência
+entre caminhos que deviam concordar é achado, nunca ruído.
+
+**2. Os números de fileira caíam SOBRE a coluna b** (`1b9dab0`).
+
+`ui/coordinates.ts` lê um CONTRATO dos quatro cantos de cada casa —
+`0 = longe-esquerda, 1 = longe-direita, 2 = perto-direita, 3 = perto-esquerda` — e as
+duas filas de rótulos leem **pares diferentes** dele:
+
+- as letras tomam `mid(0,1)` e `mid(2,3)`: uma borda longe e uma perto, e o PONTO MÉDIO
+  de um par não muda quando os seus dois membros trocam;
+- os números tomam `mid(0,3)` e `mid(1,2)`: as duas bordas LATERAIS, que a troca
+  inverte, transformando «empurra para além da borda oeste» em «empurra para leste».
+
+E os cantos estavam trocados: `projectQuads` escrevia o canto `x - half` primeiro — a
+ordem óbvia e a errada, porque nesta cena a esquerda do ecrã é `+x`. Isto estava
+errado desde que a vista foi escrita e era invisível porque o tabuleiro **também**
+estava espelhado: dois defeitos a cancelarem-se, e consertar um expôs o outro.
+
+`projectQuads` saiu do closure de `boot/view-solid.ts` para o módulo
+`render3d/project-quads.ts`. Não foi arrumação — **contrato que nenhum teste alcança é
+comentário**, e foi por isso que escapou duas vezes.
+
+### Os portões que nasceram com estes dois consertos
+
+- `tests/scene3d.browser.test.ts`: três testes que varrem o `pick` pelo canvas e
+  exigem colunas a subir da esquerda para a direita e fileiras a descer 8..1.
+  Asseridos pelo `pick` — a função que responde «que casa está debaixo deste ponto do
+  ecrã» — e não pela aritmética do `sceneCenter`, porque um teste da fórmula seria uma
+  segunda cópia dela e teria CONCORDADO com o defeito.
+- `tests/project-quads.browser.test.ts`: seis testes, em duas camadas — o contrato dos
+  cantos nas 64 casas, e o sintoma ponta a ponta (cada número à esquerda da SUA PRÓPRIA
+  casa, cada letra abaixo da sua).
+
+⚠️ «da sua própria casa», não da caixa envolvente do tabuleiro, e o primeiro rascunho
+desse teste errou nisso: esta câmera tem PERSPECTIVA, logo a fileira 1 é desenhada
+mais larga que a 8 e o ponto mais à esquerda do tabuleiro pertence a a1. Caixa
+envolvente é a pergunta certa para o tabuleiro ortográfico do Zdog e a errada aqui.
+
+Os dois conjuntos foram verificados por mutação: repor o defeito põe vermelho
+exactamente os testes que o defeito quebra, e deixa verdes os outros — que é a
+assinatura descrita acima e a prova de que olhar para as letras nunca apanharia o
+problema dos números.
+
+### ⏸️ ABERTO — a altura dos botões cai no primeiro clique de vista
+
+Relatado pelo Dev em 2026-10-04: «ao abrir, os botões estão com uma altura; no primeiro
+clique para alterar entre os três tipos de tabuleiro a altura de TODOS os botões é
+reduzida». Medido no build a correr, 640×360:
+
+| momento | `--tap` inline em `#game-region` | altura do botão |
+|---|---|---|
+| ecrã de título / arranque | `44px` | 44 px |
+| primeiro clique numa vista | `24px` | **24 px** |
+| qualquer `resize` da janela | `44px` | 44 px (volta) |
+
+**Causa: `--tap` tem DOIS DONOS, e ganha quem escreveu por último.**
+
+1. A engine 11, em `ui/layout.js` → `applyScale(region, e)`, escreve
+   `--tap = minimumTarget(k)` com `minimumTarget(k) = 22 * max(k, 2)` — **nunca abaixo
+   de 44** (ADR-0163, e o Dev fixou o número: «44px é o correto, eu errei quando disse
+   42px»).
+2. O xadrez, em `app/js/ui/layout.ts` → `applyLayout`, escreve `--tap = tapFor(width)`
+   com uma escada graduada própria: `>= 720 → 44`, `>= 540 → 34`, senão **24**.
+
+Ambos escrevem em linha no mesmo `#game-region`. No arranque a `applyScale` da engine
+corre por último e o valor fica 44. `switchView` chama `relayout()` → `applyLayout`,
+e **nada faz a engine recorrer**, por isso os 24 ficam. Um `resize` faz os dois
+correrem, a engine por último, e os 44 voltam — que é o «pisca» que se vê.
+
+Sondagem que fixa isto (instrumentar `CSSStyleDeclaration.prototype.setProperty` e
+filtrar `--tap`): na troca de vista há duas escritas de `24px` vindas do pacote do
+xadrez (a de `vars` e a de `#below-board`); num `resize` há as mesmas duas e depois
+uma terceira de `44px` vinda do módulo da engine.
+
+⚠️ **A engine JÁ ESTÁ A DENUNCIAR ISTO** e ninguém leu: a linha que aparece em
+`engine.problems` a cada refresh — «the cartridge draws targets under 44 px (button,
+button, button, button) in #game-region» — é este defeito, não ruído.
+
+**Isto é uma DECISÃO do Dev, não um conserto meu, porque as duas posições são
+defensáveis e incompatíveis:**
+
+- **(A) Ceder à engine.** Apagar `tapFor` e a escrita de `--tap` do `app/js/ui/layout.ts`,
+  deixando o `:root { --tap: 44px }` e a `applyScale` da engine como únicos donos.
+  Cumpre a ADR-0163 e cala o `problems`. **Custo medido e real:** o comentário no
+  próprio `layout.ts` regista que a 640×360 o painel tem 280 px de largura por 360 de
+  altura e que **controlos de 44 px com tipo de 16 px não cabem — o HUD passava a
+  rolar**. A escada 24/34/44 foi escrita precisamente para isso.
+- **(B) Manter a escada do xadrez** e fazer `switchView` reaplicar o `--tap` do xadrez
+  de forma determinística (ou deixar de o escrever e pôr a graduação numa variável
+  própria, p.ex. `--tap-chess`, que só as classes do painel do xadrez leem). Mantém o
+  painel utilizável no palco mínimo, mas assume conscientemente WCAG 2.5.8 (AA, 24 px)
+  em vez de 2.5.5 (AAA, 44 px) nesse tamanho — e o `problems` da engine continuará a
+  apontar, o que exige uma nota a dizer que é deliberado.
+
+Em qualquer dos casos **o pisca tem de acabar**: a altura não pode depender de quem
+correu por último. Hoje não há teste nenhum que meça a altura RENDERIZADA de um
+controlo — o próprio `layout.ts` já diz isso por escrito — e é essa a lacuna que
+deixou passar tanto os 25 px de antes como os 24 de agora.
+
+### 📌 Correcções a marcadores desactualizados desta página
+
+Os três `⏸️` da lista de zombies do HUD (secção «gameOptions.values é ESTÁTICO»)
+estavam vencidos quando foram lidos em 2026-10-04:
+
+- `motion` — **removido** em `4a35f97`.
+- `outline` / `coords` — **removidos** em `d286cf8`.
+- `locale` — **removido** em `0e16900` (não estava sequer listado).
+
+`themes` continua genuinamente aberto, pela razão escrita lá: o `themeSelect` é a
+âncora do relatório de contraste em modo `debug`.
+
+### Onda 2b fechada destrava a publicação
+
+A secção «Publicar» abaixo dizia-se condicionada a «quando a Onda 2b estiver fechada:
+publicar com um cartão de pausa duplicado seria publicar o defeito». **Essa condição
+está cumprida** — o `.chess-pause` foi retirado em `9a2fa9a`. O que falta da publicação
+é inteiramente do lado do Dev (projecto no Cloudflare Pages, linha em `GAMES` do Router
+Worker, binding do R2).
 
 ## ⚠️ O TRABALHO ANTERIOR: revisar a interface
 
