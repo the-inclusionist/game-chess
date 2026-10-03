@@ -916,6 +916,10 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
        */
       const keys = [
         'keys.move', 'keys.select', 'keys.cancel', 'keys.teacher', 'keys.panel', 'keys.sonar',
+        // ⚠️ `keys.rankStart`/`keys.rankEnd` SINCE WAVE 3 STEP 3 (2026-10-02): the preset carries
+        // leftShoulder/rightShoulder with these labels, and the dictionaries projection has to
+        // name them too or the remap screen draws the row with the raw key visible to a child.
+        'keys.rankStart', 'keys.rankEnd',
         'hud.pieceSet', 'go.pieceSet.hint',
         'pieceSet.symbols', 'pieceSet.math', 'pieceSet.pecita',
         'hud.boardTheme', 'go.boardTheme.hint',
