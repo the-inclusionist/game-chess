@@ -1886,3 +1886,39 @@ describe('[Params] the maintenance switch is what the shell was given', () => {
     expect(globals[NAME], 'nothing installed').toBeUndefined();
   });
 });
+
+/*
+ * ========================= THE PRESET DICTIONARY, ASKED FROM THE ENGINE SIDE =========================
+ * `hooks.dictionaries` has to carry a word for every `labelKey` the preset declares, or the engine's
+ * remap screen draws the raw key visible to a child. The projection is a hand-written list of keys
+ * in `game-shell.ts` — and that list has already drifted ONCE: Wave 3 Step 3 added `leftShoulder`/
+ * `rightShoulder` labelled `keys.rankStart`/`keys.rankEnd` to the preset, and the dictionaries list
+ * was not extended until `0788f6a`. The engine ASKED FOR those keys and the dictionary ANSWERED with
+ * the key itself (Translator.t's honest answer for a missing word), which the engine wrote onto the
+ * row. Nothing failed; the label was wrong.
+ *
+ * This test closes the drift: ask the engine's own translator (which reads from `hooks.dictionaries`)
+ * for every rank-jump label, and insist the answer is NOT the raw key.
+ */
+describe('[Preset dictionary] every preset labelKey resolves through hooks.dictionaries', () => {
+  const NAME = '__presetDictTest';
+  const globals = window as unknown as Record<string, unknown>;
+  afterEach(() => { delete globals[NAME]; });
+
+  it('⚠️ keys.rankStart and keys.rankEnd resolve to human words, not the raw key', () => {
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });
+    makeShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: NAME, contrastTheme: 'contrast-flat',
+      params: new URLSearchParams('debug=true'),
+    });
+    const dbg = globals[NAME] as { engine: { t(k: string): string } } | undefined;
+    expect(dbg, 'debug global installed').toBeTruthy();
+    for (const key of ['keys.rankStart', 'keys.rankEnd']) {
+      expect(dbg!.engine.t(key), `${key} resolves`).not.toBe(key);
+      expect(dbg!.engine.t(key).trim(), `${key} is not empty`).toBeTruthy();
+    }
+  });
+});
