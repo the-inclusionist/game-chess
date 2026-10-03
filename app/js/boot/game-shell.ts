@@ -2333,6 +2333,18 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
       opponent.destroy();
       // GPU buffers: Three does not free a geometry when its mesh leaves the scene.
       view.destroy();
+      /*
+       * ⚠️ `engine.dispose()` ENDS THE ROOT (Wave 4, 2026-10-02). Until engine 11 the root kept
+       * its ~30 window listeners for the lifetime of the document, and since every query it
+       * makes is document-wide, it went on driving the pause card of whatever root came after it
+       * — measured: one ArrowDown moved the cursor two items with a second root alive. The hook
+       * is open now because `teardown()` is only called from `standalone.ts` on page unload
+       * today, so the cost of calling `dispose` is zero and the benefit is forward-compatibility
+       * with any future host (platform page, cartridge swap) that keeps the document alive after
+       * dropping this root. Idempotent in practice: `mounted` guards against repeats.
+       */
+      engineRef.current?.dispose();
+      engineRef.current = null;
     },
     async switchView(kind: ViewKind): Promise<void> {
       if (kind === viewKind) return;
