@@ -2075,6 +2075,50 @@ Verificação da Onda 3: um jogo inteiro só com teclado, verificado na página,
 `grep "addEventListener('keydown'"` no `app/js/boot/` devolve zero. Memory `__incl.update(dt)
 é em quadros`: o laço continua nosso.
 
+### ⚠️ MEDIÇÃO DE 2026-10-02 — Onda 3 é all-or-nothing
+
+Tentei um passo A incremental («mover só as quatro acções de casca para
+`onCommand`, deixar o espelho/painel/vista no `onRegionKey`») e a suite
+caiu em 6 testes. A causa está em `boot/create-game.js` da engine 11:
+
+```
+for (const kind of ['keydown', 'keyup']) {
+    win.addEventListener(kind, (e) => {
+        if (e.repeat || !cartridge.onCommand) return;
+        ...
+        if (virtualController.press(...)) e.preventDefault();
+    }, true);
+}
+```
+
+O listener da engine só se activa quando o cartucho DECLARA `onCommand`.
+Assim que declarei, ele passou a chamar `e.preventDefault()` em todas as
+acções mapeadas, e o `onRegionKey` do xadrez — que começa com
+`if (event.defaultPrevented) return;` — passou a saltar para TUDO,
+inclusive os ramos do espelho e do walk-panel que ainda queríamos lá.
+
+**Consequência:** não há meio-passo seguro. Ou se faz a onda inteira
+(todas as acções via `onCommand`, incluindo setas, confirm, Home/End em
+preset), ou se mantém o estado actual (sem `onCommand`, o `onRegionKey`
+é o despacho único). Reverti a tentativa (16 commits ainda não empurrados,
+o working tree ficou limpo).
+
+**Trabalho real:**
+1. `mirror.moveCursor(dir)` e `mirror.activateCursor()` como novas entradas
+   que não leem evento (ADR-0111: comando vem com nome, não com código).
+2. `walkPanel(action)` continua a existir mas é chamado de `onCommand` para
+   setas quando foco está no painel.
+3. Home/End vão para `preset` como novas acções, com `labelKey` próprio;
+   descem no `onCommand` como qualquer outra acção.
+4. Shift+Arrow para câmera: o virtual controller NÃO entrega chaves com
+   modificadores. Precisa de uma via própria — ou um listener dedicado
+   só para modificadas no `region`, ou mover a câmera para a barra de
+   acessibilidade. Decisão em aberto.
+5. Depois disso: remover `onRegionKey` e o `grid-mirror`'s próprio
+   listener de teclado (se cobrido).
+
+Isto é trabalho de uma sessão dedicada, não cabe em tick de 10 minutos.
+
 **Onda 4 — oportunidades sem bloqueio.** Nenhuma destas é requerida pela 11.
 
 - ⏸️ `howToPlay`: três ou quatro slides para o jogo (como se move cada peça,
