@@ -70,6 +70,31 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
   // BEFORE the canvas in the DOM, for the same reason. Also new here.
   region.insertBefore(mirror.root, canvas);
 
+  /*
+   * ⚠️ FILE AND RANK LABELS, STATIC AROUND THE CANVAS (2026-10-03). The Dev's correction of
+   * 2026-10-03: the 3D view must carry the same "número de cada fileira" and file letters that
+   * the 2.5D view's `.coords` paints. Three's perspective makes a projected label jump as the
+   * camera moves, which is a different cost from Zdog's orthographic one, so this view uses
+   * STATIC labels in the surround the canvas CSS now reserves — eight rank numbers down the
+   * left, eight file letters along the bottom, each inside its own cell.
+   */
+  const labelsRoot = doc.createElement('div');
+  labelsRoot.className = 'board-3d-coords';
+  labelsRoot.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i < 8; i++) {
+    const rank = doc.createElement('span');
+    rank.className = 'rank';
+    rank.textContent = String(8 - i);
+    labelsRoot.appendChild(rank);
+  }
+  for (const ch of 'abcdefgh') {
+    const file = doc.createElement('span');
+    file.className = 'file';
+    file.textContent = ch;
+    labelsRoot.appendChild(file);
+  }
+  region.appendChild(labelsRoot);
+
   const theme = boardTheme(themeKey);
   const scene = createScene3d({
     canvas,
@@ -362,6 +387,8 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
        * 3D case) over the live board.
        */
       canvas.remove();
+      // Rank/file label row goes with the canvas.
+      labelsRoot.remove();
     },
   };
 };

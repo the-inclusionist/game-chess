@@ -249,21 +249,27 @@ html { background: var(--page); }
    */
   #board-canvas {
     /*
-     * ⚠️ `position: absolute` WITH ROOM AT THE TOP FOR THE PLAYER STRIPS (2026-10-03). The 2.5D
-     * canvas is absolute so it does not fight the mirror (always visible under it) and the
-     * player strips for flex height; the inset-top reserves the row the strips sit in. The
-     * mirror itself sees through the gap, which is why its glyphs are hidden behind the canvas
-     * rather than beside it.
-     *
-     * The Dev's follow-up of 2026-10-03: BRANCAS, PRETAS, their scores, the advantage, and the
-     * file letters must stay visible in the 2.5D and 3D views too. Reserving the top strip (and
-     * nothing more) keeps the Zdog board centred vertically with its usual drawn height.
+     * ⚠️ `position: absolute` WITH ROOM ON ALL SIDES for the HUD surround (2026-10-03). The 2.5D
+     * canvas sits inside `#chess-board` with:
+     *   · top space (≈ 2.6 em) for the player strips row (BRANCAS / +eval / PRETAS)
+     *   · bottom space (≈ 1.4 em) for the file letters (a..h)
+     *   · side space (≈ 1.4 em) for the rank numbers (8..1)
+     * This is the Dev's correction of 2026-10-03: the labels belong AROUND the board, not ON
+     * TOP of it. Shrinking the canvas is how the Zdog projection then has room to spare for its
+     * `.coords` extrapolation to put each label just outside the drawn board edge.
      */
     position: absolute;
     top: calc(var(--ui-fs, 16px) * 2.6);
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: calc(var(--ui-fs, 16px) * 1.4);
+    bottom: calc(var(--ui-fs, 16px) * 1.4);
+    /*
+     * ⚠️ CALC WIDTH/HEIGHT NEEDED because the HTML `width="360" height="360"` attributes Zdog
+     * writes on the canvas win over `width: auto`, so `left`/`right`/`top`/`bottom` could not
+     * resolve the box on their own. The explicit `calc` forces the CSS size and makes the HUD
+     * surround for file letters and rank numbers appear.
+     */
+    width: calc(100% - var(--ui-fs, 16px) * 2.8);
+    height: calc(100% - var(--ui-fs, 16px) * 4.0);
     display: block;
     /* PixiJS used to paint this as the Application's backgroundColor. Zdog CLEARS its canvas to
        transparent, so without this the board would float on whatever is behind it. */
@@ -912,16 +918,65 @@ html { background: var(--page); }
    *
    * The region IS the board now — nine of the stage's sixteen units — so the canvas is all of it.
    */
+  /*
+   * ⚠️ 3D VIEW'S OWN FILE AND RANK LABELS (2026-10-03). The Zdog view uses `.coords` with
+   * projection extrapolation; Three's perspective camera makes projection a different and
+   * jumpier cost, so this view puts the labels STATICALLY in the surround that the canvas
+   * reserves. Eight rank numbers down the left strip of `#chess-board`, eight file letters
+   * along the bottom; each spans one eighth of the board drawing's own extent.
+   */
+  .board-3d-coords {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    color: #6f6552;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+    font-size: var(--ui-fs, 16px);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .board-3d-coords .rank {
+    position: absolute;
+    left: 0;
+    width: calc(var(--ui-fs, 16px) * 1.4);
+    text-align: center;
+  }
+  .board-3d-coords .rank:nth-child(1) { top: calc(var(--ui-fs, 16px) * 2.6 + (100% - var(--ui-fs, 16px) * 6.6) * 0.0625); }
+  .board-3d-coords .rank:nth-child(2) { top: calc(var(--ui-fs, 16px) * 2.6 + (100% - var(--ui-fs, 16px) * 6.6) * 0.1875); }
+  .board-3d-coords .rank:nth-child(3) { top: calc(var(--ui-fs, 16px) * 2.6 + (100% - var(--ui-fs, 16px) * 6.6) * 0.3125); }
+  .board-3d-coords .rank:nth-child(4) { top: calc(var(--ui-fs, 16px) * 2.6 + (100% - var(--ui-fs, 16px) * 6.6) * 0.4375); }
+  .board-3d-coords .rank:nth-child(5) { top: calc(var(--ui-fs, 16px) * 2.6 + (100% - var(--ui-fs, 16px) * 6.6) * 0.5625); }
+  .board-3d-coords .rank:nth-child(6) { top: calc(var(--ui-fs, 16px) * 2.6 + (100% - var(--ui-fs, 16px) * 6.6) * 0.6875); }
+  .board-3d-coords .rank:nth-child(7) { top: calc(var(--ui-fs, 16px) * 2.6 + (100% - var(--ui-fs, 16px) * 6.6) * 0.8125); }
+  .board-3d-coords .rank:nth-child(8) { top: calc(var(--ui-fs, 16px) * 2.6 + (100% - var(--ui-fs, 16px) * 6.6) * 0.9375); }
+  .board-3d-coords .file {
+    position: absolute;
+    bottom: calc(var(--ui-fs, 16px) * 0.1);
+    width: calc((100% - var(--ui-fs, 16px) * 2.8) / 8);
+    text-align: center;
+  }
+  .board-3d-coords .file:nth-child(9) { left: calc(var(--ui-fs, 16px) * 1.4 + ((100% - var(--ui-fs, 16px) * 2.8) / 8) * 0); }
+  .board-3d-coords .file:nth-child(10) { left: calc(var(--ui-fs, 16px) * 1.4 + ((100% - var(--ui-fs, 16px) * 2.8) / 8) * 1); }
+  .board-3d-coords .file:nth-child(11) { left: calc(var(--ui-fs, 16px) * 1.4 + ((100% - var(--ui-fs, 16px) * 2.8) / 8) * 2); }
+  .board-3d-coords .file:nth-child(12) { left: calc(var(--ui-fs, 16px) * 1.4 + ((100% - var(--ui-fs, 16px) * 2.8) / 8) * 3); }
+  .board-3d-coords .file:nth-child(13) { left: calc(var(--ui-fs, 16px) * 1.4 + ((100% - var(--ui-fs, 16px) * 2.8) / 8) * 4); }
+  .board-3d-coords .file:nth-child(14) { left: calc(var(--ui-fs, 16px) * 1.4 + ((100% - var(--ui-fs, 16px) * 2.8) / 8) * 5); }
+  .board-3d-coords .file:nth-child(15) { left: calc(var(--ui-fs, 16px) * 1.4 + ((100% - var(--ui-fs, 16px) * 2.8) / 8) * 6); }
+  .board-3d-coords .file:nth-child(16) { left: calc(var(--ui-fs, 16px) * 1.4 + ((100% - var(--ui-fs, 16px) * 2.8) / 8) * 7); }
+
   .stage-3d {
     /*
-     * ⚠️ TOP INSET MATCHES `#board-canvas` (2026-10-03): the 3D view also has to leave the player
-     * strips visible. Same `calc(var(--ui-fs, 16px) * 2.1)` as the 2.5D canvas.
+     * ⚠️ INSETS/SIZE MATCH `#board-canvas` (2026-10-03): the 3D view has to leave the same
+     * surround so the player strips at the top and the file/rank labels on the other three
+     * sides stay visible around the board. Same `calc` width/height dance because Three's canvas
+     * also sets intrinsic HTML `width`/`height`.
      */
     position: absolute;
     top: calc(var(--ui-fs, 16px) * 2.6);
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: calc(var(--ui-fs, 16px) * 1.4);
+    bottom: calc(var(--ui-fs, 16px) * 1.4);
+    width: calc(100% - var(--ui-fs, 16px) * 2.8);
+    height: calc(100% - var(--ui-fs, 16px) * 4.0);
     display: block;
     touch-action: none;
   }

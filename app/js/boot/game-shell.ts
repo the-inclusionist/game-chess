@@ -1186,6 +1186,14 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     onCursor: (square) => { cursor = square; syncMarks(); },
     resolveAction: (code) => engine.keyboard.actionOf(code, 0),
   });
+  /*
+   * ⚠️ MIRROR STARTS HIDDEN ON 2.5D/3D (2026-10-03). The mirror is always built with
+   * `visible: true` so the 2D view has drawings on hand after a switch, but the two canvas
+   * views cover a smaller area now (to leave room for file/rank labels), so the mirror would
+   * show BESIDE the canvas instead of behind it. `sr-only` keeps the glyphs reachable for
+   * screen readers and out of the layout at the same time.
+   */
+  if (deps.kind !== '2d') mirror.root.className = 'sr-only';
 
   /**
    * Build a renderer against this game. Extracted so a SWAP can repeat it exactly.
@@ -2400,6 +2408,16 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
       view = mountView(await VIEWS[kind]());
       mounted = true;
       viewKind = kind;
+      /*
+       * ⚠️ MIRROR VISIBILITY FOLLOWS THE VIEW (2026-10-03). The grid mirror is always built with
+       * `visible: true` so its glyphs exist no matter which view is up (otherwise a swap into
+       * 2D after booting on 2.5D would find an empty grid, which the user reported). But those
+       * glyphs would show BESIDE the 2.5D or 3D canvas — the canvas is smaller than the board
+       * area to leave room for file/rank labels — and that was exactly the "mirror showing
+       * underneath" the Dev saw on 2026-10-03. The className toggle hides the mirror visually
+       * while leaving it (and its screen-reader duty) alive.
+       */
+      mirror.root.className = kind === '2d' ? 'board-2d' : 'sr-only';
       /*
        * A fresh renderer starts at its own defaults, so everything the player had chosen has to be
        * said again: the palette, and then the position it is meant to be drawing.
