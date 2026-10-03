@@ -892,13 +892,11 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
    * ⚠️ SO THE STYLESHEET IS IMPORTED HERE, and that is the point of this describe rather than an
    * incidental. `hidden` is a property; `display` is what a person sees. Only the second one is
    * worth asserting, and until this import there was no way to ask.
+   *
+   * ⚠️ `press` HELPER REMOVED IN WAVE 2d: the chess-pause tests that used it are gone, and the
+   * lesson-exit test now reaches the engine's pause card through `engine.pause.show` via the
+   * debug global.
    */
-  const press = (code: string, key: string): void => {
-    document.getElementById('game-region')!.dispatchEvent(new KeyboardEvent('keydown', {
-      code, key, bubbles: true, cancelable: true,
-    }));
-  };
-
   function shellFor() {
     fixture();
     clear();
