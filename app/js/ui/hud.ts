@@ -110,9 +110,6 @@ export interface HudDeps {
    * nobody has. Two engines meant two ladders that could not be compared with each other, and one
    * of the two could not honour a rating at all.
    */
-  strengths?: readonly { readonly elo: number; readonly name: string }[];
-  strength?(): number;
-  onStrength?(elo: number): void;
 
   /**
    * Asks the engine what it would play. Absent on a board with no engine, which is the two-player
@@ -511,20 +508,10 @@ export function createHud(deps: HudDeps): Hud {
   protectedBox.append(protectedInput, protectedLabel);
 
   // --- how strong the opponent plays ------------------------------------------
-  const strengthBox = doc.createElement('p');
-  const strengthLabel = doc.createElement('label');
-  const strengthSelect = doc.createElement('select');
-  strengthSelect.id = 'hud-strength';
-  strengthLabel.htmlFor = strengthSelect.id;
-  if (deps.strengths) {
-    for (const rung of deps.strengths) {
-      const option = doc.createElement('option');
-      option.value = String(rung.elo);
-      option.dataset.name = rung.name;
-      strengthSelect.appendChild(option);
-    }
-    strengthBox.append(strengthLabel, strengthSelect);
-  }
+  // ⚠️ STRENGTH SELECT RETIRED (Wave 2d, 2026-10-02): the ELO ladder lives in
+  // `hooks.gameOptions` as `{id: 'strength', kind: 'list'}` and the engine's `.ctrl-row` panel
+  // renders it. The HUD's own select was appended to `settings` which has not reached the DOM
+  // since Wave 2c.
 
   // --- which drawing the pieces use ------------------------------------------
   const setBox = doc.createElement('p');
@@ -656,9 +643,6 @@ export function createHud(deps: HudDeps): Hud {
 
   function onProtectedChange(): void { deps.onProtected?.(protectedInput.checked); }
   protectedInput.addEventListener('change', onProtectedChange);
-
-  function onStrengthChange(): void { deps.onStrength?.(Number(strengthSelect.value)); }
-  strengthSelect.addEventListener('change', onStrengthChange);
 
   function onHintClick(): void { deps.onHint?.(); }
   hintButton.addEventListener('click', onHintClick);
@@ -842,15 +826,6 @@ export function createHud(deps: HudDeps): Hud {
       protectedInput.checked = deps.protectedOn?.() ?? false;
     }
 
-    if (deps.strengths) {
-      strengthLabel.textContent = i18n.t('hud.strength');
-      for (const option of strengthSelect.options) {
-        // "1600 · Class B" — the number is the dial and the name is what it means.
-        option.textContent = `${option.value} · ${i18n.t(option.dataset.name ?? '')}`;
-      }
-      strengthSelect.value = String(deps.strength?.() ?? '');
-    }
-
     /*
      * ================= ⚠️ THESE THREE ARE NOT THE HINT'S, AND THEY USED TO BE =================
      * The lesson list, the language selector and the opening name sat inside `if (deps.onHint)`
@@ -951,7 +926,6 @@ export function createHud(deps: HudDeps): Hud {
       hintButton.removeEventListener('click', onHintClick);
       lessonButton.removeEventListener('click', onLessonClick);
       localeSelect.removeEventListener('change', onLocaleChange);
-      strengthSelect.removeEventListener('change', onStrengthChange);
       protectedInput.removeEventListener('change', onProtectedChange);
       motionInput.removeEventListener('change', onMotionChange);
       outlineInput.removeEventListener('change', onOutlineChange);

@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createRules } from '../app/js/chess/rules.ts';
 import { createGameState } from '../app/js/chess/state.ts';
 import { fromAlgebraic, type Square } from '../app/js/chess/types.ts';
-import { DEFAULT_ELO, STRENGTH_LADDER } from '../app/js/chess/engine/strength.ts';
 import { createI18n } from '../app/js/i18n/index.ts';
 import { createHud, type Hud } from '../app/js/ui/hud.ts';
 
@@ -45,8 +44,6 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
     // The two controls the panel has that are about the OPPONENT: who plays which colour, and how
     // strong the engine is. Both are optional to the panel — the two-player board has neither —
     // so a builder that left them out was testing a panel the game never actually shows.
-    strengths: STRENGTH_LADDER.map((rung) => ({ elo: rung.elo, name: rung.name })),
-    strength: () => DEFAULT_ELO, onStrength: vi.fn(),
     canTakeBack: () => state.canTakeBack(), canReplay: () => state.canReplay(),
     onTakeBack, onReplay,
   });

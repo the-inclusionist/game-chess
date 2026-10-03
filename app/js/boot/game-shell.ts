@@ -1196,9 +1196,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
         askOpponent();
       },
     }),
-    strengths: STRENGTH_LADDER.map((rung) => ({ elo: rung.elo, name: rung.name })),
-    strength: () => elo,
-    onStrength: applyStrength,
 
     // No engine in a two-player game, so nobody to ask.
     ...(mode === 'two' ? {} : {
