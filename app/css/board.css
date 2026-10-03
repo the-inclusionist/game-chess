@@ -260,16 +260,16 @@ html { background: var(--page); }
      */
     position: absolute;
     top: calc(var(--ui-fs, 16px) * 2.6);
-    left: calc(var(--ui-fs, 16px) * 1.4);
-    bottom: calc(var(--ui-fs, 16px) * 1.4);
     /*
-     * ⚠️ CALC WIDTH/HEIGHT NEEDED because the HTML `width="360" height="360"` attributes Zdog
-     * writes on the canvas win over `width: auto`, so `left`/`right`/`top`/`bottom` could not
-     * resolve the box on their own. The explicit `calc` forces the CSS size and makes the HUD
-     * surround for file letters and rank numbers appear.
+     * ⚠️ SQUARE CANVAS AT ITS AVAILABLE HEIGHT (2026-10-03). The canvas internal is 360×360
+     * (Zdog's `LOGICAL_W/H`), so letting CSS stretch it to a non-square shape squashes the
+     * drawing. `height` = whatever's left after the top strip; `aspect-ratio: 1` forces the
+     * matching width, and `left: 50%; transform: translateX(-50%)` keeps it centred.
      */
-    width: calc(100% - var(--ui-fs, 16px) * 2.8);
-    height: calc(100% - var(--ui-fs, 16px) * 4.0);
+    height: calc(100% - var(--ui-fs, 16px) * 2.6);
+    aspect-ratio: 1;
+    left: 50%;
+    transform: translateX(-50%);
     display: block;
     /* PixiJS used to paint this as the Application's backgroundColor. Zdog CLEARS its canvas to
        transparent, so without this the board would float on whatever is behind it. */
@@ -966,17 +966,15 @@ html { background: var(--page); }
 
   .stage-3d {
     /*
-     * ⚠️ INSETS/SIZE MATCH `#board-canvas` (2026-10-03): the 3D view has to leave the same
-     * surround so the player strips at the top and the file/rank labels on the other three
-     * sides stay visible around the board. Same `calc` width/height dance because Three's canvas
-     * also sets intrinsic HTML `width`/`height`.
+     * ⚠️ SQUARE CANVAS AT ITS AVAILABLE HEIGHT (2026-10-03), same shape as `#board-canvas` for
+     * the same reason: a non-square CSS display stretches the Three scene.
      */
     position: absolute;
     top: calc(var(--ui-fs, 16px) * 2.6);
-    left: calc(var(--ui-fs, 16px) * 1.4);
-    bottom: calc(var(--ui-fs, 16px) * 1.4);
-    width: calc(100% - var(--ui-fs, 16px) * 2.8);
-    height: calc(100% - var(--ui-fs, 16px) * 4.0);
+    height: calc(100% - var(--ui-fs, 16px) * 2.6);
+    aspect-ratio: 1;
+    left: 50%;
+    transform: translateX(-50%);
     display: block;
     touch-action: none;
   }

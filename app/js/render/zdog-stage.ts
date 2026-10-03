@@ -32,24 +32,20 @@ export const CAMERA = {
    * keeps its size — so the same geometry simply rasterises twice as finely and the board occupies
    * the same fraction of the screen it always did.
    *
-   * ⚠️ 2.3 → 2.0 on 2026-10-03 by the Dev's measured report: at 2.3 the pieces on the far rank
-   * project high enough (pitch of -1 tilts the board forward, so rank-8 pieces draw tall) to
-   * overflow the canvas top. The 2.5D view's edges then come off-screen on a 360-px canvas.
-   * Dropping to 2.0 keeps the board centred and visible on a 640×360 stage; the extra 15%
-   * margin is what gives the tops of the back-rank pieces room to project without clipping.
+   * ⚠️ 2.3 → 2.0 on 2026-10-03 (Dev's "diminuir" of 2026-10-03). The pitch of -1 tilts the board
+   * forward, so at the previous zoom the rank-8 pieces projected tall enough to clip against the
+   * canvas top; 2.0 keeps the whole piece set inside the canvas.
    */
   zoom: 2.0,
   /**
-   * ⚠️ ZERO NOW, AND IT USED TO BE -42. The board was pushed left because the HUD was drawn OVER
-   * the right 27.5% of this canvas — which is also why the panel could never be widened without
-   * covering the board. The panel is a sibling element now and the canvas is the board's alone, so
-   * the board is simply centred in it.
-   *
-   * The zoom is unchanged on purpose: the board is bound by the canvas HEIGHT, not its width, so
-   * the room reclaimed on the right is margin rather than magnification. Growing the zoom to
-   * spend it would push the board off the top and bottom.
+   * ⚠️ `+22` ON 2026-10-03, FROM 0. The pitch of -1 tilts the board forward and `.coords`'s
+   * projected rank labels follow the SLANTED left edge of the drawn board; rank 8 lands farthest
+   * left in viewport pixels. With `offsetX: 0` and `OUTSET: 0.72`, rank 8 projected to viewport
+   * x ≈ −5, past `#game-region { overflow:hidden }`'s clip. Shifting the whole projection right
+   * by 22 world units ≈ 44 CSS pixels at `zoom: 2.0`, which puts the rank numbers inside the
+   * stage without touching the ratio tests calibrated at this zoom.
    */
-  offsetX: 0,
+  offsetX: 22,
 } as const;
 
 export interface ZdogStage {

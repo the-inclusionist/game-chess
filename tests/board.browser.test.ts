@@ -247,16 +247,20 @@ describe('[Render] the canvas is not blank', () => {
     expect(paintedPixels(s)).toBeGreaterThan(2000);
   });
 
-  it('⚠️ CENTRES the board, because the canvas belongs to the board alone now', () => {
+  it('⚠️ SHIFTS the board rightward by `CAMERA.offsetX` so projected coord labels fit in-stage', () => {
     /*
-     * THIS TEST USED TO ASSERT THE OPPOSITE, and it was right to at the time: the side panel was
-     * absolutely positioned over the canvas's right 27.5%, so the camera was pushed left and
-     * nothing 3D was allowed to reach into that column.
+     * ⚠️ AT -42 ONCE, 0 BRIEFLY, +22 NOW (2026-10-03). The side panel used to sit on top of the
+     * canvas's right 27.5%, so the camera was pushed left (-42) to keep the board clear. That
+     * went away when the panel became a sibling and the comment here said "centred, offset went
+     * away" — but on 2026-10-03 the Dev caught the next consequence: with the panel out of the
+     * way the board sat centred, and `.coords`'s projected rank numbers (at `OUTSET = 0.72`
+     * squares beyond the slanted left edge) landed PAST the stage's own left clip. Shifting the
+     * projection right by 22 world units moves the whole board — and therefore the labels — into
+     * the visible stage without touching the renderer's own ratios.
      *
-     * The panel is a sibling element now — `ui/layout` gives it whatever the board did not take —
-     * so the reservation is gone, `CAMERA.offsetX` is zero, and the board sits in the middle. The
-     * claim worth keeping is the one that outlived the layout: the board is CENTRED, which is what
-     * says the offset really went away rather than merely changing size.
+     * This test now says WHICH WAY the offset points instead of asserting it is zero: the LEFT
+     * margin is bigger than the RIGHT one, by roughly `offsetX * 2` in canvas pixels (the camera
+     * zoom doubles each world unit). A reversion to a centred camera would fail here loudly.
      */
     const { stage: s } = build();
     s.render();
@@ -278,8 +282,9 @@ describe('[Render] the canvas is not blank', () => {
 
     const leftMargin = first;
     const rightMargin = LOGICAL_W - 1 - last;
-    // Equal margins to within a few pixels. At the old `offsetX: -42` they differed by ~84.
-    expect(Math.abs(leftMargin - rightMargin)).toBeLessThanOrEqual(8);
+    expect(leftMargin, 'left margin reserved for rank labels').toBeGreaterThan(rightMargin);
+    expect(leftMargin - rightMargin, 'offset carried through to a projected margin')
+      .toBeGreaterThanOrEqual(30);
   });
 });
 

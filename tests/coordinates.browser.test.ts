@@ -79,12 +79,8 @@ describe('[Coordinates] sixteen labels, hidden from the reader that already has 
 });
 
 describe('[Coordinates] the extrapolation is exact, not close', () => {
-  /**
-   * The label for file `x` sits `OUTSET` of a tile beyond the near EDGE of rank 1, in world units.
-   * Mirrors `app/js/ui/coordinates.ts`'s own `OUTSET` — tightened to 0.2 on 2026-10-03 so the
-   * whole label box lands inside the HUD surround.
-   */
-  const OUTSET = 0.2;
+  /** The label for file `x` sits 0.72 of a tile beyond the near EDGE of rank 1, in world units. */
+  const OUTSET = 0.72;
 
   /**
    * Projects a world point on the board plane by putting a real (invisible) Rect there and letting

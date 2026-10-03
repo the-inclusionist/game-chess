@@ -32,17 +32,8 @@ import { FILES, RANKS, type Square } from '../chess/types.ts';
 import { squareIndex } from '../render/board-geometry.ts';
 import type { Quad, Viewport } from '../render/picking.ts';
 
-/**
- * How far outside the board edge a label sits, in squares.
- *
- * ⚠️ 0.72 → 0.2 on 2026-10-03: with `CAMERA.zoom = 2.0` and the ~22-px side inset the canvas
- * now carries (so the player strips at the top and the file/rank labels around the board are
- * visible, not drawn over the pieces), 0.72 squares beyond the edge projected the rank numbers
- * past `#chess-board`'s left edge, where `#game-region { overflow:hidden }` clipped them. 0.35
- * lifted them INSIDE but the `translate(-50%)` centring still had half the glyph on the clipped
- * side; 0.2 lands each label's whole box inside the surround.
- */
-const OUTSET = 0.2;
+/** How far outside the board edge a label sits, in squares. */
+const OUTSET = 0.72;
 
 const FILE_NAMES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 /** Rank 8 first, because `y` is counted from black — the same order the board array uses. */
