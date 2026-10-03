@@ -336,20 +336,48 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
   if (!region) throw new Error('a region is required — this game has nowhere to draw');
 
   /**
-   * THIS CARTRIDGE'S OWN ANNOUNCER (ADR-0232 D4).
+   * The engine arrives in `create(received)`. Everywhere BELOW the create() hook `engine` reads
+   * it through a non-null assertion — correct, because every caller runs after `create` has set
+   * it. The ref beside it exists for the handful of CLOSURES evaluated during construction,
+   * before `create` runs. `engineRef.current` is null until `create` sets it.
    *
-   * ⚠️ `core/a11y-sr` was a module-level pair of functions in engine 9. In 11 it is a factory and
-   * each root builds its own, so the Libras mirror and the sound caption follow this instance and
-   * not the next one on the page. The engine's `engine.say`/`engine.alert` are the LARGER channel —
-   * they mirror to deaf mode — and could replace this one; this file does not use them because the
-   * CLOSURES below are evaluated before `create(engine)` runs, and a reference to `engine` here is
-   * null until then.
+   * ⚠️ MOVED UP in Wave 2 item 1 (2026-10-02) to sit beside the announcer, which now routes
+   * `say`/`alert` through `engine` once it exists so the DEAF-MODE MIRROR (ADR-0232 D4) sees
+   * every announcement; the local `createAnnouncer` is the boot-window fallback only.
+   *
+   * ⚠️ `engineT` RETIRED in Wave 2 item 2 (2026-10-02): the vision select's option labels now go
+   * through chess's own `i18n`.
+   */
+  const engineRef: { current: Engine | null } = { current: null };
+  let engine!: Engine;
+
+  /**
+   * THIS CARTRIDGE'S ANNOUNCER (ADR-0232 D4).
+   *
+   * ⚠️ `core/a11y-sr` was a module-level pair of functions in engine 9. In 11 it is a factory
+   * and each root builds its own, so the Libras mirror and the sound caption follow this
+   * instance and not the next one on the page. The engine's `engine.say`/`engine.alert` are the
+   * LARGER channel — they mirror to deaf mode — so this cartridge routes through the engine
+   * once it is here. The local `createAnnouncer` is the BOOT-WINDOW FALLBACK: the closures below
+   * are evaluated during construction, and a `say` or `alert` fired before `create(engine)`
+   * runs would otherwise have nowhere to go.
    */
   const win = host.defaultView;
-  const announcer: Announcer = createAnnouncer({
+  const bootAnnouncer: Announcer = createAnnouncer({
     doc: host,
     raf: win ? win.requestAnimationFrame.bind(win) : undefined,
   });
+  const announcer: Announcer = {
+    say: (text) => { (engineRef.current ?? bootAnnouncer).say(text); },
+    alert: (text) => { (engineRef.current ?? bootAnnouncer).alert(text); },
+    /*
+     * ⚠️ The engine's equivalent is named `mirrorAnnouncements` rather than `mirrorTo`; chess has
+     * no callsite for either today, but the Announcer shape has to be complete to type-check.
+     */
+    mirrorTo: (sink) => (engineRef.current
+      ? engineRef.current.mirrorAnnouncements(sink)
+      : bootAnnouncer.mirrorTo(sink)),
+  };
 
   /**
    * The board and the panel, ASKED OF THE REGION and not of the document — and built when it has
@@ -1063,19 +1091,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * `pausa`, `problems` and `sonar` — so this is a narrow seam rather than a leak.
    */
   const hosts = { a11yBarHost: a11yBar, pauseHost: enginePause };
-  /**
-   * The engine arrives in `create(received)`. Everywhere BELOW this line `engine` reads it
-   * through a non-null assertion — correct, because every caller runs after `create` has set it.
-   * The ref beside it exists for the handful of CLOSURES evaluated during construction, before
-   * `create` runs. `engineRef.current` is null until `create` sets it.
-   *
-   * ⚠️ `engineT` RETIRED in Wave 2 item 2 (2026-10-02): the vision select's option labels now go
-   * through chess's own `i18n` (which mirrors the engine's `viz.fix-*` entries), so the HUD no
-   * longer needs a lazy translator ref. The engineRef stays for `onLocaleChange` and any future
-   * closure that genuinely needs to reach the engine during construction.
-   */
-  const engineRef: { current: Engine | null } = { current: null };
-  let engine!: Engine;
 
   /**
    * ⚠️ THE SHELL BUILDS THE MIRROR, not the view, because all three pages have one. On the flat
