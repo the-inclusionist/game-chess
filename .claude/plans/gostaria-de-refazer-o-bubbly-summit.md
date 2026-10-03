@@ -2119,6 +2119,68 @@ o working tree ficou limpo).
 
 Isto é trabalho de uma sessão dedicada, não cabe em tick de 10 minutos.
 
+### ⚠️ MEDIÇÃO DE 2026-10-02 — `gameOptions.values` é ESTÁTICO, e isso quebra piece-set
+
+Durante a limpeza dos controlos-zumbis do HUD descobri que o `GameOption`
+da engine 11 declara `values: readonly GameOptionValue[]` como ARRAY,
+não função. O `read`/`write` são lazy (como diz o comentário em
+`gameOptions`), mas `values` é fixo no momento do boot. Para o xadrez:
+
+- 2D (`view-flat`) oferece 3 piece-sets: `symbols`, `math`, `pecita`.
+- 2.5D (`view-zdog`) oferece 6: `hartwig`, `s1849`, `regence`,
+  `stgeorge`, `selenus`, `sikh`.
+- 3D (`view-solid`) oferece os mesmos 6 de `view-zdog`.
+
+O `piece-set` da `hooks.gameOptions` ficou declarado com os 3 valores do
+2D. Para quem joga em 2.5D ou 3D, o painel da engine mostra «symbols /
+math / pecita» — nomes que o renderer não reconhece, e portanto escolhas
+que silenciosamente não fazem nada.
+
+O selector dinâmico que o HUD mantinha (`setSelect` com `replaceChildren`
+em cada `refresh()`) continuava a dar as opções CERTAS por renderer,
+mas ninguém via (`settings` não entra no DOM desde a Wave 2c). O
+teste `[Switch] swaps the view, and the panel follows it` cobre a
+contratação de reconstrução das opções em `shell.hud.settings`, não a
+contratação através do painel da engine.
+
+**Consequência:** não posso limpar `setBox` como zombie: perderia a
+única superfície que ainda tem as opções certas. O que falta é fazer o
+`piece-set` da `gameOptions` acompanhar a vista. A engine não suporta
+`values` como função, logo tenho duas opções:
+
+1. Reconstruir o cartucho a cada `switchView` (reemitir `hooks` com
+   `piece-set` actualizado). Suporte: ADR-0142 (`unmount`/`mount`).
+2. Pedir à engine que suporte `values: () => readonly GameOptionValue[]`
+   (uma linha no `gameOptions.d.ts`, um `typeof v === 'function'` no
+   `drawGameOptions`). Mais barato na engine, resolve de uma vez para
+   outros jogos.
+
+Opção 2 é melhor; é trabalho da engine. Noto aqui para abrir o pedido
+quando chegar o momento. Até lá, o HUD mantém `setBox` e o painel da
+engine continua a mostrar os três valores do 2D.
+
+**Mesma análise, feita de novo, para os outros zombies:**
+
+- ✅ `vision` (removido, commit `d04aeba`): a correção vive em
+  `setPlayerCorrection` que a barra da engine escreve directamente.
+- ✅ `mode` (removido, commit `bd55bd7`): valores (w/b/two) fixos,
+  independentes da vista.
+- ✅ `strength` (removido, commit `4f3e906`): `STRENGTH_LADDER` é
+  fixo, independente da vista.
+- ✅ `protected` (removido, commit `b0c5a00`): switch booleano, não
+  precisa de valores por vista.
+- ❌ `pieceSets` (NÃO removido, 2026-10-02): valores DIFEREM por vista
+  (ver acima). Fica até a engine abrir `values` como função ou chess
+  remontar o cartucho em `switchView`.
+- ⏸️ `themes`: `BOARD_THEMES` é fixo em chess, independente da vista
+  (seguro para remover), mas o `themeSelect` do HUD é também âncora
+  do relatório de contraste em modo `debug` (`fillReport`). Removê-lo
+  obriga a decidir o que fazer com o relatório. Deferido.
+- ⏸️ `motion`: não está em `gameOptions`; removê-lo perde o controlo
+  dentro do jogo. Pede decisão do Dev.
+- ⏸️ `outline` / `coords`: switches simples, no `gameOptions`, seguros
+  para remover em passos próximos.
+
 **Onda 4 — oportunidades sem bloqueio.** Nenhuma destas é requerida pela 11.
 
 - ⏸️ `howToPlay`: três ou quatro slides para o jogo (como se move cada peça,
