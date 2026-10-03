@@ -2025,16 +2025,24 @@ e o splash abre em todas as três vistas. Nada de comportamento novo.
 **Onda 2 — absorver o que a engine passa a oferecer.** Esta onda é a que paga o
 major: menos código no fim. Em ordem crescente de alcance:
 
-1. **`engine.say`/`engine.alert`** passam a ser o alvo único; o `createAnnouncer`
-   avulso da Onda 1 fica apenas no `splash.ts`, se ainda for necessário.
-2. **`engine.t`** passa a ser o alvo único depois do boot; o `engineT` vai embora
-   do `hud.ts`.
-3. **`engine.onLocaleChange(fn)`** substitui o `window.addEventListener('i18n:change')`
-   do `changeLocale` nosso — se ainda for esse o mecanismo.
-4. **`engine.explain(text | null)`** substitui a linha abaixo do tabuleiro que hoje
-   mora em `#below-board` (`thinking` panel). ⚠️ Decisão fina: o `thinking` dá
-   avaliação em profundidade por centipeões; `explain` é texto curto de duas
-   linhas. Se não couber, fica como está; a decisão vive dentro desta onda.
+1. ✅ **`engine.say`/`engine.alert`** passam a ser o alvo único — feito em
+   2026-10-02 (commit `68bc16a`). O `announcer` continua a ser construído na
+   casca, mas é um invólucro: delega a `engineRef.current` quando a engine
+   existe (então o espelho surdo do ADR-0232 D4 vê cada anúncio); o
+   `bootAnnouncer` local fica como fallback para a janela de construção
+   em que os closures capturam `announcer` antes de `create(engine)` correr.
+2. ✅ **`engine.t`** — feito em 2026-10-02 (commit `cb2baa3`). O `engineT`
+   saiu do `hud.ts`; o selector de visão passa a traduzir pelo próprio
+   `i18n` do xadrez, que agora espelha as entradas `viz.fix-*` da engine.
+3. ✅ **`engine.onLocaleChange(fn)`** — feito em Wave 2a: substituiu o
+   antigo `window.addEventListener('i18n:change')` no `create(engine)`.
+4. ❌ **`engine.explain(text | null)`** — DECISÃO (2026-10-02): FICA COMO
+   ESTÁ. O painel `thinking` expõe quatro campos ao vivo da UCI (profundidade,
+   avaliação em centipeões, nós visitados, variação principal, com um
+   `aria-live="off"` para não inundar leitor de ecrã), e `engine.explain`
+   é texto curto de duas linhas — não cabe sem perder matéria. O plano
+   permitia explicitamente «se não couber, fica como está», e isto é o
+   caso. A oportunidade reabre se e quando a engine ampliar `explain`.
 5. **`gameOptions`** absorve cinco dos oito controlos. Os três `GENERAL` do painel
    actual saem — a engine desenha-os na barra e nos painéis dela. O `app/js/ui/hud.ts`
    passa a construir só os controlos específicos do jogo que **não** cabem em
