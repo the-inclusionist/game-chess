@@ -654,31 +654,23 @@ describe('[Camera keys] a modified arrow is not board navigation', () => {
   });
 });
 
-describe('[Pause] START opens the menu the settings were moved into', () => {
+describe('[Views] the three view buttons live under the a11y bar, not in the pause card', () => {
   /*
-   * ========================= THE REQUIREMENT, ASSERTED WHERE IT LANDS =========================
-   * "2D/2.5D/3D, Piece drawing, Board colours, colour vision, reduced motion, files and ranks ==>
-   * devem ir para o menu de pausa, acessível nos dois modos via START." Seven things, and they
-   * were moved rather than copied — the HUD still builds and refreshes them, and hands the
-   * container over.
+   * ========================= WHERE THE REQUIREMENT LANDED, POST-WAVE-2b =========================
+   * In Wave 2b `.chess-pause` was retired and its six display settings moved into
+   * `hooks.gameOptions`, which the engine's own `.screen-pause` card renders. The view switch
+   * (2D/2.5D/3D) stayed in chess's `#side-column` — it is a navigation control, not a configure-
+   * once setting — so the describe used to cover four things and now covers one.
    *
-   * ⚠️ THAT HAND-OVER IS THE SEAM NOTHING WAS CHECKING. `ui/hud.browser.test.ts` mounts
-   * `hud.settings` itself and asks what is inside it; `ui/pause-menu.browser.test.ts` builds a
-   * dialog with a fixture and asks about focus and Escape. Both pass with the shell never putting
-   * one into the other — and the symptom would be a pause menu with nothing in it but the way out,
-   * which is exactly what the old build looked like before the move.
+   * ⚠️ THREE SIBLINGS DELETED HERE WITH THE WAVE: `carries every display setting the redesign
+   * moved there`, `and they are IN the dialog`, `opens in a lesson too`. All three pinned
+   * `.chess-pause` by name. Keeping them as `.skip` with a note would have left dead code
+   * pointing at a module that no longer exists — the engine's own suite covers the pause card.
    */
-  const press = (code: string, key: string): void => {
-    document.getElementById('game-region')!.dispatchEvent(new KeyboardEvent('keydown', {
-      code, key, bubbles: true, cancelable: true,
-    }));
-  };
-
   /*
    * ⚠️ THE PIECE SET AND THE OUTLINE ARE THE VIEW'S, NOT THE SHELL'S — `HudViewControls` is a
    * `Pick` of exactly those, and all three real views supply them. The shared `fakeView` supplies
-   * only `coordinates`, so a shell built on it has no piece-drawing control at all and this test
-   * read that absence as a missing setting. The premise was the fixture's, not the code's.
+   * only `coordinates`, so a shell built on it has no piece-drawing control at all.
    */
   function shellFor(teaches: boolean) {
     fixture();
@@ -711,40 +703,7 @@ describe('[Pause] START opens the menu the settings were moved into', () => {
     });
   }
 
-  /*
-   * ⚠️ THIS GAME'S DIALOG BY NAME, NOT "the dialog on the page". Since engine 8.0.0 there are two:
-   * `createGame` mounts the engine's own pause card — `role="dialog"`, inside `#chess-board` — and
-   * `#chess-board` comes first in document order, so a bare `[role="dialog"]` answered with the
-   * engine's card and every assertion below asked the wrong element about the right thing.
-   */
-  const dialog = (): HTMLElement | null => document.querySelector('.chess-pause');
-
-  it.skip('⚠️ carries every display setting the redesign moved there', () => {
-    shellFor(false);
-    document.getElementById('chess-board')!.focus();
-    press('KeyH', 'h');
-
-    const open = dialog();
-    expect(open).not.toBeNull();
-    expect(open!.getAttribute('aria-modal')).toBe('true');
-
-    // The six, by the ids they are actually built with. Named one at a time rather than counted,
-    // so a failure says WHICH one went missing.
-    //
-    // ⚠️ SEVEN UNTIL 2026-09-11: the view switch was here and is not any more. It is asserted in its
-    // new home instead, in the test right below — moving an assertion to follow a control is the only way a
-    // move stays covered, and deleting this line without adding that one is how a control goes
-    // missing twice.
-    expect(open!.querySelector('#hud-set'), 'piece drawing').not.toBeNull();
-    expect(open!.querySelector('#hud-theme'), 'board colours').not.toBeNull();
-    expect(open!.querySelector('#hud-vision'), 'colour vision').not.toBeNull();
-    expect(open!.querySelector('#hud-motion'), 'reduced motion').not.toBeNull();
-    expect(open!.querySelector('#hud-outline'), 'piece outline').not.toBeNull();
-    expect(open!.querySelector('#hud-coords'), 'files and ranks').not.toBeNull();
-    expect(open!.querySelector('#hud-locale'), 'language').not.toBeNull();
-  });
-
-  it.skip('⚠️ the three view buttons are in the PANEL, under the accessibility bar', () => {
+  it('⚠️ the three view buttons are in the PANEL, under the accessibility bar', () => {
     /*
      * ========================= THE CONTROL THAT WENT MISSING =========================
      * `32d5227` swept the view switch into the pause menu with the six set-once controls, on the
@@ -763,7 +722,9 @@ describe('[Pause] START opens the menu the settings were moved into', () => {
 
     const column = document.getElementById('side-column')!;
     expect(views!.parentElement, 'a child of the side column').toBe(column);
-    expect(document.querySelector('.chess-pause')?.contains(views!), 'not in the pause menu')
+    // Post-Wave-2b: `.chess-pause` is gone. The engine's `.screen-pause` card is the pause menu
+    // on this page, and the view switcher is a navigation control that stays in the side column.
+    expect(document.querySelector('.screen-pause')?.contains(views!), 'not in the engine pause card')
       .toBe(false);
 
     // Under the bar, not over it: the order in the column is what "below the inclusion buttons" means.
@@ -778,29 +739,6 @@ describe('[Pause] START opens the menu the settings were moved into', () => {
       .toEqual(['2D', '2,5D', '3D']);
   });
 
-  it.skip('⚠️ and they are IN the dialog, not merely somewhere on the page', () => {
-    /*
-     * The assertion above would pass if the settings sat in the HUD and the dialog happened to be
-     * an ancestor of nothing at all — so this one asks the other way round, from the control up.
-     * `contains` is what "moved, not copied" actually means.
-     */
-    shellFor(false);
-    document.getElementById('chess-board')!.focus();
-    press('KeyH', 'h');
-    const coords = document.getElementById('hud-coords')!;
-    expect(dialog()!.contains(coords)).toBe(true);
-  });
-
-  it.skip('⚠️ opens in a lesson too, which is the only way out of one', () => {
-    // "Apertando START é que aparece o menu para sair das aulas." A pause menu that only worked
-    // while playing would leave a child inside a lesson with no exit that is not the browser's.
-    const shell = shellFor(true);
-    expect(shell.teach()).toBe(true);
-    document.getElementById('chess-board')!.focus();
-    press('KeyH', 'h');
-    expect(dialog()).not.toBeNull();
-    expect(dialog()!.querySelector('#hud-coords')).not.toBeNull();
-  });
 });
 
 describe('[Opponent] the reply lands on the board, which is the defect that survived', () => {
@@ -969,6 +907,10 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       teaches: true,
       debugName: '__chromeTest', contrastTheme: 'contrast-flat',
+      // Post-Wave-2b: the lesson exit lives on the engine's pause card; the only programmatic
+      // door to it is `engine.pause.show`, reachable through the debug global that `?debug=true`
+      // arms.
+      params: new URLSearchParams('debug=true'),
     });
   }
 
@@ -1021,80 +963,12 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     expect(shown('.lesson-menu')).not.toBe('none');
   });
 
-  it.skip('⚠️ every switch keeps its label beside its box, in the HUD and in the pause menu', () => {
-    /*
-     * ========================= THE SAME MARKUP, TWO OUTCOMES =========================
-     * Four switches are built identically in `ui/hud.ts` — reduced motion, the piece outline, the
-     * board coordinates and protected mode. Three of them go into the container the pause menu
-     * takes; the fourth stays in the HUD. Only the fourth came apart: box on one line, a full-width
-     * label under it, looking like a control that had broken in half.
-     *
-     * ⚠️ `.hud label` IS `display: block` AND SCORES (0,1,1); `.hud-check` SCORED (0,1,0). The
-     * override lost every time the label was inside the HUD, and won everywhere else purely because
-     * nothing was competing there. Where an element happens to be mounted decided how it looked.
-     *
-     * Asserted by GEOMETRY rather than by computed display, because "on the same line" is what a
-     * reader sees and `inline` is only one way to achieve it.
-     */
-    /*
-     * ⚠️ AN ENGINE MODE, AND THAT IS THE POINT OF THE FIXTURE. Protected mode is the switch that
-     * was broken, and `ui/hud.ts` only builds it when `deps.onProtected` exists — which the shell
-     * withholds in a two-player game, correctly, because there is no engine to hold back.
-     *
-     * The first version of this test used a hot seat, so the broken control was never on the page:
-     * reverting the CSS fix left it green. Found by making that exact change and watching nothing
-     * happen. It is the third time this session a test has looked for something by a property the
-     * failure does not disturb.
-     */
-    fixture();
-    clear();
-    saveSettings({ mode: 'w' });
-    const shell = makeShell({
-      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
-      teaches: true,
-      makeOpponent: () => ({
-        ready: () => new Promise<{ minElo: number; maxElo: number }>(() => {}),
-        requestMove: () => new Promise<EngineMove | null>(() => {}),
-        requestHint: () => new Promise<EngineMove | null>(() => {}),
-        requestReview: () => new Promise<EngineMove | null>(() => {}),
-        setStrength: () => {},
-        cancel: () => {},
-        destroy: () => {},
-      }),
-      debugName: '__checkTest', contrastTheme: 'contrast-flat',
-    });
-    // The settings live in the pause menu's slot, so they need mounting to have a layout at all.
-    document.body.appendChild(shell.hud.settings);
-
-    // The one that was broken has to be among them, or this proves nothing about it.
-    expect(document.getElementById('hud-protected'), 'protected mode is on the page').not.toBeNull();
-
-    const pairs = [...document.querySelectorAll('input[type="checkbox"]')]
-      .map((input) => ({
-        id: input.id,
-        label: document.querySelector(`label[for="${input.id}"]`) as HTMLElement | null,
-        input: input as HTMLElement,
-      }))
-      .filter((pair) => pair.label && pair.input.getBoundingClientRect().width > 0);
-
-    /*
-     * ⚠️ TWO, NOT FOUR, AND THE GUARD SAYS SO RATHER THAN ASSUMING. The outline switch belongs to
-     * the VIEW (`HudViewControls`) and the shared fake does not offer one; another has no layout
-     * until the pause menu is open. The guard exists so this can never silently become zero and
-     * pass by checking nothing.
-     */
-    expect(pairs.length, 'switches found to check').toBeGreaterThanOrEqual(2);
-    for (const pair of pairs) {
-      const box = pair.input.getBoundingClientRect();
-      const text = pair.label!.getBoundingClientRect();
-      // Same line: their tops agree to within a line's slack, rather than one sitting under the
-      // other. A stacked pair differs by the whole height of the box.
-      expect(`${pair.id}: ${Math.abs(box.top - text.top) < 12}`).toBe(`${pair.id}: true`);
-      // And the label is a word beside a box, not a full-width block.
-      expect(`${pair.id} label narrower than the column: ${text.width < 300}`)
-        .toBe(`${pair.id} label narrower than the column: true`);
-    }
-  });
+  // ⚠️ DELETED IN WAVE 2d: `every switch keeps its label beside its box, in the HUD and in the
+  // pause menu`. The premise — the same markup rendered differently in two containers — only held
+  // while `.chess-pause` existed. Post-Wave-2b the switches that were in the pause menu live in
+  // `hooks.gameOptions`, which the engine's own `.ctrl-row` renders with its own CSS; and the
+  // ones left in the HUD (motion, outline, coords) share the HUD container with no second home to
+  // disagree with. The specific bug this guarded is unreachable through this shell's code paths.
 
   it('⚠️ the player strips sit ABOVE the board, not painted over it', () => {
     /*
@@ -1149,7 +1023,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
       .toBe(`width ${Math.round(panel.width)} of ${Math.round(panel.width)}`);
   });
 
-  it.skip('⚠️ nothing visible is drawn outside the stage, the pause menu included', () => {
+  it('⚠️ nothing visible is drawn outside the stage, the pause menu included', () => {
     /*
      * ========================= THE SPEC, AND IT NAMED THE EXCEPTION ITSELF =========================
      * "Nada pode ser desenhado fora desta resolução, especialmente menus como o de pausa." Three
@@ -1175,6 +1049,7 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
       teaches: true,
       debugName: '__boundsTest', contrastTheme: 'contrast-flat',
+      params: new URLSearchParams('debug=true'),
     });
 
     const stageEl = document.getElementById('game-region')!;
@@ -1219,11 +1094,16 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
 
     expect(strays().join(', ')).toBe('');
 
-    // And with the pause menu open, which the spec singled out by name.
-    document.getElementById('game-region')!.dispatchEvent(new KeyboardEvent('keydown', {
-      code: 'KeyH', key: 'h', bubbles: true, cancelable: true,
-    }));
-    expect(document.querySelector('.chess-pause'), 'the pause menu opened').not.toBeNull();
+    /*
+     * ⚠️ POST-WAVE-2b: the pause menu named in the spec IS the engine's `.screen-pause` card
+     * (`.chess-pause` was retired). It mounts at `#vp-pause-0` inside `#game-region`, so it is
+     * born inside the stage by construction. Open it via the debug global's `engine.pause.show`
+     * — the `KeyH` listener goes through the engine's own menu-nav, which captures on the window
+     * before chess sees it, and is covered by the engine's own suite.
+     */
+    const dbg = (window as unknown as Record<string, { engine: { pause: { show(i: number): void } } }>).__boundsTest;
+    dbg.engine.pause.show(0);
+    expect(document.querySelector('.screen-pause'), 'the engine pause card is on the page').not.toBeNull();
     expect(strays().join(', ')).toBe('');
     expect(shell).toBeTruthy();
   });
@@ -1313,19 +1193,27 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     }
   });
 
-  it.skip('⚠️ and all three come back when the lesson is left', async () => {
-    // They were hidden rather than destroyed, so the move list keeps its scroll and whatever
-    // control had focus keeps it. That only pays if they actually return.
+  it('⚠️ and all three come back when the lesson is left', async () => {
+    /*
+     * They were hidden rather than destroyed, so the move list keeps its scroll and whatever
+     * control had focus keeps it. That only pays if they actually return.
+     *
+     * ⚠️ POST-WAVE-2b: the way out of a lesson is the engine's `.screen-pause [data-act="quit"]`
+     * row, which chess exposes conditionally through `getPauseActs` (quit present only while a
+     * lesson is active). The engine mounts the row and routes its click back to the handler chess
+     * provided, which calls `lessonMode.stop()`.
+     */
     const shell = shellFor();
     expect(shell.teach()).toBe(true);
     await untilLesson();
     expect(shown('.chess-hud')).toBe('none');
 
-    press('KeyH', 'h');
-    const quit = [...document.querySelectorAll('.chess-pause button')]
-      .find((b) => /sair/i.test(b.textContent ?? ''));
-    expect(quit, 'a way out of the lesson').toBeDefined();
-    (quit as HTMLButtonElement).click();
+    const dbg = (window as unknown as Record<string, { engine: { pause: { show(i: number): void } } }>).__chromeTest;
+    dbg.engine.pause.show(0);
+    await new Promise((resolve) => { setTimeout(resolve, 20); });
+    const quit = document.querySelector('.screen-pause [data-act="quit"]') as HTMLElement | null;
+    expect(quit, 'a way out of the lesson').not.toBeNull();
+    quit!.click();
     await new Promise((resolve) => { setTimeout(resolve, 50); });
 
     expect(shown('.chess-hud'), 'the HUD came back').toBe('flex');
@@ -1411,32 +1299,12 @@ describe('[Engine pause] the engine mounts a card, and this game says only where
     expect(document.getElementById('game-region')!.contains(card), 'inside the stage').toBe(true);
   });
 
-  it.skip('⚠️ and this game never opens it — the pause key is its own menu', () => {
-    /*
-     * The Dev's instruction, 2026-09-11: the engine pauses at the moments it is itself programmed
-     * to, not at ours. So `H` opens `.chess-pause` and leaves the engine's card exactly as it was.
-     * Written as a test because the wiring that would break it is wiring that does not exist —
-     * an absence is only a decision while something says so.
-     */
-    fixture();
-    clear();
-    saveSettings({ mode: 'two' });
-    makeShell({
-      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
-      debugName: '__engPauseKey', contrastTheme: 'contrast-flat',
-    });
+  // ⚠️ DELETED IN WAVE 2d: `and this game never opens it — the pause key is its own menu`.
+  // The spec was INVERTED by Wave 2b: this game now uses the engine's pause card AS its pause
+  // menu (ADR-0106 §2); there is no `.chess-pause` for `H` to open against the engine's one, so
+  // the assertion no longer has two states to distinguish. The sibling test above still asserts
+  // that the engine's card is placed in the stage — the only thing chess owns about this surface.
 
-    const card = document.getElementById('vp-pause-0') as HTMLElement;
-    expect(card.hidden, 'the card is born hidden').toBe(true);
-
-    document.getElementById('chess-board')!.focus();
-    document.getElementById('chess-board')!.dispatchEvent(new KeyboardEvent('keydown', {
-      code: 'KeyH', key: 'h', bubbles: true, cancelable: true,
-    }));
-
-    expect(document.querySelector<HTMLElement>('.chess-pause')!.hidden, 'ours opened').toBe(false);
-    expect(card.hidden, 'theirs did not').toBe(true);
-  });
 });
 
 describe('[A11y bar] the control a child needs before they can read the screen', () => {
@@ -1586,18 +1454,24 @@ describe('[Sonar] the key a player who cannot see the board depends on', () => {
 });
 
 describe('[Switch] the board changes renderer without leaving the page', () => {
-  it.skip('⚠️ swaps the view, and the panel follows it', async () => {
+  it('⚠️ swaps the view, and the panel follows it', async () => {
     /*
      * ========================= WHY THIS IS NOT A NAVIGATION =========================
      * Each view was its own HTML entry, and changing view meant loading a page. That is right while
      * a page IS the game and wrong for a cartridge: inside a platform a second entry is a second
      * URL, not a second bundle (ADR-0139 records this decision for this game by name).
      *
+     * ⚠️ POST-WAVE-2a: the piece-set list no longer lives in `#hud-set` on the DOM; it is a
+     * `hooks.gameOptions` entry (kind: 'list'), and the engine's panel renders it inside the
+     * `.screen-pause` card. Chess still rebuilds `shell.hud.settings` with the new renderer's
+     * drawings on `switchView` (so a late unskip of other HUD tests keeps the plumbing wired)
+     * — that `shell.hud.settings` is the stable local witness, independent of the engine's panel.
+     *
      * ⚠️ AND THE ASSERTION THAT MATTERS IS THE SECOND ONE. Swapping the renderer is the easy half;
      * the half that breaks quietly is everything that CAPTURED the old one. The piece-drawing list
-     * is the case in point — the panel used to hold the array it was built with, so after a swap the
-     * select would offer the previous renderer's drawings and choosing one would do nothing. Not an
-     * error: a dead control.
+     * is the case in point — if the gameOption's `read` closed over the old view, the chooser would
+     * offer the previous renderer's drawings and choosing one would do nothing. Not an error: a
+     * dead control.
      */
     fixture();
     clear();
@@ -1608,22 +1482,20 @@ describe('[Switch] the board changes renderer without leaving the page', () => {
     });
 
     const before = shell.view();
-    const optionsOf = (): string => [...document.querySelectorAll<HTMLOptionElement>('#hud-set option')]
+    const setsOf = (): string => [...shell.hud.settings.querySelectorAll<HTMLOptionElement>('#hud-set option')]
       .map((o) => o.value).join(',');
     /*
-     * ⚠️ THE FAKE OFFERS NO DRAWINGS AT ALL, and that turns out to be the sharper fixture. This
-     * assertion was written the other way round — "the fake offers its own" — and failed on its own
-     * setup, because the fake view in this file lends the panel only the coordinate switch. Empty
-     * BEFORE and filled AFTER is a stronger statement than one list differing from another: it can
-     * only be true if the panel asked the renderer that is drawing now.
+     * The 2.5D fake offers no drawings; the 2D fake does. Empty BEFORE and filled AFTER is a
+     * stronger statement than one list differing from another: it can only be true if the panel
+     * asked the renderer that is drawing now.
      */
-    const setsBefore = optionsOf();
+    const setsBefore = setsOf();
     expect(setsBefore, 'the fake lends no drawings').toBe('');
 
     await shell.switchView('2d');
 
     expect(shell.view(), 'a different renderer is drawing').not.toBe(before);
-    expect(optionsOf(), 'the panel is offering the flat board drawings').not.toBe('');
+    expect(setsOf(), 'the panel is offering the flat board drawings').not.toBe('');
   });
 
   it('asking for the view already showing is a no-op', () => {
