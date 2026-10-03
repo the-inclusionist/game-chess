@@ -2077,12 +2077,24 @@ Verificação da Onda 3: um jogo inteiro só com teclado, verificado na página,
 
 **Onda 4 — oportunidades sem bloqueio.** Nenhuma destas é requerida pela 11.
 
-- `howToPlay`: três ou quatro slides para o jogo (como se move cada peça, roque,
-  en passant, promoção). Reaproveita o módulo de aulas que já temos.
-- `uses.fonts`: declarar as famílias que o xadrez usa, se forem outras que não as
-  da engine. Verificar antes.
-- `engine.dispose()`: estender o nosso `teardown` para o chamar quando a página
-  descartar a raiz (não é hoje, mas o gancho fica aberto).
+- ⏸️ `howToPlay`: três ou quatro slides para o jogo (como se move cada peça,
+  roque, en passant, promoção). Reaproveita o módulo de aulas que já temos.
+  **Deferido** (2026-10-02): é trabalho de autoria por si (as palavras, as poses,
+  o enredo pelo nível) — não tem como entrar no ciclo da migração sem decisões
+  suas. Fica aberto no plano, movido para a lista «Oportunidades depois do major».
+- ❌ `uses.fonts`: declarar as famílias que o xadrez usa, se forem outras que
+  não as da engine. **Decisão (2026-10-02):** NÃO declarar. As três famílias
+  (`Noto Sans Symbols 2`, `STIX Two Math`, `HandwrittenChess`) são servidas por
+  `/vendor/fonts/*.woff2` com `@font-face` próprios no `app/css/board.css`;
+  declará-las em `uses.fonts` sem que a biblioteca da engine as tenha produz
+  linha de `problems` («a family the library does not hold, or the delivery did
+  not carry»). A travessia para o motor de fontes da engine é um movimento
+  próprio e não entra na migração para 11.0.0.
+- ✅ `engine.dispose()`: feito em 2026-10-02 (commit `cdc714f`). O `teardown`
+  do xadrez chama `engineRef.current?.dispose()` depois de destruir o oponente
+  e a vista. Nenhum consumidor hoje chama `teardown` antes de a página fechar,
+  mas o gancho fica aberto para futuros anfitriões (plataforma, troca de
+  cartucho) que mantenham o documento vivo.
 
 ### ✅ Decisão de 11/09 INVERTIDA por si em 2026-10-02
 
