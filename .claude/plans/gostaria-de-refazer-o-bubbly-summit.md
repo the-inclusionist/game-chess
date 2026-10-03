@@ -2110,8 +2110,15 @@ o working tree ficou limpo).
    para elas, para o corpo não ficar duplicado quando a Wave 3 fechar.
 2. `walkPanel(action)` continua a existir mas é chamado de `onCommand` para
    setas quando foco está no painel.
-3. Home/End vão para `preset` como novas acções, com `labelKey` próprio;
-   descem no `onCommand` como qualquer outra acção.
+3. ✅ Home/End vão para `preset` como novas acções, com `labelKey` próprio;
+   descem no `onCommand` como qualquer outra acção. Feito em 2026-10-02,
+   commit `1f9bd68`. `leftShoulder`/`rightShoulder` são as acções
+   canónicas; `keys.rankStart`/`keys.rankEnd` são as palavras em pt/en/es;
+   `keyboardMapping` do xadrez liga Home/End no assento 0; `moveCursor`
+   do espelho entende as duas. Ctrl+Home/Ctrl+End (canto, não só fim de
+   fileira) ficam como atalho de poder no `handleKey` por evento — o
+   virtual controller não carrega modificadores, então o canto não pode
+   andar num só nome de acção.
 4. Shift+Arrow para câmera: o virtual controller NÃO entrega chaves com
    modificadores. Precisa de uma via própria — ou um listener dedicado
    só para modificadas no `region`, ou mover a câmera para a barra de
