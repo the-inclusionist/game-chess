@@ -1186,17 +1186,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
 
     markAt: (ply) => reviewer.markAt(ply),
     scoreboard: scoreboard.root,
-    ...(mode === 'two' ? {} : {
-      protectedOn: () => protectedOn,
-      onProtected: (on) => {
-        protectedOn = on;
-        if (!on) { blunderHeld = null; blunderBar.show(null); }
-        prefs.save({ protect: on });
-        hud.refresh();
-        askOpponent();
-      },
-    }),
-
     // No engine in a two-player game, so nobody to ask.
     ...(mode === 'two' ? {} : {
       onHint: () => {

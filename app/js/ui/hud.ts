@@ -173,8 +173,6 @@ export interface HudDeps {
    * Protected mode: the engine stops the game when the player throws it away. Absent where there
    * is nobody to protect anyone from — the two-player board.
    */
-  protectedOn?(): boolean;
-  onProtected?(on: boolean): void;
 
   /**
    * ⚠️ `?debug=true` ONLY. The measured contrast table is a maintainer's instrument: it answers
@@ -485,27 +483,10 @@ export function createHud(deps: HudDeps): Hud {
   // not reached the DOM since Wave 2c.
 
   // --- protected mode ---------------------------------------------------------
-  // A switch and not a difficulty: it does not change how the opponent plays, it changes what
-  // happens when the PLAYER throws the game away. Which is a teaching aid, so it sits with the
-  // other things a teacher turns on rather than with the ones that set the level.
-  const protectedBox = doc.createElement('p');
-  const protectedInput = doc.createElement('input');
-  protectedInput.type = 'checkbox';
-  protectedInput.id = 'hud-protected';
-  const protectedLabel = doc.createElement('label');
-  protectedLabel.htmlFor = protectedInput.id;
-  /*
-   * ⚠️ THE CLASS GOES ON THE LABEL, NOT ON THE BOX, and it was on the box. `.chess-hud label` is
-   * `display: block` — right for the labels above a `select`, which is most of them — and
-   * `.hud-check` is the override that puts a checkbox's label back on the same line as its box.
-   * Sitting on the wrapper it overrode nothing, so this one switch drew its box on one line and a
-   * full-width label under it, looking like a control that had come apart.
-   *
-   * The other three switches — reduced motion, the outline, the coordinates — already do it this
-   * way. This was the odd one out, and only a look at the screen tells them apart.
-   */
-  protectedLabel.className = 'hud-check';
-  protectedBox.append(protectedInput, protectedLabel);
+  // ⚠️ PROTECTED CHECKBOX RETIRED (Wave 2d, 2026-10-02): protected mode lives in
+  // `hooks.gameOptions` as `{id: 'protected', kind: 'switch'}` with the same side effects —
+  // persist, clear blunder bar, refresh HUD, re-ask engine. The HUD's own checkbox was appended
+  // to `settings`, which has not reached the DOM since Wave 2c.
 
   // --- how strong the opponent plays ------------------------------------------
   // ⚠️ STRENGTH SELECT RETIRED (Wave 2d, 2026-10-02): the ELO ladder lives in
@@ -640,9 +621,6 @@ export function createHud(deps: HudDeps): Hud {
   settings.append(motionBox);
   if (deps.onOutline) settings.appendChild(outlineBox);
   settings.appendChild(coordsBox);
-
-  function onProtectedChange(): void { deps.onProtected?.(protectedInput.checked); }
-  protectedInput.addEventListener('change', onProtectedChange);
 
   function onHintClick(): void { deps.onHint?.(); }
   hintButton.addEventListener('click', onHintClick);
@@ -821,11 +799,6 @@ export function createHud(deps: HudDeps): Hud {
     motionLabel.textContent = i18n.t('hud.reducedMotion');
     motionInput.checked = deps.reducedMotion();
 
-    if (deps.onProtected) {
-      protectedLabel.textContent = i18n.t('hud.protected');
-      protectedInput.checked = deps.protectedOn?.() ?? false;
-    }
-
     /*
      * ================= ⚠️ THESE THREE ARE NOT THE HINT'S, AND THEY USED TO BE =================
      * The lesson list, the language selector and the opening name sat inside `if (deps.onHint)`
@@ -926,7 +899,6 @@ export function createHud(deps: HudDeps): Hud {
       hintButton.removeEventListener('click', onHintClick);
       lessonButton.removeEventListener('click', onLessonClick);
       localeSelect.removeEventListener('change', onLocaleChange);
-      protectedInput.removeEventListener('change', onProtectedChange);
       motionInput.removeEventListener('change', onMotionChange);
       outlineInput.removeEventListener('change', onOutlineChange);
       setSelect.removeEventListener('change', onSetChange);
