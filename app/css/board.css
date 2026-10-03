@@ -538,59 +538,13 @@ html { background: var(--page); }
   }
   .engine-pause-host > *:not([hidden]) { pointer-events: auto; }
 
-  .chess-pause[hidden] { display: none; }
-  .chess-pause {
-    position: absolute;
-    inset: 0;
-    z-index: 5;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(5, 7, 15, 0.88);
-  }
-  .pause-box {
-    display: flex; flex-direction: column; gap: 0.5em;
-    min-width: 55%;
-    padding: 1em;
-    background: var(--surface);
-    border: 2px solid var(--accent);
-    border-radius: 3px;
-    font-size: var(--ui-fs, 16px);
-  }
-  .pause-title { margin: 0; font-size: 1.2em; color: var(--accent); }
   /*
-   * The six settings, inside the pause menu now. They keep the HUD's own class names — they ARE
-   * the HUD's controls, handed over — so every rule written for them still applies; only the
-   * column they sit in is new.
+   * ⚠️ `.chess-pause`, `.pause-box`, `.pause-title`, `.pause-action`, `.pause-actions`,
+   * `.pause-leaving` AND `.hud-settings` were deleted on 2026-10-02 (Wave 2d cleanup). All six
+   * rules styled chess's own pause card, retired in Wave 2b when the engine's `.screen-pause`
+   * became the pause menu. Keeping dead CSS invites the next search for "the pause card" to
+   * find rules that style nothing.
    */
-  .hud-settings {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4em;
-    max-height: 55vh;
-    overflow-y: auto;
-    padding-top: 0.5em;
-    border-top: 1px solid var(--rule);
-  }
-  .pause-actions { display: flex; flex-direction: column; gap: 0.35em; }
-  .pause-action {
-    min-height: var(--tap, 44px);
-    padding: 0 0.9em;
-    font: inherit; font-weight: 700;
-    color: var(--surface); background: var(--accent);
-    border: 1px solid #000000; border-radius: 2px;
-    cursor: pointer;
-  }
-  /* Leaving is offered as an equal, not as a cancel — but it is not the one Enter lands on. */
-  .pause-leaving { color: var(--ink-bright); background: transparent; border-color: var(--ink-bright); }
-  .pause-action:hover { background: #FFFFFF; color: var(--surface); }
-  .pause-action:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-  @media (prefers-contrast: more) {
-    .pause-box { background: #000000; border-color: #FFFFFF; }
-    .pause-title { color: #FFFFFF; }
-    .pause-action { background: #FFFFFF; color: #000000; border-color: #000000; }
-    .pause-leaving { color: #FFFFFF; background: #000000; border-color: #FFFFFF; }
-  }
 
   .lesson-menu[hidden] { display: none; }
   /*
