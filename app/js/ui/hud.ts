@@ -18,7 +18,6 @@
 // PixiJS still earns its keep: it composites the Zdog frame, it owns the layer order, and the
 // post-processing applies to the BOARD. Only the text argument was mistaken.
 
-import { VIZ_CORRECTIONS } from '@the-inclusionist/engine/render/viz-modes.js';
 import type { Rules } from '../chess/rules.ts';
 import type { GameState } from '../chess/state.ts';
 
@@ -70,8 +69,6 @@ export interface HudDeps {
    * know what an ECO code is; whoever owns the game looks it up and hands over the answer.
    */
   opening?(): string | null;
-  vision(): string;
-  onVision(key: string): void;
   reducedMotion(): boolean;
   onReducedMotion(on: boolean): void;
   /**
@@ -492,31 +489,11 @@ export function createHud(deps: HudDeps): Hud {
   // high-contrast palette at boot — a preference someone has already expressed to their system is
   // not something to make them express again.
 
-  // --- colour vision ---------------------------------------------------------
-  // Only the CORRECTIONS. The engine's list also holds simulations, which exist to show a
-  // sighted adult what a deficiency looks like — a teaching tool, and it belongs in the
-  // engine's own empathy menu. Putting it beside a child's own correction would invite
-  // switching a disability ON in the one place they went to switch it off.
-  const visionBox = doc.createElement('p');
-  const visionLabel = doc.createElement('label');
-  const visionSelect = doc.createElement('select');
-  visionSelect.id = 'hud-vision';
-  visionLabel.htmlFor = visionSelect.id;
-  // ⚠️ THE FIRST ENTRY IS NAMED HERE AND NOT BY THE ENGINE, and the reason is the word. The
-  // engine's catalogue calls it "visão normal", which makes every other entry in the same list an
-  // abnormality — in a menu a child opens BECAUSE of how they see. The corrections keep the
-  // engine's names, since those name a condition and do it accurately; only this one is replaced,
-  // with the term for what it actually describes.
-  //
-  // The engine has the same line in its own games. That is worth fixing upstream, and it is not
-  // this repository's to fix.
-  for (const mode of [{ key: 'normal', name: '' }, ...VIZ_CORRECTIONS]) {
-    const option = doc.createElement('option');
-    option.value = mode.key;
-    option.dataset.nome = mode.name;
-    visionSelect.appendChild(option);
-  }
-  visionBox.append(visionLabel, visionSelect);
+  // ⚠️ COLOUR VISION SELECT RETIRED (Wave 2d, 2026-10-02). It was built here and appended to
+  // `settings`, which has not reached the DOM since Wave 2c. The engine's a11y-bar's cvd icon
+  // drives chess's `setPlayerCorrection` hook, so the correction is still reachable — just
+  // not through a chess-side select that was never visible. The three corrections (`fix-protan`,
+  // `fix-deuter`, `fix-tritan`) stay in chess's i18n for the day a UI needs them again.
 
   // --- reduced motion --------------------------------------------------------
   // The engine exposes reduced motion PER ELEMENT — rm.parallax, rm.walk, rm.breath and so on —
@@ -697,7 +674,7 @@ export function createHud(deps: HudDeps): Hud {
   // card. The next commit removes the whole settings panel from this file.
   if (deps.pieceSets) settings.appendChild(setBox);
   if (deps.themes) settings.appendChild(themeBox);
-  settings.append(visionBox, motionBox);
+  settings.append(motionBox);
   if (deps.onOutline) settings.appendChild(outlineBox);
   settings.appendChild(coordsBox);
 
@@ -721,8 +698,6 @@ export function createHud(deps: HudDeps): Hud {
   function onLocaleChange(): void { deps.onLocale?.(localeSelect.value); }
   localeSelect.addEventListener('change', onLocaleChange);
 
-  function onVisionChange(): void { deps.onVision(visionSelect.value); }
-  visionSelect.addEventListener('change', onVisionChange);
 
   function onMotionChange(): void { deps.onReducedMotion(motionInput.checked); }
   motionInput.addEventListener('change', onMotionChange);
@@ -888,19 +863,6 @@ export function createHud(deps: HudDeps): Hud {
     // These labels come from the ENGINE's catalogue, not this game's: the modes are the engine's
     // and it already names them in all three languages. Restating them here would be a second
     // copy to drift.
-    visionLabel.textContent = i18n.t('hud.vision');
-    for (const option of visionSelect.options) {
-      // ⚠️ `viz.fix-*` keys are mirrored in chess's own catalogues (Wave 2 item 2): the vision
-      // select's option labels now go through `i18n.t`, which is a direct call instead of the
-      // lazy ref the old `engineT` prop needed because `hud.ts` is built before `create(engine)`
-      // runs. The engine's own dictionary still answers the same keys for the engine's own UI;
-      // this file no longer reaches into it.
-      option.textContent = option.value === 'normal'
-        ? i18n.t('viz.trichromatic')
-        : i18n.t(option.dataset.nome ?? '');
-    }
-    visionSelect.value = deps.vision();
-
     motionLabel.textContent = i18n.t('hud.reducedMotion');
     motionInput.checked = deps.reducedMotion();
 
@@ -1032,7 +994,6 @@ export function createHud(deps: HudDeps): Hud {
       localeSelect.removeEventListener('change', onLocaleChange);
       strengthSelect.removeEventListener('change', onStrengthChange);
       protectedInput.removeEventListener('change', onProtectedChange);
-      visionSelect.removeEventListener('change', onVisionChange);
       motionInput.removeEventListener('change', onMotionChange);
       outlineInput.removeEventListener('change', onOutlineChange);
       setSelect.removeEventListener('change', onSetChange);

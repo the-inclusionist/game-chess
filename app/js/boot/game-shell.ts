@@ -558,7 +558,10 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
 
   let motionReduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   let paletteHigh = window.matchMedia?.('(prefers-contrast: more)').matches ?? false;
-  let vision = 'normal';
+  // ⚠️ `let vision = 'normal'` RETIRED in Wave 2d: the HUD's vision select is gone, so nothing
+  // reads this state back. The engine's a11y-bar's cvd icon calls `setPlayerCorrection`, which
+  // writes the filter directly into `board.style.filter` through `applyVision` — the local write
+  // was for the old HUD getter, and there is no getter now.
   let themeKey = remembered.theme ?? (paletteHigh ? deps.contrastTheme : DEFAULT_THEME);
 
   /**
@@ -789,7 +792,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * cannot be called before its own line, so the guard holds and the narrowing with it.
    */
   const applyVision = (key: string): void => {
-    vision = key;
     board.style.filter = VIZ_FILTER[key] ?? '';
     hud.refresh();
   };
@@ -1179,8 +1181,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     themes: BOARD_THEMES.map((t) => ({ key: t.key, name: t.name })),
     theme: () => themeKey,
     onTheme: applyTheme,
-    vision: () => vision,
-    onVision: (key) => applyVision(key),
     reducedMotion: () => motionReduced,
     onReducedMotion: (on) => { motionReduced = on; hud.refresh(); },
     mode: () => mode,

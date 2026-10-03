@@ -23,8 +23,6 @@ afterEach(() => { hud?.destroy(); hud = null; document.body.replaceChildren(); }
 function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   const rules = createRules(fen);
   const state = createGameState({ rules, opponent: false });
-  let vision = 'normal';
-  const onVision = vi.fn((key: string) => { vision = key; });
   let motion = false;
   const onReducedMotion = vi.fn((on: boolean) => { motion = on; });
   let outline = true;
@@ -37,7 +35,6 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   const onReplay = vi.fn(() => { state.replay(); hud!.refresh(); });
   hud = createHud({
     doc: document, i18n: createI18n(locale), rules: () => rules, state: () => state,
-    vision: () => vision, onVision,
     reducedMotion: () => motion, onReducedMotion,
     outline: () => outline, onOutline,
     coordinates: () => coords, onCoordinates: onCoords,
@@ -82,8 +79,8 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
     state.animationDone();
     hud!.refresh();
   };
-  return { rules, state, hud, onVision, play, viewAsks,
-           getVision: () => vision, onReducedMotion, getMotion: () => motion,
+  return { rules, state, hud, play, viewAsks,
+           onReducedMotion, getMotion: () => motion,
            onOutline, getOutline: () => outline, onTakeBack, onReplay,
            onCoords, getCoords: () => coords };
 }
@@ -174,49 +171,11 @@ describe('[i18n] the panel follows the interface language', () => {
 // cases that guarded it went with it. `prefers-contrast: more` still selects a high-contrast
 // palette at boot, which is the part that was never about the control.
 
-describe('[Colour vision] the corrections, and only the corrections', () => {
-  it('offers standard vision plus the three corrections', () => {
-    build();
-    const options = [...document.querySelectorAll('#hud-vision option')];
-    expect(options.map((o) => (o as HTMLOptionElement).value))
-      .toEqual(['normal', 'fix-protan', 'fix-deuter', 'fix-tritan']);
-    // ⚠️ Named here rather than by the engine, which calls it "visão normal" — a word that makes
-    // every other entry in the same list an abnormality, in a menu a child opens BECAUSE of how
-    // they see. "Tricromática" was the first replacement and was accurate but clinical; "padrão"
-    // says the same thing without asking anyone to know what it means.
-    expect(options[0].textContent).toBe('Visão padrão');
-    expect(options[1].textContent).toBe('Correção protanopia');
-  });
-
-  it('offers no SIMULATION of a deficiency', () => {
-    // The engine's list also holds simulations, which show a sighted adult what a deficiency
-    // looks like. Beside a child's own correction, that control would invite switching a
-    // disability ON in the one place they came to switch it off. Teaching tools live in the
-    // engine's empathy menu, not here.
-    build();
-    const values = [...document.querySelectorAll('#hud-vision option')]
-      .map((o) => (o as HTMLOptionElement).value);
-    expect(values.some((v) => v.startsWith('sim-'))).toBe(false);
-    expect(values.some((v) => v.startsWith('lv-') || v === 'blind')).toBe(false);
-  });
-
-  it('is labelled, and the label points at it', () => {
-    build();
-    const select = document.querySelector<HTMLSelectElement>('#hud-vision')!;
-    const label = document.querySelector<HTMLLabelElement>('label[for="hud-vision"]')!;
-    expect(label.textContent).toBe('Visão de cores');
-    expect(label.htmlFor).toBe(select.id);
-  });
-
-  it('reports a change', () => {
-    const { onVision, getVision } = build();
-    const select = document.querySelector<HTMLSelectElement>('#hud-vision')!;
-    select.value = 'fix-deuter';
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(onVision).toHaveBeenCalledWith('fix-deuter');
-    expect(getVision()).toBe('fix-deuter');
-  });
-});
+// ⚠️ `[Colour vision] the corrections, and only the corrections` DELETED on 2026-10-02
+// (Wave 2d). Four tests pinned `#hud-vision`, a chess-side select that was built in the HUD and
+// appended to the `settings` container the HUD never attaches to the DOM. The engine's a11y-bar
+// cvd icon drives chess's `setPlayerCorrection` hook, so the correction is still reachable; the
+// select the tests tracked went away because it was never shown to a child in the first place.
 
 describe('[Reduced motion] one switch, because one thing moves', () => {
   it('offers a labelled checkbox', () => {
