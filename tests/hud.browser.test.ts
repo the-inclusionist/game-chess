@@ -24,10 +24,6 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   const state = createGameState({ rules, opponent: false });
   let motion = false;
   const onReducedMotion = vi.fn((on: boolean) => { motion = on; });
-  let outline = true;
-  const onOutline = vi.fn((on: boolean) => { outline = on; });
-  let coords = true;
-  const onCoords = vi.fn((on: boolean) => { coords = on; });
   const viewAsks: string[] = [];
   // The composition root cancels the search and redraws around these; the panel only asks.
   const onTakeBack = vi.fn(() => { state.takeBack(); hud!.refresh(); });
@@ -35,8 +31,6 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   hud = createHud({
     doc: document, i18n: createI18n(locale), rules: () => rules, state: () => state,
     reducedMotion: () => motion, onReducedMotion,
-    outline: () => outline, onOutline,
-    coordinates: () => coords, onCoordinates: onCoords,
     view: () => '2.5d',
     // Recorded rather than acted on: the panel's job is to ASK for a view, and what that means is
     // the composition root's. A harness that mounted a renderer here would be testing the shell.
@@ -77,8 +71,7 @@ function build(locale: 'pt' | 'en' | 'es' = 'pt', fen?: string) {
   };
   return { rules, state, hud, play, viewAsks,
            onReducedMotion, getMotion: () => motion,
-           onOutline, getOutline: () => outline, onTakeBack, onReplay,
-           onCoords, getCoords: () => coords };
+           onTakeBack, onReplay };
 }
 
 const text = (selector: string): string =>
@@ -191,27 +184,9 @@ describe('[Reduced motion] one switch, because one thing moves', () => {
   });
 });
 
-describe('[Outline] on by default, and switchable', () => {
-  it('starts on, because it is what gives a piece form in high contrast', () => {
-    build();
-    expect(document.querySelector<HTMLInputElement>('#hud-outline')!.checked).toBe(true);
-  });
-
-  it('is labelled, and the label points at it', () => {
-    build();
-    const label = document.querySelector<HTMLLabelElement>('label[for="hud-outline"]')!;
-    expect(label.textContent).toBe('Contorno das peças');
-  });
-
-  it('reports being switched off', () => {
-    const { onOutline, getOutline } = build();
-    const box = document.querySelector<HTMLInputElement>('#hud-outline')!;
-    box.checked = false;
-    box.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(onOutline).toHaveBeenCalledWith(false);
-    expect(getOutline()).toBe(false);
-  });
-});
+// ⚠️ `[Outline] on by default, and switchable` DELETED (Wave 2d, 2026-10-02): the HUD's
+// own outline switch was zombie code since Wave 2c and is gone. The piece-outline toggle lives
+// in `hooks.gameOptions` and the engine's panel renders it.
 
 // ========================= THE PANEL MUST NOT RUN OUT OF ROOM =========================
 // The report was concrete: as moves accumulated the menus below the score sheet went out of

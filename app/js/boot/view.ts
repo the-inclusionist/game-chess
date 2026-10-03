@@ -21,7 +21,6 @@ import type { Piece, Square } from '../chess/types.ts';
 import type { Marker } from '../render/board-geometry.ts';
 import type { HintMove } from '../render/hint-arrows.ts';
 import type { GridMirror } from '../ui/grid-mirror.ts';
-import type { HudDeps } from '../ui/hud.ts';
 import type { I18n } from '../i18n/index.ts';
 import type { Rules } from '../chess/rules.ts';
 import type { GameState } from '../chess/state.ts';
@@ -34,11 +33,22 @@ import type { ViewSettings } from '../chess/session.ts';
  * on one and a data attribute on another; an outline exists only where there is a line to draw.
  * Everything else in the panel — the palette, the mode, the rating, the hint switch, protected
  * mode — asks the same question of every view and is the shell's.
+ *
+ * ⚠️ WAVE 2d (2026-10-02): HudViewControls was `Pick<HudDeps, ...>` while the HUD still built
+ * these controls itself. The outline and coordinates HUD switches moved to `hooks.gameOptions`
+ * and left `HudDeps`, so this is a standalone interface now — the shape of what every view must
+ * hand UPWARDS, independent of whether the HUD has an input for it. The gameOption's `read`/
+ * `write` reach into these; the HUD does not.
  */
-export type HudViewControls = Pick<HudDeps,
-  | 'pieceSets' | 'pieceSet' | 'onPieceSet'
-  | 'outline' | 'onOutline'
-  | 'coordinates' | 'onCoordinates'>;
+export interface HudViewControls {
+  readonly pieceSets?: () => readonly { readonly key: string; readonly label: string }[];
+  pieceSet?(): string;
+  onPieceSet?(key: string): void;
+  outline?(): boolean;
+  onOutline?(on: boolean): void;
+  coordinates(): boolean;
+  onCoordinates(on: boolean): void;
+}
 
 /** The remembered choices, read once and written back by MERGE. Never by replacement. */
 export interface Prefs {

@@ -1244,12 +1244,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     pieceSets: () => view.hudControls.pieceSets?.() ?? [],
     pieceSet: () => view.hudControls.pieceSet?.() ?? '',
     onPieceSet: (key: string) => view.hudControls.onPieceSet?.(key),
-    coordinates: () => view.hudControls.coordinates(),
-    onCoordinates: (on: boolean) => view.hudControls.onCoordinates(on),
-    outline: () => view.hudControls.outline?.() ?? false,
-    onOutline: (on: boolean) => view.hudControls.onOutline?.(on),
-    outlineAvailable: () => view.hudControls.onOutline !== undefined,
-
     canTakeBack: () => !walking && game.canTakeBack(),
     canReplay: () => !walking && game.canReplay(),
     onTakeBack: () => { void walkHistory('back'); },

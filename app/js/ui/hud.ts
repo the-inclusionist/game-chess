@@ -76,8 +76,6 @@ export interface HudDeps {
    * flat board has none, and a control that had to be repurposed to stay on both pages ended up
    * with a label that lied about its own question.
    */
-  outline?(): boolean;
-  onOutline?(on: boolean): void;
   /**
    * Whether the renderer drawing RIGHT NOW has an outline to switch.
    *
@@ -87,7 +85,6 @@ export interface HudDeps {
    * even when the view behind it lends nothing. 📏 Measured: only the projected board has one.
    * Absent, the control behaves as it always did.
    */
-  outlineAvailable?(): boolean;
   /**
    * The named board palettes, when the view has any. Six of them do not fit a checkbox, and the
    * two high-contrast entries are not variants of each other — they differ in their PIECES — so
@@ -150,8 +147,6 @@ export interface HudDeps {
   pieceSets?: () => readonly { readonly key: string; readonly label: string }[];
   pieceSet?(): string;
   onPieceSet?(key: string): void;
-  coordinates(): boolean;
-  onCoordinates(on: boolean): void;
   /**
    * The engine's mark beside the move played at this ply — `!`, `?`, `??` and so on, or null
    * while it is still being worked out or for an ordinary move, which is most of them.
@@ -542,31 +537,14 @@ export function createHud(deps: HudDeps): Hud {
     themeBox.append(themeLabel, themeSelect);
   }
 
-  // --- piece outline ---------------------------------------------------------
-  // On by default: it is what gives a piece its form in high contrast, where every face is the
-  // same colour. Switchable because it is also a strong visual opinion, and because a flat look
-  // is a legitimate thing to prefer.
-  const outlineBox = doc.createElement('p');
-  const outlineInput = doc.createElement('input');
-  outlineInput.type = 'checkbox';
-  outlineInput.id = 'hud-outline';
-  const outlineLabel = doc.createElement('label');
-  outlineLabel.htmlFor = outlineInput.id;
-  outlineLabel.className = 'hud-check';
-  outlineBox.append(outlineInput, outlineLabel);
+  // ⚠️ OUTLINE SWITCH RETIRED (Wave 2d, 2026-10-02): piece outline lives in
+  // `hooks.gameOptions` as `{id: 'outline', kind: 'switch'}` and the engine's `.ctrl-row` panel
+  // renders it. The HUD's own checkbox was appended to `settings`, which has not reached the DOM
+  // since Wave 2c.
 
-  // --- board coordinates ------------------------------------------------------
-  // On by default. The algebraic names are what the screen reader already speaks, and seeing them
-  // is how a sighted learner connects the two — so the pedagogical default is ON, and the switch
-  // exists because at this resolution sixteen labels are real pixels around a small board.
-  const coordsBox = doc.createElement('p');
-  const coordsInput = doc.createElement('input');
-  coordsInput.type = 'checkbox';
-  coordsInput.id = 'hud-coords';
-  const coordsLabel = doc.createElement('label');
-  coordsLabel.htmlFor = coordsInput.id;
-  coordsLabel.className = 'hud-check';
-  coordsBox.append(coordsInput, coordsLabel);
+  // ⚠️ COORDINATES SWITCH RETIRED (Wave 2d, 2026-10-02): file/rank labels live in
+  // `hooks.gameOptions` as `{id: 'coordinates', kind: 'switch'}`. The HUD's own checkbox was
+  // appended to `settings`, which has not reached the DOM since Wave 2c.
 
   // --- the hint --------------------------------------------------------------
   // ========================= WHY THIS IS A BUTTON AND NOT A PANEL =========================
@@ -619,8 +597,6 @@ export function createHud(deps: HudDeps): Hud {
   if (deps.pieceSets) settings.appendChild(setBox);
   if (deps.themes) settings.appendChild(themeBox);
   settings.append(motionBox);
-  if (deps.onOutline) settings.appendChild(outlineBox);
-  settings.appendChild(coordsBox);
 
   function onHintClick(): void { deps.onHint?.(); }
   hintButton.addEventListener('click', onHintClick);
@@ -635,8 +611,6 @@ export function createHud(deps: HudDeps): Hud {
   function onMotionChange(): void { deps.onReducedMotion(motionInput.checked); }
   motionInput.addEventListener('change', onMotionChange);
 
-  function onOutlineChange(): void { deps.onOutline?.(outlineInput.checked); }
-  outlineInput.addEventListener('change', onOutlineChange);
 
   function onSetChange(): void { deps.onPieceSet?.(setSelect.value); }
   setSelect.addEventListener('change', onSetChange);
@@ -715,8 +689,6 @@ export function createHud(deps: HudDeps): Hud {
     reportFloor.textContent = i18n.t('contrast.floor');
   }
 
-  function onCoordsChange(): void { deps.onCoordinates(coordsInput.checked); }
-  coordsInput.addEventListener('change', onCoordsChange);
 
   function onBackClick(): void { deps.onTakeBack(); }
   function onForwardClick(): void { deps.onReplay(); }
@@ -874,15 +846,6 @@ export function createHud(deps: HudDeps): Hud {
       if (deps.debug && !report.hidden) fillReport();
     }
 
-    outlineLabel.textContent = i18n.t('hud.outline');
-    outlineInput.checked = deps.outline?.() ?? false;
-    // A switch for a board that has no outline is a switch that does nothing, which is the defect
-    // this repository keeps finding. Hidden rather than disabled: there is nothing to explain.
-    if (deps.outlineAvailable) outlineBox.hidden = !deps.outlineAvailable();
-
-    coordsLabel.textContent = i18n.t('hud.coordinates');
-    coordsInput.checked = deps.coordinates();
-
     const outcome = state().outcome();
     root.dataset.outcome = outcome ? outcome.kind : '';
   }
@@ -900,14 +863,12 @@ export function createHud(deps: HudDeps): Hud {
       lessonButton.removeEventListener('click', onLessonClick);
       localeSelect.removeEventListener('change', onLocaleChange);
       motionInput.removeEventListener('change', onMotionChange);
-      outlineInput.removeEventListener('change', onOutlineChange);
       setSelect.removeEventListener('change', onSetChange);
       themeSelect.removeEventListener('change', onThemeChange);
       themeSelect.removeEventListener('mousedown', showReport);
       themeSelect.removeEventListener('change', hideReport);
       themeSelect.removeEventListener('blur', hideReport);
       report.remove();
-      coordsInput.removeEventListener('change', onCoordsChange);
       backButton.removeEventListener('click', onBackClick);
       forwardButton.removeEventListener('click', onForwardClick);
       root.remove();
