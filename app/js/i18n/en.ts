@@ -124,6 +124,7 @@ export const en: Catalog = {
     'go.strength.hint': 'The opponent’s strength when you play alone — from beginner to Stockfish at full power.',
     'go.outline.hint': 'Outline the pieces with a black line — useful in high contrast and for low vision.',
     'go.coordinates.hint': 'Show the file letters and rank numbers around the board.',
+    'go.protected.hint': 'Stops a player from making obviously bad moves — the first three blunders are taken back and the hint arrow appears. Off in two-player mode.',
     'a11y.newSide':    'New game. You play {side}',
     'hud.boardTheme':  'Board colours',
     'theme.wikipedia': 'Wikipedia',

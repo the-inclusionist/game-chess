@@ -129,6 +129,7 @@ export const pt: Catalog = {
     'go.strength.hint': 'A força do adversário quando se joga sozinho — do iniciante ao Stockfish em potência máxima.',
     'go.outline.hint': 'Contornar as peças com uma linha preta — útil em alto contraste e para quem tem baixa visão.',
     'go.coordinates.hint': 'Mostrar as letras das colunas e os números das linhas em volta do tabuleiro.',
+    'go.protected.hint': 'Impede o jogador de jogar lances claramente ruins — nos primeiros três erros, o lance volta e o jogo mostra uma dica. Fica desligado no modo dois jogadores.',
     'a11y.newSide':    'Novo jogo. Você joga com {side}',
     'hud.boardTheme':  'Cores do tabuleiro',
     'theme.wikipedia': 'Wikipédia',

@@ -688,10 +688,19 @@ export function createHud(deps: HudDeps): Hud {
   root.append(turn, openingBox, movesBox);
   if (deps.lessons) root.appendChild(lessonBox);
   if (deps.onHint) root.appendChild(hintBox);
-  if (deps.onMode) root.appendChild(modeGroup.box);
   if (deps.scoreboard) root.appendChild(deps.scoreboard);
-  if (deps.strengths) root.appendChild(strengthBox);
-  if (deps.onProtected) root.appendChild(protectedBox);
+  /*
+   * ⚠️ `modeGroup.box`, `strengthBox` AND `protectedBox` GO TO THE ENGINE'S PANEL IN WAVE 2c.
+   * They are built above and refresh() still reads them so a late unskip has somewhere to find
+   * them, but nothing appends them to the DOM: the three settings live in `hooks.gameOptions`,
+   * drawn by the engine's `.ctrl-row` panel (ADR-0129). The HUD side column keeps `turn`,
+   * `opening`, `moves`, `lessons`, `hint` and the player strips — all chess-game STATE, not
+   * settings a child configures.
+   */
+  // `hud.settings` was adopted into `.chess-pause` until Onda 2b retired it. The elements are
+  // kept so this file compiles until the follow-up cleanup, but nothing attaches `settings` to
+  // the DOM any more; its controls duplicate what `hooks.gameOptions` renders in the engine's
+  // card. The next commit removes the whole settings panel from this file.
   if (deps.pieceSets) settings.appendChild(setBox);
   if (deps.themes) settings.appendChild(themeBox);
   settings.append(visionBox, motionBox);

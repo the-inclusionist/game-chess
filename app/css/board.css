@@ -356,7 +356,7 @@ html { background: var(--page); }
    * A list of classes is a copy of the data: every new button has to remember to join it, and the
    * one that forgot was invisible because the other six were right. Stated once, over the element.
    */
-  .chess-hud button { min-height: var(--tap, 44px); }
+  .chess-hud button { min-height: var(--tap, 44px); font-size: var(--ui-fs, 16px); }
 
   /*
    * The three board views, under the accessibility bar. A row of links, and — since 2026-09-11 — a
@@ -378,7 +378,9 @@ html { background: var(--page); }
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.75em;
+    /* ADR-0163 floor. The buttons say «2D», «2,5D», «3D» — short labels where 0.75em dropped the
+       digit below 12 px. Raising to --ui-fs keeps the pill readable at the floor. */
+    font-size: var(--ui-fs, 16px);
     font-weight: 600;
     text-decoration: none;
     color: var(--ink);
@@ -397,7 +399,9 @@ html { background: var(--page); }
   }
 
   .chess-hud h2 {
-    margin: 0; font-size: 0.75em; font-weight: 600;
+    /* ADR-0163 floor: text starts at 16 px at 640×360. The old 0.75em dropped to ~12 px — a label
+       a child with low vision cannot read. Uppercase + spacing keep the small-caps visual rhythm. */
+    margin: 0; font-size: var(--ui-fs, 16px); font-weight: 600;
     color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.04em;
   }
   .chess-hud p { margin: 0; }
@@ -412,7 +416,7 @@ html { background: var(--page); }
      game is one scroll away, inside the list. */
   .hud-moves {
     flex: 0 0 auto; max-height: 8.5em; overflow-y: auto; overscroll-behavior: contain;
-    margin: 0; padding-left: 1.7em; font-size: 0.9em;
+    margin: 0; padding-left: 1.7em; font-size: var(--ui-fs, 16px);
     font-variant-numeric: tabular-nums;
   }
   .hud-moves:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
@@ -422,7 +426,7 @@ html { background: var(--page); }
   .hud-hint {
     width: 100%;
     min-height: var(--tap, 44px);
-    font: inherit; font-size: 0.78em; font-weight: 600;
+    font: inherit; font-size: var(--ui-fs, 16px); font-weight: 600;
     color: var(--surface); background: #B79BE8;
     border: 1px solid #7A4FBF; border-radius: 2px;
     cursor: pointer;
@@ -462,12 +466,12 @@ html { background: var(--page); }
   .hud-score {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.68em;
+    font-size: var(--ui-fs, 16px);
     color: var(--ink);
   }
   .hud-score caption {
     text-align: left;
-    font-size: 0.95em; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    font-size: var(--ui-fs, 16px); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
     color: #A0ABB5;
     padding-bottom: 0.2em;
   }
@@ -627,7 +631,7 @@ html { background: var(--page); }
   .lesson-teacher { margin: 0.35em 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.3em; }
   .lesson-teacher input { width: 1.1em; height: 1.1em; }
   .lesson-teacher-why[hidden] { display: none; }
-  .lesson-teacher-why { flex: 1 1 100%; font-size: 0.85em; opacity: 0.8; }
+  .lesson-teacher-why { flex: 1 1 100%; font-size: var(--ui-fs, 16px); opacity: 0.8; }
   .lesson-list { margin: 0.4em 0 0; padding: 0; list-style: none; overflow-y: auto; }
   .lesson-entry {
     display: block; width: 100%;
@@ -662,7 +666,7 @@ html { background: var(--page); }
     color: var(--ink-bright);
   }
   .lesson-title { margin: 0; font-size: 1.05em; font-weight: 700; color: var(--accent); }
-  .lesson-counter { margin: 0.15em 0 0; font-size: 0.9em; opacity: 0.85; }
+  .lesson-counter { margin: 0.15em 0 0; font-size: var(--ui-fs, 16px); opacity: 0.85; }
   .lesson-say { margin: 0.4em 0 0; font-weight: 600; line-height: 1.35; }
   /* The nudge reads as a second voice, not as an error: no red, no icon, no raised volume. */
   .lesson-nudge[hidden] { display: none; }
@@ -808,7 +812,13 @@ html { background: var(--page); }
   .player-name {
     margin: 0;
     font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-    font-size: 0.85em; color: #A0ABB5;
+    /*
+     * ⚠️ RAISED to the engine's `--ui-fs` floor on 2026-10-02: at 640×360 the HUD font is 16 px
+     * (ADR-0163), and 0.85em there came out ~13.6 px — a line a child with low vision cannot read.
+     * The uppercase + letter-spacing stays as the visual distinction between an identity label and
+     * the move list below it.
+     */
+    font-size: var(--ui-fs, 16px); color: #A0ABB5;
   }
   .player-row { margin: 0; display: flex; align-items: baseline; gap: 0.4em; min-width: 0; }
 
@@ -819,7 +829,9 @@ html { background: var(--page); }
   .player-mistakes {
     flex: 0 0 auto;
     font-variant-numeric: tabular-nums;
-    color: #A0ABB5;
+    /* Same ADR-0163 floor as `.player-name`: this count is a status readout — the parent's `em`
+       does not reach 16 px at 640×360, so set the floor explicitly. */
+    font-size: var(--ui-fs, 16px); color: #A0ABB5;
   }
   .player-mistakes[data-level="mid"] { color: #E8C07D; }
   .player-mistakes[data-level="high"] { color: var(--danger); }
@@ -888,7 +900,7 @@ html { background: var(--page); }
   .hud-nav button {
     flex: 1 1 0; min-width: 0; min-height: var(--tap, 44px);
     display: flex; align-items: center; justify-content: center; gap: 0.2em;
-    font: inherit; font-size: 0.75em;
+    font: inherit; font-size: var(--ui-fs, 16px);
     color: var(--ink); background: var(--surface-lift);
     border: 1px solid #506C8A; border-radius: 2px;
     cursor: pointer;
@@ -896,7 +908,7 @@ html { background: var(--page); }
   .hud-nav button:hover:not(:disabled) { background: var(--surface-high); }
   .hud-nav button:disabled { opacity: 0.45; cursor: default; }
   .hud-nav-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .chess-hud label { display: block; font-size: 0.75em; color: var(--ink-dim); }
+  .chess-hud label { display: block; font-size: var(--ui-fs, 16px); color: var(--ink-dim); }
 
   /*
    * ========================= TWO OR THREE OPTIONS ARE BUTTONS =========================
@@ -912,7 +924,7 @@ html { background: var(--page); }
   .hud-choice { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px; }
   .hud-choice legend {
     width: 100%; padding: 0; margin-bottom: 0.15em;
-    font-size: 0.75em; color: var(--ink-dim);
+    font-size: var(--ui-fs, 16px); color: var(--ink-dim);
   }
   .hud-choice input {
     position: absolute; width: 1px; height: 1px;
@@ -923,7 +935,7 @@ html { background: var(--page); }
     display: flex; align-items: center; justify-content: center;
     min-height: var(--tap, 44px);
     padding: 0 0.2em;
-    font-size: 0.72em; font-weight: 600;
+    font-size: var(--ui-fs, 16px); font-weight: 600;
     color: var(--ink); background: var(--surface-lift);
     border: 1px solid #506C8A; border-radius: 2px;
     cursor: pointer;
@@ -954,7 +966,7 @@ html { background: var(--page); }
      without the control becoming harder to hit. */
   .chess-hud select {
     width: 100%; min-height: var(--tap, 44px);
-    font: inherit; font-size: 0.8em;
+    font: inherit; font-size: var(--ui-fs, 16px);
     text-overflow: ellipsis;
   }
 
@@ -971,7 +983,7 @@ html { background: var(--page); }
    * decided by where the element happened to be mounted.
    */
   .hud-check,
-  .chess-hud .hud-check { display: inline; font-size: 0.8em; color: var(--ink); margin-left: 0.4em; }
+  .chess-hud .hud-check { display: inline; font-size: var(--ui-fs, 16px); color: var(--ink); margin-left: 0.4em; }
   .chess-hud input[type="checkbox"] {
     width: calc(var(--tap, 44px) * 0.4); height: calc(var(--tap, 44px) * 0.4);
     vertical-align: middle; accent-color: var(--focus);
@@ -1053,7 +1065,9 @@ html { background: var(--page); }
     position: absolute;
     inset: 0;
     pointer-events: none;
-    font-size: calc(var(--ui-fs, 16px) * 0.62);
+    /* ADR-0163 floor: text ≥ 16 px at 640×360. The old `calc(... * 0.62)` dropped to ~10 px — a label
+       a child with low vision cannot read. 8 letters at 16 px fit the 360 px board edge with room. */
+    font-size: var(--ui-fs, 16px);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     color: #6f6552;
@@ -1100,7 +1114,7 @@ html { background: var(--page); }
     overflow: auto;
     box-sizing: border-box;
     padding: calc(var(--ui-fs, 16px) * 0.4);
-    font-size: calc(var(--ui-fs, 16px) * 0.56);
+    font-size: var(--ui-fs, 16px);
     color: #e6e1d6;
     background: rgba(10, 14, 20, 0.94);
     border: 1px solid #506C8A;
@@ -1169,7 +1183,9 @@ html { background: var(--page); }
     max-width: 100%;
     margin: 0.4em auto 0;
     padding: 0 0.6em;
-    font-size: 0.78rem;
+    /* ADR-0163 floor: 0.78rem fell to ~12.5 px. The thinking panel sits under the board; raising
+       its font to the engine's `--ui-fs` grows it by a few pixels but keeps the readable minimum. */
+    font-size: var(--ui-fs, 16px);
     color: var(--ink-dim);
     font-variant-numeric: tabular-nums;
   }

@@ -125,6 +125,7 @@ export const es: Catalog = {
     'go.strength.hint': 'La fuerza del rival al jugar solo — desde principiante a Stockfish a plena potencia.',
     'go.outline.hint': 'Contornar las piezas con una línea negra — útil en alto contraste y en baja visión.',
     'go.coordinates.hint': 'Mostrar las letras de las columnas y los números de las filas alrededor del tablero.',
+    'go.protected.hint': 'Impide que un jugador haga jugadas claramente malas — en los primeros tres errores la jugada vuelve y aparece una pista. Desactivado en modo dos jugadores.',
     'a11y.newSide':    'Nueva partida. Juegas con {side}',
     'hud.boardTheme':  'Colores del tablero',
     'theme.wikipedia': 'Wikipedia',

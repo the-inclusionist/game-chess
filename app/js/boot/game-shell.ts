@@ -897,6 +897,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
         'elo.2200', 'elo.2300', 'elo.2400', 'elo.2500', 'elo.3000',
         'hud.outline', 'go.outline.hint',
         'hud.coordinates', 'go.coordinates.hint',
+        'hud.protected', 'go.protected.hint',
       ];
       const project = (locale: 'pt' | 'en' | 'es'): Readonly<Record<string, string>> => {
         const scoped = createI18n(locale);
@@ -1001,6 +1002,25 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
         kind: 'switch' as const,
         read: (): boolean => view.hudControls.coordinates(),
         write: (on: boolean): void => { view.hudControls.onCoordinates(on); },
+      },
+      {
+        /*
+         * Protected mode (chess-specific, solo only). Reads from `protectedOn`; writes delegate to
+         * the same handler the HUD had — persist, drop the held blunder bar, refresh, re-ask the
+         * engine (so a change mid-think reaches the search).
+         */
+        id: 'protected',
+        labelKey: 'hud.protected',
+        hintKey: 'go.protected.hint',
+        kind: 'switch' as const,
+        read: (): boolean => protectedOn,
+        write: (on: boolean): void => {
+          protectedOn = on;
+          if (!on) { blunderHeld = null; blunderBar.show(null); }
+          prefs.save({ protect: on });
+          hud.refresh();
+          askOpponent();
+        },
       },
     ],
 
