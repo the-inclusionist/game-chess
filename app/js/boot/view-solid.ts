@@ -100,16 +100,20 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
     const w = canvas.width;
     const h = canvas.height;
     /*
-     * ⚠️ BOTH AXES NEGATED, AND IT IS THE SCENE'S `camera.up` THAT ASKS FOR IT. `render3d/scene`
-     * sets `camera.up = (0, -1, 0)` because this board keeps the table's convention — Zdog's Y
-     * points DOWN, and the two renderers share `render/pieces/geometry.ts` verbatim rather than
-     * each carrying its own sign. An inverted up vector is a 180° roll, so `project()` hands back
-     * NDC that is mirrored in x AND y. Measured on the running page before this line existed:
-     * file "a" landed at viewport x = 333 (the right edge) and rank 8 below rank 6.
+     * ⚠️ ONLY `y` IS NEGATED, AND THE SIGNS WERE MEASURED RATHER THAN REASONED. NDC is y-up and
+     * the screen is y-down, which is the ordinary WebGL viewport mapping and the whole of why
+     * `y` flips; `x` needs nothing.
+     *
+     * I had BOTH negated for a few hours. That is a point reflection, not a correction, and a
+     * chessboard seen head-on is near enough symmetric under it that the labels looked right at
+     * the opening angle and went wrong the moment the Dev turned the camera (report of
+     * 2026-10-03). The ground truth that settled it: clicking the LEFT of the 3D board selects
+     * g1 and the RIGHT selects b1 — so the files run h..a left to right under this camera, and
+     * negating `x` was putting "a" on the side where "h" is drawn.
      */
     const toPixels = (x: number, z: number): { x: number; y: number } => {
       projected.set(x, 0, z).project(scene.camera);
-      return { x: (-projected.x * w) / 2, y: (-projected.y * h) / 2 };
+      return { x: (projected.x * w) / 2, y: (-projected.y * h) / 2 };
     };
     for (let y = 0; y < RANKS; y++) {
       for (let x = 0; x < FILES; x++) {
