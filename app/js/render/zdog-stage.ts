@@ -38,14 +38,16 @@ export const CAMERA = {
    */
   zoom: 2.0,
   /**
-   * ⚠️ `+22` ON 2026-10-03, FROM 0. The pitch of -1 tilts the board forward and `.coords`'s
-   * projected rank labels follow the SLANTED left edge of the drawn board; rank 8 lands farthest
-   * left in viewport pixels. With `offsetX: 0` and `OUTSET: 0.72`, rank 8 projected to viewport
-   * x ≈ −5, past `#game-region { overflow:hidden }`'s clip. Shifting the whole projection right
-   * by 22 world units ≈ 44 CSS pixels at `zoom: 2.0`, which puts the rank numbers inside the
-   * stage without touching the ratio tests calibrated at this zoom.
+   * ⚠️ ZERO NOW, AND IT USED TO BE -42. The board was pushed left because the HUD was drawn OVER
+   * the right 27.5% of this canvas — which is also why the panel could never be widened without
+   * covering the board. The panel is a sibling element now and the canvas is the board's alone, so
+   * the board is simply centred in it.
+   *
+   * The zoom is unchanged on purpose: the board is bound by the canvas HEIGHT, not its width, so
+   * the room reclaimed on the right is margin rather than magnification. Growing the zoom to
+   * spend it would push the board off the top and bottom.
    */
-  offsetX: 22,
+  offsetX: 0,
 } as const;
 
 export interface ZdogStage {
