@@ -48,7 +48,6 @@ import { squareIndex, type Marker } from '../render/board-geometry.ts';
 import type { HintMove } from '../render/hint-arrows.ts';
 import { BOARD_THEMES, DEFAULT_THEME } from '../ui/board-themes.ts';
 import { createBlunderBar } from '../ui/blunder-bar.ts';
-import { createPauseMenu } from '../ui/pause-menu.ts';
 /*
  * ⚠️ THE TABLE IS STATIC AND THE MACHINERY IS NOT, and the split is deliberate. The HUD has to
  * list every lesson name before anyone opens one, so `LESSONS` is imported here — it is data,
@@ -385,17 +384,11 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
   const column = within('side-column');
 
   /**
-   * The keyboard legend, WHEREVER IT IS AT THE MOMENT — and it moves exactly once.
-   *
-   * ⚠️ THE REGION IS ASKED FIRST, AND THAT ORDER IS THE WHOLE FUNCTION. The page authors this line
-   * outside the region, because its content is written by this module and its place is not the
-   * board; the pause menu then ADOPTS the element into `pause.root`, which is inside the region. So
-   * at boot it is found on the host, and on every later call — a change of language — it is found
-   * in the region, where the host query would also have found it and would also have found any
-   * other game's.
-   *
-   * One element, one writer. Building a second here is how a keyboard legend starts disagreeing
-   * with the keys, which is the defect this line has already had twice.
+   * The keyboard legend finder — DEAD since Onda 2b retired `.chess-pause`. The engine's remap
+   * screen (reached from the pause card's `options`) is the keyboard reference now, so `.hint` no
+   * longer exists in the document and this returns `null`; `refreshKeyHints()` is a no-op by its
+   * first guard. Kept because the subsequent cleanup commit retires the strip and this helper
+   * together; leaving them separates two decisions a reader is more likely to understand apart.
    */
   const keyHintLine = (): HTMLElement | null =>
     region.querySelector<HTMLElement>('.hint') ?? host.querySelector<HTMLElement>('.hint');
@@ -800,7 +793,21 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      * times: the reference lives inside a function body that nothing calls during construction. By
      * the time the engine asks for the table, the binding it names has been filled by `create()`.
      */
-    getPauseActs: () => ({ resume: () => engine.pause.hide(0) }),
+    /**
+     * Table consulted LAZILY: the engine calls this each time the pause card opens, so a `quit`
+     * that only exists in a lesson appears only in a lesson.
+     *
+     * ⚠️ `quit` IS WHAT «SAIR DA AULA» BECAME. The engine's own PM_BTNS carries a `quit` row with
+     * the i18n key `pause.quit` → «Sair»; it is the engine's vocabulary and this file does not
+     * override the word. During a lesson the row acts as «sair da aula»; outside a lesson the
+     * entry is absent and the row does not mount at all (`itensQueAccionam` filters). Overriding
+     * the label would need `PauseIconsCtx.dynLabel`, which `CartridgeHooks` does not expose yet —
+     * noted in the «Parte da engine» plan section as the one gap this coexistence has to live with.
+     */
+    getPauseActs: () => ({
+      resume: () => engine.pause.hide(0),
+      ...(lessonMode ? { quit: () => { engine.pause.hide(0); lessonMode?.stop(); } } : {}),
+    }),
     /*
      * ========================= THE 🚥 ICON, AND THE ⚫ ONE THAT IS NOT HERE =========================
      * 🔴 ENGINE 9 OPENED A DOOR THAT DID NOT EXIST, and its own comment names the misreading I made
@@ -1310,7 +1317,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     mirror.refresh();
     lessonPanel?.refresh();
     refreshLessonMenu();
-    pause.refresh();
     players.refresh();
     thinking.refresh?.();
     blunderBar.refresh();
@@ -1723,34 +1729,14 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * board, which spent a tap target on a panel meant to carry one sentence and put the exit inside
    * the thing being read.
    */
-  const pause = createPauseMenu({
-    doc: host,
-    i18n,
-    /*
-     * ⚠️ THE HUD STILL OWNS THESE, and hands them over rather than duplicating them. Building a
-     * second copy of six controls would be two of everything to keep in step — and the pair that
-     * drifted would be the one nobody was looking at.
-     */
-    settings: hud.settings,
-    /*
-     * ⚠️ THE SAME `<p class="hint">` THE PAGE ALREADY CARRIES, moved rather than copied. It is
-     * filled by `refreshKeyHints()` from the catalogue at boot and on every change of language, and
-     * moving the element keeps that one writer — a second line built here would be a second place
-     * for the keys to be wrong.
-     */
-    keys: keyHintLine() ?? undefined,
-    actions: () => [
-      { label: 'pause.resume', run: () => pause.hide() },
-      ...(lessonMode
-        ? [{
-          label: 'pause.leaveLesson',
-          leaving: true,
-          run: () => { pause.hide(); lessonMode?.stop(); },
-        }]
-        : []),
-    ],
-  });
-  region.appendChild(pause.root);
+  /*
+   * ========================= THE CHESS-PAUSE IS GONE =========================
+   * Onda 2b of the engine-11 migration retired this game's own pause card. The engine mounts its
+   * own (`#vp-pause-0`), and the chess-specific controls that used to live in `.chess-pause` moved
+   * to `hooks.gameOptions` — the engine's «Opções do jogo» panel draws them with the shared
+   * `.ctrl-row` vocabulary (ADR-0129). The two cards coexisted for a tick; the duplicate is now
+   * nothing more than a line in `git log`.
+   */
 
   /**
    * ⚠️ NAMED SO IT CAN BE TAKEN OFF AGAIN. It was an inline arrow, which is fine for a page that
@@ -1794,11 +1780,13 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      * Escape stays named, and stays for its own reason: it resolves to nothing (measured: `null`),
      * because it is not a game action. Every dialog on every platform answers to it anyway.
      */
-    if (action === 'start' || event.key === 'Escape') {
-      pause.toggle();
-      event.preventDefault();
-      return;
-    }
+    /*
+     * ⚠️ NO BRANCH HERE FOR `start` OR Escape. The engine's own window listener for `start` opens
+     * ITS pause (`toggleQuickPauseByStart` in `boot/create-game.js`), and its menu-nav listens on
+     * the window in CAPTURE for Escape — both fire BEFORE this bubbling listener and consume the
+     * key (`event.defaultPrevented` catches them, line above). This file used to open its own
+     * `.chess-pause` here; Onda 2b retired it.
+     */
     /*
      * ========================= THE FOUR ACTIONS =========================
      * `action2` (confirm) is the board's and lives in `ui/grid-mirror.ts`, because that is what
@@ -1806,16 +1794,14 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      * the game rather than about a square.
      */
     if (action === 'action3') {
-      // ⚠️ CANCEL CLOSES THE MENU FIRST, before the guard below. A cancel that only worked when
-      // nothing was open would be missing the one moment anybody presses it.
-      if (pause.open) { pause.hide(); event.preventDefault(); return; }
-      // Otherwise it puts the held piece down — activating the selected square again is how
-      // `chess/state.ts` already spells "deselect", so there is nothing new to teach it.
+      // CANCEL puts the held piece down — activating the selected square again is how
+      // `chess/state.ts` already spells "deselect", so there is nothing new to teach it. The
+      // engine's own menu-nav intercepts Escape on an open overlay BEFORE this listener runs, so
+      // the chess-pause's old «close on cancel» has no job here any more.
       const held = game.selection();
       if (held) { onActivate(held); event.preventDefault(); }
       return;
     }
-    if (pause.open) return;
 
     if (action === 'action1') {
       /*
@@ -2308,7 +2294,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
       window.removeEventListener('resize', relayout);
       region.removeEventListener('keydown', onRegionKey);
       // In CAPTURE on the document: this one would take keys from whatever ran next, and first.
-      pause.destroy();
       // A Web Worker with 6.98 MB of WebAssembly in it. No DOM operation frees this.
       opponent.destroy();
       // GPU buffers: Three does not free a geometry when its mesh leaves the scene.

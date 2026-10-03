@@ -174,19 +174,8 @@
   </div>
 </div>
 
-<!--
-  ⚠️ EMPTY ON PURPOSE, AND IT DOES NOT STAY HERE. This line used to carry hardcoded Portuguese in
-  all three pages, in a game whose floor is three languages — and every claim in it had also
-  stopped being true. `game-shell` fills it at boot and on a change of language, and then hands the
-  element to the PAUSE MENU: nothing may be drawn outside the stage, and a control list belongs
-  beside the controls rather than under a board.
-
-  ⚠️ BOTH HALVES OF IT ARE DERIVED, and the second half is the newer repair. The words come
-  from the catalogue; the KEYS come from the engine's remappable scheme, so a child who moves the
-  pause key is told the key she moved it to. Until 2026-09-11 the letters were typed here by hand,
-  which meant a remapped game had a line translated with care into a lie.
--->
-<p class="hint"></p>
+<!-- The keyboard hint strip was adopted into `.chess-pause` and died with it in Wave 2b.
+     The engine's remap screen (reached from the pause card) is the keyboard reference now. -->
 
 <div id="sr-status" class="sr-only" role="status" aria-live="polite"></div>
 <div id="sr-alert"  class="sr-only" role="alert"  aria-live="assertive"></div>
