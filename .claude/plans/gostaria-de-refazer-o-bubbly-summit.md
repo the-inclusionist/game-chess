@@ -2104,8 +2104,10 @@ preset), ou se mantém o estado actual (sem `onCommand`, o `onRegionKey`
 o working tree ficou limpo).
 
 **Trabalho real:**
-1. `mirror.moveCursor(dir)` e `mirror.activateCursor()` como novas entradas
+1. ✅ `mirror.moveCursor(action)` e `mirror.activate()` como novas entradas
    que não leem evento (ADR-0111: comando vem com nome, não com código).
+   Feito em 2026-10-02, commit `5a52cb4`. O `handleKey` passa a delegar
+   para elas, para o corpo não ficar duplicado quando a Wave 3 fechar.
 2. `walkPanel(action)` continua a existir mas é chamado de `onCommand` para
    setas quando foco está no painel.
 3. Home/End vão para `preset` como novas acções, com `labelKey` próprio;
