@@ -7,6 +7,7 @@
 // gesture. Nothing is drawn and nothing is looked at.
 import { describe, expect, it } from 'vitest';
 import { createScene3d, BOARD_SPAN } from '../app/js/render3d/scene.ts';
+import { FILES, RANKS } from '../app/js/chess/types.ts';
 
 const stage = (): HTMLCanvasElement => {
   const canvas = document.createElement('canvas');
@@ -157,5 +158,99 @@ describe('[Marks] the solid board can finally say what it is doing', () => {
       scene.setMarkers(new Map([[i % 64, 'selected'], [(i + 1) % 64, 'move']]));
     }
     expect(marksIn(scene)).toBe(3);
+  });
+});
+
+describe('[3D] ⚠️ the board is not mirrored: a1 is bottom-left', () => {
+  /*
+   * ========================= WHY THIS TEST EXISTS =========================
+   * It did not, and the defect it pins lived for the whole life of this view: THE SOLID BOARD WAS
+   * DRAWN MIRRORED. The table's axes are left-handed (x right, y DOWN, z toward the viewer) and
+   * Three.js is right-handed, so telling the camera `up = (0, −1, 0)` fixed the vertical and
+   * reflected the horizontal — world +x landed on the LEFT of the screen, and file `a`, which
+   * lives at negative x, was drawn on the right. The files ran h..a.
+   *
+   * A chessboard with no coordinates printed on it looks completely normal like that. It is
+   * symmetric in the only way the eye checks: the light squares are still right, white is still
+   * nearest, the pieces are still where you left them. So nothing caught it until the DOM
+   * coordinate labels arrived in this view and read backwards (the Dev's report of 2026-10-03),
+   * and then the obvious-looking fix was to conform the labels to the board — which is fixing the
+   * wrong end, and is exactly what shipped the backwards letters.
+   *
+   * The assertion is therefore made against `pick`, the one function that answers "which square is
+   * under this point on the screen". Not against the conversion's arithmetic: a test of
+   * `sceneCenter` would be a second copy of its own formula, and would have agreed with the bug.
+   */
+  const probe = (): { scene: ReturnType<typeof createScene3d>; w: number; h: number } => {
+    const canvas = stage();
+    const scene = createScene3d({ canvas });
+    const w = canvas.width;
+    const h = canvas.height;
+    scene.resize(w, h);
+    // `pick` raycasts through `matrixWorld`, which a camera that has only been positioned does not
+    // yet have. One render is what publishes it.
+    scene.render();
+    return { scene, w, h };
+  };
+
+  /** Every square found by sweeping a straight line across the canvas, in the order it met them. */
+  const sweep = (
+    scene: ReturnType<typeof createScene3d>,
+    from: { x: number; y: number }, to: { x: number; y: number }, w: number, h: number,
+  ): { x: number; y: number }[] => {
+    const found: { x: number; y: number }[] = [];
+    const STEPS = 160;
+    for (let i = 0; i <= STEPS; i++) {
+      const t = i / STEPS;
+      const hit = scene.pick(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t, w, h);
+      if (hit) found.push(hit);
+    }
+    return found;
+  };
+
+  it('⚠️ reads a..h from LEFT to RIGHT, which is what this file was missing', () => {
+    const { scene, w, h } = probe();
+    const across = sweep(scene, { x: 0, y: h / 2 }, { x: w, y: h / 2 }, w, h);
+
+    expect(across.length).toBeGreaterThan(8);
+    // A straight sweep across a board seen head-on may linger on a file but must never go
+    // backwards. A mirrored board fails this on the very first pair.
+    for (let i = 1; i < across.length; i++) {
+      expect(across[i].x).toBeGreaterThanOrEqual(across[i - 1].x);
+    }
+    // And it really crosses the whole board, rather than passing by finding one file.
+    expect(across[0].x).toBe(0);
+    expect(across[across.length - 1].x).toBe(FILES - 1);
+
+    scene.destroy();
+  });
+
+  it('keeps rank 1 nearest the player, so white is at the bottom', () => {
+    const { scene, w, h } = probe();
+    const down = sweep(scene, { x: w / 2, y: 0 }, { x: w / 2, y: h }, w, h);
+
+    expect(down.length).toBeGreaterThan(8);
+    // `y` counts from black: rank 8 is y = 0. Sweeping down the screen must count up through it.
+    for (let i = 1; i < down.length; i++) {
+      expect(down[i].y).toBeGreaterThanOrEqual(down[i - 1].y);
+    }
+    expect(down[0].y).toBe(0);
+    expect(down[down.length - 1].y).toBe(RANKS - 1);
+
+    scene.destroy();
+  });
+
+  it('puts a1 in the bottom-left corner and h1 in the bottom-right', () => {
+    const { scene, w, h } = probe();
+    const across = sweep(scene, { x: 0, y: h / 2 }, { x: w, y: h / 2 }, w, h);
+    const down = sweep(scene, { x: w / 2, y: 0 }, { x: w / 2, y: h }, w, h);
+
+    // The two sweeps together name the corner the whole report was about: leftmost file, nearest
+    // rank. In chess notation that is a1 — and a1 is dark, which `isLightSquare` already pins.
+    expect({ x: across[0].x, y: down[down.length - 1].y }).toEqual({ x: 0, y: RANKS - 1 });
+    expect({ x: across[across.length - 1].x, y: down[down.length - 1].y })
+      .toEqual({ x: FILES - 1, y: RANKS - 1 });
+
+    scene.destroy();
   });
 });

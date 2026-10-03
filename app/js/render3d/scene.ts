@@ -6,6 +6,23 @@
 // y = 0 — so that `render/pieces/geometry.ts` can be read verbatim by both renderers. The camera
 // is simply told that up is (0, −1, 0). See `render3d/pieces.ts` for why this beats mirroring.
 //
+// ========================= ⚠️ AND THAT IS WHY `sceneCenter` NEGATES X =========================
+// Keeping the convention has a price that went unpaid for the whole life of this view, and the
+// Dev's report of 2026-10-03 is what finally collected it: THE BOARD WAS DRAWN MIRRORED.
+//
+// Zdog's axes — x right, y DOWN, z toward the viewer — are a LEFT-handed basis. Three.js is
+// right-handed. Telling the camera `up = (0, −1, 0)` makes the vertical come out the right way
+// round, but it does not convert the handedness; it reflects the image instead. The camera's own
+// right vector works out as `up × z_cam = (−1, 0, 0)`, so WORLD +X LANDS ON THE LEFT OF THE
+// SCREEN. File `a` lives at negative x, so file `a` was drawn on the right — h..a, left to right,
+// white still nearest. A chessboard with no coordinates printed on it looks entirely normal like
+// that, which is why nobody caught it until the labels arrived and read backwards.
+//
+// So table coordinates are converted ONCE, here, on the way into the scene. Everything the 3D
+// view places on the board — squares, pieces, marks, hint arrows, and the projection the DOM
+// labels are positioned from — goes through `sceneCenter`, and the lights are mirrored with them
+// so that the only thing that changed is which side of the screen the a-file is on.
+//
 // ========================= WHY THIS IS NOT THE ENGINE'S 320×180 =========================
 // The Zdog view renders into the engine's fixed logical resolution and is upscaled by whole
 // pixels, because a pseudo-3D drawing of flat shapes is a PIXEL image and a fractional upscale
@@ -27,6 +44,19 @@ import type { Square } from '../chess/types.ts';
 
 /** Eight squares plus a border, in Zdog units. */
 export const BOARD_SPAN = TILE * 8;
+
+/**
+ * A square's centre in SCENE coordinates — `squareCenter` with the handedness converted.
+ *
+ * ⚠️ THE NEGATED X IS THE WHOLE POINT. See the handedness note at the top of this file: the table's
+ * basis is left-handed and this scene's is not, so a point used unconverted comes out reflected
+ * about the vertical. Negating x is that conversion, and it has to be applied by every caller that
+ * puts something on the board — which is why it lives here and not inline.
+ */
+export function sceneCenter(s: Square, tile: number): { x: number; z: number } {
+  const { x, z } = squareCenter(s, tile);
+  return { x: -x, z };
+}
 
 /** Above 2 the pixels stop being visible and start being a battery bill. */
 const MAX_PIXEL_RATIO = 2;
@@ -150,10 +180,13 @@ export function createScene3d(options: Scene3dOptions): Scene3d {
    * `render3d/pieces.ts`. The lights stay in the scene and simply have nothing to do.
    */
   const ambient = new THREE.AmbientLight(0xffffff, 1.7);
+  // ⚠️ The x of both is negated along with the board's, so the illumination keeps exactly the
+  // relationship to the squares it was tuned against. Mirroring the content and not the lights
+  // would have moved the key light to the other side of the board as a side effect of a bug fix.
   const key = new THREE.DirectionalLight(0xffffff, 1.6);
-  key.position.set(-BOARD_SPAN, -BOARD_SPAN * 1.4, BOARD_SPAN * 0.6);
+  key.position.set(BOARD_SPAN, -BOARD_SPAN * 1.4, BOARD_SPAN * 0.6);
   const fill = new THREE.DirectionalLight(0xffffff, 0.6);
-  fill.position.set(BOARD_SPAN, -BOARD_SPAN * 0.8, -BOARD_SPAN);
+  fill.position.set(-BOARD_SPAN, -BOARD_SPAN * 0.8, -BOARD_SPAN);
   scene.add(ambient, key, fill);
 
   const board = new THREE.Group();
@@ -179,7 +212,7 @@ export function createScene3d(options: Scene3dOptions): Scene3d {
     for (let y = 0; y < 8; y++) {
       for (let x = 0; x < 8; x++) {
         const square: Square = { x, y };
-        const { x: cx, z: cz } = squareCenter(square, TILE);
+        const { x: cx, z: cz } = sceneCenter(square, TILE);
         const mesh = new THREE.Mesh(
           new THREE.BoxGeometry(TILE, 1, TILE),
           (x + y) % 2 === 0 ? lightMat : darkMat,
@@ -294,7 +327,7 @@ export function createScene3d(options: Scene3dOptions): Scene3d {
       }
       for (const [index, kind] of wanted) {
         if (index < 0 || index >= 64) continue;
-        const { x: cx, z: cz } = squareCenter({ x: index % 8, y: Math.floor(index / 8) }, TILE);
+        const { x: cx, z: cz } = sceneCenter({ x: index % 8, y: Math.floor(index / 8) }, TILE);
         drawMark(kind, cx, cz);
       }
     },
