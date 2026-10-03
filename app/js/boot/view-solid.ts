@@ -15,14 +15,14 @@
 
 import * as THREE from 'three';
 import { SAME_LEVEL_CP } from '../chess/engine/same-level.ts';
-import { FILES, RANKS, type Square } from '../chess/types.ts';
-import { squareIndex } from '../render/board-geometry.ts';
+import type { Square } from '../chess/types.ts';
 import { hintHue, projectedPalette } from '../render/palette.ts';
 import { DEFAULT_DESIGN, PIECE_DESIGNS } from '../render/pieces/sets.ts';
 import { TILE } from '../render/resolution.ts';
 import { specs3dFor } from '../render3d/geometry3d.ts';
 import { buildPiece3d, disposePiece3d } from '../render3d/pieces.ts';
 import { createScene3d, sceneCenter } from '../render3d/scene.ts';
+import { projectBoardQuads } from '../render3d/project-quads.ts';
 import type { Quad } from '../render/picking.ts';
 import { createCoordinates } from '../ui/coordinates.ts';
 import { boardTheme } from '../ui/board-themes.ts';
@@ -88,55 +88,13 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
    * is the space `ui/coordinates` works in (it was written against Zdog's illustration space, and
    * that is what `viewport.zoom = 1` below declares this to be).
    *
-   * ⚠️ CORNER ORDER IS THE MODULE'S CONTRACT, copied from Zdog's flat Rect path:
-   * 0 = far-left, 1 = far-right, 2 = near-right, 3 = near-left. "Far" is the black end (smaller
-   * `z`, since rank 8 is `y = 0`); "near" is the player's. Getting this wrong puts the file
-   * letters along the far edge, behind the black pieces, which is silent and looks deliberate.
+   * ⚠️ THE CORNER ORDER IS A CONTRACT AND IT LIVES IN `render3d/project-quads.ts`, with the
+   * reason it is not the obvious one and the record of it being got wrong twice. It is a module
+   * rather than four lines here precisely so that a test can reach it.
    */
   const projected = new THREE.Vector3();
-  const projectQuads = (): Quad[] => {
-    const out: Quad[] = new Array<Quad>(FILES * RANKS);
-    const half = TILE / 2;
-    const w = canvas.width;
-    const h = canvas.height;
-    /*
-     * ⚠️ ONLY `y` IS NEGATED, AND THAT IS ALL THIS FUNCTION OWES ANYBODY. NDC is y-up and the
-     * screen is y-down, which is the ordinary WebGL viewport mapping and the whole of why `y`
-     * flips. `x` needs nothing, because `sceneCenter` has already converted the handedness
-     * upstream — see the note at the top of `render3d/scene.ts`.
-     *
-     * ⚠️ THE TWO WRONG VERSIONS THIS COMMENT REPLACES, because both are easy to arrive at again:
-     *
-     *   1. Negating BOTH axes. That is a point reflection, not a viewport mapping. A chessboard
-     *      seen head-on is near enough symmetric under it that the labels looked right at the
-     *      opening angle and came apart the moment the camera turned.
-     *   2. Negating neither, and leaving the SCENE mirrored. Clicking the left of the board
-     *      selected g1 and the right selected b1, and I read that measurement as the camera's
-     *      convention to conform to. It was not a convention; it was the bug (now fixed in
-     *      `sceneCenter`). Conforming the labels to a mirrored board is what printed the letters
-     *      backwards — the Dev's report of 2026-10-03, and the reason the test beside this view
-     *      now asserts that the left of the canvas picks a LOW file.
-     */
-    const toPixels = (x: number, z: number): { x: number; y: number } => {
-      projected.set(x, 0, z).project(scene.camera);
-      return { x: (projected.x * w) / 2, y: (-projected.y * h) / 2 };
-    };
-    for (let y = 0; y < RANKS; y++) {
-      for (let x = 0; x < FILES; x++) {
-        const centre = sceneCenter({ x, y } as Square, TILE);
-        out[squareIndex({ x, y } as Square)] = {
-          corners: [
-            toPixels(centre.x - half, centre.z - half),
-            toPixels(centre.x + half, centre.z - half),
-            toPixels(centre.x + half, centre.z + half),
-            toPixels(centre.x - half, centre.z + half),
-          ],
-          depth: 0,
-        };
-      }
-    }
-    return out;
-  };
+  const projectQuads = (): Quad[] =>
+    projectBoardQuads(scene.camera, projected, canvas.width, canvas.height);
 
   /**
    * Repositions the labels against the camera as it stands now.
