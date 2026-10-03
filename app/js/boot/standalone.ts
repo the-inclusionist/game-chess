@@ -170,10 +170,19 @@ export function bootFailed(error: unknown): void {
  * files used to state, and this table is that derivation — written once so the collapse is a
  * deletion rather than a rewrite.
  */
+/*
+ * ⚠️ `visibleMirror: true` FOR ALL THREE, 2026-10-03. Each view used to live on its own HTML
+ * page, so the mirror was built with the glyphs the 2D view NEEDS and that the other two could
+ * leave `sr-only`. One document showing all three means the mirror is BUILT ONCE at boot — and
+ * a 2D view mounted later asking a boot-time-invisible mirror for its grid finds no glyphs:
+ * the user's report of 2026-10-03 was that "em 2D nenhum tabuleiro é desenhado". The mirror
+ * now always carries its drawings; the 2.5D and 3D views cover it with their canvas (which is
+ * `position:absolute; inset:0` in the CSS so this works without a flex-flow fight).
+ */
 const PER_VIEW = {
   '2d': { visibleMirror: true, debugName: '__chess2d', contrastTheme: CONTRAST_THEME },
-  '2.5d': { visibleMirror: false, debugName: '__chess', contrastTheme: 'contrast-solid' },
-  '3d': { visibleMirror: false, debugName: '__chess3d', contrastTheme: 'contrast-solid' },
+  '2.5d': { visibleMirror: true, debugName: '__chess', contrastTheme: 'contrast-solid' },
+  '3d': { visibleMirror: true, debugName: '__chess3d', contrastTheme: 'contrast-solid' },
 } as const;
 
 /**

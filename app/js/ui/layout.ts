@@ -249,9 +249,15 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
    */
 
   if (below) {
-    // Exactly the board and the side menu together — the panels under the board are neither wider
-    // nor narrower than the thing they are talking about.
-    below.style.width = `${width}px`;
+    /*
+     * ⚠️ WIDTH TRACKS THE STAGE, NOT THE BOARD (2026-10-03). The strip lived inside `#chess-board`
+     * until the thinking panel started fighting the canvas for flex space; it moved to
+     * `#stage-wrap` as a sibling of `#game-region`, and the honest width there is the stage's own
+     * — a lesson sentence under the board + panel can breathe across the whole 16:9. Before this
+     * change the inline `below.style.width` kept setting the board-only side (9 of 16 units),
+     * which anchored the strip at the left edge of a 696-pixel stage.
+     */
+    below.style.width = `${stageW}px`;
     /*
      * ⚠️ TYPE SIZED AGAINST THE STAGE, WITH A FLOOR. A lesson sentence is prose to be read, not a
      * HUD label to be glanced at, so it tracks the board rather than staying at whatever `body`

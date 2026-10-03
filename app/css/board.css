@@ -187,7 +187,23 @@ html { background: var(--page); }
     display: flex;
     flex-direction: column;
   }
-  #chess-board > #below-board { flex: 0 0 auto; width: 100%; box-sizing: border-box; }
+  /*
+   * ⚠️ `#stage-wrap > #below-board`, not `#chess-board > #below-board`, 2026-10-03. The thinking
+   * strip moved from inside the board (where it fought the canvas for flex height) to beneath
+   * the stage. `flex: 0 0 auto` keeps it as tall as its content; the width tracks the stage's.
+   */
+  /*
+   * ⚠️ The inline `width` is set by `ui/layout.applyLayout` (= `stageW`, same number used for
+   * `#game-region`'s own width). `align-self: center` keeps the strip under the stage rather
+   * than hugging the left edge. `#stage-wrap { align-items:center }` already provides this for
+   * flex children by default; the explicit declaration is here so a later change to
+   * `align-items` on the parent cannot silently off-centre the thinking strip again.
+   */
+  #stage-wrap > #below-board {
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    align-self: center;
+  }
   #stage-wrap {
     flex: 1 1 auto;
     min-height: 0;
@@ -232,6 +248,18 @@ html { background: var(--page); }
    * while the height stayed 720, giving 2.25x across and 4x down.
    */
   #board-canvas {
+    /*
+     * ⚠️ `position:absolute; inset:0`, 2026-10-03. The 2.5D canvas used to be a flex item in
+     * chess-board, which fought for space with the mirror (now always visible under it, Wave
+     * «todas-as-vistas-no-mesmo-documento») and with `#below-board`. Measurement that forced the
+     * fix: in a 360×360 chess-board the flex items summed to 486 px, so the Zdog canvas
+     * displaced the thinking panel upward (the user's "pensamento acima do tabuleiro" of 2026-10-03)
+     * and the surplus got clipped by `#game-region { overflow:hidden }` ("tabuleiro grande demais,
+     * não cabe na tela"). Out of flow fills the chess-board whatever its sibling flex items ask
+     * for. `.stage-3d` has been this since engine 8; `#board-canvas` matches it now.
+     */
+    position: absolute;
+    inset: 0;
     display: block;
     width: 100%;
     height: 100%;

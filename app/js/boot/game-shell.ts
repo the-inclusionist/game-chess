@@ -1342,30 +1342,26 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
   column.appendChild(hud.views);
   column.appendChild(hud.root);
   /*
-   * ========================= ⚠️ INSIDE THE BOARD'S OWN NINE UNITS =========================
-   * It was a sibling of `#stage-wrap` once — an 11 px ribbon stretched across a 1600 px window —
-   * and then a child of the stage. Both drew it OUTSIDE the sixteen-by-nine box, and the spec is
-   * that nothing may be.
+   * ========================= ⚠️ BELOW THE STAGE, 2026-10-03 =========================
+   * ⚠️ MOVED FROM `#chess-board` TO `#stage-wrap` on the Dev's report of 2026-10-03: appended
+   * inside the board, this panel was fighting with the 2.5D canvas for flex space — the three
+   * flex items (player strips 48 + canvas 360 + below-board 78) summed past the chess-board's
+   * declared 360 px height, so the thinking visually appeared ABOVE the canvas instead of below
+   * it ("Pensamento da engine deveria aparecer na parte debaixo da tela, não acima do tabuleiro").
+   * It also meant that making the 2.5D canvas `position:absolute; inset:0` (needed so the
+   * always-visible mirror hides behind it) would cover `#below-board` and hide the thinking panel
+   * entirely.
    *
-   * So it sits at the foot of the BOARD, in flow — the board's nine units, not the sixteen the
-   * region now spans. On the flat board that pushes the grid up and makes it slightly smaller,
-   * which is the intended trade. On the projected and solid boards it costs nothing: their canvas
-   * is `position: absolute; inset: 0` and keeps the whole board, so this rides over it — and those
-   * two can be zoomed by the player anyway, which is the reason given for treating them
-   * differently.
-   *
-   * ⚠️ AND A GUARD ABOUT THE OLD PLACEMENT OUTLIVED IT, RIGHT ABOVE THIS COMMENT. It looked up
-   * `#stage-wrap` and warned that «the thinking panel has nowhere to go» if it had no parent — true
-   * while the panel was inserted beside that element, and measuring nothing at all since it moved
-   * in here. Two comments eight lines apart described two different placements, and the code did
-   * the second. A check that cannot fail is not protection; it is a claim that reads as protection.
-   *
-   * It is built here rather than in the page because it has no content of its own — markup that
-   * exists only to be filled in by this module belongs to this module.
+   * On `#stage-wrap` as a flex-column sibling of `#game-region`, it sits BELOW the whole stage
+   * (board + side panel) and spans the stage's own width. It is still "in the stage"
+   * (the 16:9 rectangle `#stage-wrap` defines), which is what ADR-0106 asks of every visible
+   * element. The CSS width/placement are in `#stage-wrap > #below-board` in `board.css`.
    */
   const below = host.createElement('div');
   below.id = 'below-board';
-  board.appendChild(below);
+  const stageWrap = host.getElementById('stage-wrap');
+  if (stageWrap) stageWrap.appendChild(below);
+  else board.appendChild(below);
   below.appendChild(blunderBar.root);
   // Below the blunder bar: a warning about the move just played is more urgent than the engine's
   // running commentary.
