@@ -144,6 +144,19 @@ export interface GridMirror {
    * can be heard.
    */
   handleKey(event: KeyboardEvent): boolean;
+  /**
+   * Move the cursor by name — `up`/`down`/`left`/`right` — WITHOUT touching an event. The onCommand
+   * path (Wave 3, ADR-0111) delivers an action name and a `pressed` flag, not a KeyboardEvent, so
+   * this is the knob the shell's command handler turns. Returns whether the direction was
+   * recognised (so a caller can distinguish "the board moved" from "we were handed something else").
+   * Clamped at the edges, same as `handleKey`.
+   */
+  moveCursor(action: string): boolean;
+  /**
+   * Activate the current cursor square — same effect as `action2` through `handleKey`, without
+   * the event. The onCommand path dispatches here on a press of the game's `action2` binding.
+   */
+  activate(): void;
   /** Swaps the board colours. Also nothing a screen reader hears. */
   setTheme(key: string): void;
   themeKey(): string;
@@ -433,6 +446,34 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
     ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
   };
 
+  // Clamped at the edges rather than wrapped. A board has corners, and a player who runs into
+  // one should feel the edge instead of being teleported to the far file.
+  const DELTA: Record<string, [number, number]> = {
+    left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1],
+  };
+
+  /*
+   * ========================= WAVE 3 PRE-API: KEY-FREE CURSOR MOVES =========================
+   * `onCommand` arrives with a NAME (`up`/`down`/`left`/`right`), not an event. These helpers do
+   * what `handleKey` has been doing for arrows and `action2` without touching an event, so when
+   * the shell's command handler goes in it has somewhere clean to send presses — and `handleKey`
+   * can delegate here instead of duplicating the move/activate body. Returning a boolean lets a
+   * caller tell "the board took it" from "unknown action", which is what `handleKey` still owes
+   * to its callers.
+   */
+  function moveCursor(action: string): boolean {
+    const delta = DELTA[action];
+    if (!delta) return false;
+    setCursor(
+      { x: clamp(cursor.x + delta[0], FILES - 1), y: clamp(cursor.y + delta[1], RANKS - 1) },
+      true,
+    );
+    return true;
+  }
+  function activate(): void {
+    deps.onActivate(cursor);
+  }
+
   function onKeyDown(event: KeyboardEvent): void {
     handleKey(event);
   }
@@ -462,18 +503,8 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
      */
     const modified = event.shiftKey || event.ctrlKey || event.altKey || event.metaKey;
 
-    // Clamped at the edges rather than wrapped. A board has corners, and a player who runs into
-    // one should feel the edge instead of being teleported to the far file.
-    const DELTA: Record<string, [number, number]> = {
-      left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1],
-    };
     const action = modified ? null : (deps.resolveAction?.(event.code) ?? FALLBACK[event.key] ?? null);
-    const delta = action ? DELTA[action] : undefined;
-    if (delta) {
-      setCursor(
-        { x: clamp(cursor.x + delta[0], FILES - 1), y: clamp(cursor.y + delta[1], RANKS - 1) },
-        true,
-      );
+    if (action && moveCursor(action)) {
       event.preventDefault();
       return true;
     }
@@ -491,7 +522,7 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
      * the board while working everywhere else.
      */
     if (action === 'action2') {
-      deps.onActivate(cursor);
+      activate();
       event.preventDefault();
       return true;
     }
@@ -534,6 +565,8 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
     root,
 
     handleKey,
+    moveCursor,
+    activate,
 
     setTaught(marks) {
       taught = new Map(marks.map((m) => [squareIndex(m.square), m.mark]));
