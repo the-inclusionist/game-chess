@@ -2405,6 +2405,15 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     create(received: Engine): GameShell {
       engine = received;
       engineRef.current = received;
+      /*
+       * Follow the engine's language. Since Onda 2b retired `.chess-pause` (and with it the
+       * `#hud-locale` select the HUD used to carry), the ONLY language door the user sees is the
+       * engine's 🌐 on `.a11y-bar`. Chess's own catalogue (pieces, phrases) is NOT in
+       * `hooks.dictionaries` because its shape is richer than the engine's flat records (gender,
+       * patterns) — so when the engine switches, chess has to re-translate itself. ADR-0225 names
+       * this door for exactly that purpose.
+       */
+      engine.onLocaleChange(() => { void changeLocale(engine.locale()); });
       // ⚠️ ONCE, BEFORE ANYTHING HAPPENS. This used to be reached only from an event handler in the
       // flat root, so on a board that had not been touched yet — every restored game, and every
       // switch between views — the reviewer was never told to look. The advantage readout sat at a

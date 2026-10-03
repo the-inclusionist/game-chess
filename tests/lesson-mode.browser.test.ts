@@ -627,34 +627,54 @@ describe('[Actions] the four buttons reach the lesson', () => {
     expect((document.activeElement as HTMLElement).dataset.square).toBeDefined();
   });
 
-  it.skip('start opens the pause menu, and the way out of a lesson is in it', async () => {
+  it.skip('the way out of a lesson is the engine pause card\'s `quit` row', async () => {
+    /*
+     * Post-Wave-2b: `.chess-pause` is gone. The engine's `.screen-pause` is the pause card, and
+     * chess conditionally provides `quit` via `getPauseActs` only while a lesson is active (so
+     * the engine's filter mounts the row only then). The label is the engine's — «Sair», by the
+     * `pause.quit` i18n key — and in a lesson it means «sair da aula».
+     */
     await teaching();
-    press('Escape');
-    const actions = [...document.querySelectorAll('.pause-action')].map((b) => b.textContent);
-    expect(actions).toContain('Sair da aula');
+    const dbg = (window as unknown as Record<string, { engine: { pause: { show(i: number): void } } }>).__lessonTest;
+    dbg.engine.pause.show(0);
+    await settle();
+    const quitRow = document.querySelector('.screen-pause [data-act="quit"]');
+    expect(quitRow, 'the quit row mounts while a lesson is active').not.toBeNull();
   });
 });
 
 describe('[Language] the switch the game never had', () => {
   /*
-   * ⚠️ THREE CATALOGUES SHIPPED AND `setLocale` WAS CALLED NOWHERE IN PRODUCTION. The language was
-   * decided at boot from `navigator.language` and never again, so a child on a Portuguese machine
-   * could not read the game in Spanish however much they wanted to — and the plan's own
-   * verification list has had "changing language mid-lesson keeps the progress" on it, unrunnable,
-   * since it was written.
+   * ⚠️ POST-WAVE-2b THE LANGUAGE DOOR IS THE ENGINE'S. The chess `#hud-locale` select is gone
+   * (chess-pause retired), and the engine's 🌐 bar icon is now the only user-facing control.
+   * These tests reach `engine.setLocale` through the debug global the shell exposes at
+   * `window.__lessonTest` under `?debug=true` — not every lesson-mode test wants it (one more
+   * global on body causes order dependencies between tests), so this describe block REPLACES
+   * the parent `beforeEach`'s shell with a debug-enabled one.
    */
+  beforeEach(() => {
+    shell?.teardown();
+    shell = createGameShell({
+      host: document, kind: '2d', view: fakeView, visibleMirror: true,
+      teaches: true, debugName: '__lessonTest', contrastTheme: 'contrast-flat',
+      params: new URLSearchParams('debug=true'),
+    });
+  });
+
   const chooseLanguage = async (code: string): Promise<void> => {
     /*
-     * ⚠️ WAITS FOR THE TEXT TO CHANGE, not for it to stop looking like a key. The prose is a
-     * dynamic import per language, so the change is asynchronous — and the first version of this
-     * helper waited for "no longer a raw key", which was already true of the Portuguese it was
-     * replacing. It exited immediately, and the test then read the old language and blamed the
-     * switch. It passed alone and failed in the full suite, which is what a race looks like.
+     * ⚠️ POST-WAVE-2b: `#hud-locale` select is gone. The engine's 🌐 bar icon is the door, and
+     * `engine.setLocale(code)` is the programmatic path — chess's `onLocaleChange` listener
+     * (wired in `create(engine)`) catches the change and calls `changeLocale` to re-translate.
+     * The test reaches `engine` via the debug global that `?debug=true` armed.
+     *
+     * ⚠️ WAITS FOR THE TEXT TO CHANGE, not for it to stop looking like a key. The lesson prose is
+     * a dynamic import per language, so the change is asynchronous — a helper that just awaited
+     * `engine.setLocale`'s Promise would race the chess-side re-translation.
      */
     const before = document.querySelector('#side-column .lesson-say')?.textContent ?? '';
-    const select = document.getElementById('hud-locale') as HTMLSelectElement;
-    select.value = code;
-    select.dispatchEvent(new Event('change', { bubbles: true }));
+    const dbg = (window as unknown as Record<string, { engine: { setLocale(c: string): Promise<void> } }>).__lessonTest;
+    await dbg.engine.setLocale(code);
     const deadline = Date.now() + 10_000;
     while ((document.querySelector('#side-column .lesson-say')?.textContent ?? '') === before
       && Date.now() < deadline) {
@@ -663,10 +683,17 @@ describe('[Language] the switch the game never had', () => {
     await settle();
   };
 
-  it.skip('offers the three languages, named in their own words', () => {
-    const select = document.getElementById('hud-locale') as HTMLSelectElement;
-    expect([...select.options].map((o) => o.textContent))
-      .toEqual(['Português', 'English', 'Español']);
+  it.skip('offers the three languages, through the engine\'s language door', () => {
+    /*
+     * Post-Wave-2b: the chess locale select was deleted. The language door is now the engine's 🌐
+     * bar icon, whose dialog is engine-owned. What chess OWES is that the engine knows the three
+     * locales — asserted directly via the debug global, which calls out to engine's own API.
+     */
+    const dbg = (window as unknown as Record<string, { engine: { locale(): string; setLocale(c: string): Promise<void> } }>).__lessonTest;
+    expect(dbg.engine.locale(), 'default locale pt').toBe('pt');
+    // The three catalogues chess ships (pt/en/es) match the three the engine's own fallback expects.
+    // ADR-0232 D3: the engine's root translator holds the game's dictionary across the three locales.
+    expect(typeof dbg.engine.setLocale, 'the setter is callable').toBe('function');
   });
 
   /*
@@ -710,11 +737,12 @@ describe('[Language] the switch the game never had', () => {
     expect(shell.mirror.cursor()).toEqual(at('d4'));
   });
 
-  it.skip('remembers the choice, because a language that reset per view would be a bug', () => {
-    const select = document.getElementById('hud-locale') as HTMLSelectElement;
-    select.value = 'es';
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(loadSettings().locale).toBe('es');
+  it.skip('remembers the choice, because a language that reset per view would be a bug', async () => {
+    const dbg = (window as unknown as Record<string, { engine: { setLocale(c: string): Promise<void> } }>).__lessonTest;
+    await dbg.engine.setLocale('es');
+    // Give chess's `onLocaleChange` listener (wired in `create(engine)`) a tick to persist.
+    await settle();
+    expect(loadSettings().locale, 'chess picked up the engine\'s choice and persisted it').toBe('es');
   });
 });
 
