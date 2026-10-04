@@ -1309,8 +1309,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     rules: () => rules,
     state: () => game,
 
-    // ⚠️ A maintainer's instrument, behind `?debug=true`.
-    debug: debugAsked,
     themes: BOARD_THEMES.map((t) => ({ key: t.key, name: t.name })),
     theme: () => themeKey,
     onTheme: applyTheme,

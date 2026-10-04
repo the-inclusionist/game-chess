@@ -377,3 +377,68 @@ describe('[Panel] the sections come in the order the Dev asked for', () => {
     expect(hud!.root.querySelector('.hud-scoreboard')).toBeNull();
   });
 });
+
+/*
+ * ================== THE CONTRAST TABLE BELONGS TO WHOEVER IS CHOOSING ==================
+ * The Dev, 2026-10-04: "ao escolher as cores de tabuleiro deveria aparecer a tabela comparativa
+ * para entender onde haveria contraste e onde faltaria contraste."
+ *
+ * ⚠️ IT WAS BEHIND `?debug=true` AND HUNG OFF A SELECT THAT HAS NOT BEEN IN THE DOM SINCE WAVE 2c,
+ * so it was unreachable twice over. Both halves are asserted here: no debug flag reaches this HUD
+ * at all — there is no longer one to pass — and the control focused is the one in the panel.
+ */
+describe('[Contrast] the comparison table, while the board colours are being chosen', () => {
+  const colours = (): HTMLSelectElement => {
+    const box = [...document.querySelectorAll<HTMLElement>('.hud-controls .hud-field')]
+      .find((b) => (b.textContent ?? '').includes('Cores do tabuleiro'));
+    if (!box) throw new Error('the board-colour control is not in the panel');
+    return box.querySelector('select')!;
+  };
+
+  const panel = (): Hud => {
+    const rules = createRules();
+    const state = createGameState({ rules, opponent: true });
+    hud = createHud({
+      doc: document, i18n: createI18n('pt'), rules: () => rules, state: () => state,
+      view: () => '2.5d',
+      themes: BOARD_THEMES, theme: () => 'cb-safe', onTheme: () => {},
+      canTakeBack: () => state.canTakeBack(), canReplay: () => state.canReplay(),
+      onTakeBack: () => {}, onReplay: () => {},
+    });
+    document.body.append(hud.root, hud.report);
+    return hud;
+  };
+
+  it('is hidden until the control is touched, and then shows every board', () => {
+    panel();
+    expect(hud!.report.hidden).toBe(true);
+    colours().dispatchEvent(new FocusEvent('focus'));
+    expect(hud!.report.hidden).toBe(false);
+    const rows = [...hud!.report.querySelectorAll('th[scope="row"]')].map((n) => n.textContent);
+    expect(rows).toHaveLength(BOARD_THEMES.length);
+    expect(rows).toContain('Seguro para daltonismo');
+  });
+
+  it('⚠️ stays up after a choice, because the choice is what the numbers are for', () => {
+    panel();
+    const select = colours();
+    select.dispatchEvent(new FocusEvent('focus'));
+    select.dispatchEvent(new Event('change'));
+    // It used to hide on `change`: a person picked a palette and the numbers that would have told
+    // them whether it was a good pick vanished in the same instant.
+    expect(hud!.report.hidden).toBe(false);
+    select.dispatchEvent(new FocusEvent('blur'));
+    expect(hud!.report.hidden).toBe(true);
+  });
+
+  it('marks the board in use, and says in a CHARACTER whether a pair clears the floor', () => {
+    panel();
+    colours().dispatchEvent(new FocusEvent('focus'));
+    const current = hud!.report.querySelector('th[aria-current="true"]');
+    expect(current?.textContent).toBe('Seguro para daltonismo');
+    // Never colour alone (WCAG 1.4.1): ✓ clears, • is carried by the outline, ✗ fails.
+    const cells = [...hud!.report.querySelectorAll('td')].map((n) => n.textContent ?? '');
+    expect(cells).not.toHaveLength(0);
+    expect(cells.every((t) => /[✓•✗]$/.test(t))).toBe(true);
+  });
+});

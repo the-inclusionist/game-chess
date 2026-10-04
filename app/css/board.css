@@ -1246,9 +1246,15 @@ html { background: var(--page); }
   .theme-report {
     position: absolute;
     top: 50%;
-    right: 28.5%;
+    /*
+     * ⚠️ THE WHOLE BOARD, not 64% of it centred on a guess. Measured on the running page: the
+     * table wanted 792 px in a 360 px board, so it opened as two scrollbars around one visible
+     * column. The table itself lost six columns it did not need; what is left still needs every
+     * pixel the board has, and 2% a side is the margin that keeps it from touching the edge.
+     */
+    left: 2%;
+    right: 2%;
     transform: translateY(-50%);
-    max-width: 64%;
     max-height: 92%;
     overflow: auto;
     box-sizing: border-box;
@@ -1264,8 +1270,22 @@ html { background: var(--page); }
     margin: 0 0 0.4em; font-size: 1em; font-weight: 700;
     color: var(--focus); text-transform: none; letter-spacing: 0;
   }
-  .theme-report table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
-  .theme-report th, .theme-report td { padding: 0.14em 0.4em; text-align: right; white-space: nowrap; }
+  /*
+   * ⚠️ THE TABLE DOES NOT GET THE PAGE'S LETTER-SPACING. Everything else here is spaced for a
+   * reader who needs the letters held apart; measured on the running page that is 2.52 px a
+   * character, and across a header row it alone put the table 200 px wider than the board. A
+   * column of four-character numbers is not what that spacing was for, so the table asks for
+   * about a quarter of it — enough that the words still breathe, little enough that they fit.
+   */
+  .theme-report table {
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    width: 100%;
+  }
+  /* ⚠️ `normal`, NOT `nowrap`: a header that wraps onto two lines costs a line, and a header that
+     refuses to wrap costs the whole column. */
+  .theme-report th, .theme-report td { padding: 0.14em 0.4em; text-align: right; white-space: normal; }
   .theme-report th[scope="row"] { text-align: left; font-weight: 400; color: #b9c2cc; }
   .theme-report th[scope="col"] { font-weight: 700; border-bottom: 1px solid #506C8A; }
   .theme-report th[aria-current] { color: var(--focus); }

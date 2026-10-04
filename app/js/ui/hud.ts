@@ -24,7 +24,7 @@ import type { GameState } from '../chess/state.ts';
 /** One person as white, one as black, or two people sharing the board. */
 export type GameMode = 'w' | 'b' | 'two';
 import { BOARD_THEMES } from './board-themes.ts';
-import { contrastRows } from './contrast-report.ts';
+import { contrastRows, type ContrastRow } from './contrast-report.ts';
 import { VIEW_KINDS } from '../boot/views.ts';
 import type { I18n } from '../i18n/index.ts';
 
@@ -226,15 +226,24 @@ export interface HudDeps {
    * is nobody to protect anyone from — the two-player board.
    */
 
-  /**
-   * ⚠️ `?debug=true` ONLY. The measured contrast table is a maintainer's instrument: it answers
-   * "did that ink change break anything", which is a question asked while working on the game and
-   * never while playing it. Every palette here clears the floor on every pair that touches, so
-   * there is nothing left for it to warn a player about — and six columns of numbers over the
-   * board is a poor way to say "everything is fine".
+  /*
+   * ========================= ⚠️ THE CONTRAST TABLE IS NOT BEHIND `?debug` ANY MORE ==============
+   * It was, and the argument written here was that it answers "did that ink change break
+   * anything" — a maintainer's question, asked while working on the game and never while playing
+   * it. The Dev, 2026-10-04: "ao escolher as cores de tabuleiro deveria aparecer a tabela
+   * comparativa para entender onde haveria contraste e onde faltaria contraste."
+   *
+   * That is a different question with the same table. A teacher picking colours for a particular
+   * child is choosing BETWEEN palettes, and the only honest way to choose is to see what each one
+   * costs: six columns side by side say "this one is kinder to a white piece on a light square and
+   * that one is kinder to the squares themselves" in a way no label on a dropdown can.
+   *
+   * And the old argument had a false premise. It claimed every palette clears the floor on every
+   * pair that touches, so there was nothing to warn anyone about. Measured on 2026-10-04: white
+   * piece against the light square runs from 1.12 to 2.30 across the six, all of them under 3 —
+   * carried by the silhouette rather than by the inks. The table has something to say after all,
+   * and the person it has to say it to is the one choosing.
    */
-  debug?: boolean;
-
   /** Whether the score sheet can be walked back or forward from where it stands. */
   canTakeBack(): boolean;
   canReplay(): boolean;
@@ -271,8 +280,9 @@ export interface Hud {
    */
   readonly views: HTMLElement;
   /**
-   * The measured contrast table, or an empty node when `debug` is off. It lives OUTSIDE the panel
-   * — in the space the board leaves — because six columns cannot be read in an 88-pixel column.
+   * The measured contrast table, shown while the board-colour control has focus. It lives OUTSIDE
+   * the panel — in the space the board leaves — because six columns cannot be read in an 88-pixel
+   * column.
    */
   readonly report: HTMLElement;
   refresh(): void;
@@ -843,25 +853,86 @@ export function createHud(deps: HudDeps): Hud {
   // those four are the approximation, and it is stated as an approximation rather than dressed up
   // as an event that exists.
   const showReport = (): void => {
-    if (!deps.debug) return;
     report.hidden = false;
     fillReport();
   };
   const hideReport = (): void => { report.hidden = true; };
-  themeSelect.addEventListener('mousedown', showReport);
-  themeSelect.addEventListener('keydown', (event) => {
-    // The keys that open a native list: Alt+Down, Enter, Space, and the arrows on some platforms.
-    if (['ArrowDown', 'ArrowUp', 'Enter', ' ', 'Spacebar'].includes(event.key)) showReport();
-  });
-  themeSelect.addEventListener('change', hideReport);
-  themeSelect.addEventListener('blur', hideReport);
+  /*
+   * ⚠️ FOCUS AND BLUR, NOT THE POPUP'S FOUR EVENTS. The comment above describes the approximation
+   * this used while the table was a maintainer's instrument: show it as the native list opens,
+   * hide it the moment a choice lands. For someone CHOOSING, hiding on `change` is exactly wrong —
+   * they pick a palette and the numbers that would tell them whether it was a good pick vanish in
+   * the same instant. So the table stands for as long as the control is theirs, and `change` only
+   * re-draws it, moving the highlight to the column they just chose.
+   *
+   * ⚠️ AND IT HANGS OFF `themeField.select`, THE ONE IN THE PANEL. The four listeners were on
+   * `themeSelect`, which belongs to `settings` — a node that has not reached the DOM since Wave
+   * 2c. The table has been unreachable since then, by a maintainer too.
+   */
+  themeField.select.addEventListener('focus', showReport);
+  themeField.select.addEventListener('blur', hideReport);
+  themeField.select.addEventListener('change', showReport);
 
-  /** Redraws the whole matrix: one row per measured pair, one column per palette. */
+  /*
+   * ========================= ⚠️ THE TABLE TURNED ON ITS SIDE, AND SHRANK =========================
+   * It was ten rows of pairs by seven columns of palettes, and it MEASURED 792 PIXELS WIDE in a
+   * board that is 360. On the running page that is two scrollbars and one visible column: a person
+   * comparing seven boards by swiping sideways is not comparing them at all. It survived in that
+   * shape because `?debug=true` hid it from everyone who would have said so.
+   *
+   * So the axes swapped. A person choosing colours is choosing a BOARD, so the board is the row —
+   * seven of them, named in full, which is what the dropdown above says too. And the columns are
+   * the four questions that choosing actually turns on, out of the ten that were measured:
+   *
+   *   casas              the squares against each other — the longest boundary on the board
+   *   clara na clara     a white piece on a light square — the Dev's report of 2026-10-04
+   *   contorno           the silhouette against the square it sits on, at its TIGHTEST of the two
+   *
+   * ⚠️ THREE COLUMNS AND NOT FOUR, AND THE FOURTH IS A CORRECTION I OWE THIS COMMENT. It said
+   * «escura na escura» was dropped because it clears the floor on every palette, 3.04 at worst.
+   * Measured, it does not: José is 2.58 and «Azul & Amarelo» is 1.01, a black piece on a dark
+   * square. I had read the floor off five boards and written it as if it were seven.
+   *
+   * It is still out, for the reason that was true all along. It is a pair that NEVER MEETS — the
+   * silhouette is drawn between the piece and the square — and the column that says whether that
+   * silhouette is doing its job is «contorno», which is in the table and clears 3:1 everywhere.
+   * A fourth column put the table 58 px past the board again, measured on the running page, and
+   * what it would have bought is a second reading of a question already answered.
+   *
+   * «CLARA NA CLARA» IS THE SAME KIND OF PAIR AND IT STAYS, because the Dev asked for it by name
+   * and because it is where the silhouette's argument is thinnest: 1.12 to 2.30 across the seven,
+   * under the floor on all of them, and on the lightest boards the piece's whole BODY is the
+   * colour of the square it stands on. The outline is a line; the body is the shape.
+   *
+   * The other six really are constant. Piece against piece is 21 on five of the seven boards, and
+   * the two inner strokes never touch a square at all, being inside a piece.
+   */
   function fillReport(): void {
-    if (!deps.themes || !deps.debug) return;
+    if (!deps.themes) return;
     const current = deps.theme?.() ?? '';
-    const columns = BOARD_THEMES;
-    const rows = columns.map((theme) => contrastRows(theme));
+    const measured = BOARD_THEMES.map((theme) => ({ theme, rows: contrastRows(theme) }));
+    const at = (rows: readonly ContrastRow[], label: string): ContrastRow => {
+      const found = rows.find((row) => row.label === label);
+      if (!found) throw new Error(`contrast row ${label} is not measured any more`);
+      return found;
+    };
+    const columns: readonly {
+      readonly head: string;
+      readonly pick: (rows: readonly ContrastRow[]) => ContrastRow;
+    }[] = [
+      { head: 'contrast.col.squares', pick: (rows) => at(rows, 'contrast.squares') },
+      { head: 'contrast.col.whiteLight', pick: (rows) => at(rows, 'contrast.whiteLight') },
+      {
+        head: 'contrast.col.rim',
+        // ⚠️ THE TIGHTER OF THE TWO, not one of them: the silhouette meets BOTH squares, and a
+        // board is only as safe as the square the outline does worst against.
+        pick: (rows) => {
+          const light = at(rows, 'contrast.rimLight');
+          const dark = at(rows, 'contrast.rimDark');
+          return light.ratio <= dark.ratio ? light : dark;
+        },
+      },
+    ];
 
     reportTitle.textContent = i18n.t('contrast.title');
     reportTable.replaceChildren();
@@ -869,26 +940,26 @@ export function createHud(deps: HudDeps): Hud {
     const head = doc.createElement('tr');
     const corner = doc.createElement('th');
     corner.scope = 'col';
-    corner.textContent = i18n.t('contrast.pair');
+    corner.textContent = i18n.t('contrast.board');
     head.appendChild(corner);
-    for (const theme of columns) {
+    for (const column of columns) {
       const cell = doc.createElement('th');
       cell.scope = 'col';
-      cell.textContent = i18n.t(theme.short);
-      if (theme.key === current) cell.setAttribute('aria-current', 'true');
+      cell.textContent = i18n.t(column.head);
       head.appendChild(cell);
     }
     reportTable.appendChild(head);
 
-    rows[0].forEach((_, index) => {
+    for (const { theme, rows } of measured) {
       const line = doc.createElement('tr');
       const label = doc.createElement('th');
       label.scope = 'row';
-      label.textContent = i18n.t(rows[0][index].label);
+      label.textContent = i18n.t(theme.name);
+      if (theme.key === current) label.setAttribute('aria-current', 'true');
       line.appendChild(label);
 
-      columns.forEach((theme, column) => {
-        const row = rows[column][index];
+      for (const column of columns) {
+        const row = column.pick(rows);
         const cell = doc.createElement('td');
         // Never colour alone: the mark is a character a reader speaks; the colour is the extra.
         const state = row.passes ? 'pass' : (row.optional ? 'carried' : 'short');
@@ -897,9 +968,9 @@ export function createHud(deps: HudDeps): Hud {
         cell.textContent = `${row.ratio.toFixed(1)}\u202F${
           state === 'pass' ? '\u2713' : state === 'carried' ? '\u2022' : '\u2717'}`;
         line.appendChild(cell);
-      });
+      }
       reportTable.appendChild(line);
-    });
+    }
 
     reportFloor.textContent = i18n.t('contrast.floor');
   }
@@ -1060,7 +1131,7 @@ export function createHud(deps: HudDeps): Hud {
       themeLabel.textContent = i18n.t('hud.boardTheme');
       for (const option of themeSelect.options) option.textContent = i18n.t(option.dataset.name ?? '');
       themeSelect.value = deps.theme?.() ?? '';
-      if (deps.debug && !report.hidden) fillReport();
+      if (!report.hidden) fillReport();
     }
 
     const outcome = state().outcome();
@@ -1086,9 +1157,9 @@ export function createHud(deps: HudDeps): Hud {
       lessonButton.removeEventListener('click', onLessonClick);
       setSelect.removeEventListener('change', onSetChange);
       themeSelect.removeEventListener('change', onThemeChange);
-      themeSelect.removeEventListener('mousedown', showReport);
-      themeSelect.removeEventListener('change', hideReport);
-      themeSelect.removeEventListener('blur', hideReport);
+      themeField.select.removeEventListener('focus', showReport);
+      themeField.select.removeEventListener('blur', hideReport);
+      themeField.select.removeEventListener('change', showReport);
       report.remove();
       backButton.removeEventListener('click', onBackClick);
       forwardButton.removeEventListener('click', onForwardClick);
