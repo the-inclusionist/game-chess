@@ -213,6 +213,27 @@ export interface HudDeps {
   country?(): string;
   onCountry?(code: string): void;
   /**
+   * ========================= WHO IS SITTING AT THE BOARD =========================
+   * The Dev, 2026-10-04: "acima de «Voltar» e «Avançar» quero um checkbox: «2 Jogadores» e um
+   * botão: «CPU joga!»."
+   *
+   * ⚠️ A CHECKBOX AND NOT A THREE-WAY LIST, which is what this setting was. «Brancas / Pretas /
+   * dois jogadores» answered two questions at once — which colour the human plays and how many
+   * humans there are — and could only be changed by reloading the page, because the colour is
+   * read at boot. The number of people at the board is a thing that changes mid-game, when a
+   * second child pulls up a chair.
+   */
+  twoPlayers?(): boolean;
+  onTwoPlayers?(on: boolean): void;
+  /**
+   * «CPU joga!» — the engine takes exactly one move, and then the board is the human's again.
+   *
+   * ⚠️ IT IS WHAT MAKES THE SOLO GAME SYMMETRIC. With the engine moving only when it is handed the
+   * board, a human who wants to play BLACK has no way to let white open — this is that way, and it
+   * is also how a player hands over a position they are stuck in without giving up the game.
+   */
+  onCpuMove?(): void;
+  /**
    * The engine's mark beside the move played at this ply — `!`, `?`, `??` and so on, or null
    * while it is still being worked out or for an ordinary move, which is most of them.
    *
@@ -495,6 +516,24 @@ export function createHud(deps: HudDeps): Hud {
   // "Avançar lance" without ellipsis, and an ellipsis is a label nobody can read. WCAG 2.5.3 is
   // satisfied because the full name CONTAINS the visible one, so a voice-control user who says
   // what they see is still understood.
+  /*
+   * ========================= ⚠️ ABOVE THE WALK, WHICH IS WHERE HE PUT IT =========================
+   * «2 Jogadores» changes what «Voltar» and «Avançar» mean — in a solo game the engine answers
+   * the move you walk back to, in a two-player game nobody does — so the switch reads before the
+   * buttons it governs. That is the same argument that moved the walk itself above the move list.
+   */
+  const seatBox = doc.createElement('p');
+  seatBox.className = 'hud-seat';
+  const seatCheck = doc.createElement('input');
+  seatCheck.type = 'checkbox';
+  seatCheck.id = 'hud-two-players';
+  const seatLabel = doc.createElement('label');
+  seatLabel.htmlFor = seatCheck.id;
+  const cpuButton = doc.createElement('button');
+  cpuButton.type = 'button';
+  cpuButton.className = 'hud-cpu';
+  seatBox.append(seatCheck, seatLabel, cpuButton);
+
   const navBox = doc.createElement('p');
   navBox.className = 'hud-nav';
   const backButton = doc.createElement('button');
@@ -741,6 +780,7 @@ export function createHud(deps: HudDeps): Hud {
    * pushed the box 24 px past the panel's edge on move four — measured on the running build,
    * after it had looked right on an empty board.
    */
+  if (deps.onTwoPlayers || deps.onCpuMove) root.appendChild(seatBox);
   root.append(navBox, movesBox, openingBox);
   if (deps.lessons) root.appendChild(lessonBox);
   // Settled here too, not only in refresh(): the panel is drawn before anything calls refresh, and
@@ -869,12 +909,16 @@ export function createHud(deps: HudDeps): Hud {
   const onPieceChange = (): void => { deps.onPieceSet?.(pieceField.select.value); };
   const onThemeField = (): void => { deps.onTheme?.(themeField.select.value); };
   const onCountryChange = (): void => { deps.onCountry?.(countryField.select.value); };
+  const onSeatToggle = (): void => { deps.onTwoPlayers?.(seatCheck.checked); };
+  const onCpuClick = (): void => { deps.onCpuMove?.(); };
   const onOutlineToggle = (): void => { deps.onOutline?.(outlineCheck.input.checked); };
   const onCoordsToggle = (): void => { deps.onCoordinates?.(coordsCheck.input.checked); };
   strengthField.select.addEventListener('change', onStrengthChange);
   pieceField.select.addEventListener('change', onPieceChange);
   themeField.select.addEventListener('change', onThemeField);
   countryField.select.addEventListener('change', onCountryChange);
+  seatCheck.addEventListener('change', onSeatToggle);
+  cpuButton.addEventListener('click', onCpuClick);
   outlineCheck.input.addEventListener('change', onOutlineToggle);
   coordsCheck.input.addEventListener('change', onCoordsToggle);
 
@@ -1111,6 +1155,18 @@ export function createHud(deps: HudDeps): Hud {
      */
     refreshControls();
 
+    const two = deps.twoPlayers?.() ?? false;
+    seatCheck.checked = two;
+    seatLabel.textContent = i18n.t('hud.twoPlayers');
+    cpuButton.textContent = i18n.t('hud.cpuMove');
+    /*
+     * ⚠️ HIDDEN RATHER THAN DISABLED WHEN TWO PEOPLE ARE PLAYING. A disabled «CPU joga!» is a
+     * promise the board is not keeping: the Dev's rule is that with two players "a engine não joga
+     * em nenhum momento", so the button has nothing to offer and says so by not being there.
+     */
+    cpuButton.hidden = two || !deps.onCpuMove;
+    cpuButton.disabled = !!deps.canTakeBack && state().phase() === 'thinking';
+
     if (deps.lessons) {
       lessonBox.hidden = deps.lessonsVisible ? !deps.lessonsVisible() : false;
       lessonLabel.textContent = i18n.t('hud.lessons');
@@ -1192,6 +1248,8 @@ export function createHud(deps: HudDeps): Hud {
       pieceField.select.removeEventListener('change', onPieceChange);
       themeField.select.removeEventListener('change', onThemeField);
       countryField.select.removeEventListener('change', onCountryChange);
+      seatCheck.removeEventListener('change', onSeatToggle);
+      cpuButton.removeEventListener('click', onCpuClick);
       outlineCheck.input.removeEventListener('change', onOutlineToggle);
       coordsCheck.input.removeEventListener('change', onCoordsToggle);
       hintButton.removeEventListener('click', onHintClick);

@@ -184,6 +184,16 @@ export interface ViewSettings {
    */
   readonly mode?: 'w' | 'b' | 'two';
   /**
+   * Whether two people are sharing the board.
+   *
+   * ⚠️ SPLIT OFF `mode` ON 2026-10-04. That field decided the player's COLOUR and the number of
+   * players at once, and changing it reloaded the page because the colour is read at boot. The
+   * Dev asked for a live checkbox, so the number of players moved to a field of its own and `mode`
+   * kept the half that still needs a reload. The old value is read once as the default, so nobody
+   * loses the setting they had.
+   */
+  readonly twoPlayers?: boolean;
+  /**
    * Whether the engine's suggestions are DRAWN on the board.
    *
    * ========================= ⚠️ TWO SETTINGS, NOT ONE WITH THREE VALUES =========================
@@ -261,7 +271,7 @@ export function loadSettings(store: SessionStore | null = defaultStore()): ViewS
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return {};
     const {
-      locale, theme, set, design, coordinates, mode, elo, hints, protect, view,
+      locale, theme, set, design, coordinates, mode, twoPlayers, elo, hints, protect, view,
     } = parsed as ViewSettings;
     return {
       ...(locale === 'pt' || locale === 'en' || locale === 'es' ? { locale } : {}),
@@ -269,6 +279,7 @@ export function loadSettings(store: SessionStore | null = defaultStore()): ViewS
       ...(typeof set === 'string' ? { set } : {}),
       ...(typeof coordinates === 'boolean' ? { coordinates } : {}),
       ...(mode === 'w' || mode === 'b' || mode === 'two' ? { mode } : {}),
+      ...(typeof twoPlayers === 'boolean' ? { twoPlayers } : {}),
       ...(view === '2d' || view === '2.5d' || view === '3d' ? { view } : {}),
       ...(typeof design === 'string' ? { design } : {}),
       ...(typeof hints === 'boolean' ? { hints } : {}),

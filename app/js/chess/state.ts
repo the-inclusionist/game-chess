@@ -176,12 +176,35 @@ export interface GameState {
   /** The same two operations, one ply at a time, for a caller that animates them. */
   takeBackStep(): HistoryStep | null;
   replayStep(): HistoryStep | null;
+  /**
+   * Hands the board to the opponent: the phase becomes `thinking` and the composition root's
+   * `askOpponent` may run. A no-op on a finished game.
+   *
+   * ⚠️ IT EXISTS BECAUSE «WHOSE TURN» AND «WHO MOVES NEXT» ARE DIFFERENT QUESTIONS, and this file
+   * only ever knew the first. See the long note in `createGameState`.
+   */
+  think(): void;
 }
 
 export function createGameState(options: GameStateOptions): GameState {
   const { rules } = options;
-  const playerSide: Side = options.playerSide ?? 'w';
-  const hasOpponent = options.opponent ?? true;
+  /*
+   * ========================= ⚠️ WHOSE TURN IT IS STOPPED BEING THIS FILE'S BUSINESS =========================
+   * The Dev, 2026-10-04: "se 2 Jogadores estiver desligado, após o humano jogar será sempre a vez
+   * da engine, seja o lance feito pelas brancas ou pelas pretas", and "seja onde parar, o relógio
+   * fica pausado aguardando o jogador humano jogar."
+   *
+   * Both sentences say the same thing about this module: the opponent moves because somebody HANDED
+   * the board over, not because of whose turn it is. `settle()` used to read `playerSide` and
+   * declare `thinking` whenever the other colour was on move, which made three things true that
+   * the Dev has now asked to be false — the human could never move the black pieces, a take-back
+   * that landed on the opponent's turn was immediately answered and undone, and a walk through the
+   * score sheet could not stop anywhere the engine would have played.
+   *
+   * So the phase settles to `idle` and the composition root calls `think()` when it means it.
+   * `playerSide` and `opponent` stay on the options because callers pass them and the DECLARATION
+   * still needs to know which way the board faces; nothing in here reads them any more.
+   */
 
   let phase: Phase = 'idle';
   let selection: Square | null = null;
@@ -205,9 +228,7 @@ export function createGameState(options: GameStateOptions): GameState {
     targets = [];
     destination = null;
     inFlight = null;
-    if (rules.isGameOver()) phase = 'over';
-    else if (hasOpponent && rules.turn() !== playerSide) phase = 'thinking';
-    else phase = 'idle';
+    phase = rules.isGameOver() ? 'over' : 'idle';
   }
 
   function select(square: Square): Activation {
@@ -247,20 +268,23 @@ export function createGameState(options: GameStateOptions): GameState {
     return move;
   }
 
-  /**
-   * Is the board still the opponent's after the ply just moved? That is the whole rule, and it is
-   * why a take-back is two plies against an opponent and one in a hot seat: the unit ends when the
-   * player is on move again.
+  /*
+   * ⚠️ A WALK IS ONE PLY, FULL STOP, SINCE 2026-10-04. The Dev: "avançar e voltar devem passar a
+   * «andar» um lance por vez e não dois como têm feito até agora."
+   *
+   * What stood here was `hasOpponent && canContinue && rules.turn() !== playerSide` — "the unit
+   * ends when the player is on move again" — which made a take-back two plies: your move and the
+   * reply to it. That unit only existed because `settle()` would hand a half-rewound board
+   * straight back to the engine; with the opponent moving only when it is HANDED the board, there
+   * is nothing to protect against and the unit is the ply.
    */
-  const unfinished = (canContinue: boolean): boolean =>
-    hasOpponent && canContinue && rules.turn() !== playerSide;
 
   function stepBack(): HistoryStep | null {
     if (phase === 'animating' || !rules.canUndo()) return null;
     const history = rules.history();
     const move = history[history.length - 1];
     rules.undo();
-    const more = unfinished(rules.canUndo());
+    const more = false;
     // Settled only when the unit is complete. Half a take-back is not a position anyone may play
     // from, and settling into it would hand the board back mid-rewind.
     if (!more) settle();
@@ -272,7 +296,7 @@ export function createGameState(options: GameStateOptions): GameState {
     if (!rules.redo()) return null;
     const history = rules.history();
     const move = history[history.length - 1];
-    const more = unfinished(rules.canRedo());
+    const more = false;
     // If the redo stack ran out on the opponent's turn, `settle` says `thinking` and the
     // composition root asks them to move. That is the right answer, not an edge case.
     if (!more) settle();
@@ -395,6 +419,10 @@ export function createGameState(options: GameStateOptions): GameState {
 
     takeBackStep: stepBack,
     replayStep: stepForward,
+
+    think() {
+      if (phase === 'idle') phase = 'thinking';
+    },
 
     takeBack() {
       let step = stepBack();

@@ -163,12 +163,26 @@ describe('[Moving] a legal destination plays the move', () => {
   });
 });
 
+/*
+ * ========================= ⚠️ HANDED, NOT ASSUMED (2026-10-04) =========================
+ * Every test in this block used to end its setup at `animationDone()` and expect `thinking`,
+ * because `settle()` read `playerSide` and declared the opponent's turn for itself. The Dev
+ * changed the rule: "se 2 Jogadores estiver desligado, após o humano jogar será sempre a vez da
+ * engine, seja o lance feito pelas brancas ou pelas pretas", and "seja onde parar, o relógio fica
+ * pausado aguardando o jogador humano jogar."
+ *
+ * So the board goes to the opponent when somebody HANDS it over, and `think()` is that somebody.
+ * The extra line in each setup is the composition root's `handOver`, written out.
+ */
 describe('[Opponent] handing the turn over', () => {
-  it('goes to thinking after your move lands', () => {
+  it('⚠️ settles IDLE after your move, and thinks only when handed the board', () => {
     const game = versus();
     game.activate(sq('e2'));
     game.activate(sq('e4'));
     game.animationDone();
+    // The line that used to say `thinking`. Whose turn it is and who moves next are two questions.
+    expect(game.phase()).toBe('idle');
+    game.think();
     expect(game.phase()).toBe('thinking');
   });
 
@@ -177,7 +191,18 @@ describe('[Opponent] handing the turn over', () => {
     game.activate(sq('e2'));
     game.activate(sq('e4'));
     game.animationDone();
+    game.think();
     expect(game.activate(sq('d2'))).toEqual({ kind: 'ignored', reason: 'busy' });
+  });
+
+  it('⚠️ and `think()` on a finished game is a no-op, so nobody is asked to answer a mate', () => {
+    const game = createGameState({
+      rules: createRules('rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3'),
+      opponent: true,
+    });
+    expect(game.phase()).toBe('over');
+    game.think();
+    expect(game.phase()).toBe('over');
   });
 
   it("plays the opponent's move and animates it too", () => {
@@ -185,6 +210,7 @@ describe('[Opponent] handing the turn over', () => {
     game.activate(sq('e2'));
     game.activate(sq('e4'));
     game.animationDone();
+    game.think();
 
     const reply = game.applyOpponentMove(sq('e7'), sq('e5'));
     expect(reply?.san).toBe('e5');
@@ -205,6 +231,7 @@ describe('[Opponent] handing the turn over', () => {
     game.activate(sq('e2'));
     game.activate(sq('e4'));
     game.animationDone();
+    game.think();
     expect(() => game.applyOpponentMove(sq('e7'), sq('e4'))).not.toThrow();
     expect(game.applyOpponentMove(sq('e7'), sq('e4'))).toBeNull();
     expect(game.phase()).toBe('thinking');
@@ -278,10 +305,14 @@ describe('[Check] a check is surfaced on the move that gives it', () => {
 // a destination that no longer exists.
 
 describe('[History] take back and advance', () => {
+  // ⚠️ `think()` IS THE COMPOSITION ROOT, WRITTEN OUT. A human move no longer hands the board over
+  // by itself — see the note above `[Opponent]` — and these tests are about what happens AFTER the
+  // reply, so the setup has to hand it over the way `game-shell.ts` does.
   const played = (game: ReturnType<typeof versus>, from: string, to: string) => {
     game.activate(sq(from));
     game.activate(sq(to));
     game.animationDone();
+    game.think();
   };
 
   it('offers nothing to take back or advance at the start', () => {
@@ -292,7 +323,13 @@ describe('[History] take back and advance', () => {
     expect(game.replay()).toBe(false);
   });
 
-  it('takes back your move AND the reply, leaving you to move', () => {
+  it('⚠️ takes back ONE ply, where it used to take back your move AND the reply', () => {
+    /*
+     * The Dev, 2026-10-04: "avançar e voltar devem passar a «andar» um lance por vez e não dois
+     * como têm feito até agora." The two-ply unit existed to protect the player from a half-
+     * rewound board being handed straight back to the engine — which cannot happen now that the
+     * engine moves only when it is handed the board.
+     */
     const game = versus();
     played(game, 'e2', 'e4');
     // The opponent answers; against a real client this arrives from the worker.
@@ -301,13 +338,14 @@ describe('[History] take back and advance', () => {
     expect(game.rules.history()).toHaveLength(2);
 
     expect(game.takeBack()).toBe(true);
-    expect(game.rules.history()).toHaveLength(0);
-    expect(game.rules.turn()).toBe('w');
+    expect(game.rules.history().map((m) => m.san)).toEqual(['e4']);
+    expect(game.rules.turn()).toBe('b');
+    // ⚠️ AND IT STAYS THE HUMAN'S. Black is on move and nothing asks the engine for it.
     expect(game.phase()).toBe('idle');
     expect(game.selection()).toBeNull();
   });
 
-  it('advances the same pair back onto the board', () => {
+  it('advances the same ply back onto the board', () => {
     const game = versus();
     played(game, 'e2', 'e4');
     game.applyOpponentMove(sq('e7'), sq('e5'));
@@ -321,15 +359,20 @@ describe('[History] take back and advance', () => {
     expect(game.phase()).toBe('idle');
   });
 
-  it('advancing your move alone leaves the opponent to think', () => {
-    // Your move was taken back before the reply existed: putting it forward puts the position
-    // back on the opponent, and the phase has to say so or nobody will ask them to move.
+  it('⚠️ advancing your move alone leaves the board IDLE, waiting for a person', () => {
+    /*
+     * This said `thinking`, and the comment under it said "the phase has to say so or nobody will
+     * ask them to move". That was true while the walk ended in `askOpponent()`. The Dev's rule of
+     * 2026-10-04 is the opposite: "seja onde parar, o relógio fica pausado aguardando o jogador
+     * humano jogar" — a walk that stops on the engine's colour stops there, and «CPU joga!» is
+     * the button for anyone who wants the engine to take that move.
+     */
     const game = versus();
     played(game, 'e2', 'e4');
     expect(game.takeBack()).toBe(true);
     expect(game.replay()).toBe(true);
     expect(game.rules.history()).toHaveLength(1);
-    expect(game.phase()).toBe('thinking');
+    expect(game.phase()).toBe('idle');
   });
 
   it('takes back exactly one ply in a hot seat', () => {
@@ -392,14 +435,20 @@ describe('[History] take back and advance', () => {
 // the second piece was on its destination from the moment the button was pressed and simply
 // waited its turn to fly there. Whatever the renderer did with that was going to be a lie.
 //
-// So the position moves one ply per drawn leg. `more` carries the policy — two plies against an
-// opponent, one in a hot seat — without the caller having to know what the policy is.
+// So the position moves one ply per drawn leg.
+//
+// ⚠️ `more` IS ALWAYS FALSE SINCE 2026-10-04 and the field is kept rather than deleted. It carried
+// a POLICY — two plies against an opponent, one in a hot seat — and the Dev retired the policy:
+// "avançar e voltar devem passar a «andar» um lance por vez". The field stays because the shape of
+// the walk (step, draw, ask again) is what the renderer is built on, and a unit of more than one
+// ply may come back as a «take back the whole move» button without the drawing loop changing.
 
 describe('[History] one ply at a time, so it can be drawn honestly', () => {
   const play = (game: ReturnType<typeof versus>, from: string, to: string) => {
     game.activate(sq(from));
     game.activate(sq(to));
     game.animationDone();
+    game.think();   // the composition root's `handOver`, written out
   };
 
   const opened = () => {
@@ -410,20 +459,23 @@ describe('[History] one ply at a time, so it can be drawn honestly', () => {
     return game;
   };
 
-  it('moves exactly ONE ply and says the unit is unfinished', () => {
+  it('⚠️ moves exactly ONE ply and says the unit is FINISHED', () => {
+    // `more` was true here: the unit was "until you are on move again". It is the ply now.
     const game = opened();
     const step = game.takeBackStep();
     expect(step?.move.san).toBe('e5');
-    expect(step?.more).toBe(true);
+    expect(step?.more).toBe(false);
     // The half-rewound position: your move is still on the board, which is the whole point.
     expect(game.rules.history().map((m) => m.san)).toEqual(['e4']);
     expect(game.rules.pieceAt(sq('e4'))).toEqual({ type: 'p', side: 'w' });
     expect(game.rules.pieceAt(sq('e5'))).toBeNull();
   });
 
-  it('finishes on the second ply and settles there', () => {
+  it('settles after every step, because every step is a whole unit', () => {
     const game = opened();
-    game.takeBackStep();
+    const first = game.takeBackStep();
+    expect(first?.more).toBe(false);
+    expect(game.phase()).toBe('idle');
     const second = game.takeBackStep();
     expect(second?.move.san).toBe('e4');
     expect(second?.more).toBe(false);
@@ -466,12 +518,14 @@ describe('[History] one ply at a time, so it can be drawn honestly', () => {
     expect(game.phase()).toBe('idle');
   });
 
-  it('steps forward the same way, and leaves the opponent to think at the end', () => {
+  it('steps forward the same way, one ply at a time, and stays idle', () => {
     const game = opened();
+    game.takeBack();
     game.takeBack();
     const first = game.replayStep();
     expect(first?.move.san).toBe('e4');
-    expect(first?.more).toBe(true);
+    expect(first?.more).toBe(false);
+    expect(game.phase()).toBe('idle');
     const second = game.replayStep();
     expect(second?.move.san).toBe('e5');
     expect(second?.more).toBe(false);
@@ -505,27 +559,36 @@ describe('[History] one ply at a time, so it can be drawn honestly', () => {
   });
 });
 
-describe('[Side] choosing black hands the first move to the opponent', () => {
-  it('starts THINKING rather than idle, because white is not the player', () => {
+/*
+ * ========================= ⚠️ `playerSide` NO LONGER DECIDES WHO MAY MOVE =========================
+ * This block said a player who chose black starts on `thinking` and may not touch a white piece.
+ * The Dev, 2026-10-04: "após o humano jogar será sempre a vez da engine, SEJA O LANCE FEITO PELAS
+ * BRANCAS OU PELAS PRETAS" — one person may move either colour, and the engine answers whichever
+ * one they moved. `playerSide` stays on the options because the DECLARATION still needs to know
+ * which way the board faces for a blind player; `chess/state.ts` no longer reads it.
+ */
+describe('[Side] the board faces one way and belongs to whoever is on move', () => {
+  it('⚠️ starts IDLE even when the board faces black, where it used to start thinking', () => {
     const game = createGameState({ rules: createRules(), playerSide: 'b', opponent: true });
-    expect(game.phase()).toBe('thinking');
+    expect(game.phase()).toBe('idle');
   });
 
-  it('refuses to move white for a player who chose black', () => {
+  it('⚠️ lets a player whose board faces black move the white pieces', () => {
     const game = createGameState({ rules: createRules(), playerSide: 'b', opponent: true });
-    expect(game.activate(sq('e2'))).toEqual({ kind: 'ignored', reason: 'busy' });
+    expect(game.activate(sq('e2')).kind).toBe('selected');
   });
 
-  it('takes back ONE ply for black, and that is not an inconsistency', () => {
-    // ⚠️ The unit is not "two plies". It is "until you are on move again", and those are the same
-    // thing only for the side that moves first. White at 1.e4 e5 has to unwind the reply AND the
-    // move it answered to get its choice back; black at the same position only has to unwind its
-    // own e5, because 1.e4 is then still on the board with black to move — which IS the moment
-    // black last had a decision to make.
-    //
-    // This test exists because the expectation was written the other way round first, and the
-    // state machine was right.
+  it('takes back ONE ply whichever way the board faces', () => {
+    /*
+     * ⚠️ THIS TEST ONCE PROVED AN ASYMMETRY THAT NO LONGER EXISTS, and the asymmetry is worth
+     * keeping on the record: the unit used to be "until you are on move again", which is two plies
+     * for the side that moves first and one for the other. White at 1.e4 e5 had to unwind the
+     * reply AND the move it answered; black only its own e5. The Dev retired the unit on
+     * 2026-10-04 — "um lance por vez" — so both sides unwind one ply and the asymmetry is gone
+     * along with the rule that produced it.
+     */
     const game = createGameState({ rules: createRules(), playerSide: 'b', opponent: true });
+    game.think();
     game.applyOpponentMove(sq('e2'), sq('e4'));
     game.animationDone();
     expect(game.phase()).toBe('idle');

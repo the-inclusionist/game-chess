@@ -693,7 +693,7 @@ describe('[Opening] the name reaches the screen, not only the lookup', () => {
     expect((document.querySelector('.hud-opening') as HTMLElement).hidden).toBe(true);
   });
 
-  it('⚠️ fills the lesson list in a two-player game, where there is no hint button', () => {
+  it('⚠️ fills the lesson list in a two-player game, which now has a hint button too', () => {
     /*
      * The other half of the same brace. `deps.lessons` and `deps.onHint` are independent — a hot
      * seat has a course and no engine — but the list was drawn inside the hint's `if`, so it
@@ -703,6 +703,12 @@ describe('[Opening] the name reaches the screen, not only the lookup', () => {
      * writing it here would be the same copy-of-data this repository has now got wrong three
      * times; what matters is that the list is not EMPTY and that the names came through `t()`
      * rather than arriving as raw keys, which is the other way this has failed before.
+     *
+     * ⚠️ THE TITLE SAID «WHERE THERE IS NO HINT BUTTON» UNTIL 2026-10-04 and asserted it. The Dev
+     * reversed the premise: "as flechas e protetor de lance, se ligados, funciona dos dois lados
+     * do tabuleiro". Withholding the teachers from a shared board confused the OPPONENT with the
+     * ANALYST — the engine is in the page either way; what a two-player game declines is having it
+     * MOVE. So the button is there, and this test keeps watch on the thing it was written for.
      */
     fixture();
     clear();
@@ -715,7 +721,8 @@ describe('[Opening] the name reaches the screen, not only the lookup', () => {
 
     const select = document.getElementById('hud-lesson') as HTMLSelectElement | null;
     expect(select).not.toBeNull();
-    expect(document.getElementById('hud-hint')).toBeNull();     // no engine, no hint: the premise
+    // ⚠️ `not.toBeNull()`, reversed with the premise above: a shared board may ask for arrows.
+    expect(document.getElementById('hud-hint')).not.toBeNull();
     const names = [...select!.options].map((o) => o.textContent ?? '');
     expect(names.length).toBeGreaterThan(0);
     expect(names.some((n) => n.includes('.'))).toBe(false);     // no raw `teach.*.title` keys

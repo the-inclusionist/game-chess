@@ -56,6 +56,8 @@ export const en: Catalog = {
     'hud.movesRegion': 'Move list, scrollable',
     'hud.coordinates': 'Coordinates',
     'hud.countries':  'Countries',
+    'hud.twoPlayers': '2 players',
+    'hud.cpuMove':    'CPU plays!',
     'country.br':     'Brazil',
     'country.us':     'United States',
     'country.es':     'Spain',

@@ -535,9 +535,18 @@ const engineRef: { current: Engine | null } = { current: null };
   // Three modes rather than two sides: one player as white, one as black, or two people sharing
   // the board — the case the state machine already had and nothing in the panel could reach.
   const mode: GameMode = remembered.mode ?? 'w';
+  /*
+   * ⚠️ `mode` IS NOW ONLY ABOUT WHICH WAY THE BOARD FACES. Who moves next is `twoPlayers`, a live
+   * switch in the panel — the Dev, 2026-10-04: "acima de «Voltar» e «Avançar» quero um checkbox:
+   * «2 Jogadores»". The old `mode` was three values and a RELOAD, because it decided the player's
+   * colour as well; this decides one thing and decides it immediately.
+   *
+   * The old shape is read once so nobody loses the setting they had.
+   */
+  let twoPlayers: boolean = remembered.twoPlayers ?? (mode === 'two');
   const playerSide: Side = mode === 'b' ? 'b' : 'w';
   let game = createGameState({
-    rules, playerSide, opponent: mode !== 'two', allowMove: approved,
+    rules, playerSide, opponent: !twoPlayers, allowMove: approved,
   });
 
   let searching = false;
@@ -1264,8 +1273,15 @@ const engineRef: { current: Engine | null } = { current: null };
     onTheme: applyTheme,
 
     markAt: (ply) => reviewer.markAt(ply),
-    // No engine in a two-player game, so nobody to ask.
-    ...(mode === 'two' ? {} : {
+    /*
+     * ⚠️ THE TEACHERS WORK IN A TWO-PLAYER GAME TOO, SINCE 2026-10-04. They were withheld there —
+     * "no engine in a two-player game, so nobody to ask" — which confused the OPPONENT with the
+     * ANALYST. The engine is still in the page either way; what a two-player game declines is
+     * having it MOVE. The Dev: "as flechas e protetor de lance, se ligados, funciona dos dois
+     * lados do tabuleiro", and they do, because a hint is asked of the position and the position
+     * belongs to whoever is on move.
+     */
+    ...({
       onHint: () => {
         chooseTeacher({ arrows: !arrows });
       },
@@ -1345,6 +1361,18 @@ const engineRef: { current: Engine | null } = { current: null };
      * the engine is handed hosts that live inside it — so a captured `engine` would be the
      * previous instance or nothing at all.
      */
+    /*
+     * ⚠️ TOGGLING IT DOES NOT RELOAD, which is the whole reason it is a checkbox. The engine moves
+     * only when `handOver` gives it the board, so there is no boot-time decision to redo — the
+     * next human move simply stops being answered.
+     */
+    twoPlayers: () => twoPlayers,
+    onTwoPlayers: (on: boolean) => {
+      twoPlayers = on;
+      prefs.save({ twoPlayers: on });
+      hud.refresh();
+    },
+    onCpuMove: () => { cpuMove(); },
     countries: COUNTRIES,
     country: () => i18n.getLocale(),
     onCountry: (code: string) => { void engineRef.current?.setLocale(code); },
@@ -1961,7 +1989,7 @@ const engineRef: { current: Engine | null } = { current: null };
       if (lessonMode) {
         lessonMode.setTeacher(!lessonMode.teacher());
         refreshLessonMenu();
-      } else if (mode !== 'two') {
+      } else {
         /*
          * ⚠️ THE KEY TOGGLES THE ARROWS AND LEAVES THE GUARD ALONE. It did cycle three states while
          * there was one setting; with two independent switches a cycle would have to walk four
@@ -2079,7 +2107,7 @@ const engineRef: { current: Engine | null } = { current: null };
    * and the whole of protected mode is the exception.
    */
   function onVerdict(entry: ReviewedMove): void {
-    if (!protectedOn || !isBlunder(entry.mark) || mode === 'two') return;
+    if (!protectedOn || !isBlunder(entry.mark) || twoPlayers) return;
     if (entry.side !== playerSide) return;
     if (entry.ply !== rules.history().length - 1) return;   // already answered for, or replayed
 
@@ -2115,7 +2143,7 @@ const engineRef: { current: Engine | null } = { current: null };
     } else {
       announcer.say(i18n.t('protected.kept'));
       hud.refresh();
-      askOpponent();
+      handOver();
     }
   }
 
@@ -2341,13 +2369,42 @@ const engineRef: { current: Engine | null } = { current: null };
       .then(() => { syncPosition(); });
   }
 
+  /**
+   * ========================= THE HUMAN HAS FINISHED A MOVE =========================
+   * The Dev, 2026-10-04: "se 2 Jogadores estiver desligado, após o humano jogar será sempre a vez
+   * da engine, seja o lance feito pelas brancas ou pelas pretas."
+   *
+   * ⚠️ THE ENGINE MOVES BECAUSE IT IS HANDED THE BOARD, not because of whose turn it is. That used
+   * to live in `chess/state.ts`, where `settle()` declared `thinking` whenever the colour on move
+   * was not the player's — which is why the human could only ever play one colour and why a walk
+   * through the score sheet was answered the instant it stopped. See the note there.
+   */
+  function handOver(): void {
+    if (twoPlayers) return;
+    game.think();
+    askOpponent();
+  }
+
+  /**
+   * The «CPU joga!» button: one move from the engine, and then the board is the human's again.
+   *
+   * The Dev: "se o jogador clicar em «CPU joga!» o CPU joga e em seguida é a vez do humano." It
+   * needs no special case to end there — the reply settles the phase to `idle`, and nothing hands
+   * the board over again until a human move does.
+   */
+  function cpuMove(): void {
+    if (game.phase() !== 'idle') return;
+    game.think();
+    askOpponent();
+  }
+
   function askOpponent(): void {
     if (game.phase() !== 'thinking' || searching) return;
     // ⚠️ HELD. Protected mode's whole value is that the warning arrives while the position it
     // ruined is still on the board. So the opponent waits for TWO things: an unanswered warning,
     // and a verdict that has not landed yet. `reviewer.onChange` is what tries again.
     if (blunderHeld) return;
-    if (protectedOn && mode !== 'two' && !reviewer.judged(rules.history().length - 1)) return;
+    if (protectedOn && !twoPlayers && !reviewer.judged(rules.history().length - 1)) return;
 
     searching = true;
     thinking.setBusy(true);
@@ -2465,7 +2522,7 @@ const engineRef: { current: Engine | null } = { current: null };
     announceOutcome(announcer, i18n, game.outcome());
     // ⚠️ THE OBSERVER WAITS FOR THE PIECE TO LAND. See `ActivationObserver`: a lesson undoes a
     // wrong move, and undoing one the child never saw teaches nothing.
-    void fly(move.from, move.to).then(() => { askOpponent(); observer?.(square, result); });
+    void fly(move.from, move.to).then(() => { handOver(); observer?.(square, result); });
   }
 
   /**
@@ -2536,7 +2593,13 @@ const engineRef: { current: Engine | null } = { current: null };
     announcer.say(i18n.t(direction === 'back' ? 'a11y.tookBack' : 'a11y.replayed', {
       side: i18n.t(`turn.${rules.turn()}`),
     }));
-    askOpponent();
+    /*
+     * ⚠️ AND IT DOES NOT HAND THE BOARD OVER. `askOpponent()` stood here, which is why a take-back
+     * that landed on the engine's turn was answered at once and undone in front of the player.
+     * The Dev, 2026-10-04: "seja onde parar, o relógio fica pausado aguardando o jogador humano
+     * jogar." Wherever the walk stops, the next move is a person's — «CPU joga!» is there for
+     * anyone who wants the engine to take that one.
+     */
   }
 
   /** Where the piece a move captured was standing. Not `move.to` when it was taken en passant. */
@@ -2570,7 +2633,7 @@ const engineRef: { current: Engine | null } = { current: null };
     // ⚠️ `aiming: !teaching` — a lesson's `mark` steps answer BY touching empty squares, so a board
     // that remembered each touch as a destination would turn the lesson's own answer into a move.
     game = createGameState({
-      rules, playerSide, opponent: !teaching && mode !== 'two', aiming: !teaching,
+      rules, playerSide, opponent: !teaching && !twoPlayers, aiming: !teaching,
       // ⚠️ A lesson has its own teacher; Professor II must not also be marking it. `approved`
       // answers true for every teacher but `silent`, and a lesson board never sets that.
       allowMove: approved,

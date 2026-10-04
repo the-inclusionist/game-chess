@@ -57,6 +57,8 @@ export const es: Catalog = {
     'hud.movesRegion': 'Lista de jugadas, desplazable',
     'hud.coordinates': 'Coordenadas',
     'hud.countries':  'Países',
+    'hud.twoPlayers': '2 jugadores',
+    'hud.cpuMove':    '¡Juega la CPU!',
     'country.br':     'Brasil',
     'country.us':     'Estados Unidos',
     'country.es':     'España',

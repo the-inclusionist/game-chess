@@ -62,6 +62,8 @@ export const pt: Catalog = {
     'hud.movesRegion': 'Lista de lances, rolável',
     'hud.coordinates': 'Coordenadas',
     'hud.countries':  'Países',
+    'hud.twoPlayers': '2 Jogadores',
+    'hud.cpuMove':    'CPU joga!',
     'country.br':     'Brasil',
     'country.us':     'Estados Unidos',
     'country.es':     'Espanha',
