@@ -104,6 +104,22 @@ export function announceActivation(announcer: Announcer, i18n: I18n, rules: Rule
     return;
   }
 
+  /*
+   * ⚠️ THE SECOND ORDER HAS TO BE SPOKEN TOO, or it is a gesture only the sighted half of the
+   * room has. "Destino: e4. 2 peças podem ir" is the mirror of what `selected` says, and the
+   * count is the useful half: it is the answer to the question the gesture was asking.
+   */
+  if (result.kind === 'aimed') {
+    announcer.say(`${i18n.t('a11y.aimed', { square: toAlgebraic(result.square) })}. `
+      + i18n.t('a11y.canReach', { count: result.targets.length }));
+    return;
+  }
+
+  if (result.kind === 'unaimed') {
+    announcer.say(i18n.t('a11y.unaimed'));
+    return;
+  }
+
   if (result.kind === 'moved') {
     announceMove(announcer, i18n, result.move);
     return;

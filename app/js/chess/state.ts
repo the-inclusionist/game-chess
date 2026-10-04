@@ -25,6 +25,26 @@ export type Phase = 'idle' | 'selected' | 'animating' | 'thinking' | 'over';
 export type Activation =
   | { readonly kind: 'selected'; readonly square: Square; readonly targets: readonly Square[] }
   | { readonly kind: 'deselected' }
+  /**
+   * An empty square was chosen as WHERE TO GO, before a piece was chosen to go there.
+   *
+   * ========================= ⚠️ THE SECOND ORDER, AND WHY IT IS NOT A LUXURY =========================
+   * The Dev, 2026-10-04: "o contrario (clicar na casa e depois clicar na peca) tambem deve ser
+   * possivel. Em todos os tabuleiros."
+   *
+   * It is how a beginner actually thinks. A child learning the game looks at the board, sees the
+   * square they want to reach, and only then asks which piece can get there — and a program that
+   * insists on piece-first is teaching its own order rather than the game's. It is also the order
+   * a player uses when the destination is obvious and the piece is not: two rooks on a file, two
+   * knights that both reach the same square.
+   *
+   * `targets` carries the pieces that can legally go there, so the board can light them up — the
+   * mirror image of what `selected` does, and the reason a destination is not just a remembered
+   * square.
+   */
+  | { readonly kind: 'aimed'; readonly square: Square; readonly targets: readonly Square[] }
+  /** The chosen destination was given up, without a piece ever being chosen. */
+  | { readonly kind: 'unaimed' }
   | { readonly kind: 'moved'; readonly move: MoveResult }
   | { readonly kind: 'illegal'; readonly square: Square }
   | {
@@ -63,12 +83,33 @@ export interface GameStateOptions {
   readonly playerSide?: Side;
   /** false = hot seat: both sides are driven from the same board. Default true. */
   readonly opponent?: boolean;
+  /**
+   * Whether an empty square may be chosen BEFORE the piece that goes to it. Default true.
+   *
+   * ========================= ⚠️ WHY A LESSON TURNS THIS OFF =========================
+   * A teaching step of the `mark` kind asks the student to TOUCH squares — "show me where this
+   * rook can go" — and those squares are empty by definition. With aiming on, every one of those
+   * touches leaves a destination behind, and the next click on a piece is read as "send it
+   * there": the lesson's own answer becomes a move the child never asked for.
+   *
+   * Found by the suite on 2026-10-04, in five tests, within minutes of the feature landing. The
+   * free board is the place for a second order of operations; a guided lesson has an order of its
+   * own and is entitled to it.
+   */
+  readonly aiming?: boolean;
 }
 
 export interface GameState {
   readonly rules: Rules;
   phase(): Phase;
   selection(): Square | null;
+  /** The square chosen to move TO, when it was chosen before the piece. See `Activation.aimed`. */
+  destination(): Square | null;
+  /**
+   * What the current choice offers: where the selected piece may GO, or — when a destination was
+   * chosen first — which pieces may COME. One field, and which meaning applies is told by whether
+   * `selection` or `destination` is set.
+   */
   legalTargets(): readonly Square[];
   /** The move currently in flight, for the renderer to animate. */
   animating(): MoveResult | null;
@@ -114,11 +155,22 @@ export function createGameState(options: GameStateOptions): GameState {
   let selection: Square | null = null;
   let targets: readonly Square[] = [];
   let inFlight: MoveResult | null = null;
+  /**
+   * The square chosen to move TO, when it was chosen before the piece.
+   *
+   * ⚠️ NOT A PHASE. `Phase` is about what the input is allowed to do — a piece in flight must not
+   * accept a click, the engine's loop needs to know when it may move something — and aiming
+   * changes none of that. It is an ordinary idle board that happens to be remembering a square, so
+   * it rides alongside `phase` rather than adding a sixth value every guard would have to learn.
+   */
+  let destination: Square | null = null;
+  const aiming = options.aiming ?? true;
 
   /** Works out which phase the position implies, once nothing is in flight. */
   function settle(): void {
     selection = null;
     targets = [];
+    destination = null;
     inFlight = null;
     if (rules.isGameOver()) phase = 'over';
     else if (hasOpponent && rules.turn() !== playerSide) phase = 'thinking';
@@ -127,15 +179,35 @@ export function createGameState(options: GameStateOptions): GameState {
 
   function select(square: Square): Activation {
     selection = square;
+    destination = null;
     targets = rules.legalTargets(square);
     phase = 'selected';
     return { kind: 'selected', square, targets };
+  }
+
+  /** Every piece of the side to move that could legally reach `square`. */
+  function reachers(square: Square): Square[] {
+    return rules.allMoves()
+      .filter((move) => move.to.x === square.x && move.to.y === square.y)
+      .map((move) => move.from);
+  }
+
+  function aim(square: Square): Activation {
+    destination = square;
+    selection = null;
+    // ⚠️ The pieces that can GET here, not the squares one piece can go to. Same field, mirrored
+    // meaning, and the shell draws it on the board so "which of mine reaches this?" is answered
+    // the moment the question is asked.
+    targets = reachers(square);
+    phase = 'idle';
+    return { kind: 'aimed', square, targets };
   }
 
   function play(from: Square, to: Square): MoveResult | null {
     const move = rules.move(from, to);
     if (!move) return null;
     selection = null;
+    destination = null;
     targets = [];
     inFlight = move;
     phase = 'animating';
@@ -180,6 +252,7 @@ export function createGameState(options: GameStateOptions): GameState {
     rules,
     phase: () => phase,
     selection: () => selection,
+    destination: () => destination,
     legalTargets: () => targets,
     animating: () => inFlight,
 
@@ -216,7 +289,29 @@ export function createGameState(options: GameStateOptions): GameState {
         return { kind: 'deselected' };
       }
 
+      // The chosen destination, chosen again: a change of mind, and the mirror of a deselect.
+      if (destination && destination.x === square.x && destination.y === square.y) {
+        destination = null;
+        targets = [];
+        return { kind: 'unaimed' };
+      }
+
       const piece = rules.pieceAt(square);
+
+      /*
+       * ⚠️ A WAITING DESTINATION GETS FIRST REFUSAL ON YOUR OWN PIECE, and the order of these two
+       * branches is the whole of the second gesture. The line below says "your own piece,
+       * whichever phase: pick it up" — true, and it would swallow the click that was meant to
+       * answer "which piece goes there?".
+       *
+       * If the piece cannot reach the chosen square, picking it up is still the right answer: the
+       * player has changed their mind about the destination rather than asked for something
+       * impossible, and `select` clears it.
+       */
+      if (destination && piece && piece.side === rules.turn()) {
+        const move = play(square, destination);
+        if (move) return { kind: 'moved', move };
+      }
 
       // Your own piece, whichever phase: pick it up, or move the selection to it.
       if (piece && piece.side === rules.turn()) return select(square);
@@ -225,6 +320,17 @@ export function createGameState(options: GameStateOptions): GameState {
         const move = play(selection, square);
         if (move) return { kind: 'moved', move };
         return { kind: 'illegal', square };
+      }
+
+      /*
+       * ⚠️ AN EMPTY SQUARE IS NOW AN ANSWER, NOT A SHRUG. It used to return `ignored: empty`,
+       * which is what made piece-first the only order the game understood. It becomes a
+       * destination — but only if some piece can actually reach it, because remembering a square
+       * nothing can move to would be a mode the player cannot see and cannot leave.
+       */
+      if (aiming && !piece && phase === 'idle') {
+        const who = reachers(square);
+        if (who.length > 0) return aim(square);
       }
 
       return { kind: 'ignored', reason: piece ? 'not-your-turn' : 'empty' };

@@ -421,7 +421,16 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
       if (lessonMark) cell.dataset.lesson = lessonMark;
       else delete cell.dataset.lesson;
 
-      const mark = legal ? (piece ? 'capture' : 'move') : '';
+      /*
+       * ⚠️ WHAT `targets` MEANS DEPENDS ON WHICH WAY ROUND THE PLAYER IS WORKING. With a piece in
+       * hand it holds the squares that piece may GO to, so one holding a piece is a capture. With
+       * a DESTINATION chosen first (the Dev's second order, 2026-10-04) it holds the pieces that
+       * may COME — and marking those as captures told the player they could take their own pawn.
+       * They take the move dot instead: "this one can make the move", which is the same mark its
+       * destination would carry in the usual order, read backwards.
+       */
+      const coming = deps.state().destination() !== null;
+      const mark = legal ? (piece && !coming ? 'capture' : 'move') : '';
       if (mark) cell.dataset.mark = mark;
       else delete cell.dataset.mark;
 

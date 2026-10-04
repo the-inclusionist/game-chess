@@ -291,6 +291,80 @@ describe('[NewGame] a lesson changes the board without rebuilding anything aroun
   });
 });
 
+describe('[Aim] the square may be chosen before the piece, on every board', () => {
+  /*
+   * The Dev, 2026-10-04: "o contrario (clicar na casa e depois clicar na peca) tambem deve ser
+   * possivel. Em todos os tabuleiros."
+   *
+   * ⚠️ ASSERTED THROUGH THE SHELL RATHER THAN THE STATE MACHINE, because `tests/state.node.test.ts`
+   * already pins the machine and this is a different question: whether the gesture SURVIVES the
+   * trip through the shell — the marks it draws, the mirror's labels, and the view it happens to
+   * be in. The second order is only real if the board shows it.
+   */
+  const at = (name: string): Square => ({
+    x: 'abcdefgh'.indexOf(name[0]!), y: 8 - Number(name[1]),
+  });
+
+  function shellFor() {
+    fixture();
+    clear();
+    saveSettings({ mode: 'two' });   // hot seat: no engine to wait for
+    return makeShell({
+      host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
+      debugName: '__aimTest', contrastTheme: 'contrast-flat',
+    });
+  }
+
+  const markOn = (name: string): string | undefined =>
+    (document.querySelector(`[data-square="${name}"]`) as HTMLElement | null)?.dataset.mark;
+
+  it('⚠️ takes an empty square first and plays the move when the piece follows', () => {
+    const shell = shellFor();
+    shell.activate(at('e4'));
+    expect(shell.game().destination(), 'the square is remembered').not.toBeNull();
+
+    shell.activate(at('e2'));
+    expect(shell.rules().pieceAt(at('e4'))?.type, 'the pawn arrived').toBe('p');
+    expect(shell.rules().pieceAt(at('e2')), 'and left').toBeNull();
+    expect(shell.game().destination(), 'and the board let the square go').toBeNull();
+  });
+
+  it('⚠️ marks the pieces that can COME as moves, not as captures', () => {
+    /*
+     * The mirror derives its own mark from `legalTargets`, whose meaning flips with the order:
+     * squares a piece may go to, or pieces that may come. Marking the second as captures told the
+     * player they could take their own pawn.
+     */
+    const shell = shellFor();
+    shell.activate(at('f3'));                    // reachable by the f-pawn and by the king's knight
+    expect(markOn('f2'), 'the pawn that can come').toBe('move');
+    expect(markOn('g1'), 'the knight that can come').toBe('move');
+    expect(markOn('f3'), 'and the square itself is the one in hand').toBeUndefined();
+  });
+
+  it('lets go of the square when it is chosen twice, like putting a piece down', () => {
+    const shell = shellFor();
+    shell.activate(at('e4'));
+    shell.activate(at('e4'));
+    expect(shell.game().destination()).toBeNull();
+    expect(markOn('e2'), 'and the pieces stop being lit').toBeUndefined();
+  });
+
+  it('picks a piece up instead when it cannot reach the chosen square', () => {
+    const shell = shellFor();
+    shell.activate(at('e4'));
+    shell.activate(at('a1'));                    // a rook, boxed in at the opening
+    expect(shell.game().destination(), 'the old square is let go').toBeNull();
+    expect(shell.game().selection(), 'and the rook is simply in hand').toEqual(at('a1'));
+  });
+
+  it('⚠️ still refuses a square no piece can reach, so there is no invisible mode', () => {
+    const shell = shellFor();
+    shell.activate(at('e5'));
+    expect(shell.game().destination()).toBeNull();
+  });
+});
+
 describe('[Taught] the shell can point at squares', () => {
   const at = (name: string): Square => ({
     x: 'abcdefgh'.indexOf(name[0]!), y: 8 - Number(name[1]),

@@ -2193,6 +2193,24 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
         markers.set(squareIndex(target), rules.pieceAt(target) ? 'capture' : 'move');
       }
     }
+
+    /*
+     * ========================= THE OTHER ORDER, DRAWN =========================
+     * A destination chosen before a piece (the Dev, 2026-10-04). The square itself takes
+     * `selected` — ring and dot together — because that is literally what it is: the thing
+     * currently in hand. The pieces that can reach it take the move dot, which is the same mark
+     * their destinations would carry in the usual order, read backwards.
+     *
+     * ⚠️ NO NEW MARK WAS INVENTED FOR THIS, deliberately. The vocabulary is shape-coded and
+     * already has four shapes carrying meaning in one turn; a fifth is a design decision about
+     * what a child sees, and that is the Dev's to make rather than something to slip in with a
+     * feature. If the two orders need telling apart on sight, that is the next conversation.
+     */
+    const aimed = game.destination();
+    if (aimed) {
+      markers.set(squareIndex(aimed), 'selected');
+      for (const from of game.legalTargets()) markers.set(squareIndex(from), 'move');
+    }
     const check = game.kingInCheck();
     if (check) markers.set(squareIndex(check), 'check');
     /*
@@ -2422,7 +2440,11 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      * `resume()` reads. A standard opening would silently discard a game in progress.
      */
     rules = fen === undefined ? resume() : createRules(fen);
-    game = createGameState({ rules, playerSide, opponent: !teaching && mode !== 'two' });
+    // ⚠️ `aiming: !teaching` — a lesson's `mark` steps answer BY touching empty squares, so a board
+    // that remembered each touch as a destination would turn the lesson's own answer into a move.
+    game = createGameState({
+      rules, playerSide, opponent: !teaching && mode !== 'two', aiming: !teaching,
+    });
     setTaught([]);
     syncPosition();
   }

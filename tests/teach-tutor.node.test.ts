@@ -38,7 +38,14 @@ const lesson = (id: string): Lesson => {
  * 6.98 MB of Stockfish.
  */
 function board(fen: string): GameState {
-  return createGameState({ rules: createRules(fen), opponent: false });
+  /*
+   * ⚠️ `aiming: false`, WHICH IS WHAT THE SHELL DOES FOR A LESSON. A `mark` step is answered BY
+   * touching empty squares, so a board that remembered each touch as a destination would read the
+   * next click on a piece as "send it there" — the lesson's own answer becoming a move the child
+   * never asked for. This helper has to stand where the shell stands or it is testing a board the
+   * game never builds.
+   */
+  return createGameState({ rules: createRules(fen), opponent: false, aiming: false });
 }
 
 /** Plays a touch through the real state machine and hands the tutor what came back. */

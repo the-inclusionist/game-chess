@@ -46,11 +46,73 @@ describe('[Selection] picking a piece up and putting it down', () => {
     expect(toAlgebraic(game.selection()!)).toBe('d2');
   });
 
-  it('ignores an empty square, and says why', () => {
+  it('⚠️ takes an empty square as a DESTINATION when a piece could reach it', () => {
+    /*
+     * The Dev, 2026-10-04: "o contrario (clicar na casa e depois clicar na peca) tambem deve ser
+     * possivel". This used to answer `{ ignored: empty }`, which is what made piece-first the
+     * only order the game understood.
+     */
     const game = solo();
     const result = game.activate(sq('e4'));
-    expect(result).toEqual({ kind: 'ignored', reason: 'empty' });
+    expect(result.kind).toBe('aimed');
+    expect(toAlgebraic(game.destination()!)).toBe('e4');
+    // ⚠️ `targets` is MIRRORED here: the pieces that can COME, not the squares one piece can go
+    // to. Only the e-pawn reaches e4 at the opening — the knights do not, which is worth stating
+    // because the first draft of this test assumed they did.
+    expect(game.legalTargets().map(toAlgebraic)).toEqual(['e2']);
+    // Aiming is not a phase: the board is idle, it is merely remembering a square.
     expect(game.phase()).toBe('idle');
+  });
+
+  it('⚠️ names EVERY piece that can reach it, which is the point of the gesture', () => {
+    /*
+     * The order exists for the position where the destination is obvious and the piece is not.
+     * f3 at the opening is reachable by the f-pawn and by the king's knight, and answering "which
+     * of mine can get there" is the whole reason a destination carries a list at all.
+     */
+    const game = solo();
+    const result = game.activate(sq('f3'));
+    expect(result.kind).toBe('aimed');
+    expect(game.legalTargets().map(toAlgebraic).sort()).toEqual(['f2', 'g1']);
+  });
+
+  it('still ignores an empty square that NOTHING can reach, and says why', () => {
+    // The guard that keeps aiming from becoming a mode the player cannot see or leave.
+    const game = solo();
+    expect(game.activate(sq('e5'))).toEqual({ kind: 'ignored', reason: 'empty' });
+    expect(game.destination()).toBeNull();
+  });
+
+  it('plays the move when the piece is chosen second', () => {
+    const game = solo();
+    game.activate(sq('e4'));
+    const result = game.activate(sq('e2'));
+    expect(result.kind).toBe('moved');
+    expect(game.destination()).toBeNull();
+  });
+
+  it('⚠️ picks the piece up instead when it cannot reach the chosen square', () => {
+    // The player changed their mind about where to go, rather than asked for the impossible.
+    const game = solo();
+    game.activate(sq('e4'));
+    const result = game.activate(sq('a1'));   // a rook, boxed in at the opening
+    expect(result.kind).toBe('selected');
+    expect(game.destination(), 'the old destination is let go').toBeNull();
+  });
+
+  it('lets go of the destination when it is chosen a second time', () => {
+    const game = solo();
+    game.activate(sq('e4'));
+    expect(game.activate(sq('e4'))).toEqual({ kind: 'unaimed' });
+    expect(game.destination()).toBeNull();
+    expect(game.legalTargets()).toEqual([]);
+  });
+
+  it('does not aim at all when the board says not to', () => {
+    // A lesson's `mark` step is answered by touching empty squares; see `GameStateOptions.aiming`.
+    const game = createGameState({ rules: createRules(), opponent: false, aiming: false });
+    expect(game.activate(sq('e4'))).toEqual({ kind: 'ignored', reason: 'empty' });
+    expect(game.destination()).toBeNull();
   });
 
   it("ignores the opponent's piece, and says why", () => {
