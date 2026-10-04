@@ -4,6 +4,7 @@ import { createRules } from '../app/js/chess/rules.ts';
 import { createGameState } from '../app/js/chess/state.ts';
 import { fromAlgebraic, type Square } from '../app/js/chess/types.ts';
 import { createI18n } from '../app/js/i18n/index.ts';
+import { BOARD_THEMES } from '../app/js/ui/board-themes.ts';
 import { createHud, type Hud } from '../app/js/ui/hud.ts';
 
 const sq = (name: string): Square => {
@@ -330,5 +331,49 @@ describe('[Views] 2D, 2.5D and 3D across the top of the panel', () => {
   it('names each destination in the language the reader chose', () => {
     build('en');
     expect(views()[0].getAttribute('aria-label')).toBe('See the board in 2D');
+  });
+});
+
+/*
+ * ========================= THE ORDER OF THE PANEL, AS THE DEV SET IT =========================
+ * 2026-10-04, verbatim: "1) [ ] Brancas - Preatas [ ] (de quem é a vez); 2) setas | Protetor de
+ * lances; 3) voltar | avançar ; 4) lances 5) Força do adversário, desenho das peças, cores do
+ * tabuleiro, coordenadas" — and "remova a seção de pontuação".
+ *
+ * ⚠️ WHY THIS IS A TEST AND NOT A COMMENT. An order is the one property of a panel that nothing
+ * else notices breaking: every section still exists, every control still works, every other test
+ * in this file still passes, and the only person who finds out is the one reading the panel.
+ */
+describe('[Panel] the sections come in the order the Dev asked for', () => {
+  const panel = (): Hud => {
+    const rules = createRules();
+    const state = createGameState({ rules, opponent: true });
+    hud = createHud({
+      doc: document, i18n: createI18n('pt'), rules: () => rules, state: () => state,
+      view: () => '2.5d',
+      onHint: () => {}, arrows: () => false, onArrows: () => {},
+      guard: () => false, onGuard: () => {},
+      themes: BOARD_THEMES, theme: () => 'brown', onTheme: () => {},
+      coordinates: () => true, onCoordinates: () => {},
+      canTakeBack: () => state.canTakeBack(), canReplay: () => state.canReplay(),
+      onTakeBack: () => {}, onReplay: () => {},
+    });
+    document.body.append(hud.root, hud.report);
+    return hud;
+  };
+
+  it('whose turn, the two teachers, the walk, the moves, then the settings', () => {
+    panel();
+    const sections = [...hud!.root.children].map((n) => n.className || n.tagName.toLowerCase());
+    // The opening's name sits with the move list because it is a sentence ABOUT the move list.
+    expect(sections).toEqual([
+      'hud-turn', 'hud-teachers', 'hud-nav', 'hud-opening', 'section', 'hud-controls',
+    ]);
+  });
+
+  it('⚠️ has no PONTUAÇÃO section — the strips beside the board carry those numbers', () => {
+    panel();
+    expect(hud!.root.textContent ?? '').not.toContain('PONTUAÇÃO');
+    expect(hud!.root.querySelector('.hud-scoreboard')).toBeNull();
   });
 });

@@ -77,7 +77,6 @@ import { createGridMirror, type LessonMark, type LessonSquare } from '../ui/grid
 import { createHud, type GameMode, type Hud, type ViewKind } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
 import { createPlayerStrips } from '../ui/player-strip.ts';
-import { createScoreboard } from '../ui/scoreboard.ts';
 import { createEarcons, WHISTLE } from '../ui/earcons.ts';
 import { createSplash } from '../ui/splash.ts';
 import { createThinkingPanel } from '../ui/thinking.ts';
@@ -854,7 +853,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     rules,
     engine: opponent,
     onChange: () => {
-      scoreboard.refresh();
       players.refresh();
       hud.refresh();
       // The reviewer is also a clock: protected mode holds the opponent until a verdict lands,
@@ -868,12 +866,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     doc: host, i18n, rules,
     evaluation: () => reviewer.evaluation(),
     mistakes: (side) => reviewer.mistakes(side),
-  });
-
-  const scoreboard = createScoreboard({
-    doc: host, i18n, rules,
-    evaluation: () => reviewer.evaluation(),
-    blunders: (side) => reviewer.blunders(side),
   });
 
   /*
@@ -1324,7 +1316,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     onTheme: applyTheme,
 
     markAt: (ply) => reviewer.markAt(ply),
-    scoreboard: scoreboard.root,
     // No engine in a two-player game, so nobody to ask.
     ...(mode === 'two' ? {} : {
       onHint: () => {

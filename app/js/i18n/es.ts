@@ -55,7 +55,7 @@ export const es: Catalog = {
     'hud.takeBackShort': 'Deshacer',
     'hud.replayShort':   'Rehacer',
     'hud.movesRegion': 'Lista de jugadas, desplazable',
-    'hud.coordinates': 'Letras y números',
+    'hud.coordinates': 'Coordenadas',
     'view.2d':   '2D',
     'view.25d':  '2,5D',
     'view.3d':   '3D',

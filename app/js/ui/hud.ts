@@ -213,7 +213,13 @@ export interface HudDeps {
    * The advantage readout. Optional because a board with no engine has half of it to show and
    * would have to invent the other half.
    */
-  scoreboard?: HTMLElement;
+  /**
+   * ⚠️ REMOVED FROM THE PANEL ON 2026-10-04 at the Dev's word — "remova a seção de pontuação
+   * (material, engine, erros graves, brancas, pretas)" — and the dep is gone with it rather than
+   * kept as an unused hook. The same facts a child needs are still beside the board: the player
+   * strips carry the material count and the evaluation, where they belong to the player they are
+   * about instead of being a table to read.
+   */
 
   /**
    * Protected mode: the engine stops the game when the player throws it away. Absent where there
@@ -482,7 +488,10 @@ export function createHud(deps: HudDeps): Hud {
   const backText = backButton.querySelector('.hud-nav-text') as HTMLElement;
   const forwardText = forwardButton.querySelector('.hud-nav-text') as HTMLElement;
 
-  movesBox.append(movesTitle, movesList, navBox);
+  // ⚠️ THE NAV LEFT THIS BOX ON 2026-10-04. The Dev's order puts «Voltar | Avançar» ABOVE the
+  // move list, not under it: they are the two things a child reaches for while reading the list,
+  // and a control below a list that grows is a control that walks away as the game goes on.
+  movesBox.append(movesTitle, movesList);
 
   // ========================= NO HIGH-CONTRAST SWITCH =========================
   // There was a checkbox here and it was a second door onto one state: the palette list already
@@ -678,15 +687,27 @@ export function createHud(deps: HudDeps): Hud {
   const outlineCheck = check();
   const coordsCheck = check();
 
-  root.append(turn, openingBox, movesBox);
+  /*
+   * ========================= THE ORDER OF THE PANEL, AS THE DEV SET IT =========================
+   * 2026-10-04, in his words: "1) Brancas – Pretas (de quem é a vez); 2) setas | Protetor de
+   * lances; 3) voltar | avançar; 4) lances; 5) Força do adversário, desenho das peças, cores do
+   * tabuleiro, coordenadas."
+   *
+   * It reads as a sentence about a turn: whose move it is, what help is on, how to walk the game,
+   * what has been played, and only then the settings. The panel scrolls, so what a child watches
+   * while playing has to come before what they occasionally change.
+   *
+   * ⚠️ TWO SECTIONS ARE NOT IN HIS LIST AND ARE KEPT, because he was ordering the panel rather
+   * than pruning it: the opening's name, which is a sentence ABOUT the move list and sits with
+   * it, and the lesson picker, which is hidden unless the APRENDER door was taken.
+   */
+  root.append(turn);
+  if (deps.onHint) root.appendChild(hintBox);
+  root.append(navBox, openingBox, movesBox);
   if (deps.lessons) root.appendChild(lessonBox);
   // Settled here too, not only in refresh(): the panel is drawn before anything calls refresh, and
   // a picker that flashes once before hiding is the tremor this HUD has already been reported for.
   lessonBox.hidden = deps.lessonsVisible ? !deps.lessonsVisible() : false;
-  if (deps.onHint) root.appendChild(hintBox);
-  if (deps.scoreboard) root.appendChild(deps.scoreboard);
-  // ⚠️ AFTER the scoreboard, which is where the Dev put them: the panel scrolls, and what a child
-  // watches while playing comes before what they occasionally change.
   root.appendChild(controls);
   /*
    * ⚠️ `modeGroup.box`, `strengthBox` AND `protectedBox` GO TO THE ENGINE'S PANEL IN WAVE 2c.

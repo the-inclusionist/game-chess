@@ -60,7 +60,7 @@ export const pt: Catalog = {
     'hud.takeBackShort': 'Voltar',
     'hud.replayShort':   'Avançar',
     'hud.movesRegion': 'Lista de lances, rolável',
-    'hud.coordinates': 'Letras e números',
+    'hud.coordinates': 'Coordenadas',
     'view.2d':   '2D',
     'view.25d':  '2,5D',
     'view.3d':   '3D',
