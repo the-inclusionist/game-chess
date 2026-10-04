@@ -173,8 +173,60 @@ describe('[Type] a tap target is a finger, whatever the game rasterises at', () 
      * holds a 720 board in a 1280 stage, so the two values are decided and can be named.
      */
     const vars = stage()!;
-    expect(vars.style.getPropertyValue('--tap')).toBe('44px');
+    expect(vars.style.getPropertyValue('--chess-tap')).toBe('44px');
     expect(vars.style.getPropertyValue('--ui-fs')).toBe('32px');
+  });
+
+  it('⚠️ does NOT write `--tap`, because that name belongs to the engine', () => {
+    /*
+     * ========================= THE GATE FOR THE 2026-10-04 REPORT =========================
+     * Both this function and the engine's `applyScale` used to write `--tap` inline on the SAME
+     * element, so the height of every control in the panel was decided by whichever ran last:
+     *
+     *   · boot ended on the engine's write        -> buttons 44 px
+     *   · the first `switchView` ran only this one -> buttons 24 px, and they stayed
+     *   · any window resize ran both, engine last  -> buttons 44 px again
+     *
+     * The Dev saw the buttons shrink on the first click and grow back on a resize. The fix was to
+     * give the two values two names — the engine keeps `--tap` (22*max(k,2), never under 44, per
+     * ADR-0163) and this game writes `--chess-tap`, which carries the graduated ladder the Dev
+     * chose to keep on 2026-10-04.
+     *
+     * ⚠️ ASSERTED ON THE INLINE STYLE, NOT THE COMPUTED ONE, and that distinction is the test.
+     * `getComputedStyle` would answer 44px from the `:root` default whether this function wrote
+     * anything or not — a reading that cannot fail, which is no gate at all. The inline property
+     * is empty if and only if this function kept its hands off the engine's name.
+     */
+    page(1500, 760, { canvas: true });
+    applyLayout({ doc: document, win: win(1) });
+    expect(stage()!.style.getPropertyValue('--tap')).toBe('');
+
+    const below = document.getElementById('below-board');
+    if (below) expect(below.style.getPropertyValue('--tap')).toBe('');
+  });
+
+  it('⚠️ graduates the chess ladder by board side: 24 / 34 / 44', () => {
+    /*
+     * The Dev's decision of 2026-10-04, kept against the engine's flat 44 px floor for the reason
+     * measured in `ui/layout.ts`: at 640x360 the panel is 280 wide and 360 tall, and 44 px
+     * controls with 16 px type do not fit in it — the HUD scrolled. Every rung still clears WCAG
+     * 2.5.8 (AA, 24 px); the top one clears 2.5.5 (AAA, 44 px), where there is room to spend.
+     *
+     * Three windows rather than one, because a ladder with a single rung measured is a constant.
+     */
+    const rungs: string[] = [];
+    for (const [w, h] of [[700, 420], [1100, 620], [1500, 760]] as const) {
+      page(w, h, { canvas: true });
+      applyLayout({ doc: document, win: win(1) });
+      rungs.push(stage()!.style.getPropertyValue('--chess-tap'));
+    }
+    // Monotonic, never under the AA floor, and it does reach the AAA top.
+    for (const rung of rungs) expect(Number.parseFloat(rung)).toBeGreaterThanOrEqual(24);
+    for (let i = 1; i < rungs.length; i++) {
+      expect(Number.parseFloat(rungs[i])).toBeGreaterThanOrEqual(Number.parseFloat(rungs[i - 1]));
+    }
+    expect(rungs[rungs.length - 1]).toBe('44px');
+    expect(new Set(rungs).size, 'a ladder with one rung is a constant').toBeGreaterThan(1);
   });
 });
 

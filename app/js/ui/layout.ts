@@ -236,7 +236,20 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
   // had to reach past it to the stage to say the same thing.
   const vars = region ?? board;
   vars.style.setProperty('--ui-fs', `${8 * ui}px`);
-  vars.style.setProperty('--tap', `${tapFor(width)}px`);
+  /*
+   * ⚠️ `--chess-tap`, NOT `--tap`, AND THE RENAME IS A BUG FIX RATHER THAN A TIDY-UP.
+   *
+   * `--tap` has an owner already: the engine writes it on this very element, in `applyScale`, as
+   * `22 * max(k, 2)` — never under 44 px (ADR-0163). Writing it here too made the height of every
+   * control in the panel depend on WHICH OF THE TWO RAN LAST. Measured on the running build,
+   * 2026-10-04: boot ended on the engine's 44 px; the first `switchView` ran only this function
+   * and 24 px stuck; any window resize ran both, the engine last, and 44 px came back. The Dev saw
+   * buttons shrink on the first click.
+   *
+   * The ladder below is the Dev's decision (2026-10-04) and it stays — it just stops fighting for
+   * the engine's name. `app/css/board.css` reads `--chess-tap` in all fourteen places.
+   */
+  vars.style.setProperty('--chess-tap', `${tapFor(width)}px`);
   /*
    * ⚠️ `--hud-fs` USED TO BE SET HERE AND WAS READ BY NOTHING. It came in with this file,
    * which started as the engine's own `ui/layout.ts`, and there it is real: the engine's
@@ -271,7 +284,7 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
       // caption under a board and becomes the thing the board is under.
       `${Math.min(20, Math.max(13, Math.round(width * 0.022)))}px`,
     );
-    below.style.setProperty('--tap', `${tapFor(width)}px`);
+    below.style.setProperty('--chess-tap', `${tapFor(width)}px`);
   }
 
   return { width, height, scaleDevice };

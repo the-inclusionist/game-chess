@@ -98,7 +98,28 @@ html { background: var(--page); }
    * merely plain rather than broken.
    */
   --ui-fs: 16px;
+  /*
+   * ⚠️ TWO NAMES, ONE OWNER EACH, AND THAT SPLIT IS THE WHOLE FIX (the Dev, 2026-10-04).
+   *
+   * `--tap` belongs to THE ENGINE. `ui/layout.js` writes it on #game-region as
+   * `22 * max(k, 2)` — never under 44 px (ADR-0163, and the Dev fixed the number: "44px e o
+   * correto, eu errei quando disse 42px"). Nothing in this game writes it any more.
+   *
+   * `--chess-tap` belongs to THIS GAME, and carries the graduated ladder that `ui/layout.ts`
+   * computes: 24 below a 540 board, 34 from 540, 44 from 720. The Dev chose to keep it
+   * (2026-10-04) against the engine's flat floor, for the reason measured in `ui/layout.ts`: at
+   * 640x360 the panel is 280 wide and 360 tall, and 44 px controls with 16 px type do not fit —
+   * the HUD scrolled. WCAG 2.5.8 (AA, 24 px) is met at every rung; 2.5.5 (AAA, 44 px) is met
+   * where there is room to spend on it.
+   *
+   * ⚠️ THEY USED TO BE THE SAME NAME, and that is the defect this split closes: the engine and
+   * this game both wrote `--tap` inline on #game-region, so the height of every button in the
+   * panel was decided by WHICHEVER RAN LAST. Boot left the engine's 44; the first view switch ran
+   * only ours and 24 stuck; a window resize ran both and 44 came back. The buttons changed size
+   * on the first click and changed back on a resize, which is what the Dev reported.
+   */
   --tap: 44px;
+  --chess-tap: 44px;
 }
 
 :root { color-scheme: dark; }
@@ -427,7 +448,7 @@ html { background: var(--page); }
    */
   /*
    * ========================= ⚠️ THE FLOOR BELONGS TO EVERY BUTTON, NOT TO A LIST OF THEM =========================
-   * `min-height: var(--tap)` was applied class by class — `.hud-view`, `.hud-hint`, and five more
+   * `min-height: var(--chess-tap)` was applied class by class — `.hud-view`, `.hud-hint`, and five more
    * — and "Começar", the button that opens a lesson, was never given a rule of its own. It came
    * out 21 px tall against the 44 this file promises and WCAG 2.5.5 asks for, and it had been that
    * way for as long as it existed.
@@ -435,7 +456,7 @@ html { background: var(--page); }
    * A list of classes is a copy of the data: every new button has to remember to join it, and the
    * one that forgot was invisible because the other six were right. Stated once, over the element.
    */
-  .chess-hud button { min-height: var(--tap, 44px); font-size: var(--ui-fs, 16px); }
+  .chess-hud button { min-height: var(--chess-tap, 44px); font-size: var(--ui-fs, 16px); }
 
   /*
    * The three board views, under the accessibility bar. A row of links, and — since 2026-09-11 — a
@@ -453,7 +474,7 @@ html { background: var(--page); }
   .hud-view {
     flex: 1 1 0;
     min-width: 0;
-    min-height: var(--tap, 44px);
+    min-height: var(--chess-tap, 44px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -508,7 +529,7 @@ html { background: var(--page); }
      (WCAG 2.5.5) and they split the width, which is the one dimension there is none of. */
   .hud-hint {
     width: 100%;
-    min-height: var(--tap, 44px);
+    min-height: var(--chess-tap, 44px);
     font: inherit; font-size: var(--ui-fs, 16px); font-weight: 600;
     color: var(--surface); background: #B79BE8;
     border: 1px solid #7A4FBF; border-radius: 2px;
@@ -658,7 +679,7 @@ html { background: var(--page); }
   .lesson-walk { margin: 0.35em 0 0; display: flex; gap: 0.3em; }
   .lesson-walk button {
     flex: 1 1 0;
-    min-height: var(--tap, 44px);
+    min-height: var(--chess-tap, 44px);
     font: inherit;
     color: var(--ink-bright); background: transparent;
     border: 1px solid var(--ink-bright); border-radius: 2px;
@@ -672,7 +693,7 @@ html { background: var(--page); }
   .lesson-list { margin: 0.4em 0 0; padding: 0; list-style: none; overflow-y: auto; }
   .lesson-entry {
     display: block; width: 100%;
-    min-height: var(--tap, 44px);
+    min-height: var(--chess-tap, 44px);
     padding: 0 0.4em;
     font: inherit; text-align: left;
     color: var(--ink); background: transparent;
@@ -717,7 +738,7 @@ html { background: var(--page); }
   .lesson-options[hidden] { display: none; }
   .lesson-options { display: flex; flex-wrap: wrap; gap: 0.4em; margin: 0.5em 0 0; }
   .lesson-option {
-    min-height: var(--tap, 44px);
+    min-height: var(--chess-tap, 44px);
     padding: 0 0.9em;
     font: inherit; font-weight: 700;
     color: var(--surface); background: var(--accent);
@@ -726,7 +747,7 @@ html { background: var(--page); }
   }
   .lesson-actions { margin: 0.5em 0 0; }
   .lesson-leave {
-    min-height: var(--tap, 44px);
+    min-height: var(--chess-tap, 44px);
     padding: 0 0.9em;
     font: inherit;
     color: var(--ink-bright); background: transparent;
@@ -770,7 +791,7 @@ html { background: var(--page); }
   .blunder-message { margin: 0; flex: 1 1 14em; font-weight: 600; }
   .blunder-actions { margin: 0; display: flex; gap: 0.4em; }
   .blunder-actions button {
-    min-height: var(--tap, 44px);
+    min-height: var(--chess-tap, 44px);
     padding: 0 0.9em;
     font: inherit; font-weight: 700;
     color: var(--surface); background: #FFD9D4;
@@ -952,7 +973,7 @@ html { background: var(--page); }
 
   .hud-nav { display: flex; gap: 0.3em; }
   .hud-nav button {
-    flex: 1 1 0; min-width: 0; min-height: var(--tap, 44px);
+    flex: 1 1 0; min-width: 0; min-height: var(--chess-tap, 44px);
     display: flex; align-items: center; justify-content: center; gap: 0.2em;
     font: inherit; font-size: var(--ui-fs, 16px);
     color: var(--ink); background: var(--surface-lift);
@@ -987,7 +1008,7 @@ html { background: var(--page); }
   .hud-choice label {
     flex: 1 1 0; min-width: 0;
     display: flex; align-items: center; justify-content: center;
-    min-height: var(--tap, 44px);
+    min-height: var(--chess-tap, 44px);
     padding: 0 0.2em;
     font-size: var(--ui-fs, 16px); font-weight: 600;
     color: var(--ink); background: var(--surface-lift);
@@ -1019,7 +1040,7 @@ html { background: var(--page); }
      The font shrinks but the TARGET does not — "Correção deuteranopia" has to fit in 176px
      without the control becoming harder to hit. */
   .chess-hud select {
-    width: 100%; min-height: var(--tap, 44px);
+    width: 100%; min-height: var(--chess-tap, 44px);
     font: inherit; font-size: var(--ui-fs, 16px);
     text-overflow: ellipsis;
   }
@@ -1039,7 +1060,7 @@ html { background: var(--page); }
   .hud-check,
   .chess-hud .hud-check { display: inline; font-size: var(--ui-fs, 16px); color: var(--ink); margin-left: 0.4em; }
   .chess-hud input[type="checkbox"] {
-    width: calc(var(--tap, 44px) * 0.4); height: calc(var(--tap, 44px) * 0.4);
+    width: calc(var(--chess-tap, 44px) * 0.4); height: calc(var(--chess-tap, 44px) * 0.4);
     vertical-align: middle; accent-color: var(--focus);
   }
 

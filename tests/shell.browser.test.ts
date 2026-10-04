@@ -1168,13 +1168,25 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     expect(`${past} px past the foot, inside? ${past <= 1}`).toBe(`${past} px past the foot, inside? true`);
   });
 
-  it('⚠️ a tap target is 44 CSS pixels, which the engine 11 layout writes on the region', () => {
+  it('⚠️ chess controls are sized from the chess ladder, and clear the AA floor', () => {
     /*
-     * ========================= POST-WAVE-2c =========================
-     * The chess layout's graduated `--tap: 24 | 34 | 44` was overwritten in engine 11 by the
-     * engine's own `ui/layout` — it writes `--tap: 22*k px` on `#game-region`, which lands on 44
-     * at the k=2 floor (ADR-0163). We stopped fighting that in Wave 2c and raised chess's own
-     * controls to match; the test says the floor is 44 everywhere, which is WCAG 2.5.5 AAA.
+     * ========================= REVERSED BY THE DEV, 2026-10-04 =========================
+     * This test used to say the opposite — "we stopped fighting the engine in Wave 2c and raised
+     * chess's own controls to 44". What that actually produced was two writers of one variable and
+     * a panel whose button heights depended on which ran last (see the gate in
+     * `tests/layout.browser.test.ts`, and the plan's entry for the report).
+     *
+     * The Dev's decision: chess keeps its graduated ladder, and stops fighting for the engine's
+     * NAME. So there are two variables now, with one owner each:
+     *
+     *   · `--tap`       — the engine's, 22*max(k,2), never under 44 (ADR-0163). Engine nodes read
+     *                     it, and nothing in this game writes it.
+     *   · `--chess-tap` — this game's, 24 / 34 / 44 by board side. Every `.chess-hud` control
+     *                     reads it.
+     *
+     * The floor asserted here is therefore WCAG 2.5.8 (AA, 24 px) rather than 2.5.5 (AAA, 44 px),
+     * deliberately: at the minimum 640x360 stage the panel is 280 wide and 44 px controls with
+     * 16 px type do not fit — the HUD scrolled, which is a worse outcome for the same child.
      */
     fixture();
     clear();
@@ -1186,18 +1198,23 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     });
 
     const region = document.getElementById('game-region')!;
-    const tap = Number.parseFloat(getComputedStyle(region).getPropertyValue('--tap'));
-    expect(tap, '--tap on the region').toBeGreaterThanOrEqual(44);
+    const engineTap = Number.parseFloat(getComputedStyle(region).getPropertyValue('--tap'));
+    const chessTap = Number.parseFloat(getComputedStyle(region).getPropertyValue('--chess-tap'));
 
-    // Controls that READ `--tap` actually come out that tall. The variable is a promise until
-    // something is sized from it.
+    // The engine's name is still the engine's, and still at its floor.
+    expect(engineTap, '--tap on the region').toBeGreaterThanOrEqual(44);
+    // And the chess ladder never goes under WCAG 2.5.8.
+    expect(chessTap, '--chess-tap on the region').toBeGreaterThanOrEqual(24);
+
+    // Controls that READ `--chess-tap` actually come out that tall. The variable is a promise
+    // until something is sized from it.
     const buttons = [...document.querySelectorAll('.chess-hud button')]
       .map((b) => Math.round(b.getBoundingClientRect().height))
       .filter((h) => h > 0);
     expect(buttons.length, 'controls to measure').toBeGreaterThan(0);
     for (const height of buttons) {
-      expect(`a control is ${height}px, at least ${tap}? ${height >= tap - 0.5}`)
-        .toBe(`a control is ${height}px, at least ${tap}? true`);
+      expect(`a control is ${height}px, at least ${chessTap}? ${height >= chessTap - 0.5}`)
+        .toBe(`a control is ${height}px, at least ${chessTap}? true`);
     }
   });
 
