@@ -1045,7 +1045,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
         'pieceSet.symbols', 'pieceSet.math', 'pieceSet.pecita',
         'hud.boardTheme', 'go.boardTheme.hint',
         'theme.brown', 'theme.wikipedia', 'theme.xboard', 'theme.jose',
-        'theme.cbsafe', 'theme.contrast1', 'theme.contrast2',
+        'theme.cbsafe', 'theme.cbwarm', 'theme.contrast1', 'theme.contrast2',
         'hud.mode', 'go.mode.hint', 'mode.w.long', 'mode.b.long', 'mode.two.long',
         'hud.strength', 'go.strength.hint',
         'elo.1000', 'elo.1200', 'elo.1400', 'elo.1600', 'elo.1800', 'elo.2000',

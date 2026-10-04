@@ -166,8 +166,10 @@ export const es: Catalog = {
     'theme.short.contrast2': 'AyA',
     'theme.xboard':    'XBoard',
     'theme.jose':      'José',
-    'theme.cbsafe': 'Seguro para daltonismo',
+    'theme.cbsafe': 'Seguro para daltonismo (azul)',
+    'theme.cbwarm': 'Seguro para daltonismo (naranja)',
     'theme.short.cbsafe': 'DALT',
+    'theme.short.cbwarm': 'DAL2',
     'theme.contrast1': 'Negro y Blanco',
     'theme.contrast2': 'Azul y Amarillo',
 

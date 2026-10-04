@@ -374,6 +374,51 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
     short: 'theme.short.cbsafe',
   },
   {
+    /*
+     * ========================= A SECOND SAFE BOARD, AND IT IS WARM =========================
+     * The Dev, 2026-10-04: "crie mais um tabuleiro cb-safe usando Okabe-Ito, desta vez com base
+     * nas cores #CC79A7 e #E69F00" — the reddish purple and the orange.
+     *
+     * The blue board exists because blue survives red-green deficiency. This one exists because a
+     * board a child wants to look at is a board a child plays on, and «safe» should not mean «one
+     * board, take it or leave it». A teacher now has two.
+     *
+     * Same treatment as its blue sibling: keep the hue, move the lightness, because Okabe-Ito is
+     * a palette for telling CATEGORIES apart and says nothing about luminance. As published, the
+     * orange over the purple is 1.36 — the two squares would run together.
+     *
+     *   light  #E69F00  Okabe-Ito orange, lifted 1%        ->  #E8A100
+     *   dark   #CC79A7  Okabe-Ito reddish purple, deepened ->  #7C4A66
+     *
+     * ⚠️ THE SIMULATION IS WHAT MAKES IT SAFE, NOT THE PROVENANCE. Two Okabe-Ito hues in a pair
+     * are not automatically safe for a board: the palette guarantees its members are told apart
+     * from EACH OTHER as categories, and a board needs them to hold a luminance ratio under every
+     * deficiency. Run through the same three matrices the blue board was:
+     *
+     *                     normal   protan  deutan  tritan
+     *   this board         3.15     3.00    3.22    3.08
+     *
+     * ⚠️ AND UNLIKE THE BLUE ONE, THESE ARE TWO DIFFERENT HUES. The blue board is one hue at two
+     * lightnesses, so there is nothing for a dichromat to lose. Here orange and purple are far
+     * apart for anyone who sees them, and the 3:1 lightness gap is what holds when they are not —
+     * which is why protan at 3.00 is a number this board had to be SEARCHED for rather than
+     * assumed. A warmer-looking board for the same guarantee, measured rather than hoped.
+     */
+    // Measured: squares 3.15 (3.00/3.22/3.08 simulated), silhouette 9.53 and 3.03, pieces 21.
+    key: 'cb-warm',
+    light: '#E8A100',
+    dark: '#7C4A66',
+    ...INK,
+    rim: '#000000',
+    // Black on both counts, for the reason the blue board states at length: the fill carries the
+    // separation (3.03 against the dark square, 9.53 against the light one) and the stroke is then
+    // free to vanish into it.
+    solidStroke: { light: '#000000', dark: '#000000' },
+    solid: { dark: ['#000000', '#000000', '#000000'] },
+    name: 'theme.cbwarm',
+    short: 'theme.short.cbwarm',
+  },
+  {
     // Read by lightness. Squares 3.00, silhouette 9.14 and 3.04, pieces 21.
     key: 'contrast-flat',
     light: '#ABABAB',

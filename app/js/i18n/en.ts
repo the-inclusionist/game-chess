@@ -165,8 +165,10 @@ export const en: Catalog = {
     'theme.short.contrast2': 'B&Y',
     'theme.xboard':    'XBoard',
     'theme.jose':      'José',
-    'theme.cbsafe': 'Colour-blind safe',
+    'theme.cbsafe': 'Colour-blind safe (blue)',
+    'theme.cbwarm': 'Colour-blind safe (orange)',
     'theme.short.cbsafe': 'CB',
+    'theme.short.cbwarm': 'CB2',
     'theme.contrast1': 'Black & White',
     'theme.contrast2': 'Blue & Yellow',
 

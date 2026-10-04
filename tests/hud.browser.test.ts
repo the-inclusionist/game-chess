@@ -416,7 +416,7 @@ describe('[Contrast] the comparison table, while the board colours are being cho
     expect(hud!.report.hidden).toBe(false);
     const rows = [...hud!.report.querySelectorAll('th[scope="row"]')].map((n) => n.textContent);
     expect(rows).toHaveLength(BOARD_THEMES.length);
-    expect(rows).toContain('Seguro para daltonismo');
+    expect(rows).toContain('Seguro para daltonismo (azul)');
   });
 
   it('⚠️ stays up after a choice, because the choice is what the numbers are for', () => {
@@ -435,7 +435,7 @@ describe('[Contrast] the comparison table, while the board colours are being cho
     panel();
     colours().dispatchEvent(new FocusEvent('focus'));
     const current = hud!.report.querySelector('th[aria-current="true"]');
-    expect(current?.textContent).toBe('Seguro para daltonismo');
+    expect(current?.textContent).toBe('Seguro para daltonismo (azul)');
     // Never colour alone (WCAG 1.4.1): ✓ clears, • is carried by the outline, ✗ fails.
     const cells = [...hud!.report.querySelectorAll('td')].map((n) => n.textContent ?? '');
     expect(cells).not.toHaveLength(0);

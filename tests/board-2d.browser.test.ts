@@ -6,7 +6,7 @@ import { type Square } from '../app/js/chess/types.ts';
 import { createI18n } from '../app/js/i18n/index.ts';
 import { createGridMirror, type GridMirror } from '../app/js/ui/grid-mirror.ts';
 import { AVAILABLE_SETS, DEFAULT_SET, PIECE_SETS, pieceSet } from '../app/js/ui/piece-sets.ts';
-import { contrastRows } from '../app/js/ui/contrast-report.ts';
+import { contrastRows, contrast } from '../app/js/ui/contrast-report.ts';
 import { BOARD_THEMES, DEFAULT_THEME, boardTheme } from '../app/js/ui/board-themes.ts';
 
 // ========================= WHAT THE 2D BOARD IS =========================
@@ -426,5 +426,64 @@ describe('[cb-safe] a white piece has to read on the light square, not only have
       return Math.atan2(Math.sqrt(3) * (g - b), 2 * r - g - b);
     };
     expect(Math.abs(hue(theme.light) - hue(theme.dark))).toBeLessThan(0.25);
+  });
+});
+
+/*
+ * ========================= THE SECOND SAFE BOARD =========================
+ * The Dev, 2026-10-04: "crie mais um tabuleiro cb-safe usando Okabe-Ito, desta vez com base nas
+ * cores #CC79A7 e #E69F00."
+ *
+ * ⚠️ TWO OKABE-ITO HUES IN A PAIR ARE NOT AUTOMATICALLY SAFE FOR A BOARD. The palette guarantees
+ * its members are told apart from EACH OTHER as categories; a board needs them to hold a LUMINANCE
+ * ratio under every deficiency, which is a different promise. The blue board is one hue at two
+ * lightnesses, so there is nothing for a dichromat to lose and the simulation is a formality. This
+ * one is two hues that look very different to anyone who sees them — so the simulation is the
+ * whole of the guarantee, and it is asserted here rather than quoted in a comment.
+ */
+describe('[cb-warm] the orange board earns its name under simulation', () => {
+  /** Brettel/Viénot-style dichromacy, on linear sRGB — the matrices `board-themes.ts` cites. */
+  const MATRICES = {
+    protan: [[0.152286, 1.052583, -0.204868], [0.114503, 0.786281, 0.099216], [-0.003882, -0.048116, 1.051998]],
+    deutan: [[0.367322, 0.860646, -0.227968], [0.280085, 0.672501, 0.047413], [-0.011820, 0.042940, 0.968881]],
+    tritan: [[1.255528, -0.076749, -0.178779], [-0.078411, 0.930809, 0.147602], [0.004733, 0.691367, 0.303900]],
+  } as const;
+
+  const toLinear = (hex: string): number[] => [1, 3, 5].map((i) => {
+    const v = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  const simulate = (hex: string, kind: keyof typeof MATRICES): number => {
+    const c = toLinear(hex);
+    const out = MATRICES[kind].map((row) => row[0] * c[0] + row[1] * c[1] + row[2] * c[2]);
+    return Math.max(0, 0.2126 * out[0] + 0.7152 * out[1] + 0.0722 * out[2]);
+  };
+  const simulatedSquares = (theme: { light: string; dark: string }, kind: keyof typeof MATRICES): number => {
+    const a = simulate(theme.light, kind);
+    const b = simulate(theme.dark, kind);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  };
+
+  it('holds 3:1 between its squares for normal vision AND all three dichromacies', () => {
+    const theme = boardTheme('cb-warm');
+    expect(contrast(theme.light, theme.dark)).toBeGreaterThanOrEqual(3);
+    for (const kind of ['protan', 'deutan', 'tritan'] as const) {
+      expect(`${kind} ${simulatedSquares(theme, kind).toFixed(2)}`)
+        .toBe(`${kind} ${Math.max(3, simulatedSquares(theme, kind)).toFixed(2)}`);
+    }
+  });
+
+  it('⚠️ and the Okabe-Ito pair as PUBLISHED does not, which is why it was moved', () => {
+    // Orange over reddish purple, untouched: 1.36. Keeping the hues and moving the lightness is
+    // the same treatment chessboard.js, Wikipédia and XBoard already got in this file.
+    expect(contrast('#E69F00', '#CC79A7')).toBeLessThan(2);
+  });
+
+  it('clears 3:1 on every pair that TOUCHES', () => {
+    for (const row of contrastRows(boardTheme('cb-warm'))) {
+      if (row.optional) continue;
+      expect(`${row.label} ${row.ratio.toFixed(2)}`)
+        .toBe(`${row.label} ${Math.max(3, row.ratio).toFixed(2)}`);
+    }
   });
 });
