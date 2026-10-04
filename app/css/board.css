@@ -1646,6 +1646,26 @@ html { background: var(--page); }
     aspect-ratio: 1;
     border: 2px solid var(--piece-halo, #3a2a14);
     box-sizing: border-box;
+    /*
+     * ========================= ⚠️ THE ARROWS WERE DRAWN ON THE WRONG BOX =========================
+     * The Dev, 2026-10-04: "no modo 2D as flechas parecem estar descalibradas."
+     *
+     * They were, and by a measurable amount. `grid-mirror` hangs its `svg.hint-arrows` inside this
+     * element with `position: absolute; inset: 0` and a `viewBox` of `0 0 8 8` — eight board units
+     * across, one per file. An absolutely positioned child resolves against its nearest POSITIONED
+     * ancestor, and this element was `static`, so the overlay skipped it and sized itself to
+     * `#chess-board` instead.
+     *
+     * Measured on the running page before this line: the grid is 308x308 at (75, 174) and the
+     * overlay was 360x360 at (49, 122). Every arrow was therefore drawn 26 px left, 52 px up, and
+     * 17% too long — which is exactly "descalibradas", and why it looked worse the further a move
+     * was from the top-left corner.
+     *
+     * ⚠️ SAFE FOR EVERYTHING ELSE IN HERE, checked rather than assumed: the only other absolutely
+     * positioned descendants are the `.cell-coord` labels, and they sit inside cells that are
+     * `position: relative` already, so their containing block does not change.
+     */
+    position: relative;
   }
   .board-2d [role="row"] { display: grid; grid-template-columns: repeat(8, 1fr); }
 

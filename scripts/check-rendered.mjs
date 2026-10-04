@@ -410,6 +410,63 @@ async function check3dInk(page) {
   }
 }
 
+
+/*
+ * ========================= QUESTION 6: THE ARROW LAYER SITS ON THE GRID =========================
+ * The Dev, 2026-10-04: "no modo 2D as flechas parecem estar descalibradas." They were, and nothing
+ * in this repository could have told him so.
+ *
+ * `grid-mirror` hangs an `svg.hint-arrows` inside the board with `position: absolute; inset: 0`
+ * and a `viewBox` of `0 0 8 8` - one unit per file. An absolutely positioned child resolves
+ * against its nearest POSITIONED ancestor, and `.board-2d` was `static`, so the overlay skipped
+ * the grid and sized itself to `#chess-board`. Measured: a 308x308 grid at (75, 174) under a
+ * 360x360 overlay at (49, 122) - every arrow 26 px left, 52 px up and 17% too long.
+ *
+ * WARNING: IT IS A CSS FACT, SO NO DOM TEST CAN SEE IT. The markup was right the whole time; what
+ * was wrong was which box `inset: 0` resolved against, which exists only in a laid-out page.
+ */
+async function check2dArrows(page) {
+  const boxes = await page.evaluate(() => {
+    const svg = document.querySelector('svg.hint-arrows');
+    const grid = document.querySelector('.board-2d');
+    if (!svg || !grid) return null;
+    const s = svg.getBoundingClientRect();
+    const g = grid.getBoundingClientRect();
+    const border = parseFloat(getComputedStyle(grid).borderTopWidth) || 0;
+    return {
+      svg: { x: s.x, y: s.y, w: s.width, h: s.height },
+      grid: { x: g.x, y: g.y, w: g.width, h: g.height },
+      border,
+      viewBox: svg.getAttribute('viewBox'),
+    };
+  });
+  if (!boxes) { fail('[2D arrows] no arrow layer or no grid on the flat board'); return; }
+
+  /*
+   * The overlay fills the grid PADDING box, which is the border box less one border each side.
+   * Half a pixel of slack: a board whose side is not a multiple of eight lands on fractional
+   * pixels, and that is not a defect.
+   */
+  const want = {
+    x: boxes.grid.x + boxes.border,
+    y: boxes.grid.y + boxes.border,
+    w: boxes.grid.w - boxes.border * 2,
+    h: boxes.grid.h - boxes.border * 2,
+  };
+  for (const key of ['x', 'y', 'w', 'h']) {
+    const off = Math.abs(boxes.svg[key] - want[key]);
+    if (off > 0.5) {
+      fail(`[2D arrows] the arrow layer ${key} is ${off.toFixed(1)} px off the grid own box `
+        + `(layer ${boxes.svg[key].toFixed(1)}, grid wants ${want[key].toFixed(1)}): every arrow `
+        + `is drawn against the wrong rectangle, which reads as arrows pointing between squares`);
+    }
+  }
+  if (boxes.viewBox !== '0 0 8 8') {
+    fail(`[2D arrows] the viewBox is "${boxes.viewBox}" and the geometry is written in board `
+      + `units, one per file - anything but "0 0 8 8" scales every arrow`);
+  }
+}
+
 const { server, port } = await serve();
 const browser = await chromium.launch();
 let status = 0;
@@ -441,6 +498,7 @@ try {
     judge(view, m);
     await checkPointer(page, view, m.labels);
     if (view === '3D') await check3dInk(page);
+    if (view === '2D') await check2dArrows(page);
   }
 } catch (error) {
   fail(`[driver] ${error.message}`);
@@ -455,6 +513,7 @@ if (problems.length) {
   console.error('');
   status = 1;
 } else {
-  console.log('Rendered-page check: targets, clipping, coordinates, the pointer and the 3D canvas\'s own pixels are right in all three views.');
+  console.log('Rendered-page check: targets, clipping, coordinates, the pointer, the 2D arrow'
+    + " layer and the 3D canvas’s own pixels are right in all three views.");
 }
 process.exit(status);
