@@ -43,6 +43,7 @@ import { pickTopmost, toIllustrationSpace } from '../render/picking.ts';
 import { LOGICAL_W, TILE } from '../render/resolution.ts';
 import { boardTheme } from '../ui/board-themes.ts';
 import { createCoordinates } from '../ui/coordinates.ts';
+import { createHintOverlay } from '../ui/hint-overlay.ts';
 import { createDragToMove } from './drag-to-move.ts';
 import type { BoardView, ViewContext, ViewFactory } from './view.ts';
 
@@ -60,6 +61,12 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
   // Real DOM text over the board: Zdog has no text primitive, and `ui/coordinates` explains why
   // that turns out to be a gain. Created before the panel so the panel stacks above it.
   const coordinates = createCoordinates({ doc, visible: showCoordinates });
+  /*
+   * ⚠️ THE TEACHER'S ARROWS ARE AN OVERLAY, NOT ZDOG SHAPES (2026-10-04). They came out halved:
+   * a painter orders WHOLE shapes, so a shaft crossing several squares is entirely in front of
+   * or behind each one, and the nearer squares paint over its tail. See `ui/hint-overlay.ts`.
+   */
+  const hintOverlay = createHintOverlay({ doc });
 
   const stage = createZdogStage();
   const palette = () => projectedPalette(boardTheme(themeKey));
@@ -92,6 +99,7 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
   // names every square in the player's own language, and sixteen bare letters in front of that
   // would be noise.
   region.appendChild(coordinates.root);
+  region.appendChild(hintOverlay.root);
 
   /**
    * CSS pixels per canvas pixel, kept from the last layout instead of measured per frame.
@@ -169,6 +177,9 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
     // After the render, because the projected corners the labels extrapolate from are only valid
     // once the graph has been updated — the same precondition `quads()` carries for picking.
     coordinates.place(boardView.quads(), stage.viewport(), cssPerPixel);
+    // Same quads, same frame: the arrows and the labels are both read off the projection the
+    // renderer has just finished, so neither can lag a turn behind the board.
+    hintOverlay.place(boardView.quads(), stage.viewport(), cssPerPixel);
   }
 
   /* ---------- pointer: a press selects, a HOLD turns the board ---------- */
@@ -474,8 +485,10 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
     },
 
     drawMarks: (markers, hints, cursor) => {
-      // A hint is drawn over the game's own state rather than competing with it for squares.
-      boardView.setHintArrows(hints);
+      // A hint is drawn over the game's own state rather than competing with it for squares — and
+      // since 2026-10-04 it is drawn OVER THE CANVAS rather than in it, so it cannot lose half of
+      // itself to a square that happens to sort nearer the camera.
+      hintOverlay.setMoves(hints);
       boardView.setMarkers(markers, cursor);
       invalidate();
     },
@@ -581,6 +594,7 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
        */
       canvas.remove();
       coordinates.root.remove();
+      hintOverlay.destroy();
     },
   };
   return self;

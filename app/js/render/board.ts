@@ -6,9 +6,7 @@
 // tree that has not structurally changed.
 
 import Zdog, { type Anchor, type Rect, type Shape } from 'zdog';
-import { SAME_LEVEL_CP } from '../chess/engine/same-level.ts';
 import type { Square } from '../chess/types.ts';
-import type { HintMove } from './hint-arrows.ts';
 import {
   isLightSquare, squareCenter, squareFromIndex, squareIndex, type Marker,
 } from './board-geometry.ts';
@@ -18,10 +16,9 @@ export type { Marker } from './board-geometry.ts';
 import {
   DEFAULT_PALETTE, MARKER_CAPTURE, MARKER_CHECK, MARKER_LESSON, MARKER_LESSON_HALO,
   MARKER_LESSON_RIGHT, MARKER_LESSON_WRONG,
-  hintHue, MARKER_CURSOR, MARKER_MOVE, MARKER_SELECTED,
+  MARKER_CURSOR, MARKER_MOVE, MARKER_SELECTED,
   type Palette, SQUARE_STROKE,
 } from './palette.ts';
-import { arrowFor, arrowWidth } from './hint-arrows.ts';
 import type { Quad } from './picking.ts';
 import { TILE } from './resolution.ts';
 
@@ -62,7 +59,6 @@ export interface BoardView {
    * holds one thing per square, and a hint is not about squares. Three pieces can all be able to
    * take on d4, and three marks on d4 cannot say who is being asked to go there. The arrow can.
    */
-  setHintArrows(moves: readonly HintMove[]): void;
   clearMarkers(): void;
   /** Recolours the 64 squares in place. Cheaper than rebuilding, and keeps the markers. */
   setPalette(palette: Palette): void;
@@ -141,7 +137,23 @@ export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE):
    * and re-sorts every shape each frame — the measured budget is 450 shapes in 1.44 ms — and a
    * hint is on screen for seconds of a whole match. Six shapes when asked and none otherwise.
    */
-  const hintAnchor = new Zdog.Anchor({ addTo: anchor });
+  /*
+   * ========================= ⚠️ THE HINT ARROWS ARE NOT HERE ANY MORE =========================
+   * They were Zdog shapes on this anchor until 2026-10-04, and they came out HALVED. Zdog is a
+   * painter: every shape gets ONE sort value, so a shaft crossing several squares is entirely in
+   * front of or entirely behind each of them, and the squares nearer the camera are painted after
+   * it — taking the tail with them. Measured: shaft from z = 34.6 to z = 9.6, mean 22; the rank-2
+   * square sits at z = 40, is painted later, and swallows half the arrow.
+   *
+   * Lifting them above every square's sort value does make them whole, and was tried: they then
+   * float, and the parallax moves them off the squares they name — by an amount that CHANGES WITH
+   * THE CAMERA, so no fixed height is right at more than one angle.
+   *
+   * They live in `ui/hint-overlay.ts` now, drawn in SVG over the canvas and positioned from this
+   * board's own projection — the same thing `ui/coordinates.ts` does with the file letters, for
+   * the same reason and by the same affine argument. Nothing in this file draws them, and nothing
+   * should: a painter cannot order half a shape.
+   */
 
   /*
    * ⚠️ ON DEMAND, FOR THE REASON THE HINT ANCHOR GIVES ABOVE, and more so. A lesson lights two or
@@ -310,44 +322,6 @@ export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE):
       }
     },
 
-    setHintArrows(moves) {
-      hintAnchor.children = [];
-      for (const move of moves) {
-        const from = squareCenter(move.from, TILE);
-        const to = squareCenter(move.to, TILE);
-        // The board lies in XZ, so the arrow's second axis is z. Naming it `y` in the geometry
-        // and reading it back as z here is the whole of the mapping — the maths is plane maths.
-        const arrow = arrowFor({ x: from.x, y: from.z }, { x: to.x, y: to.z }, TILE, move.behind);
-        if (!arrow) continue;
-
-        const hue = hintHue(move.behind, SAME_LEVEL_CP);
-        const width = TILE * arrowWidth(move.behind, SAME_LEVEL_CP);
-        const at = (point: { x: number; y: number }) => ({
-          x: point.x,
-          // Above the game's own markers, so a suggestion is never buried under the ring of a
-          // selection that happens to share a square with it.
-          y: MARKER_LIFT * 2,
-          z: point.y,
-        });
-
-        new Zdog.Shape({
-          addTo: hintAnchor,
-          path: [at(arrow.tail), at(arrow.head)],
-          stroke: width,
-          color: hue,
-          closed: false,
-        });
-        // The barbs as one open three-point path rather than two lines: Zdog rounds its caps, so
-        // a single path meets itself at the tip instead of showing the seam two would leave.
-        new Zdog.Shape({
-          addTo: hintAnchor,
-          path: [at(arrow.wings[0]), at(arrow.head), at(arrow.wings[1])],
-          stroke: width,
-          color: hue,
-          closed: false,
-        });
-      }
-    },
 
     setPalette(next) {
       palette = next;

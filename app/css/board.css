@@ -1149,7 +1149,22 @@ html { background: var(--page); }
    * the camera. A label that swallowed a pointerdown would put a dead spot on the very edge a
    * player reaches for.
    */
-  .coords {
+  /*
+   * ⚠️ `.hint-overlay` SHARES THIS BOX, AND MUST. It is the teacher's arrows, drawn in SVG over
+   * the canvas since 2026-10-04 because a painter can only order whole shapes — see
+   * `ui/hint-overlay.ts`. Its path coordinates come out of the SAME projection the labels use and
+   * are measured from the CANVAS's own top-left, so the two overlays live or drift together. One
+   * selector, so they cannot be given different boxes by accident.
+   *
+   * ⚠️ `pointer-events: none` on it: the board underneath is clicked and dragged on, and an
+   * overlay that answered `elementFromPoint` would make the squares under an arrow unreachable —
+   * which is every square the suggestion is about.
+   */
+  .hint-overlay {
+    pointer-events: none;
+    overflow: visible;
+  }
+  .coords, .hint-overlay {
     /*
      * ⚠️ THIS BOX MUST MATCH `#board-canvas` EXACTLY (2026-10-03). `ui/coordinates.put()` writes
      * `translate(...)` values measured from the CANVAS's own top-left — "positioned against the

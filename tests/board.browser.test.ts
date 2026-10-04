@@ -196,48 +196,16 @@ describe('[Markers] shape carries the meaning, not only colour', () => {
     expect(imageSignature(s)).not.toBe(lessonOnly);
   });
 
-  it('draws an arrow per suggested move, and nothing at all without one', () => {
-    const { board } = build();
-    const before = shapeCount(board);
-
-    board.setHintArrows([{ from: sq('g1'), to: sq('f3'), behind: 0 }, { from: sq('e2'), to: sq('e4'), behind: 0 }]);
-    expect(shapeCount(board)).toBe(before + 4);   // a shaft and a pair of barbs, per move
-
-    // ⚠️ Costs NOTHING when no hint is showing. Zdog re-sorts every shape in the graph each
-    // frame, so a suggestion that left its geometry behind would be a permanent tax on a
-    // drawing nobody asked for.
-    board.setHintArrows([]);
-    expect(shapeCount(board)).toBe(before);
-  });
-
-  it('leaves the arrow open, so it is an arrow and not a triangle', () => {
-    // Zdog closes every path it is not told to leave open — the barbs would join into a solid
-    // wedge, and the shaft into a line doubled back on itself.
-    const { board } = build();
-    board.setHintArrows([{ from: sq('g1'), to: sq('f3'), behind: 0 }]);
-    const all: { closed?: boolean; path?: unknown[]; children?: unknown[] }[] = [];
-    const walk = (node: { children?: unknown[] }): void => {
-      for (const child of node.children ?? []) {
-        all.push(child as { closed?: boolean; path?: unknown[] });
-        walk(child as { children?: unknown[] });
-      }
-    };
-    walk(board.anchor as unknown as { children?: unknown[] });
-    // The squares are closed paths too, so count the OPEN ones: exactly the shaft and the barbs.
-    const open = all.filter((child) => Array.isArray(child.path) && child.closed === false);
-    expect(open).toHaveLength(2);
-
-    board.setHintArrows([]);
-    const after: { closed?: boolean; path?: unknown[] }[] = [];
-    const walkAgain = (node: { children?: unknown[] }): void => {
-      for (const child of node.children ?? []) {
-        after.push(child as { closed?: boolean; path?: unknown[] });
-        walkAgain(child as { children?: unknown[] });
-      }
-    };
-    walkAgain(board.anchor as unknown as { children?: unknown[] });
-    expect(after.filter((c) => c.closed === false)).toHaveLength(0);
-  });
+  /*
+   * ⚠️ THE TWO ARROW TESTS THAT WERE HERE MOVED, WITH THE FEATURE, on 2026-10-04. They asserted
+   * that a suggestion added four Zdog shapes and left them open — true, and no longer the point:
+   * the arrows are drawn in SVG over the canvas now, because a painter can only order WHOLE
+   * shapes and a shaft crossing several squares lost its tail to the squares nearer the camera.
+   *
+   * Their replacements are in `tests/hint-overlay.browser.test.ts`, and they ask a question this
+   * board could not have answered: whether the arrow that is DRAWN reaches from one square to the
+   * other. See `ui/hint-overlay.ts` and the note left where the anchor used to be.
+   */
 });
 
 describe('[Render] the canvas is not blank', () => {
