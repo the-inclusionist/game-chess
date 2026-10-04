@@ -115,8 +115,24 @@ export function createPlayerStrips(deps: PlayerStripDeps): PlayerStrips {
   root.append(white.box, evaluation, black.box);
 
   function refresh(): void {
+    /*
+     * ========================= WHOSE TURN, AROUND THE WORD =========================
+     * The Dev, 2026-10-04: "um indicador diz de quem é a vez em volta das palavras BRANCAS ou
+     * PRETAS acima do tabuleiro, na tela."
+     *
+     * ⚠️ AROUND THE WORD AND NOT BESIDE IT, which is his word — «em volta» — and the better
+     * answer: a dot or an arrow beside a label is one more thing on a crowded strip, while a ring
+     * around the name points at the name without adding anything to read. It is a SHAPE, so it
+     * survives greyscale and every colour-vision correction (1.4.1), and the running clock beside
+     * it says the same thing a second way.
+     *
+     * ⚠️ NOBODY'S TURN WHEN THE GAME IS OVER. A ring left around a name after checkmate would be
+     * telling a child to move in a game that has ended.
+     */
+    const onMove = rules.isGameOver() ? null : rules.turn();
     for (const s of [white, black]) {
       s.name.textContent = i18n.t(`turn.${s.side}`);
+      s.box.dataset.turn = String(onMove === s.side);
 
       const mistakes = deps.mistakes(s.side);
       s.count.textContent = String(mistakes);

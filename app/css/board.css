@@ -567,6 +567,15 @@ html { background: var(--page); }
    * line-height the three buttons grew about four pixels taller than «CPU joga!» beside them and
    * the rows stopped lining up. The button keeps its `--chess-tap` floor; only the glyph is sized.
    */
+  /*
+   * ⚠️ THE EMOJI FONT IS A FALLBACK HERE AND THE FAMILY ABOVE, and the order is the whole point.
+   * Named FIRST, Noto Color Emoji would draw the Latin text of every option in its own Latin
+   * coverage — «Brasil» in an emoji font. Named LAST, the panel's own font takes the letters and
+   * only the two regional-indicator characters fall through to it.
+   *
+   * `font-family` cannot be extended, only replaced, so the stack is written out. It is the
+   * engine's own `system-ui` with the emoji family appended.
+   */
   .hud-icon {
     display: block;
     font-size: 1.35em;
@@ -1050,6 +1059,28 @@ html { background: var(--page); }
    * says «this one is out» to someone who sees no colour at all.
    */
   .player-head { display: flex; align-items: baseline; gap: 0.35em; margin: 0; }
+  /*
+   * ========================= WHOSE TURN, AROUND THE WORD =========================
+   * The Dev, 2026-10-04: "um indicador diz de quem é a vez em volta das palavras BRANCAS ou
+   * PRETAS". A ring, drawn around the NAME rather than the whole strip, so it points at the word
+   * he named and not at the captures and counters beside it.
+   *
+   * ⚠️ A SHAPE, NOT A COLOUR (1.4.1). The ring is there or it is not; the colour only makes it
+   * easier to find. Greyscale, every colour-vision correction and a monochrome printout all keep
+   * the answer — and the running clock beside it says the same thing a second way.
+   *
+   * ⚠️ AND THE SPACE IS ALWAYS RESERVED. A transparent border of the same width sits under the
+   * ring at all times, so the name does not shift by two pixels every time the turn changes —
+   * which on a strip a child is watching reads as a twitch.
+   */
+  .player-name {
+    border: 2px solid transparent;
+    border-radius: 3px;
+    padding: 0 0.25em;
+  }
+  .player-strip[data-turn="true"] .player-name {
+    border-color: var(--focus);
+  }
   .player-clock {
     flex: 0 0 auto; min-width: 3.4em;
     font-variant-numeric: tabular-nums;
@@ -1157,6 +1188,19 @@ html { background: var(--page); }
   .chess-hud select {
     width: 100%; min-height: var(--chess-tap, 44px);
     font: inherit; font-size: var(--ui-fs, 16px);
+    /*
+     * ⚠️ AFTER `font: inherit`, AND THAT IS THE WHOLE OF WHY IT IS HERE. The flag fallback was
+     * first written as its own `.chess-hud select` rule near the top of this file and never
+     * applied: `font` is a SHORTHAND, so this line resets `font-family` to the inherited value,
+     * and being later in the file with equal specificity it won. Measured on the running page —
+     * computed `font-family` came back as «system-ui, sans-serif», which is the inherited stack
+     * and not the one that had been declared.
+     *
+     * ⚠️ AND THE EMOJI FAMILY IS LAST. Named first, Noto Color Emoji would draw «Brasil» in its
+     * own Latin coverage; named last, the panel's font takes the letters and only the two
+     * regional-indicator characters of a flag fall through to it. See the `<link>` in index.html.
+     */
+    font-family: system-ui, sans-serif, 'Noto Color Emoji';
     text-overflow: ellipsis;
   }
 

@@ -4,6 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!--
+  ========================= NOTO COLOR EMOJI, FOR THE FLAGS =========================
+  The Dev, 2026-10-04, pointing at https://fonts.google.com/noto/specimen/Noto+Color+Emoji after
+  being told the countries list would carry no flags.
+
+  He is right that this is the answer, and the reason the flags were refused is worth keeping:
+  WINDOWS SHIPS NO COUNTRY-FLAG GLYPHS. Segoe UI Emoji has every other emoji and not these, so a
+  flag draws as its two letters in a box — on the Dev's own machine. Noto Color Emoji has them.
+
+  WARNING: A REMOTE STYLESHEET IN AN OFFLINE-FIRST PWA, and the trade is stated rather than
+  hidden. The font is megabytes — self-hosting it would be most of this game's download, for three
+  flags — so it is fetched from Google and the page does not wait for it: `display=swap` means the
+  names render at once in whatever the system has, and the flags appear when the font lands. With
+  no network the list still works and the three flags fall back to their letters, which is exactly
+  where this started. Nothing else on the page depends on it.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap">
+<!--
   ⚠️ `<base href="/" />` NEEDED BY WAVE «Publicar» (ADR-0117, 2026-10-02): the platform serves
   this game under `o-inclusionista.jrocha.dev.br/game-chess/`, but the shared R2 proxy for the
   engine's heavy files lives at the DOMAIN ROOT at `/heavy/*`. Without an explicit `<base>`,

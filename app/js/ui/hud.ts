@@ -1269,8 +1269,14 @@ export function createHud(deps: HudDeps): Hud {
     refreshControls();
 
     if (deps.onNewGame) {
+      // ⚠️ A `title` ON BOTH, because the column truncates them. Measured in the panel: «Nova
+      // partida» and «Zerar Relógio» come out as «Nova …» and «Zerar …», which is legible enough
+      // to pick from three buttons and not enough to be sure. The tooltip carries the whole word,
+      // and the accessible name was never truncated — only the picture is.
       newGameButton.textContent = i18n.t('hud.newGame');
+      newGameButton.title = i18n.t('hud.newGame');
       resetClockButton.textContent = i18n.t('hud.resetClock');
+      resetClockButton.title = i18n.t('hud.resetClock');
       timeButton.textContent = deps.timeControl?.() ?? '';
       // ⚠️ The ladder's rung is the button's own text, so a reader hears «5+0» and nothing else —
       // which is meaningless on its own. The label says what the number IS.
