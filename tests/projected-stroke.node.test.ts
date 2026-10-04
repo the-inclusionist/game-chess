@@ -57,14 +57,46 @@ const delimited = (
 };
 
 describe('[Projected] the stroke is what touches the square', () => {
-  it('outlines both sides in something that clears 3:1 against both squares', () => {
+  it('gives each piece ONE ink that clears both squares — stroke or fill', () => {
+    /*
+     * ⚠️ THIS SAID «BOTH STROKES CLEAR BOTH SQUARES» UNTIL 2026-10-04, and that was the special
+     * case where the fill could not carry it. On the three boards whose dark piece is now black,
+     * the fill clears both squares and the stroke is WHITE — 2.30 against the light square, which
+     * the old assertion read as a failure and which is simply the mirror of the light piece, whose
+     * white FILL is 2.30 against that same square.
+     *
+     *                         fill/stroke  fill on light  fill on dark  stroke on light  on dark
+     *   dark piece  ■ + white       21.00           9.14          3.04             2.30     6.90
+     *   light piece □ + black       21.00           2.30          6.90             9.14     3.04
+     */
     for (const key of CHANGED) {
-      const theme = boardTheme(key);
-      const p = projectedPalette(theme);
-      for (const stroke of [p.lightPieces.stroke, p.darkPieces.stroke]) {
-        for (const square of [p.squareLight, p.squareDark]) {
-          expect(`${key} ${contrast(stroke, square).toFixed(2)}`)
-            .toBe(`${key} ${Math.max(3, contrast(stroke, square)).toFixed(2)}`);
+      const p = projectedPalette(boardTheme(key));
+      for (const side of [p.lightPieces, p.darkPieces]) {
+        const clears = (ink: string): boolean =>
+          contrast(ink, p.squareLight) >= 3 && contrast(ink, p.squareDark) >= 3;
+        expect(`${key} ${clears(side.stroke) || clears(side.top)}`).toBe(`${key} true`);
+      }
+    }
+  });
+
+  it('⚠️ and a fill is NEVER the colour of the outline around it', () => {
+    /*
+     * The Dev, 2026-10-04: "nem as peças nem o tabuleiro podem ser preto propriamente dito, pois
+     * preto já é o contorno e é preciso haver contraste com o contorno."
+     *
+     * He is answering a black filling inside a black stroke, which I had argued for an hour
+     * earlier: "a piece does not need an edge when it is already 3:1 from everything it stands
+     * on". What that threw away is that the edge is not only a boundary against the square — it is
+     * the piece's own drawing, the line that says crown and collar, and a child learning the
+     * pieces reads shapes.
+     */
+    for (const key of ['brown', 'wikipedia', 'xboard', 'jose', 'cb-safe', 'cb-warm',
+                       'contrast-flat', 'contrast-solid']) {
+      const p = projectedPalette(boardTheme(key));
+      for (const side of [p.lightPieces, p.darkPieces]) {
+        for (const plane of [side.top, side.face, side.side]) {
+          expect(`${key} ${contrast(plane, side.stroke).toFixed(2)}`)
+            .toBe(`${key} ${Math.max(3, contrast(plane, side.stroke)).toFixed(2)}`);
         }
       }
     }

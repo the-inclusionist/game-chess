@@ -368,7 +368,7 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
      * keeping 3:1 from that black stroke (3.04) — and it holds 6.90 from the white piece, which is
      * the distinction a chess player cannot afford to lose.
      */
-    solidStroke: { light: '#000000', dark: '#000000' },
+    solidStroke: { light: '#000000', dark: '#FFFFFF' },
     /*
      * ========================= ⚠️ BLACK, AND THIS IS A REGRESSION I MADE TODAY =========================
      * `#5A5A5A` is the shared default every board here uses for the projected dark piece, chosen
@@ -381,6 +381,32 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
      * square is 3.06 and against the light one 9.30, so the FILL carries the separation and the
      * black stroke around it simply disappears into it. A piece does not need an edge when it is
      * already 3:1 from everything it stands on.
+     */
+    /*
+     * ========================= ⚠️ AND THE DARK PIECE'S STROKE IS WHITE =========================
+     * The Dev, 2026-10-04, on the black filling the paragraph above argues for: "nem as peças nem
+     * o tabuleiro podem ser preto propriamente dito, pois preto já é o contorno e é preciso haver
+     * contraste com o contorno."
+     *
+     * He is right, and the sentence just above — "a piece does not need an edge when it is already
+     * 3:1 from everything it stands on" — is what he is answering. What it threw away is that the
+     * edge is not only a boundary against the square: it is the piece's own drawing, the line that
+     * says crown and collar. A black shape with a black outline is a silhouette, and a child
+     * learning the pieces reads shapes.
+     *
+     * ⚠️ AND THE FLAT BOARD HAD ALREADY SOLVED IT. There the dark piece is a black fill with a
+     * WHITE line inside it — `blackRim` — and a black silhouette behind. The projected board has
+     * one stroke per shape, so the white becomes that stroke and the black fill does the work the
+     * silhouette did. The two views finally draw the same piece.
+     *
+     *                         fill/stroke  fill on light  fill on dark  stroke on light  on dark
+     *   dark piece  ■ + white       21.00           9.14          3.04             2.30     6.90
+     *   light piece □ + black       21.00           2.30          6.90             9.14     3.04
+     *
+     * Read the two rows together: the same four numbers, mirrored. Each piece has ONE ink that
+     * clears both squares and ONE that draws its edge, and which is which simply swaps. The old
+     * rule — "the stroke owes 3:1 to both squares" — was the special case where the fill could not
+     * carry it. (The numbers above are «Preto & Branco»'s; the other two are within 0.1 of them.)
      */
     solid: { dark: ['#000000', '#000000', '#000000'] },
     name: 'theme.cbsafe',
@@ -426,7 +452,33 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
     // Black on both counts, for the reason the blue board states at length: the fill carries the
     // separation (3.03 against the dark square, 9.53 against the light one) and the stroke is then
     // free to vanish into it.
-    solidStroke: { light: '#000000', dark: '#000000' },
+    solidStroke: { light: '#000000', dark: '#FFFFFF' },
+    /*
+     * ========================= ⚠️ AND THE DARK PIECE'S STROKE IS WHITE =========================
+     * The Dev, 2026-10-04, on the black filling the paragraph above argues for: "nem as peças nem
+     * o tabuleiro podem ser preto propriamente dito, pois preto já é o contorno e é preciso haver
+     * contraste com o contorno."
+     *
+     * He is right, and the sentence just above — "a piece does not need an edge when it is already
+     * 3:1 from everything it stands on" — is what he is answering. What it threw away is that the
+     * edge is not only a boundary against the square: it is the piece's own drawing, the line that
+     * says crown and collar. A black shape with a black outline is a silhouette, and a child
+     * learning the pieces reads shapes.
+     *
+     * ⚠️ AND THE FLAT BOARD HAD ALREADY SOLVED IT. There the dark piece is a black fill with a
+     * WHITE line inside it — `blackRim` — and a black silhouette behind. The projected board has
+     * one stroke per shape, so the white becomes that stroke and the black fill does the work the
+     * silhouette did. The two views finally draw the same piece.
+     *
+     *                         fill/stroke  fill on light  fill on dark  stroke on light  on dark
+     *   dark piece  ■ + white       21.00           9.14          3.04             2.30     6.90
+     *   light piece □ + black       21.00           2.30          6.90             9.14     3.04
+     *
+     * Read the two rows together: the same four numbers, mirrored. Each piece has ONE ink that
+     * clears both squares and ONE that draws its edge, and which is which simply swaps. The old
+     * rule — "the stroke owes 3:1 to both squares" — was the special case where the fill could not
+     * carry it. (The numbers above are «Preto & Branco»'s; the other two are within 0.1 of them.)
+     */
     solid: { dark: ['#000000', '#000000', '#000000'] },
     name: 'theme.cbwarm',
     short: 'theme.short.cbwarm',
@@ -470,7 +522,33 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
      * stroke around it disappears into it. A piece does not need an edge when it is already 3:1
      * from everything it stands on — and it now matches the flat board, where it was always black.
      */
-    solidStroke: { light: '#000000', dark: '#000000' },
+    solidStroke: { light: '#000000', dark: '#FFFFFF' },
+    /*
+     * ========================= ⚠️ AND THE DARK PIECE'S STROKE IS WHITE =========================
+     * The Dev, 2026-10-04, on the black filling the paragraph above argues for: "nem as peças nem
+     * o tabuleiro podem ser preto propriamente dito, pois preto já é o contorno e é preciso haver
+     * contraste com o contorno."
+     *
+     * He is right, and the sentence just above — "a piece does not need an edge when it is already
+     * 3:1 from everything it stands on" — is what he is answering. What it threw away is that the
+     * edge is not only a boundary against the square: it is the piece's own drawing, the line that
+     * says crown and collar. A black shape with a black outline is a silhouette, and a child
+     * learning the pieces reads shapes.
+     *
+     * ⚠️ AND THE FLAT BOARD HAD ALREADY SOLVED IT. There the dark piece is a black fill with a
+     * WHITE line inside it — `blackRim` — and a black silhouette behind. The projected board has
+     * one stroke per shape, so the white becomes that stroke and the black fill does the work the
+     * silhouette did. The two views finally draw the same piece.
+     *
+     *                         fill/stroke  fill on light  fill on dark  stroke on light  on dark
+     *   dark piece  ■ + white       21.00           9.14          3.04             2.30     6.90
+     *   light piece □ + black       21.00           2.30          6.90             9.14     3.04
+     *
+     * Read the two rows together: the same four numbers, mirrored. Each piece has ONE ink that
+     * clears both squares and ONE that draws its edge, and which is which simply swaps. The old
+     * rule — "the stroke owes 3:1 to both squares" — was the special case where the fill could not
+     * carry it. (The numbers above are «Preto & Branco»'s; the other two are within 0.1 of them.)
+     */
     solid: { dark: ['#000000', '#000000', '#000000'] },
     name: 'theme.contrast1',
     short: 'theme.short.contrast1',
