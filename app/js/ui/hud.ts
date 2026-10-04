@@ -199,6 +199,20 @@ export interface HudDeps {
   coordinates?(): boolean;
   onCoordinates?(on: boolean): void;
   /**
+   * ========================= THE INTERFACE LANGUAGE, NAMED BY COUNTRY =========================
+   * The Dev, 2026-10-04: "adicione mais um dropdown: países", in the same message that takes the
+   * engine's quick bar away — and that bar is where the language lived, as «Idioma: Português
+   * (Brasil)». So this is the door that replaces it, and his word for it is the one used here.
+   *
+   * ⚠️ A LANGUAGE IS NOT A COUNTRY and the list says so by what it does, not by a footnote: it
+   * sets the LOCALE, and the country is how the choice is NAMED, because a child who cannot yet
+   * read «Español» can recognise «Espanha». Spanish is spoken in twenty countries and English in
+   * dozens; the one named here is the one whose flag the engine itself already used for Portuguese.
+   */
+  countries?: readonly { readonly code: string; readonly label: string }[];
+  country?(): string;
+  onCountry?(code: string): void;
+  /**
    * The engine's mark beside the move played at this ply — `!`, `?`, `??` and so on, or null
    * while it is still being worked out or for an ordinary move, which is most of them.
    *
@@ -694,6 +708,9 @@ export function createHud(deps: HudDeps): Hud {
   const strengthField = field();
   const pieceField = field();
   const themeField = field();
+  // ⚠️ AMONG THE SELECTS AND NOT AFTER THE SWITCHES: the Dev's order of 2026-10-04 ends with
+  // «coordenadas», and a list dropped below two checkboxes would have moved it off the end.
+  const countryField = field();
   const outlineCheck = check();
   const coordsCheck = check();
 
@@ -819,6 +836,17 @@ export function createHud(deps: HudDeps): Hud {
       );
     }
 
+    const countries = deps.countries ?? [];
+    countryField.box.hidden = countries.length === 0 || !deps.onCountry;
+    if (!countryField.box.hidden) {
+      countryField.label.textContent = i18n.t('hud.countries');
+      fill(
+        countryField.select,
+        countries.map((c) => ({ value: c.code, text: i18n.t(c.label) })),
+        deps.country?.(),
+      );
+    }
+
     // ⚠️ `undefined` is "this board has no outline", not "it is off" — see the dep's own note.
     const outline = deps.outline?.();
     outlineCheck.box.hidden = outline === undefined || !deps.onOutline;
@@ -840,11 +868,13 @@ export function createHud(deps: HudDeps): Hud {
   };
   const onPieceChange = (): void => { deps.onPieceSet?.(pieceField.select.value); };
   const onThemeField = (): void => { deps.onTheme?.(themeField.select.value); };
+  const onCountryChange = (): void => { deps.onCountry?.(countryField.select.value); };
   const onOutlineToggle = (): void => { deps.onOutline?.(outlineCheck.input.checked); };
   const onCoordsToggle = (): void => { deps.onCoordinates?.(coordsCheck.input.checked); };
   strengthField.select.addEventListener('change', onStrengthChange);
   pieceField.select.addEventListener('change', onPieceChange);
   themeField.select.addEventListener('change', onThemeField);
+  countryField.select.addEventListener('change', onCountryChange);
   outlineCheck.input.addEventListener('change', onOutlineToggle);
   coordsCheck.input.addEventListener('change', onCoordsToggle);
 
@@ -1161,6 +1191,7 @@ export function createHud(deps: HudDeps): Hud {
       strengthField.select.removeEventListener('change', onStrengthChange);
       pieceField.select.removeEventListener('change', onPieceChange);
       themeField.select.removeEventListener('change', onThemeField);
+      countryField.select.removeEventListener('change', onCountryChange);
       outlineCheck.input.removeEventListener('change', onOutlineToggle);
       coordsCheck.input.removeEventListener('change', onCoordsToggle);
       hintButton.removeEventListener('click', onHintClick);

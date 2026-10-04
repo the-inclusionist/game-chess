@@ -348,7 +348,26 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * ⚠️ `engineT` RETIRED in Wave 2 item 2 (2026-10-02): the vision select's option labels now go
    * through chess's own `i18n`.
    */
-  const engineRef: { current: Engine | null } = { current: null };
+  /*
+ * ========================= THE THREE LANGUAGES, NAMED BY COUNTRY =========================
+ * The Dev, 2026-10-04: "adicione mais um dropdown: países" — in the same message that removes the
+ * engine's quick bar, where the language lived as «Idioma: Português (Brasil)».
+ *
+ * ⚠️ ONE COUNTRY PER LANGUAGE IS A SIMPLIFICATION AND IT IS DELIBERATE. Spanish is spoken in
+ * twenty countries and English in dozens; naming one is wrong as geography and right as a label a
+ * child who cannot yet read «Español» can still recognise. The engine's own bar already made the
+ * same trade for Portuguese. What the control sets is the LOCALE — the country is the name.
+ *
+ * ⚠️ NO FLAG EMOJI. Windows draws 🇧🇷 as the letters "BR" — it ships no country-flag glyphs — so a
+ * flag here would be two capitals in a box on the Dev's own machine. The name carries it.
+ */
+const COUNTRIES: readonly { readonly code: string; readonly label: string }[] = [
+  { code: 'pt', label: 'country.br' },
+  { code: 'en', label: 'country.us' },
+  { code: 'es', label: 'country.es' },
+];
+
+const engineRef: { current: Engine | null } = { current: null };
   let engine!: Engine;
 
   /**
@@ -1384,6 +1403,20 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     onOutline: (on: boolean) => view.hudControls.onOutline?.(on),
     coordinates: () => view.hudControls.coordinates(),
     onCoordinates: (on: boolean) => view.hudControls.onCoordinates(on),
+    /*
+     * ========================= THE LANGUAGE, THROUGH THE ENGINE =========================
+     * `engine.setLocale` is the only writer: the engine redraws everything that is its own — the
+     * caption, the card, the pad, the voice that speaks and the model that listens — and then
+     * calls `onLocaleChange`, which is where chess redraws the activity. Writing `i18n.setLocale`
+     * here instead would translate the panel and leave the rest of the page in the old language.
+     *
+     * ⚠️ READ THROUGH `engineRef`, NOT CAPTURED. The panel is built before `createGame` returns —
+     * the engine is handed hosts that live inside it — so a captured `engine` would be the
+     * previous instance or nothing at all.
+     */
+    countries: COUNTRIES,
+    country: () => i18n.getLocale(),
+    onCountry: (code: string) => { void engineRef.current?.setLocale(code); },
     canTakeBack: () => !walking && game.canTakeBack(),
     canReplay: () => !walking && game.canReplay(),
     onTakeBack: () => { void walkHistory('back'); },
