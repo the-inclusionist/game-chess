@@ -17,8 +17,9 @@
     "test:watch": "vitest",
     "test:node": "vitest run --project node",
     "test:browser": "vitest run --project browser",
-    "validate": "npm run typecheck && vitest run && vite build && node scripts/check-precache.mjs && vite build --mode lib && node scripts/check-cartridge.mjs",
+    "validate": "npm run typecheck && vitest run && vite build && node scripts/check-precache.mjs && node scripts/check-rendered.mjs && vite build --mode lib && node scripts/check-cartridge.mjs",
     "check:precache": "node scripts/check-precache.mjs",
+    "check:rendered": "node scripts/check-rendered.mjs",
     "check:cartridge": "node scripts/check-cartridge.mjs",
     "build:lib": "vite build --mode lib && npm run build:types",
     "build:types": "tsc -p tsconfig.build.json"
