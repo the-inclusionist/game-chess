@@ -368,7 +368,7 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
      * keeping 3:1 from that black stroke (3.04) — and it holds 6.90 from the white piece, which is
      * the distinction a chess player cannot afford to lose.
      */
-    solidStroke: { light: '#000000', dark: '#FFFFFF' },
+    solidStroke: { light: '#000000', dark: '#000000' },
     /*
      * ========================= ⚠️ BLACK, AND THIS IS A REGRESSION I MADE TODAY =========================
      * `#5A5A5A` is the shared default every board here uses for the projected dark piece, chosen
@@ -383,32 +383,28 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
      * already 3:1 from everything it stands on.
      */
     /*
-     * ========================= ⚠️ AND THE DARK PIECE'S STROKE IS WHITE =========================
-     * The Dev, 2026-10-04, on the black filling the paragraph above argues for: "nem as peças nem
-     * o tabuleiro podem ser preto propriamente dito, pois preto já é o contorno e é preciso haver
-     * contraste com o contorno."
+     * ========================= ⚠️ BOTH OF TODAY'S EXPERIMENTS ARE UNDONE =========================
+     * The Dev, 2026-10-04, in two messages an hour apart: "nem as peças nem o tabuleiro podem ser
+     * preto propriamente dito, pois preto já é o contorno e é preciso haver contraste com o
+     * contorno", and then "a ideia de usar contorno branco nas peças pretas em alto contraste
+     * também foi ruim, pode desfazer. Mude as cores de preto para cinza escuro nos tabuleiros
+     * Preto & Branco, como era antes."
      *
-     * He is right, and the sentence just above — "a piece does not need an edge when it is already
-     * 3:1 from everything it stands on" — is what he is answering. What it threw away is that the
-     * edge is not only a boundary against the square: it is the piece's own drawing, the line that
-     * says crown and collar. A black shape with a black outline is a silhouette, and a child
-     * learning the pieces reads shapes.
+     * So the projected dark piece is `#5A5A5A` inside a black stroke again — the darkest grey that
+     * keeps 3:1 from that stroke — and the two things I tried today are both gone:
      *
-     * ⚠️ AND THE FLAT BOARD HAD ALREADY SOLVED IT. There the dark piece is a black fill with a
-     * WHITE line inside it — `blackRim` — and a black silhouette behind. The projected board has
-     * one stroke per shape, so the white becomes that stroke and the black fill does the work the
-     * silhouette did. The two views finally draw the same piece.
+     *   · a BLACK filling, which made the piece 3.04 from the dark square by giving up its edge:
+     *     a black shape inside a black outline has no crown and no collar, and a child learning
+     *     the pieces reads shapes. He is right and the commit that did it argued the opposite.
+     *   · a WHITE stroke to give that black shape its edge back, which made the piece's outermost
+     *     ink 2.30 against the light square and, as he put it, was also a bad idea.
      *
-     *                         fill/stroke  fill on light  fill on dark  stroke on light  on dark
-     *   dark piece  ■ + white       21.00           9.14          3.04             2.30     6.90
-     *   light piece □ + black       21.00           2.30          6.90             9.14     3.04
-     *
-     * Read the two rows together: the same four numbers, mirrored. Each piece has ONE ink that
-     * clears both squares and ONE that draws its edge, and which is which simply swaps. The old
-     * rule — "the stroke owes 3:1 to both squares" — was the special case where the fill could not
-     * carry it. (The numbers above are «Preto & Branco»'s; the other two are within 0.1 of them.)
+     * ⚠️ AND THE DEFECT THEY WERE FIXING IS REAL AND STILL HERE: `#5A5A5A` against this board's
+     * dark square. His instruction is to answer it from the OTHER side — "vamos tentar outra
+     * solução: mudar a cor das casas do tabuleiro para conseguir um contraste melhor ao invés das
+     * peças" — which is what the squares above now do. See the note on them.
      */
-    solid: { dark: ['#000000', '#000000', '#000000'] },
+    solid: { dark: ['#5A5A5A', '#5A5A5A', '#5A5A5A'] },
     name: 'theme.cbsafe',
     short: 'theme.short.cbsafe',
   },
@@ -452,42 +448,71 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
     // Black on both counts, for the reason the blue board states at length: the fill carries the
     // separation (3.03 against the dark square, 9.53 against the light one) and the stroke is then
     // free to vanish into it.
-    solidStroke: { light: '#000000', dark: '#FFFFFF' },
+    solidStroke: { light: '#000000', dark: '#000000' },
     /*
-     * ========================= ⚠️ AND THE DARK PIECE'S STROKE IS WHITE =========================
-     * The Dev, 2026-10-04, on the black filling the paragraph above argues for: "nem as peças nem
-     * o tabuleiro podem ser preto propriamente dito, pois preto já é o contorno e é preciso haver
-     * contraste com o contorno."
+     * ========================= ⚠️ BOTH OF TODAY'S EXPERIMENTS ARE UNDONE =========================
+     * The Dev, 2026-10-04, in two messages an hour apart: "nem as peças nem o tabuleiro podem ser
+     * preto propriamente dito, pois preto já é o contorno e é preciso haver contraste com o
+     * contorno", and then "a ideia de usar contorno branco nas peças pretas em alto contraste
+     * também foi ruim, pode desfazer. Mude as cores de preto para cinza escuro nos tabuleiros
+     * Preto & Branco, como era antes."
      *
-     * He is right, and the sentence just above — "a piece does not need an edge when it is already
-     * 3:1 from everything it stands on" — is what he is answering. What it threw away is that the
-     * edge is not only a boundary against the square: it is the piece's own drawing, the line that
-     * says crown and collar. A black shape with a black outline is a silhouette, and a child
-     * learning the pieces reads shapes.
+     * So the projected dark piece is `#5A5A5A` inside a black stroke again — the darkest grey that
+     * keeps 3:1 from that stroke — and the two things I tried today are both gone:
      *
-     * ⚠️ AND THE FLAT BOARD HAD ALREADY SOLVED IT. There the dark piece is a black fill with a
-     * WHITE line inside it — `blackRim` — and a black silhouette behind. The projected board has
-     * one stroke per shape, so the white becomes that stroke and the black fill does the work the
-     * silhouette did. The two views finally draw the same piece.
+     *   · a BLACK filling, which made the piece 3.04 from the dark square by giving up its edge:
+     *     a black shape inside a black outline has no crown and no collar, and a child learning
+     *     the pieces reads shapes. He is right and the commit that did it argued the opposite.
+     *   · a WHITE stroke to give that black shape its edge back, which made the piece's outermost
+     *     ink 2.30 against the light square and, as he put it, was also a bad idea.
      *
-     *                         fill/stroke  fill on light  fill on dark  stroke on light  on dark
-     *   dark piece  ■ + white       21.00           9.14          3.04             2.30     6.90
-     *   light piece □ + black       21.00           2.30          6.90             9.14     3.04
-     *
-     * Read the two rows together: the same four numbers, mirrored. Each piece has ONE ink that
-     * clears both squares and ONE that draws its edge, and which is which simply swaps. The old
-     * rule — "the stroke owes 3:1 to both squares" — was the special case where the fill could not
-     * carry it. (The numbers above are «Preto & Branco»'s; the other two are within 0.1 of them.)
+     * ⚠️ AND THE DEFECT THEY WERE FIXING IS REAL AND STILL HERE: `#5A5A5A` against this board's
+     * dark square. His instruction is to answer it from the OTHER side — "vamos tentar outra
+     * solução: mudar a cor das casas do tabuleiro para conseguir um contraste melhor ao invés das
+     * peças" — which is what the squares above now do. See the note on them.
      */
-    solid: { dark: ['#000000', '#000000', '#000000'] },
+    solid: { dark: ['#5A5A5A', '#5A5A5A', '#5A5A5A'] },
     name: 'theme.cbwarm',
     short: 'theme.short.cbwarm',
   },
   {
-    // Read by lightness. Squares 3.00, silhouette 9.14 and 3.04, pieces 21.
+    // Read by lightness. Squares 3.00, silhouette 13.86 and 4.62, pieces 21.
+    /*
+     * ========================= ⚠️ THE SQUARES MOVED SO THE PIECES DID NOT =========================
+     * The Dev, 2026-10-04: "vamos tentar outra solução: mudar a cor das casas do tabuleiro para
+     * conseguir um contraste melhor ao invés das peças."
+     *
+     * This board's two weak pairs are a WHITE piece on the light square and a dark-grey piece on
+     * the dark square. They are not independent: both pieces are fixed — white, and the darkest
+     * grey that keeps 3:1 from its black stroke — so moving the squares trades one against the
+     * other along a single curve, and #ABABAB/#5A5A5A sat at one end of it.
+     *
+     *   dark sq   light sq   white piece on light   dark piece on dark
+     *   #595959   #AAAAAA           2.33                  1.01     <- where it was
+     *   #696969   #BFBFBF           1.84                  1.25
+     *   #767676   #D2D2D2           1.52                  1.52     <- this: the two meet
+     *   #868686   #EAEAEA           1.21                  1.90
+     *   #959595   #FFFFFF           1.00                  2.30     <- the mirror of where it was
+     *
+     * The chosen point is where the curve crosses itself, which is the one place the WORST pair is
+     * as good as it can be: 1.01 was the Dev's report — a dark piece on a square of its own ink —
+     * and 1.52 is the most any square pair can give it without taking more from the other side.
+     *
+     * ⚠️ AND THE BOARD IS NOW SYMMETRIC, which is not decoration. Every CROSS pair — a white piece
+     * on the dark square, a dark piece on the light one — measures 4.55, where before they were
+     * 6.90 and 3.00. So each piece is unmistakable on half the board and carried by its black
+     * stroke on the other half, and which half is no longer a matter of which piece you are.
+     *
+     * ⚠️ 3:1 ON BOTH IS IMPOSSIBLE AND THE PROOF IS SHORT. The stroke must escape both squares, so
+     * it is black, so the dark square's luminance is at least 0.10. The dark piece must escape the
+     * black stroke, so its luminance is at least 0.10 too. For it to ALSO clear the dark square by
+     * 3:1 the square would need 0.405 or more, and the squares' own 3:1 would then put the light
+     * square past 1.3 — and 1 is the maximum a screen has. No board here escapes that, which is
+     * why every palette in this file has two pairs the silhouette carries.
+     */
     key: 'contrast-flat',
-    light: '#ABABAB',
-    dark: '#5A5A5A',
+    light: '#D2D2D2',
+    dark: '#767676',
     ...INK,
     rim: '#000000',
     /*
@@ -522,34 +547,30 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
      * stroke around it disappears into it. A piece does not need an edge when it is already 3:1
      * from everything it stands on — and it now matches the flat board, where it was always black.
      */
-    solidStroke: { light: '#000000', dark: '#FFFFFF' },
+    solidStroke: { light: '#000000', dark: '#000000' },
     /*
-     * ========================= ⚠️ AND THE DARK PIECE'S STROKE IS WHITE =========================
-     * The Dev, 2026-10-04, on the black filling the paragraph above argues for: "nem as peças nem
-     * o tabuleiro podem ser preto propriamente dito, pois preto já é o contorno e é preciso haver
-     * contraste com o contorno."
+     * ========================= ⚠️ BOTH OF TODAY'S EXPERIMENTS ARE UNDONE =========================
+     * The Dev, 2026-10-04, in two messages an hour apart: "nem as peças nem o tabuleiro podem ser
+     * preto propriamente dito, pois preto já é o contorno e é preciso haver contraste com o
+     * contorno", and then "a ideia de usar contorno branco nas peças pretas em alto contraste
+     * também foi ruim, pode desfazer. Mude as cores de preto para cinza escuro nos tabuleiros
+     * Preto & Branco, como era antes."
      *
-     * He is right, and the sentence just above — "a piece does not need an edge when it is already
-     * 3:1 from everything it stands on" — is what he is answering. What it threw away is that the
-     * edge is not only a boundary against the square: it is the piece's own drawing, the line that
-     * says crown and collar. A black shape with a black outline is a silhouette, and a child
-     * learning the pieces reads shapes.
+     * So the projected dark piece is `#5A5A5A` inside a black stroke again — the darkest grey that
+     * keeps 3:1 from that stroke — and the two things I tried today are both gone:
      *
-     * ⚠️ AND THE FLAT BOARD HAD ALREADY SOLVED IT. There the dark piece is a black fill with a
-     * WHITE line inside it — `blackRim` — and a black silhouette behind. The projected board has
-     * one stroke per shape, so the white becomes that stroke and the black fill does the work the
-     * silhouette did. The two views finally draw the same piece.
+     *   · a BLACK filling, which made the piece 3.04 from the dark square by giving up its edge:
+     *     a black shape inside a black outline has no crown and no collar, and a child learning
+     *     the pieces reads shapes. He is right and the commit that did it argued the opposite.
+     *   · a WHITE stroke to give that black shape its edge back, which made the piece's outermost
+     *     ink 2.30 against the light square and, as he put it, was also a bad idea.
      *
-     *                         fill/stroke  fill on light  fill on dark  stroke on light  on dark
-     *   dark piece  ■ + white       21.00           9.14          3.04             2.30     6.90
-     *   light piece □ + black       21.00           2.30          6.90             9.14     3.04
-     *
-     * Read the two rows together: the same four numbers, mirrored. Each piece has ONE ink that
-     * clears both squares and ONE that draws its edge, and which is which simply swaps. The old
-     * rule — "the stroke owes 3:1 to both squares" — was the special case where the fill could not
-     * carry it. (The numbers above are «Preto & Branco»'s; the other two are within 0.1 of them.)
+     * ⚠️ AND THE DEFECT THEY WERE FIXING IS REAL AND STILL HERE: `#5A5A5A` against this board's
+     * dark square. His instruction is to answer it from the OTHER side — "vamos tentar outra
+     * solução: mudar a cor das casas do tabuleiro para conseguir um contraste melhor ao invés das
+     * peças" — which is what the squares above now do. See the note on them.
      */
-    solid: { dark: ['#000000', '#000000', '#000000'] },
+    solid: { dark: ['#5A5A5A', '#5A5A5A', '#5A5A5A'] },
     name: 'theme.contrast1',
     short: 'theme.short.contrast1',
     flatSolid: true,
@@ -559,8 +580,15 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
     // a light blue inner stroke so the dark piece has detail as well as an edge. The squares are
     // shared, because what constrains them — the silhouette, which is black in both — is shared.
     key: 'contrast-solid',
-    light: '#ABABAB',
-    dark: '#5A5A5A',
+    /*
+     * ⚠️ THE SAME TWO SQUARES, AND THE SHARING IS STILL RIGHT. They moved with «Preto & Branco» on
+     * 2026-10-04 — see the long note there — and this board gains from it too, by the same
+     * argument and with its own numbers: its blue piece against the dark square goes 1.01 -> 1.50,
+     * and its yellow against the light square 2.14 -> 1.41. The worst pair on the board improves,
+     * which is the whole objective, and the two palettes keep answering to one constraint.
+     */
+    light: '#D2D2D2',
+    dark: '#767676',
     white: '#FFFF00',
     /*
      * ⚠️ BLUE, not black, and this was an outright fault. The flat board drew a BLACK piece with

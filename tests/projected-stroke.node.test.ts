@@ -115,8 +115,10 @@ describe('[Projected] the stroke is what touches the square', () => {
     // The Dev's report of 2026-10-04, as the one line that would have caught it. 1.5 rather than
     // 3: a filling below the floor may be carried by a stroke, but a filling at the SAME ink as
     // the square is not carried by anything — there is no shape left, only an outline.
-    for (const key of ['brown', 'wikipedia', 'xboard', 'jose', 'cb-safe', 'cb-warm',
-                       'contrast-flat']) {
+    // ⚠️ `cb-safe` AND `cb-warm` ARE NOT IN THIS LIST and the test below says why: on those two
+    // the Dev asked for the opposite thing first, and the two requests point in opposite
+    // directions along one curve.
+    for (const key of ['brown', 'wikipedia', 'xboard', 'jose', 'contrast-flat', 'contrast-solid']) {
       const p = projectedPalette(boardTheme(key));
       for (const [side, square] of [
         [p.lightPieces, p.squareLight], [p.darkPieces, p.squareDark],
@@ -143,51 +145,83 @@ describe('[Projected] the stroke is what touches the square', () => {
     expect(contrast('#595959', '#000000')).toBeLessThan(3);
   });
 
-  it('⚠️ except on «Preto & Branco», where that grey WAS the dark square', () => {
+  it('⚠️ on «Preto & Branco» the SQUARES moved instead, to the point where the curve crosses', () => {
+    /*
+     * That grey used to BE this board's dark square — #5A5A5A on #5A5A5A, 1.00, the Dev's report.
+     * Two answers were tried on the piece and both were sent back: a black filling (no edge left
+     * inside the shape) and then a white stroke on it (2.30 against the light square). His third
+     * instruction was to leave the pieces alone and move the board: "mudar a cor das casas do
+     * tabuleiro para conseguir um contraste melhor ao invés das peças."
+     *
+     * Both pieces are fixed — white, and the darkest grey that clears its black stroke — so the
+     * squares trade one weak pair against the other along a single curve. #767676/#D2D2D2 is
+     * where it crosses itself: the two weak pairs are equal, which is the one place the WORST of
+     * them is as good as a square pair can make it.
+     */
     const theme = boardTheme('contrast-flat');
     const p = projectedPalette(theme);
-    // The defect, kept as a number so nobody restores it: the grey the rule above produces is
-    // this board's dark square, exactly.
-    expect(theme.dark).toBe('#5A5A5A');
-    expect(p.darkPieces.top).toBe('#000000');
-    expect(contrast('#000000', theme.dark)).toBeGreaterThanOrEqual(3);
-    expect(contrast('#000000', theme.light)).toBeGreaterThanOrEqual(3);
+    expect(p.darkPieces.top).toBe('#5A5A5A');
+    const weakDark = contrast(p.darkPieces.top, theme.dark);
+    const weakLight = contrast(p.lightPieces.top, theme.light);
+    expect(weakDark).toBeGreaterThan(1.4);
+    expect(weakLight).toBeGreaterThan(1.4);
+    // Balanced to within a rounding step of each other: that is the maximin, not a coincidence.
+    expect(Math.abs(weakDark - weakLight)).toBeLessThan(0.05);
+    // ⚠️ AND BOTH CROSS PAIRS CLEAR THE FLOOR, which is what the board buys with it: each piece is
+    // unmistakable on half the squares and carried by its stroke on the other half.
+    expect(contrast(p.darkPieces.top, theme.light)).toBeGreaterThanOrEqual(3);
+    expect(contrast(p.lightPieces.top, theme.dark)).toBeGreaterThanOrEqual(3);
   });
 
-  it('⚠️ «Azul & Amarelo» is the one exemption, and it is PROVED rather than granted', () => {
+  it('⚠️ and 3:1 on BOTH is impossible on any board here — the proof, not an apology', () => {
     /*
-     * Its projected dark piece measures 1.01 against its dark square — the same defect the Dev
-     * reported on «Preto & Branco», on the board next to it. It is not fixed, because on this
-     * board it cannot be, and the three lines below are the proof rather than an apology.
+     * The stroke must escape both squares, so it is black (nothing above luminance 1 exists), so
+     * the dark square is at least 0.10 or the stroke has no edge against it. The dark piece must
+     * escape that same black stroke, so it is at least 0.10 too. For it to ALSO clear the dark
+     * square by 3:1 the square would need 0.405 or more — and the squares' own 3:1 would then put
+     * the light square past 1.3, where 1 is the maximum a screen has.
      *
-     * The blue filling is squeezed from both sides. It owes 3:1 to the black stroke around it, so
-     * its luminance is at least 0.10. It owes 6:1 to the yellow piece — that is what tells the two
-     * SIDES apart, and a chess player cannot lose it — so its luminance is at most 0.113. The dark
-     * square sits at 0.1016, inside that window: any blue this board can use is the same lightness
-     * as the square it stands on.
-     *
-     * Giving the board its own squares does not help either. For the blue to clear the dark
-     * square, the dark square needs luminance 0.40; for the squares to clear each other, the light
-     * one then needs 1.30, and the maximum is 1.
-     *
-     * So this piece is carried by its stroke — black, 3.04 against the dark square — which is how
-     * the printed convention has always worked and what 1.4.11 actually asks. It is the weakest
-     * board here on the pair, and it is the board for someone who reads HUE faster than lightness,
-     * where a bright blue beside a bright yellow is the thing doing the work.
+     * Every palette in this file therefore has two pairs its silhouette carries. What a board can
+     * choose is WHERE on the curve to sit, not whether to be on it.
      */
-    const theme = boardTheme('contrast-solid');
-    const p = projectedPalette(theme);
-    const lum = luminance;
-    expect(contrast(p.darkPieces.top, p.darkPieces.stroke)).toBeGreaterThanOrEqual(3);
-    expect(contrast(p.lightPieces.top, p.darkPieces.top)).toBeGreaterThan(6);
-    // The window, computed from those two rules, and the dark square inside it.
-    const floor = 3 * 0.05 - 0.05;
-    const ceiling = (lum(p.lightPieces.top) + 0.05) / 6 - 0.05;
-    expect(floor).toBeLessThan(ceiling);
-    expect(lum(theme.dark)).toBeGreaterThan(floor);
-    expect(lum(theme.dark)).toBeLessThan(ceiling);
-    // And the stroke does the delimiting instead.
-    expect(contrast(p.darkPieces.stroke, theme.dark)).toBeGreaterThanOrEqual(3);
+    const floorForStroke = 3 * 0.05 - 0.05;            // 0.10: what black needs from a square
+    const neededBySquare = 3 * (floorForStroke + 0.05) - 0.05;   // 0.40: what the fill would need
+    const thenTheLightSquare = 3 * (neededBySquare + 0.05) - 0.05;
+    expect(thenTheLightSquare).toBeGreaterThan(1);
+    for (const key of ['brown', 'wikipedia', 'xboard', 'jose', 'cb-safe', 'cb-warm',
+                       'contrast-flat', 'contrast-solid']) {
+      const theme = boardTheme(key);
+      const p = projectedPalette(theme);
+      expect(`${key} ${contrast(p.darkPieces.top, theme.dark) < 3}`).toBe(`${key} true`);
+    }
+  });
+
+  it('⚠️ the two «Seguro para daltonismo» boards sit at the OTHER end of that curve, by request', () => {
+    /*
+     * Their dark piece measures 1.01 against their dark square — the number the Dev reported on
+     * «Preto & Branco». It is a decision, not an oversight, and the decision is also his: earlier
+     * the same day he reported the opposite end of the same curve on these two boards — "o
+     * tabuleiro seguro para daltonismo tem um contraste ruim entre as peças brancas e as cores
+     * claras do tabuleiro" — and the light square came DOWN to 2.26 to answer it.
+     *
+     * The curve has one lever. Moving the dark square up far enough to show a grey piece forces
+     * the light square up with it, and the white piece loses exactly what it just gained. These
+     * two boards are at the end he asked for, by name, first.
+     *
+     * ⚠️ AND IT IS TIGHTER HERE THAN ON «Preto & Branco», because their dark square sits at the
+     * black stroke's own floor: there is no room at all, not a worse trade.
+     */
+    for (const key of ['cb-safe', 'cb-warm']) {
+      const theme = boardTheme(key);
+      const p = projectedPalette(theme);
+      // The end that was asked for, and is held.
+      expect(`${key} ${contrast(p.lightPieces.top, theme.light) > 2.1}`).toBe(`${key} true`);
+      // The dark square is at the floor the black stroke puts under it: 0.10, give or take a byte.
+      expect(`${key} ${luminance(theme.dark) < 0.12}`).toBe(`${key} true`);
+      // So the stroke does the delimiting for the dark piece, as on every board in this file.
+      expect(contrast(p.darkPieces.stroke, theme.dark)).toBeGreaterThanOrEqual(3);
+      expect(contrast(p.darkPieces.top, p.darkPieces.stroke)).toBeGreaterThanOrEqual(3);
+    }
   });
 
   it('shows why white was impossible, so nobody puts it back', () => {

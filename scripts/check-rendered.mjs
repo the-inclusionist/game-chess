@@ -368,14 +368,16 @@ async function check3dInk(page) {
 
   const has = (r, g, bl) => tones.some((t) => t.rgb[0] === r && t.rgb[1] === g && t.rgb[2] === bl);
   /*
-   * ⚠️ THE SQUARES MUST RENDER AS THEIR INKS, to the byte. #ABABAB is 171 and #5A5A5A is 90, and
+   * ⚠️ THE SQUARES MUST RENDER AS THEIR INKS, to the byte. #D2D2D2 is 210 and #767676 is 118, and
    * anything else means a light got at the board — which is what cost them the floor once already.
+   * (They were #ABABAB and #5A5A5A until 2026-10-04, when the squares moved to show a dark-grey
+   * piece on the dark square; `board-themes.ts` carries the curve they moved along.)
    */
-  if (!has(171, 171, 171) || !has(90, 90, 90)) {
+  if (!has(210, 210, 210) || !has(118, 118, 118)) {
     const greys = tones.filter((t) => t.rgb[0] === t.rgb[1] && t.rgb[1] === t.rgb[2] && t.n > 5000);
-    fail(`[3D ink] the high-contrast squares do not render as #ABABAB and #5A5A5A — the large flat `
+    fail(`[3D ink] the high-contrast squares do not render as #D2D2D2 and #767676 — the large flat `
       + `greys on the canvas are ${greys.map((t) => t.rgb[0]).join(', ')}, so something is lighting `
-      + `the board; measured ratio ${RATIO([171, 171, 171], [90, 90, 90]).toFixed(2)} is only right `
+      + `the board; measured ratio ${RATIO([210, 210, 210], [118, 118, 118]).toFixed(2)} is only right `
       + `while those two bytes are what the canvas shows`);
   }
   /*
@@ -390,7 +392,7 @@ async function check3dInk(page) {
    * else. Two tones over 1500 px is the line between those two pictures.
    */
   const pieceTones = tones.filter((t) => t.rgb[0] === t.rgb[1] && t.rgb[1] === t.rgb[2]
-    && t.rgb[0] > 100 && t.rgb[0] !== 171 && t.rgb[0] !== 90 && t.n > 1500);
+    && t.rgb[0] > 100 && t.rgb[0] !== 210 && t.rgb[0] !== 118 && t.n > 1500);
   if (pieceTones.length < 2) {
     fail(`[3D ink] the light pieces render as ${pieceTones.length} large tone(s) `
       + `(${pieceTones.map((t) => `${t.rgb[0]}×${t.n}`).join(', ')}): a lit solid is split across `
