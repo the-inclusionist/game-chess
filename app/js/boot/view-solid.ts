@@ -90,14 +90,18 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
    * makes it visible, and the trade is stated rather than hidden.
    */
   const unlit = (): boolean => themeKey.startsWith('contrast-');
-  /**
-   * The black edge, as an inverted hull. `null` means "whatever this board wants", which is ON for
-   * the high-contrast palettes and off for the rest — the wooden boards have three lights and real
-   * perspective doing that job, and a hull on top of them reads as a drawing convention carried
-   * over from a renderer that needed it. A child who flips the switch owns it from then on.
+  /*
+   * ⚠️ NO OUTLINE IN 3D, AND IT WAS TRIED. The Dev asked for black edges here this morning and,
+   * having seen them, asked for them back out: "usar contorno nas peças 3D não foi uma boa ideia,
+   * pode retirar. Mas mantenha em 2,5D."
+   *
+   * The reason the two views differ is that this one has three lights and real perspective, which
+   * separate a solid from its background by themselves; an inverted hull on top of that reads as a
+   * drawing convention carried over from a renderer that needs it, because Zdog genuinely does.
+   * The switch that briefly appeared in this view's panel goes with it — a control that only ever
+   * answers "no" is a control a child reads and learns nothing from.
    */
-  let outlineChoice: boolean | null = null;
-  const outlined = (): boolean => outlineChoice ?? themeKey.startsWith('contrast-');
+  const outlined = (): boolean => false;
 
   const canvas = doc.createElement('canvas');
   canvas.className = 'stage-3d';
@@ -364,11 +368,6 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
        * re-projected every frame from a live perspective matrix. That is real work and it has not
        * been done — see `docs/` and the debts in the plan.
        */
-      outline: () => outlined(),
-      onOutline: (on: boolean) => {
-        outlineChoice = on;
-        drawPieces(shellHidden);
-      },
       coordinates: () => coordinates.visible(),
       onCoordinates: (on: boolean) => {
         coordinates.setVisible(on);
