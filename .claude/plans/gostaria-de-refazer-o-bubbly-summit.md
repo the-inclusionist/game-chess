@@ -2605,7 +2605,7 @@ exactamente os testes que o defeito quebra, e deixa verdes os outros — que é 
 assinatura descrita acima e a prova de que olhar para as letras nunca apanharia o
 problema dos números.
 
-### ⏸️ ABERTO — a altura dos botões cai no primeiro clique de vista
+### ✅ FECHADO — a altura dos botões caía no primeiro clique de vista
 
 Relatado pelo Dev em 2026-10-04: «ao abrir, os botões estão com uma altura; no primeiro
 clique para alterar entre os três tipos de tabuleiro a altura de TODOS os botões é
@@ -2657,9 +2657,71 @@ defensáveis e incompatíveis:**
   apontar, o que exige uma nota a dizer que é deliberado.
 
 Em qualquer dos casos **o pisca tem de acabar**: a altura não pode depender de quem
-correu por último. Hoje não há teste nenhum que meça a altura RENDERIZADA de um
-controlo — o próprio `layout.ts` já diz isso por escrito — e é essa a lacuna que
-deixou passar tanto os 25 px de antes como os 24 de agora.
+correu por último.
+
+**✅ DECIDIDO POR SI, 2026-10-04: opção (B).** «No xadrez o recuo deve seguir a escada
+24/34/44. Ou seja, deve seguir a engine em tudo que for possível, menos nesse caso.»
+Aterrado em `548e312`:
+
+- `--tap` passa a ser **só da engine**. Nada neste jogo o escreve, e os nós desenhados
+  por ela dentro da região (a barra de a11y, `.pi-btn`) continuam a lê-lo a 44.
+- `--chess-tap` é **deste jogo** e carrega a escada 24/34/44. As catorze leituras em
+  `app/css/board.css` passaram para ele.
+- O custo fica **nomeado e não escondido**: o piso dos controlos do xadrez é agora WCAG
+  2.5.8 (AA, 24 px) em vez de 2.5.5 (AAA, 44 px) no palco mínimo, deliberadamente, pela
+  razão já medida em `ui/layout.ts`. A escada alcança AAA a partir de um tabuleiro de
+  720.
+- O `problems` da engine continuará a apontar «targets under 44 px». **É esperado.** Não
+  é ruído nem regressão: é a engine a declarar a ADR-0163, e a decisão de 04/10 é
+  divergir dela neste ponto.
+
+Portões em `tests/layout.browser.test.ts`: que o `applyLayout` **não** escreve `--tap`
+(asserido na propriedade EM LINHA, porque a computada responde 44 px vinda do `:root`
+tenha a função escrito o que for — leitura que não pode falhar é portão nenhum), e que a
+escada é mesmo uma escada (três janelas, monótona, nunca abaixo de 24, chegando a 44, e
+com mais de um degrau distinto — escada com um degrau medido é uma constante).
+
+⚠️ **A lacuna de fundo FICA ABERTA e é a mesma do tabuleiro espelhado:** continua a não
+haver teste que meça a altura RENDERIZADA de um controlo na página real. O `layout.ts`
+já diz isto por escrito a propósito de um defeito de 25 px anterior. Os portões acima
+medem a VARIÁVEL e a verificação da altura foi feita à mão no build a correr.
+
+### ✅ A porta do ecrã de título voltou a significar alguma coisa
+
+Relatado em 2026-10-04: «Na primeira tela eu escolho entre jogar ou aulas. Se eu escolho
+jogar, não deveria aparecer Aulas, dropdown de seleção de aula, botão Começar.» Aterrado
+em `5f30260`.
+
+JOGAR e APRENDER divergiam por exactamente um clique e voltavam a encontrar-se no mesmo
+painel, onde a criança que tinha acabado de escolher jogar era convidada a estudar. A
+escolha de aulas passa a aparecer só depois de o caminho de ensino abrir de facto
+(`lessonsOffered`, levantado dentro de `teach()`).
+
+Duas armadilhas que valem a leitura:
+
+1. **Predicado, não bandeira.** O HUD é construído ANTES de a porta ser escolhida —
+   `splash.done` resolve num clique, que é sempre mais tarde do que o painel que faz a
+   pergunta.
+2. **`lessonsOffered`, NÃO `teaching`.** O nome `teaching` já existia na casca com outro
+   sentido — «uma aula ocupa o tabuleiro AGORA», que trava o `saveGame` — e cai para
+   falso quando a aula acaba. Pendurar a escolha nele fá-la-ia desaparecer no intervalo
+   entre terminar uma aula e escolher a seguinte, que é o único momento para que existe.
+
+⚠️ **E isto expôs um defeito a sério no teclado.** O passeio pelo painel com as setas
+contava controlos onde não conseguia pousar: `walkPanel` e a entrada por `action4`
+repetiam o mesmo seletor sem filtrar o que não está DESENHADO, e `.focus()` num elemento
+oculto é um não-evento silencioso. É **o mesmo buraco cavado uma segunda vez** — a
+primeira ronda acrescentou `:not([disabled])` porque o menu de aula abre em «anterior»,
+desactivado no primeiro passo. Desactivado não é a única forma de um controlo ser
+inalcançável. Agora há um `panelStops()` único, e o literal duplicado — que foi como o
+buraco se cavou duas vezes — desapareceu.
+
+### 📌 Achado por reportar, não consertado
+
+As três teclas de vista (2D / 2,5D / 3D) vivem em `#side-column` mas **fora** de
+`hud.root`, e o `walkPanel` passeia só o `hud.root`. Quem joga por teclado alcança-as por
+Tab, nunca pelas setas do painel. Não foi mexido: é anterior a este trabalho e não foi
+pedido. Fica aqui para decisão.
 
 ### 📌 Correcções a marcadores desactualizados desta página
 
