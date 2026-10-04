@@ -262,11 +262,30 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
    * square-against-square ratio recomputed in each:
    *
    *                     normal   protan  deutan  tritan
-   *   this board         4.25     4.17    4.40    4.25
+   *   this board         3.03     3.01    3.04    3.01
    *
    * It barely moves, which is the point: nothing here is carried by hue, so nothing here is lost
-   * when a hue is. The blue-grey is chosen over a plain grey because a board still has to look like
-   * a board — and blue is the hue that survives red-green deficiency, which is by far the commonest.
+   * when a hue is. Both squares are ONE hue at two lightnesses, so there is no hue pair left to
+   * lose — and the hue is blue, which survives red-green deficiency, by far the commonest.
+   *
+   * ========================= ⚠️ AND THE HUES ARE OKABE-ITO NOW, BY NAME =========================
+   * The Dev asked on 2026-10-04 whether this board should use the Okabe-Ito palette. It should
+   * take its HUES from there, and it now does — but not its colours, and the difference is the
+   * whole answer.
+   *
+   * Okabe-Ito is a QUALITATIVE palette: eight hues chosen so that eight CATEGORIES stay apart
+   * under any dichromacy. It says nothing about luminance, because telling categories apart is not
+   * what it is for. A board asks a different question — two surfaces sharing an edge, each owing
+   * the other 3:1, with pieces standing on both — and measured, the palette cannot answer it:
+   *
+   *   ⚠️ OF THE 72 ORDERED PAIRS of its nine colours (the eight plus the grey published with
+   *   them), NOT ONE clears squares 3:1, outline-against-dark 3:1 and the squares' own floor at
+   *   the same time. The best square pair in the whole palette is sky-blue over blue at 2.25.
+   *
+   * So the same treatment the three named boards already got: keep the hue, move the lightness.
+   *   light  #56B4E9 Okabe-Ito sky blue, lifted 2% to buy the margin -> #57B6EB
+   *   dark   #0072B2 Okabe-Ito blue, deepened                        -> #005F94
+   * What that buys is credit and recognition, which is why the other three are named here too.
    *
    * ⚠️ AND THE MARKERS ARE NOT THIS THEME'S TO FIX. Move-green and capture-red would be one colour
    * to a deuteranope; they are told apart by FORM — a dot against a ring — and `board-geometry.ts`
@@ -274,16 +293,44 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
    * already solved properly.
    */
   {
-    // Measured: squares 4.25 (4.17/4.40/4.25 simulated), silhouette 16.75 and 3.94, pieces 21.
+    // Measured: squares 3.03 (3.01/3.04/3.01 simulated), silhouette 9.30 and 3.06, pieces 21.
+    /*
+     * ========================= ⚠️ THE LIGHT SQUARE WAS #E3E6E8 UNTIL 2026-10-04 =========================
+     * The Dev: "o tabuleiro seguro para daltonismo tem um contraste ruim entre as peças brancas e
+     * as cores claras do tabuleiro." He is right, and this board was the SECOND WORST of the seven
+     * on exactly that pair: 1.25, against 2.30 on «Preto & Branco».
+     *
+     * ⚠️ AND THE ARGUMENT THAT MADE IT SO IS WRITTEN A FEW LINES ABOVE THIS FILE. It says
+     * lightening the light square "costs only the light piece's fill against it, which is a pair
+     * that never meets". That is true of a BOUNDARY — the silhouette is always drawn between them,
+     * and WCAG 1.4.11 asks for the boundary. It is not true of what a person sees. At #E3E6E8 the
+     * white piece's whole body was the colour of the square under it, and the only thing saying
+     * "piece" was a line around it. The outline is a line; the body is the shape.
+     *
+     * So the light square came down to meet the piece, and the dark square followed to keep the
+     * squares' own 3:1.
+     *
+     *                      squares  outline/dark  white piece on light square
+     *   #E3E6E8 / #4F6E8C     4.25          3.94          1.25
+     *   #57B6EB / #005F94     3.03          3.06          2.26   <- this
+     *
+     * ⚠️ 2.26 IS NOT 3, AND IT CANNOT BE. With a single black outline the ceiling is 2.33, and the
+     * proof is three lines: the outline owes the dark square 3:1, so the dark square's luminance is
+     * at least 0.10; the squares owe each other 3:1, so the light square's is at least 0.40; a
+     * white piece on that is at most 1.05/0.45. Every board in this file is under 3 on this pair
+     * for that reason, and the best of them is 2.30. This board is now level with it instead of
+     * half of it, and the cost is paid in margin — 4.25 squares down to 3.03 — rather than in
+     * anything going under the floor.
+     */
     key: 'cb-safe',
-    light: '#E3E6E8',
-    dark: '#4F6E8C',
+    light: '#57B6EB',
+    dark: '#005F94',
     ...INK,
     rim: '#000000',
     /*
      * The projected board's constraint is the one `brown` states at length: Zdog draws no
      * silhouette, so the STROKE is the outermost ink and it owes 3:1 to both squares. Black clears
-     * them at 16.75 and 3.94. The dark filling then moved to `#5A5A5A`, the darkest grey still
+     * them at 9.30 and 3.06. The dark filling then moved to `#5A5A5A`, the darkest grey still
      * keeping 3:1 from that black stroke (3.04) — and it holds 6.90 from the white piece, which is
      * the distinction a chess player cannot afford to lose.
      */

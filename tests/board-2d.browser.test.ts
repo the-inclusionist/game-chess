@@ -368,3 +368,56 @@ describe('[Themes] six named palettes, measured', () => {
   });
 });
 
+/*
+ * ========================= THE BOARD THAT IS NAMED FOR BEING SAFE =========================
+ * The Dev, 2026-10-04: "o tabuleiro seguro para daltonismo tem um contraste ruim entre as peças
+ * brancas e as cores claras do tabuleiro." He was right, and it was the SECOND WORST of the seven
+ * on that pair — 1.25, on the board whose name promises otherwise.
+ */
+describe('[cb-safe] a white piece has to read on the light square, not only have an edge', () => {
+  const rows = () => contrastRows(boardTheme('cb-safe'));
+  const row = (label: string) => {
+    const found = rows().find((r) => r.label === label);
+    if (!found) throw new Error(`${label} is not measured any more`);
+    return found;
+  };
+
+  it('clears 3:1 on every pair that TOUCHES, like the two high-contrast boards', () => {
+    for (const r of rows()) {
+      if (r.optional) continue;
+      expect(`${r.label} ${r.ratio.toFixed(2)}`).toBe(`${r.label} ${Math.max(3, r.ratio).toFixed(2)}`);
+    }
+  });
+
+  it('⚠️ and comes within a tenth of the proven ceiling on the pair the Dev reported', () => {
+    /*
+     * THE CEILING IS 2.33 AND THE PROOF IS THREE LINES. The outline is black and owes the dark
+     * square 3:1, so the dark square's luminance is at least 0.10. The squares owe each other 3:1,
+     * so the light square's is at least 3×0.10 + 0.10 = 0.40. A white piece on that light square
+     * is therefore at most 1.05 / 0.45 = 2.33 — for EVERY board in this file, not just this one.
+     *
+     * So 3:1 is not the bar here and asserting it would be asserting something impossible. The bar
+     * is the ceiling, and the number to keep this test honest is how far under it we are.
+     */
+    const mine = row('contrast.whiteLight').ratio;
+    expect(mine).toBeGreaterThan(2.2);
+    // And no ordinary board may be meaningfully kinder than the one named for being safe. The
+    // best of the other six is «Preto & Branco» at 2.30, which is the ceiling too; a tenth is the
+    // rounding this is allowed, not a budget to spend.
+    const others = BOARD_THEMES.filter((t) => t.key !== 'cb-safe').map((t) =>
+      contrastRows(t).find((r) => r.label === 'contrast.whiteLight')!.ratio);
+    expect(mine).toBeGreaterThan(Math.max(...others) - 0.1);
+  });
+
+  it('is still read by lightness alone, so a dichromat loses nothing', () => {
+    const theme = boardTheme('cb-safe');
+    // Both squares are ONE hue at two lightnesses — there is no hue pair left to lose. Stated as
+    // a property of the palette rather than re-running the simulation matrices here: the three
+    // simulated ratios are in the file's own comment, 3.01 / 3.04 / 3.01 against 3.03 normal.
+    const hue = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      return Math.atan2(Math.sqrt(3) * (g - b), 2 * r - g - b);
+    };
+    expect(Math.abs(hue(theme.light) - hue(theme.dark))).toBeLessThan(0.25);
+  });
+});
