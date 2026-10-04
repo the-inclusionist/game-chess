@@ -180,24 +180,15 @@
     integer multiple of the raster, which is what keeps the pixel art whole — and seven of panel.
   -->
   <!--
-    ⚠️ `#title-icons` IS THE A11Y BAR, PLACED THE WAY THE ENGINE EXPECTS IT (ADR-0106 §4). Chess used
-    to create a `.a11y-bar` div inside `#side-column`, which missed the engine's own CSS that
-    scopes two important rules to this id:
-      · `#title-icons { position:absolute; top:0; left:50%; transform:translateX(-50%) }` — the
-        bar sits at the top edge of the stage, centred, giving the game its screen back.
-      · `#title-icons .pause-icons-cap { position:absolute; top:100% }` — the caption lives
-        BELOW the row as an overlay, not as a flex child. The user's report of 2026-10-03 is
-        that chess's own placement pushed the panel's items down when the caption changed, which
-        reads as a screen tremor to a sensitive child. The engine's own convention keeps the
-        caption out of the layout.
-    `#stage-wrap` is `position:static` by default and so was unable to anchor the absolute child.
-    The `.chess-stage-wrap` rule in `board.css` adds `position:relative`.
+    ⚠️ `#title-icons` WAS THE ENGINE'S QUICK ACCESSIBILITY BAR AND IT IS GONE (2026-10-04).
+    The Dev asked for it out; `game-shell.ts` carries the tombstone with the twelve buttons it
+    held and what each of them now owes a new door. The element is removed rather than left empty
+    because the engine looks for this id by name and would mount the bar into it again.
   -->
   <div id="game-region">
     <div id="chess-board" tabindex="0"></div>
     <div id="side-column"></div>
   </div>
-  <div class="pause-icons" id="title-icons" role="group" aria-label="Atalhos de acessibilidade" data-i18n-aria="a11y.shortcuts"></div>
 </div>
 
 <!-- The keyboard hint strip was adopted into `.chess-pause` and died with it in Wave 2b.

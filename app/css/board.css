@@ -375,43 +375,16 @@ html { background: var(--page); }
    * screen is unreadable to them; it is the one row in this game that may not need discovering.
    */
   /*
-   * ⚠️ `.a11y-bar` SELECTOR DELETED on 2026-10-03: the a11y bar lives at `#title-icons` now.
-   * The engine's own `#title-icons { position:absolute; top:0; left:50% }` places and styles the
-   * row; chess no longer carries any CSS for the bar's layout.
+   * ⚠️ EVERY `#title-icons` RULE WENT ON 2026-10-04, WITH THE BAR ITSELF. What stood here was the
+   * auto-collapse the Dev asked for a day earlier — a 44-pixel row that retracted after five
+   * seconds and left a six-pixel peek, animating `top` rather than `transform` because the
+   * engine's own rule already owns the transform and a browser cannot interpolate between two
+   * different function lists. The measurement that produced that line is worth keeping even
+   * though the rule is gone: with GPU compositing, a collapsed `translate(-50%, -38px)` against
+   * the engine's `translateX(-50%)` pinned Y at 0 and animated nothing.
    *
-   * ⚠️ AUTO-COLLAPSE BEHAVIOUR (asked for by the Dev on 2026-10-03): after five seconds of
-   * inactivity, the bar retracts upward to give the game its screen back. A thin peek at the
-   * bottom stays reachable; hover or focus brings it back. The timer is managed in `game-shell`
-   * and PAUSED while the engine's pause card is open (a child looking for the icons there needs
-   * them stable). The chess-side JS sets `data-collapsed="true"` on the host; the CSS below
-   * defines what collapsed means visually.
+   * `game-shell.ts` carries the tombstone for the bar and for the twelve buttons it held.
    */
-  /*
-   * ⚠️ ANIMATE `top`, NOT `transform`. The engine's `#title-icons` rule declares
-   * `transform: translateX(-50%)`; chess's collapsed state would need `translate(-50%, -38px)`,
-   * which is a DIFFERENT transform function list, so the browser cannot interpolate between them
-   * and falls back to discrete animation. Measured on 2026-10-03: with GPU compositing the Y was
-   * pinned at 0 regardless of what the collapsed rule declared. Animating `top` sidesteps the
-   * function-list mismatch entirely and keeps the engine's transform intact.
-   *
-   * The expand trigger is handled JS-side (`nudgeFromPointer` in `game-shell.ts`): a pointer
-   * within 60 px of the stage's top edge drops the attribute. A CSS `:hover` here would thrash
-   * — expanding on hover of a 6-px peek lifts the peek out from under the pointer and collapses
-   * again — so it is deliberately absent.
-   */
-  #title-icons {
-    transition: top 0.25s ease-out;
-  }
-  /* Bar is 44 px tall; six pixels of it stay visible as a hover-reactive peek. */
-  #title-icons[data-collapsed="true"] {
-    top: calc(6px - 44px);
-  }
-  /* Keyboard focus wakes the bar: Tab reaching an icon that is retracted would focus a control
-     the child cannot see. */
-  #title-icons[data-collapsed="true"]:focus-within {
-    top: 0;
-  }
-
   .chess-hud {
     width: 100%;
     /* ⚠️ `flex: 1 1 auto; min-height: 0` REPLACED `height: 100%`, and the pair is what lets the

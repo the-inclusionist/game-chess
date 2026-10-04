@@ -472,104 +472,33 @@ const engineRef: { current: Engine | null } = { current: null };
   region.appendChild(enginePause);
 
   /*
-   * ========================= THE ACCESSIBILITY BAR, AND THE HOLE IT FILLS =========================
-   * ⚠️ THE ENGINE'S MEASUREMENT NAMES THIS GAME, and it is right: of six games in the local
-   * catalogue, five mount no accessibility bar at all, and `game-chess` is one of the five. Its
-   * `problems` list has been saying so since 8.0.0 — *"sem barra de acessibilidade na primeira
-   * tela… sem ela a criança não alcança modo cego, TTS, alto contraste nem Libras antes de começar"*.
+   * ========================= ⚠️ THE QUICK ACCESSIBILITY BAR IS GONE =========================
+   * The Dev, 2026-10-04: "remova o menu de acessibilidade rápida", and asked what to do with what
+   * only it reached: "remover a interface, vamos reimplementar por outro caminho tanto via painel
+   * como por outras formas."
    *
-   * ⚠️ AND THE HOLE IS REAL RATHER THAN FORMAL. Searched before building: this game exposes NO
-   * control for blind mode, none for TTS, and the word Libras does not appear once in `app/`. The
-   * sonar is reachable only by knowing the `L` key. Every display setting it does offer — palette,
-   * colour-vision correction, reduced motion, piece design — lives behind the pause menu, which is
-   * behind knowing that START opens one. A child who needs the screen reader to begin with cannot
-   * get to the thing that would read it.
+   * ⚠️ WHAT WENT WITH IT, MEASURED ON THE RUNNING PAGE BEFORE REMOVING — twelve buttons: ☰ Menu ·
+   * modo cego · narração por voz · modo pessoa surda · modo TEA · jeito de apertar · correção de
+   * daltonismo · webcam · comando de voz · comunicação (Libras) · velocidade do jogo · idioma.
    *
-   * WHERE: at the top of `#stage-wrap`, inside `#title-icons`, which the engine's own CSS places
-   * `position:absolute; top:0; left:50%; transform:translateX(-50%)`. The Dev's correction of
-   * 2026-10-03: a bar in the side panel's top-right is a bar in the way of the game — and worse,
-   * chess's own placement left the caption as a flex child of the panel, so changing the caption
-   * text pushed the panel's rows down and read as a screen tremor to a sensitive child. The
-   * engine's convention is `#title-icons .pause-icons-cap { position:absolute; top:100% }` and
-   * only applies when the element has the id the engine recognises.
+   * ⚠️ THE MACHINERY STAYS AND LOSES ITS SWITCH. `chess-declaration.ts` still answers the seven
+   * questions, so the engine still HAS the sonar, the sweep, the screen reader and Libras for this
+   * board — what is gone is the place a child turned them on. That is the shape of the debt, and
+   * naming it here is the point of this comment: the work is not "put a bar back", it is "give
+   * each of those eleven a door", which the Dev has said he will do by other paths.
    *
-   * ⚠️ ABSENT IS NOT A CRASH. The standalone page carries `#title-icons`; a cartridge mounted in
-   * someone else's page may not — the engine then looks for `#title-icons` itself and, finding
-   * none, adds a line to `problems`. That is the right failure mode: say so, keep playing. Chess
-   * does not fabricate the element here, because a parent that already supplies one would end up
-   * with two bars.
+   * ONE OF THE TWELVE ALREADY HAS ITS NEW DOOR: the language is the «Países» list in the side
+   * panel, added in the same commit — see `COUNTRIES` above and `hud.ts`.
+   *
+   * ⚠️ AND THE ENGINE SAYS SO ON EVERY BOOT. Without `#title-icons` it adds a line to `problems`:
+   * «sem barra de acessibilidade na primeira tela… sem ela a criança não alcança modo cego, TTS,
+   * alto contraste nem Libras antes de começar». That line is CORRECT and is left to be printed.
+   * Silencing it by fabricating an empty host would be hiding the debt from the next reader.
+   *
+   * The retracting-bar machinery went with it: five seconds of idle, the 60-pixel top strip, the
+   * MutationObserver on the pause card. It was ~70 lines and all of it was about a node that no
+   * longer exists.
    */
-  const a11yBar = host.getElementById('title-icons') ?? undefined;
-
-  /*
-   * ========================= THE A11Y BAR RETRACTS WHEN IDLE =========================
-   * The Dev's request of 2026-10-03: after five seconds of inactivity the bar retracts upward to
-   * give the game its screen; it comes back on hover, focus, or a pointer touching the top of the
-   * stage. The timer is PAUSED while the engine's pause card is open — a child who paused the
-   * game to find an icon needs it to stay put.
-   *
-   * ⚠️ WHY `data-collapsed` AND NOT `[hidden]`. `hidden` removes the element from the layout; the
-   * CSS wants the bar to STAY in the layout (as an absolute child of `#stage-wrap`) and only
-   * transform away. A data attribute toggles the collapsed CSS without touching display.
-   *
-   * ⚠️ WHY A `MutationObserver` RATHER THAN A HOOK. The engine's `.screen-pause` card manages its
-   * own `hidden` state, and chess has no hook that fires on open/close. Watching `hidden` on the
-   * engine's card is one line and survives engine-side changes to the open path (ADR-0106 §4
-   * does not promise a stable hook name).
-   */
-  const IDLE_MS = 5_000;
-  let idleTimer: ReturnType<typeof setTimeout> | null = null;
-  let paused = false;
-  // `win` is already in scope from the announcer construction above.
-  const collapseNow = (): void => { a11yBar?.setAttribute('data-collapsed', 'true'); };
-  const expandNow = (): void => { a11yBar?.removeAttribute('data-collapsed'); };
-  const armIdle = (): void => {
-    if (!a11yBar || !win) return;
-    if (idleTimer !== null) clearTimeout(idleTimer);
-    if (paused) return; // paused: keep whatever state the bar is in
-    idleTimer = setTimeout(collapseNow, IDLE_MS);
-  };
-  const nudgeFromPointer = (event: PointerEvent | MouseEvent): void => {
-    if (!a11yBar) return;
-    // The "top strip" reach: a cursor within 60 px of the stage's top edge brings the bar back
-    // and resets the idle clock. More than that and the pointer is already deep in the game, so
-    // a touch inside the board does not keep rearming the timer.
-    const stage = a11yBar.parentElement?.getBoundingClientRect();
-    if (!stage) return;
-    const closeToTop = event.clientY - stage.top <= 60;
-    if (closeToTop) expandNow();
-    armIdle();
-  };
-  const nudgeFromTouch = (event: TouchEvent): void => {
-    const t = event.touches[0] ?? event.changedTouches[0];
-    if (!t || !a11yBar) return;
-    const stage = a11yBar.parentElement?.getBoundingClientRect();
-    if (!stage) return;
-    const closeToTop = t.clientY - stage.top <= 60;
-    if (closeToTop) expandNow();
-    armIdle();
-  };
-  if (a11yBar && win) {
-    win.document.addEventListener('pointermove', nudgeFromPointer, { passive: true });
-    win.document.addEventListener('touchstart', nudgeFromTouch, { passive: true });
-    // Keyboard interaction with any control also counts as activity.
-    win.document.addEventListener('keydown', armIdle, { passive: true });
-    // Watch the engine's pause card — chess has no open/close hook for it.
-    const pauseCard = host.getElementById('vp-pause-0');
-    if (pauseCard) {
-      const mo = new MutationObserver(() => {
-        paused = !pauseCard.hidden;
-        if (paused) {
-          expandNow();
-          if (idleTimer !== null) { clearTimeout(idleTimer); idleTimer = null; }
-        } else {
-          armIdle();
-        }
-      });
-      mo.observe(pauseCard, { attributes: true, attributeFilter: ['hidden'] });
-    }
-    armIdle();
-  }
 
   /*
    * ⚠️ THE REMEMBERED LANGUAGE BEATS THE BROWSER'S, and until now there was no remembered one to
@@ -1236,7 +1165,9 @@ const engineRef: { current: Engine | null } = { current: null };
    * are all called after `create()` has run. Measured: exactly four members are read — `keyboard`,
    * `pausa`, `problems` and `sonar` — so this is a narrow seam rather than a leak.
    */
-  const hosts = { a11yBarHost: a11yBar, pauseHost: enginePause };
+  // ⚠️ `undefined` IS THE DECLINE. See the tombstone above: the bar is gone and the engine's
+  // `problems` line about it is left to print, because the debt is real.
+  const hosts = { a11yBarHost: undefined, pauseHost: enginePause };
 
   /**
    * ⚠️ THE SHELL BUILDS THE MIRROR, not the view, because all three pages have one. On the flat
@@ -1407,8 +1338,8 @@ const engineRef: { current: Engine | null } = { current: null };
      * ========================= THE LANGUAGE, THROUGH THE ENGINE =========================
      * `engine.setLocale` is the only writer: the engine redraws everything that is its own — the
      * caption, the card, the pad, the voice that speaks and the model that listens — and then
-     * calls `onLocaleChange`, which is where chess redraws the activity. Writing `i18n.setLocale`
-     * here instead would translate the panel and leave the rest of the page in the old language.
+     * calls `onLocaleChange`, which is where chess redraws the activity. Writing `locale` here
+     * instead would translate the panel and leave the rest of the page in the old language.
      *
      * ⚠️ READ THROUGH `engineRef`, NOT CAPTURED. The panel is built before `createGame` returns —
      * the engine is handed hosts that live inside it — so a captured `engine` would be the
