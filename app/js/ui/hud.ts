@@ -223,6 +223,18 @@ export interface HudDeps {
    * read at boot. The number of people at the board is a thing that changes mid-game, when a
    * second child pulls up a chair.
    */
+  /**
+   * ========================= THE THIRD TEACHER =========================
+   * The Dev, 2026-10-04: protected mode "vira o novo modo «professor» denominado «Proteção contra
+   * lances ruins» e vai para a linha com os botões «Setas» e «Protetor de Lances» antes das Setas."
+   *
+   * It belongs there. All three are the same kind of thing — somebody standing behind the player —
+   * and they differ only in how far they go: one SHOWS the good moves, one REFUSES the others, and
+   * this one lets every move through and stops the game when one of them throws it away. Reading
+   * them as a row, left to right, is reading them in order of how much they interrupt.
+   */
+  protect?(): boolean;
+  onProtect?(on: boolean): void;
   twoPlayers?(): boolean;
   onTwoPlayers?(on: boolean): void;
   /**
@@ -537,17 +549,25 @@ export function createHud(deps: HudDeps): Hud {
    * the move you walk back to, in a two-player game nobody does — so the switch reads before the
    * buttons it governs. That is the same argument that moved the walk itself above the move list.
    */
+  /*
+   * ⚠️ A BUTTON, NOT A CHECKBOX, SINCE 2026-10-04. The Dev: "troque o rótulo de «2 Jogadores» para
+   * «2P» e transforme-o num botão como «Setas» e «Protetor de Lances», mas na linha abaixo deles."
+   *
+   * It is the same kind of thing as the three above it — a setting that is on or off and says so
+   * with `aria-pressed` — so it is the same control, and the two rows read as one block about who
+   * is helping and who is playing. «CPU joga!» shares the row because it is the other half of the
+   * same question: how many people are at the board, and who takes this move.
+   */
   const seatBox = doc.createElement('p');
   seatBox.className = 'hud-seat';
-  const seatCheck = doc.createElement('input');
-  seatCheck.type = 'checkbox';
+  const seatCheck = doc.createElement('button');
+  seatCheck.type = 'button';
   seatCheck.id = 'hud-two-players';
-  const seatLabel = doc.createElement('label');
-  seatLabel.htmlFor = seatCheck.id;
+  seatCheck.className = 'hud-hint';
   const cpuButton = doc.createElement('button');
   cpuButton.type = 'button';
   cpuButton.className = 'hud-cpu';
-  seatBox.append(seatCheck, seatLabel, cpuButton);
+  seatBox.append(seatCheck, cpuButton);
 
   const navBox = doc.createElement('p');
   navBox.className = 'hud-nav';
@@ -702,6 +722,10 @@ export function createHud(deps: HudDeps): Hud {
   const hintBox = doc.createElement('div');
   hintBox.className = 'hud-teachers';
   hintBox.setAttribute('role', 'group');
+  const protectButton = doc.createElement('button');
+  protectButton.type = 'button';
+  protectButton.id = 'hud-protect';
+  protectButton.className = 'hud-hint';
   const hintButton = doc.createElement('button');
   hintButton.type = 'button';
   hintButton.id = 'hud-hint';
@@ -710,7 +734,34 @@ export function createHud(deps: HudDeps): Hud {
   silentButton.type = 'button';
   silentButton.id = 'hud-hint-silent';
   silentButton.className = 'hud-hint';
-  hintBox.append(hintButton, silentButton);
+  // ⚠️ PROTECTION FIRST, which is the Dev's order and also the gentlest-first reading: it lets
+  // every move through, the arrows show the good ones, the trophy allows only those.
+  hintBox.append(protectButton, hintButton, silentButton);
+
+  /*
+   * ========================= ⚠️ AN ICON IS NOT A LABEL =========================
+   * The Dev, 2026-10-04, asked for these three to become 👨‍🏫, ⬆️ and 🏆 "com a tooltip". A tooltip
+   * is a `title`, which a mouse reveals after a second of hovering and a keyboard never reveals at
+   * all — so the words go in THREE places and the picture in one:
+   *
+   *   · `aria-label` — what a screen reader says, because «man teacher» is what it would say
+   *     otherwise, and that is the emoji's name rather than the button's meaning;
+   *   · `title`      — the tooltip he asked for;
+   *   · the emoji    — `aria-hidden`, so the reader does not say the picture AND the label.
+   *
+   * ⚠️ AND THE ICONS ARE NOT IN THE DICTIONARIES. A picture is the same picture in Portuguese,
+   * English and Spanish; only the words around it are translated. Putting 👨‍🏫 in three catalogues
+   * would be three chances for them to drift apart.
+   */
+  const icon = (button: HTMLButtonElement, glyph: string, key: string): void => {
+    const mark = doc.createElement('span');
+    mark.className = 'hud-icon';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.textContent = glyph;
+    button.replaceChildren(mark);
+    button.title = i18n.t(key);
+    button.setAttribute('aria-label', i18n.t(key));
+  };
 
   /*
    * ========================= ⚠️ THE SETTINGS COME BACK TO THE PANEL =========================
@@ -924,7 +975,8 @@ export function createHud(deps: HudDeps): Hud {
   const onPieceChange = (): void => { deps.onPieceSet?.(pieceField.select.value); };
   const onThemeField = (): void => { deps.onTheme?.(themeField.select.value); };
   const onCountryChange = (): void => { deps.onCountry?.(countryField.select.value); };
-  const onSeatToggle = (): void => { deps.onTwoPlayers?.(seatCheck.checked); };
+  const onProtectClick = (): void => { deps.onProtect?.(!(deps.protect?.() ?? false)); };
+  const onSeatToggle = (): void => { deps.onTwoPlayers?.(!(deps.twoPlayers?.() ?? false)); };
   const onCpuClick = (): void => { deps.onCpuMove?.(); };
   const onOutlineToggle = (): void => { deps.onOutline?.(outlineCheck.input.checked); };
   const onCoordsToggle = (): void => { deps.onCoordinates?.(coordsCheck.input.checked); };
@@ -932,7 +984,8 @@ export function createHud(deps: HudDeps): Hud {
   pieceField.select.addEventListener('change', onPieceChange);
   themeField.select.addEventListener('change', onThemeField);
   countryField.select.addEventListener('change', onCountryChange);
-  seatCheck.addEventListener('change', onSeatToggle);
+  protectButton.addEventListener('click', onProtectClick);
+  seatCheck.addEventListener('click', onSeatToggle);
   cpuButton.addEventListener('click', onCpuClick);
   outlineCheck.input.addEventListener('change', onOutlineToggle);
   coordsCheck.input.addEventListener('change', onCoordsToggle);
@@ -1171,8 +1224,12 @@ export function createHud(deps: HudDeps): Hud {
     refreshControls();
 
     const two = deps.twoPlayers?.() ?? false;
-    seatCheck.checked = two;
-    seatLabel.textContent = i18n.t('hud.twoPlayers');
+    seatCheck.setAttribute('aria-pressed', String(two));
+    // ⚠️ «2P» IS THE PICTURE AND «2 Jogadores» IS THE NAME. Same split as the three icons above:
+    // two characters on screen, the whole phrase to a reader and in the tooltip.
+    seatCheck.textContent = i18n.t('hud.twoPlayersShort');
+    seatCheck.title = i18n.t('hud.twoPlayers');
+    seatCheck.setAttribute('aria-label', i18n.t('hud.twoPlayers'));
     cpuButton.textContent = i18n.t('hud.cpuMove');
     /*
      * ⚠️ HIDDEN RATHER THAN DISABLED WHEN TWO PEOPLE ARE PLAYING. A disabled «CPU joga!» is a
@@ -1215,10 +1272,14 @@ export function createHud(deps: HudDeps): Hud {
     openingBox.textContent = opening === null ? '' : i18n.t('hud.opening', { name: opening });
     if (deps.onHint) {
       hintBox.setAttribute('aria-label', i18n.t('hud.teachers'));
-      hintButton.textContent = i18n.t('hud.hint');
-      silentButton.textContent = i18n.t('hud.hintSilent');
+      icon(protectButton, '\u{1F468}\u{200D}\u{1F3EB}', 'hud.protectTip');
+      icon(hintButton, '\u{2B06}\u{FE0F}', 'hud.hintTip');
+      icon(silentButton, '\u{1F3C6}', 'hud.hintSilentTip');
       hintButton.disabled = false;
       silentButton.disabled = false;
+      const protect = deps.protect?.();
+      protectButton.hidden = protect === undefined || !deps.onProtect;
+      if (protect !== undefined) protectButton.setAttribute('aria-pressed', String(protect));
       const arrows = deps.arrows?.();
       const guard = deps.guard?.();
       if (arrows === undefined) hintButton.removeAttribute('aria-pressed');
@@ -1263,7 +1324,8 @@ export function createHud(deps: HudDeps): Hud {
       pieceField.select.removeEventListener('change', onPieceChange);
       themeField.select.removeEventListener('change', onThemeField);
       countryField.select.removeEventListener('change', onCountryChange);
-      seatCheck.removeEventListener('change', onSeatToggle);
+      protectButton.removeEventListener('click', onProtectClick);
+      seatCheck.removeEventListener('click', onSeatToggle);
       cpuButton.removeEventListener('click', onCpuClick);
       outlineCheck.input.removeEventListener('change', onOutlineToggle);
       coordsCheck.input.removeEventListener('change', onCoordsToggle);

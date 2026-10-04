@@ -419,7 +419,18 @@ try {
   await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load' });
 
   // Through the title screen by the PLAY door, the same way a child arrives.
-  await page.getByRole('button', { name: 'JOGAR' }).click({ timeout: 30_000 });
+  /*
+   * ⚠️ `exact: true`, AND THE DAY IT WAS NEEDED IS WORTH RECORDING. Playwright's `name` option
+   * defaults to `exact: false`, which is case-insensitive AND substring — so on 2026-10-04, the
+   * moment the teacher buttons gained the accessible name «Só é permitido JOGAR os melhores
+   * lances», this line stopped resolving the splash's door and started reaching for a button
+   * behind the splash overlay. The failure read «#splash intercepts pointer events», which names
+   * the symptom and points nowhere near the cause.
+   *
+   * A locator that matches by substring is a locator that any new label can capture. This one
+   * wants the door and says so.
+   */
+  await page.getByRole('button', { name: 'JOGAR', exact: true }).click({ timeout: 30_000 });
   await page.locator('#chess-board').waitFor({ state: 'visible', timeout: 30_000 });
 
   for (const view of ['2D', '2,5D', '3D']) {

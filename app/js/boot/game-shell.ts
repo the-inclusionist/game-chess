@@ -1398,6 +1398,17 @@ const engineRef: { current: Engine | null } = { current: null };
      * only when `handOver` gives it the board, so there is no boot-time decision to redo — the
      * next human move simply stops being answered.
      */
+    /*
+     * ⚠️ PROTECTION IS A TEACHER NOW, and this is the only writer of it that reaches a player: the
+     * engine's `gameOptions` entry for `protected` is still declared but the pause card that drew
+     * it has been unreachable since the quick bar went.
+     */
+    protect: () => protectedOn,
+    onProtect: (on: boolean) => {
+      protectedOn = on;
+      prefs.save({ protect: on });
+      hud.refresh();
+    },
     twoPlayers: () => twoPlayers,
     onTwoPlayers: (on: boolean) => {
       twoPlayers = on;
