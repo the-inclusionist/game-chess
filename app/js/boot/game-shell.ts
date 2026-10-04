@@ -1798,11 +1798,22 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * player holding a pad has no Tab — and this game's own board is arrow-driven, so a panel that
    * answered only to Tab would be the one place the controls stopped working. Left and right are
    * deliberately left alone: a `<select>` uses them to change its value.
+   *
+   * ========================= ⚠️ THE WHOLE COLUMN, NOT `hud.root` =========================
+   * The Dev chose this on 2026-10-04, and it closes a hole the argument above had all along: the
+   * three view keys (2D / 2,5D / 3D) are a `<nav>` in `#side-column` and a SIBLING of the HUD, so
+   * walking only `hud.root` left them reachable by Tab and by nothing else — which is exactly the
+   * "one place the controls stopped working" this function exists to prevent, sitting inside the
+   * function that prevents it.
+   *
+   * ⚠️ AND IT MAKES THE LESSON TERNARY UNNECESSARY. The column holds the view keys, the HUD and
+   * the lesson menu, and `panelStops` already drops whatever is not drawn — so when a lesson hides
+   * the HUD, its controls leave the walk by themselves. One container, one rule, no "which panel
+   * is showing" question to get wrong.
    */
   function walkPanel(action: string | null): boolean {
     if (action !== 'up' && action !== 'down') return false;
-    const panel = lessonMenu && !lessonMenu.root.hidden ? lessonMenu.root : hud.root;
-    const stops = panelStops(panel);
+    const stops = panelStops(column);
     if (stops.length === 0) return false;
     const at = stops.indexOf(host.activeElement as HTMLElement);
     // Clamped at both ends rather than wrapped, for the same reason the board's cursor is: running
@@ -1959,8 +1970,14 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
        * on whichever cell holds the tab stop, and getting from a lesson's list to the board and
        * back is otherwise a trip through everything between them.
        */
-      const panel = lessonMenu && !lessonMenu.root.hidden ? lessonMenu.root : hud.root;
-      const inPanel = panel.contains(host.activeElement);
+      /*
+       * ⚠️ `column`, THE SAME CONTAINER `walkPanel` USES, and they disagreed until 2026-10-04.
+       * This asked `hud.root`; the arrow dispatch below asks `column`. With focus on a view key —
+       * in the column but not in the HUD — this key concluded "not in the panel" and pushed focus
+       * INTO the panel instead of handing it back to the board, so the one key for getting out did
+       * the opposite. Two questions that have to agree were written in two places.
+       */
+      const inPanel = column.contains(host.activeElement);
       if (inPanel) mirror.focusSquare(cursor);
       /*
        * ⚠️ THE FIRST ENABLED ONE, and the first version left off `:not([disabled])`. The lesson
@@ -1968,7 +1985,20 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
        * first lesson — so pressing this at the one moment a reader is most likely to press it did
        * NOTHING, silently, and left them on the board wondering whether the key existed.
        */
-      else panelStops(panel)[0]?.focus();
+      /*
+       * ⚠️ THE WALK IS THE WHOLE COLUMN; THE ENTRY IS NOT. Widening `walkPanel` to the column
+       * (the Dev's option A, 2026-10-04) made the arrows reach the view keys, and it also moved
+       * this key's landing spot to the TOP of the column — which is the view nav. A reader in a
+       * lesson pressed the one key that reaches the panel and arrived at "2D".
+       *
+       * So the entry aims at the panel that is actually showing, and only falls back to the
+       * column when that panel offers nothing to land on. Getting IN should put you where you
+       * were going; the arrows are what take you everywhere else.
+       */
+      else {
+        const active = lessonMenu && !lessonMenu.root.hidden ? lessonMenu.root : hud.root;
+        (panelStops(active)[0] ?? panelStops(column)[0])?.focus();
+      }
       event.preventDefault();
       return;
     }

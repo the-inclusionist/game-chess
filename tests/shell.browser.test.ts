@@ -466,6 +466,56 @@ describe('[Panel keys] being IN the side panel is not the same as getting into i
     expect(shell.mirror.cursor()).toEqual(cursor);
   });
 
+  it('⚠️ reaches the three view keys, which live beside the HUD and not inside it', () => {
+    /*
+     * The Dev's choice of 2026-10-04 (option A). The view keys are a `<nav>` in `#side-column` and
+     * a SIBLING of the HUD, so while the walk covered only `hud.root` they were reachable by Tab
+     * and by nothing else — and a player holding a pad has no Tab. Three buttons that stop working
+     * for exactly that player, inside the feature written to stop that happening.
+     *
+     * ⚠️ ASSERTED BY WALKING TO THEM, not by reading the DOM. "The nav is in the column" was true
+     * the whole time this was broken; what was false is that the arrows could get there.
+     */
+    shellFor();
+    document.getElementById('chess-board')!.focus();
+    press('KeyI');
+
+    const views = [...document.querySelectorAll('.hud-view')];
+    expect(views.length, 'view keys to reach').toBe(3);
+
+    const seen = new Set<Element>();
+    // Walk the whole column from wherever entry landed, both ways, and collect what was reachable.
+    for (let i = 0; i < 40; i++) { press('KeyW'); if (document.activeElement) seen.add(document.activeElement); }
+    for (let i = 0; i < 40; i++) { press('KeyS'); if (document.activeElement) seen.add(document.activeElement); }
+
+    for (const view of views) {
+      expect(`${view.textContent!.trim()} reachable by the arrows? ${seen.has(view)}`)
+        .toBe(`${view.textContent!.trim()} reachable by the arrows? true`);
+    }
+    // And the board was left alone throughout, which is the rest of this block's subject.
+    expect(document.getElementById('side-column')!.contains(document.activeElement)).toBe(true);
+  });
+
+  it('⚠️ action4 hands focus BACK to the board from a view key, not deeper into the panel', () => {
+    /*
+     * These two asked their question in two places and the places disagreed: `action4` tested
+     * `hud.root` while the arrow dispatch tested `column`. With focus on a view key — in the
+     * column, not in the HUD — the one key for getting OUT of the panel concluded it was not in
+     * one, and pushed focus further in.
+     */
+    const shell = shellFor();
+    document.getElementById('chess-board')!.focus();
+    const cursor = shell.mirror.cursor();
+
+    (document.querySelector('.hud-view') as HTMLElement).focus();
+    press('KeyI');
+
+    expect(document.getElementById('side-column')!.contains(document.activeElement), 'left the column')
+      .toBe(false);
+    // And it went back to where the board had been, rather than to some other square.
+    expect(shell.mirror.cursor()).toEqual(cursor);
+  });
+
   it('comes back to the board on action4, and the arrows drive it again', () => {
     const shell = shellFor();
     document.getElementById('chess-board')!.focus();
@@ -485,16 +535,30 @@ describe('[Panel keys] being IN the side panel is not the same as getting into i
 
     document.getElementById('chess-board')!.focus();
     press('KeyI');
-    const first = document.activeElement;
+    const entered = document.activeElement;
 
-    // ⚠️ THERE HAS TO BE SOMEWHERE TO GO, or "it stayed put" proves nothing. Down lands on a
-    // different control; only then does running UP off the top mean anything.
+    /*
+     * ⚠️ WALKED TO THE TOP RATHER THAN ASSUMED TO START THERE. Since the Dev's option A the walk
+     * covers the whole of `#side-column` while `action4` still aims at the panel that is showing,
+     * so the landing spot is in the MIDDLE of the walk — there are view keys above it. A test that
+     * pressed up once and expected to be clamped would be asserting where entry lands, which is a
+     * different fact and one this block does not own.
+     */
+    let top = entered;
+    for (let i = 0; i < 40; i++) {
+      press('KeyW');
+      if (document.activeElement === top) break;
+      top = document.activeElement;
+    }
+    expect(top, 'walking up reached something').not.toBe(null);
+    expect(top, 'and the top is above where entry landed').not.toBe(entered);
+
+    // The assertion: at the top, up does nothing. It does not wrap round to the foot.
+    press('KeyW');
+    expect(document.activeElement, 'clamped at the top, not wrapped to the foot').toBe(top);
+    // And there really was somewhere to go, so "it stayed put" is not vacuous.
     press('KeyS');
-    expect(document.activeElement, 'a second row to walk to').not.toBe(first);
-    press('KeyW');
-    expect(document.activeElement).toBe(first);
-    press('KeyW');
-    expect(document.activeElement, 'clamped at the top, not wrapped to the foot').toBe(first);
+    expect(document.activeElement, 'down still moves').not.toBe(top);
   });
 });
 
