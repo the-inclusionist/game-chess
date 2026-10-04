@@ -94,14 +94,42 @@ const measure = (page) => page.evaluate(() => {
     return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.opacity !== '0';
   };
 
+  /*
+   * ⚠️ A CHECKBOX'S TARGET IS THE BOX AND ITS LABEL TOGETHER, because clicking either one toggles
+   * it — WCAG 2.5.8 measures the clickable region, not the glyph. Measuring the `<input>` alone
+   * reported a 9.6 px control for a row a finger hits anywhere along, which is a true number about
+   * the wrong thing.
+   */
+  const targetOf = (el) => {
+    if (el.tagName !== 'INPUT' || el.type !== 'checkbox') return el.getBoundingClientRect();
+    const label = el.id ? region.querySelector(`label[for="${CSS.escape(el.id)}"]`) : null;
+    const row = el.closest('label') ?? (label ? label.parentElement : null);
+    return (row ?? el).getBoundingClientRect();
+  };
+
+  /*
+   * ⚠️ BEING BELOW THE FOLD OF A SCROLLER IS NOT BEING CLIPPED. The side panel scrolls on purpose
+   * — the Dev asked for these settings to be "acessível por rolagem" — so a control past the
+   * bottom of `#game-region` is reachable, not lost. The first version of this check called every
+   * one of them clipped and would have had the panel redesigned to silence it.
+   */
+  const scroller = (el) => {
+    for (let n = el.parentElement; n && n !== region.parentElement; n = n.parentElement) {
+      const o = getComputedStyle(n).overflowY;
+      if ((o === 'auto' || o === 'scroll') && n.scrollHeight > n.clientHeight + 1) return n;
+    }
+    return null;
+  };
+
   const controls = [...region.querySelectorAll('button, select, input, a[href]')]
     .filter((el) => seen(el) && !el.disabled)
     .map((el) => {
-      const r = el.getBoundingClientRect();
+      const r = targetOf(el);
       return {
         name: (el.textContent || el.getAttribute('aria-label') || el.tagName).trim().slice(0, 28),
         // ⚠️ The engine's own nodes answer to the engine's floor, not to this cartridge's ladder.
         engine: el.closest('.a11y-bar, .screen-pause, .pause-icons, #vp-pause-0') !== null,
+        scrolls: scroller(el) !== null,
         w: r.width, h: r.height, left: r.left, right: r.right, top: r.top, bottom: r.bottom,
       };
     });
@@ -117,6 +145,7 @@ const measure = (page) => page.evaluate(() => {
     .filter((el) => el.getBoundingClientRect().width > 0)
     .map((el) => ({
       name: el.classList.contains('coords-label') ? `coordinate "${el.textContent}"` : (el.id || el.className || el.tagName),
+      scrolls: scroller(el) !== null,
       ...boxOf(el),
     }));
 
@@ -145,6 +174,8 @@ function judge(view, m) {
   // `#game-region` clips. A control that reaches past it is not short, it is GONE — which is how
   // "o tabuleiro nao cabe na tela" and the labels off the edge were reported rather than caught.
   for (const c of [...m.controls, ...m.surfaces]) {
+    // Inside a scroller: reachable by scrolling, which is what the panel is for.
+    if (c.scrolls) continue;
     const out = [];
     if (c.left < m.regionBox.left - 0.5) out.push('left');
     if (c.right > m.regionBox.right + 0.5) out.push('right');

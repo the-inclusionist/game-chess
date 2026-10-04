@@ -1072,8 +1072,30 @@ html { background: var(--page); }
    */
   .hud-check,
   .chess-hud .hud-check { display: inline; font-size: var(--ui-fs, 16px); color: var(--ink); margin-left: 0.4em; }
+  /*
+   * ========================= ⚠️ THE ROW IS THE TARGET, NOT THE BOX =========================
+   * Caught by `scripts/check-rendered.mjs` the moment these switches came back to the panel on
+   * 2026-10-04: the box measured 9.6 px tall. It was `--chess-tap * 0.4`, which is 17.6 px at the
+   * old 44 px rung and 9.6 at the 24 px one the graduated ladder uses on the smallest stage — so
+   * the target shrank with the board, which is the opposite of what a target should do.
+   *
+   * A checkbox's target is the box AND its `for`-linked label together, because clicking either
+   * toggles it (WCAG 2.5.8 measures the clickable region, not the glyph). So the ROW carries the
+   * height and the box is merely drawn inside it: a child aiming anywhere along "Contorno das
+   * peças" hits a control at least one rung tall, which is what their finger needs.
+   */
+  .chess-hud p.hud-check {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    min-height: var(--chess-tap, 44px);
+    margin-left: 0;
+  }
+  .chess-hud p.hud-check label { display: block; margin-left: 0; flex: 1 1 auto; cursor: pointer; }
   .chess-hud input[type="checkbox"] {
-    width: calc(var(--chess-tap, 44px) * 0.4); height: calc(var(--chess-tap, 44px) * 0.4);
+    /* 0.7 of the rung rather than 0.4: still clearly a checkbox, no longer a speck. */
+    width: calc(var(--chess-tap, 44px) * 0.7); height: calc(var(--chess-tap, 44px) * 0.7);
+    flex: 0 0 auto;
     vertical-align: middle; accent-color: var(--focus);
   }
 

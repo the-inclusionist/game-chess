@@ -1376,6 +1376,25 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     pieceSets: () => view.hudControls.pieceSets?.() ?? [],
     pieceSet: () => view.hudControls.pieceSet?.() ?? '',
     onPieceSet: (key: string) => view.hudControls.onPieceSet?.(key),
+    /*
+     * ⚠️ THE LABEL IS PER VIEW, which is the Dev's "somente no tabuleiro X" of 2026-10-04. The
+     * flat board offers glyph SETS and the other two offer piece DESIGNS, so one name for all
+     * three would be wrong on two of them.
+     */
+    pieceSetsLabel: () => (viewKind === '2d' ? 'hud.pieceSet2d'
+      : viewKind === '2.5d' ? 'hud.pieceSet25d' : 'hud.pieceSet3d'),
+    strengths: STRENGTH_LADDER.map((rung) => ({ elo: rung.elo, name: rung.name })),
+    strength: () => elo,
+    onStrength: applyStrength,
+    /*
+     * ⚠️ FORWARDED THROUGH THE VIEW, NOT COPIED FROM IT. The board under the panel changes while
+     * the panel stays, so every one of these asks whichever renderer is mounted right now —
+     * including whether it HAS an outline at all, which only the projected one does.
+     */
+    outline: () => view.hudControls.outline?.(),
+    onOutline: (on: boolean) => view.hudControls.onOutline?.(on),
+    coordinates: () => view.hudControls.coordinates(),
+    onCoordinates: (on: boolean) => view.hudControls.onCoordinates(on),
     canTakeBack: () => !walking && game.canTakeBack(),
     canReplay: () => !walking && game.canReplay(),
     onTakeBack: () => { void walkHistory('back'); },

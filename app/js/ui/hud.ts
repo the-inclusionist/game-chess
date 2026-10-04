@@ -173,6 +173,32 @@ export interface HudDeps {
   pieceSet?(): string;
   onPieceSet?(key: string): void;
   /**
+   * What to CALL the piece list, which is not the same question in every view.
+   *
+   * ⚠️ THE DEV ASKED FOR THREE ENTRIES — "desenho das peças (somente no 2D)", "conjunto de peças
+   * 2.5D", "conjunto de peças 3D" — and they are one control, because only one board is ever
+   * drawing. Three selects would mean two of them permanently hidden and a reader hearing a list
+   * of settings that do not apply. One control whose LABEL says which board it belongs to keeps
+   * his "somente no tabuleiro X" exactly, and keeps the panel honest about what is reachable.
+   */
+  pieceSetsLabel?(): string;
+  /** The opponent's rating ladder, named. See `chess/engine/strength.ts`. */
+  strengths?: readonly { readonly elo: number; readonly name: string }[];
+  strength?(): number;
+  onStrength?(elo: number): void;
+  /**
+   * The piece outline, when the board drawing right now HAS one.
+   *
+   * ⚠️ `undefined` MEANS THIS BOARD HAS NO OUTLINE, which is not the same as "it is off". The flat
+   * board draws glyphs and has nothing to outline; a switch offered there would be a control that
+   * answers nothing, and 📏 only the projected board has one.
+   */
+  outline?(): boolean | undefined;
+  onOutline?(on: boolean): void;
+  /** The file letters and rank numbers. Every board has them. */
+  coordinates?(): boolean;
+  onCoordinates?(on: boolean): void;
+  /**
    * The engine's mark beside the move played at this ply — `!`, `?`, `??` and so on, or null
    * while it is still being worked out or for an ordinary move, which is most of them.
    *
@@ -599,6 +625,59 @@ export function createHud(deps: HudDeps): Hud {
   silentButton.className = 'hud-hint';
   hintBox.append(hintButton, silentButton);
 
+  /*
+   * ========================= ⚠️ THE SETTINGS COME BACK TO THE PANEL =========================
+   * The Dev, 2026-10-04: these seven go "abaixo da seção PONTUAÇÃO do painel lateral direito
+   * (ficará acessível por rolagem)".
+   *
+   * They were taken OUT of this panel in Wave 2c/2d and given to the engine's pause card as
+   * `hooks.gameOptions`, on the argument that the side column keeps game STATE and the engine
+   * keeps settings. That argument still holds for the settings a child sets once — blind mode,
+   * captions, colour correction. It does not hold for these: they are about the board in front of
+   * them, they change while they play, and reaching them through a pause card means leaving the
+   * game to answer a question about the game.
+   *
+   * ⚠️ AND THE PIECE LIST COULD NEVER LIVE IN THE ENGINE'S CARD AT ALL. `gameOptions.values` is a
+   * fixed ARRAY read once at boot, and this list differs per view — three glyph sets on the flat
+   * board, six piece designs on the other two. The engine's card has been offering the flat
+   * board's three to a child playing in 3D since the migration; the plan records it as an open
+   * defect. Here the list is re-read on every refresh, so it is simply right.
+   */
+  const controls = doc.createElement('div');
+  controls.className = 'hud-controls';
+  controls.setAttribute('role', 'group');
+
+  const field = (): { box: HTMLElement; label: HTMLLabelElement; select: HTMLSelectElement } => {
+    const box = doc.createElement('p');
+    box.className = 'hud-field';
+    const label = doc.createElement('label');
+    const select = doc.createElement('select');
+    select.id = `hud-opt-${controls.children.length}`;
+    label.htmlFor = select.id;
+    box.append(label, select);
+    controls.appendChild(box);
+    return { box, label, select };
+  };
+
+  const check = (): { box: HTMLElement; label: HTMLLabelElement; input: HTMLInputElement } => {
+    const box = doc.createElement('p');
+    box.className = 'hud-check';
+    const input = doc.createElement('input');
+    input.type = 'checkbox';
+    input.id = `hud-opt-${controls.children.length}`;
+    const label = doc.createElement('label');
+    label.htmlFor = input.id;
+    box.append(input, label);
+    controls.appendChild(box);
+    return { box, label, input };
+  };
+
+  const strengthField = field();
+  const pieceField = field();
+  const themeField = field();
+  const outlineCheck = check();
+  const coordsCheck = check();
+
   root.append(turn, openingBox, movesBox);
   if (deps.lessons) root.appendChild(lessonBox);
   // Settled here too, not only in refresh(): the panel is drawn before anything calls refresh, and
@@ -606,6 +685,9 @@ export function createHud(deps: HudDeps): Hud {
   lessonBox.hidden = deps.lessonsVisible ? !deps.lessonsVisible() : false;
   if (deps.onHint) root.appendChild(hintBox);
   if (deps.scoreboard) root.appendChild(deps.scoreboard);
+  // ⚠️ AFTER the scoreboard, which is where the Dev put them: the panel scrolls, and what a child
+  // watches while playing comes before what they occasionally change.
+  root.appendChild(controls);
   /*
    * ⚠️ `modeGroup.box`, `strengthBox` AND `protectedBox` GO TO THE ENGINE'S PANEL IN WAVE 2c.
    * They are built above and refresh() still reads them so a late unskip has somewhere to find
@@ -637,6 +719,92 @@ export function createHud(deps: HudDeps): Hud {
 
 
 
+
+  /**
+   * Re-reads every control from the game, and HIDES the ones this board does not offer.
+   *
+   * ⚠️ REBUILT RATHER THAN BUILT ONCE, because the lists change under it: switching from the flat
+   * board to the projected one swaps three glyph sets for six piece designs, and a select that
+   * kept the old options would be offering names the renderer does not know. That is the defect
+   * the engine's card still has, and the reason this one is cheap to keep right: a handful of
+   * `<option>`s per refresh, against a list nobody can act on.
+   */
+  function refreshControls(): void {
+    const fill = (
+      select: HTMLSelectElement,
+      items: readonly { readonly value: string; readonly text: string }[],
+      chosen: string | undefined,
+    ): void => {
+      select.replaceChildren(...items.map((item) => {
+        const option = doc.createElement('option');
+        option.value = item.value;
+        option.textContent = item.text;
+        return option;
+      }));
+      if (chosen !== undefined && items.some((i) => i.value === chosen)) select.value = chosen;
+    };
+
+    const strengths = deps.strengths ?? [];
+    strengthField.box.hidden = strengths.length === 0 || !deps.onStrength;
+    if (!strengthField.box.hidden) {
+      strengthField.label.textContent = i18n.t('hud.strength');
+      fill(
+        strengthField.select,
+        strengths.map((s) => ({ value: String(s.elo), text: i18n.t(s.name) })),
+        deps.strength ? String(deps.strength()) : undefined,
+      );
+    }
+
+    const sets = deps.pieceSets?.() ?? [];
+    pieceField.box.hidden = sets.length === 0 || !deps.onPieceSet;
+    if (!pieceField.box.hidden) {
+      pieceField.label.textContent = i18n.t(deps.pieceSetsLabel?.() ?? 'hud.pieceSet');
+      fill(
+        pieceField.select,
+        sets.map((s) => ({ value: s.key, text: i18n.t(s.label) })),
+        deps.pieceSet?.(),
+      );
+    }
+
+    const themes = deps.themes ?? [];
+    themeField.box.hidden = themes.length === 0 || !deps.onTheme;
+    if (!themeField.box.hidden) {
+      themeField.label.textContent = i18n.t('hud.boardTheme');
+      fill(
+        themeField.select,
+        themes.map((t) => ({ value: t.key, text: i18n.t(t.name) })),
+        deps.theme?.(),
+      );
+    }
+
+    // ⚠️ `undefined` is "this board has no outline", not "it is off" — see the dep's own note.
+    const outline = deps.outline?.();
+    outlineCheck.box.hidden = outline === undefined || !deps.onOutline;
+    if (!outlineCheck.box.hidden) {
+      outlineCheck.label.textContent = i18n.t('hud.outline');
+      outlineCheck.input.checked = outline === true;
+    }
+
+    const coords = deps.coordinates?.();
+    coordsCheck.box.hidden = coords === undefined || !deps.onCoordinates;
+    if (!coordsCheck.box.hidden) {
+      coordsCheck.label.textContent = i18n.t('hud.coordinates');
+      coordsCheck.input.checked = coords === true;
+    }
+  }
+
+  const onStrengthChange = (): void => {
+    deps.onStrength?.(Number(strengthField.select.value));
+  };
+  const onPieceChange = (): void => { deps.onPieceSet?.(pieceField.select.value); };
+  const onThemeField = (): void => { deps.onTheme?.(themeField.select.value); };
+  const onOutlineToggle = (): void => { deps.onOutline?.(outlineCheck.input.checked); };
+  const onCoordsToggle = (): void => { deps.onCoordinates?.(coordsCheck.input.checked); };
+  strengthField.select.addEventListener('change', onStrengthChange);
+  pieceField.select.addEventListener('change', onPieceChange);
+  themeField.select.addEventListener('change', onThemeField);
+  outlineCheck.input.addEventListener('change', onOutlineToggle);
+  coordsCheck.input.addEventListener('change', onCoordsToggle);
 
   function onSetChange(): void { deps.onPieceSet?.(setSelect.value); }
   setSelect.addEventListener('change', onSetChange);
@@ -808,6 +976,8 @@ export function createHud(deps: HudDeps): Hud {
      * Each has its own guard already, which is what made the nesting invisible: nothing here
      * changes except how deep it sits.
      */
+    refreshControls();
+
     if (deps.lessons) {
       lessonBox.hidden = deps.lessonsVisible ? !deps.lessonsVisible() : false;
       lessonLabel.textContent = i18n.t('hud.lessons');
@@ -885,6 +1055,11 @@ export function createHud(deps: HudDeps): Hud {
     report,
     refresh,
     destroy() {
+      strengthField.select.removeEventListener('change', onStrengthChange);
+      pieceField.select.removeEventListener('change', onPieceChange);
+      themeField.select.removeEventListener('change', onThemeField);
+      outlineCheck.input.removeEventListener('change', onOutlineToggle);
+      coordsCheck.input.removeEventListener('change', onCoordsToggle);
       hintButton.removeEventListener('click', onHintClick);
       silentButton.removeEventListener('click', onSilentClick);
       lessonButton.removeEventListener('click', onLessonClick);
