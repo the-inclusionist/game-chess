@@ -76,6 +76,7 @@ import { loadProgress } from '../chess/session.ts';
 import { createGridMirror, type LessonMark, type LessonSquare } from '../ui/grid-mirror.ts';
 import { createHud, type GameMode, type Hud, type ViewKind } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
+import { createChessClock, formatClock } from '../ui/chess-clock.ts';
 import { createPlayerStrips } from '../ui/player-strip.ts';
 import { createEarcons, WHISTLE } from '../ui/earcons.ts';
 import { createSplash } from '../ui/splash.ts';
@@ -819,11 +820,42 @@ const engineRef: { current: Engine | null } = { current: null };
     onVerdict: (entry) => { onVerdict(entry); },
   });
 
+  /*
+   * ========================= TWO CLOCKS, AND WHEN THEY RUN =========================
+   * The Dev, 2026-10-04: "quero ambos funcionando como relógios de xadrez, entrando em modo de
+   * contagem regressiva após o lance do adversário", and, about the walk: "seja onde parar, o
+   * relógio fica pausado aguardando o jogador humano jogar."
+   *
+   * Three rules, and they are the whole of it:
+   *   · a move lands  -> the clock of the side now ON MOVE starts, the other stops;
+   *   · a walk begins -> both stop, and nothing restarts them until a move lands;
+   *   · a new game    -> both back to 5:00, stopped.
+   *
+   * ⚠️ THE ENGINE'S CLOCK RUNS WHILE IT THINKS, which is not a special case but the same rule: it
+   * is the side on move. A player watching the opponent's time drain while Stockfish searches is
+   * seeing something true.
+   */
+  const clock = createChessClock({
+    onTick: () => { players.refresh(); },
+    onFlag: (side) => { announcer.alert(i18n.t('clock.flag', { side: i18n.t(`turn.${side}`) })); },
+  });
+
   const players = createPlayerStrips({
     doc: host, i18n, rules,
     evaluation: () => reviewer.evaluation(),
     mistakes: (side) => reviewer.mistakes(side),
+    clock: {
+      text: (side) => formatClock(clock.remaining(side)),
+      running: () => clock.running(),
+      flagged: (side) => clock.flagged(side),
+    },
   });
+
+  /** A move has landed, by either hand. The clock passes to whoever is on move. */
+  function movePlayed(): void {
+    if (rules.isGameOver()) { clock.pause(); return; }
+    clock.start(rules.turn());
+  }
 
   /*
    * ⚠️ `playerSide` WAS NEVER PASSED, by any of the three roots, for the whole life of this
@@ -2423,6 +2455,7 @@ const engineRef: { current: Engine | null } = { current: null };
         const move = game.applyOpponentMove(reply.move.from, reply.move.to, reply.move.promotion);
         if (!move) return;
         game.animationDone();
+        movePlayed();
         syncPosition([move.to], move.piece);
         announceMove(announcer, i18n, move);
         announceOutcome(announcer, i18n, game.outcome());
@@ -2517,6 +2550,7 @@ const engineRef: { current: Engine | null } = { current: null };
     // picture catching up. Said before the flight, not after: a player who cannot see it should
     // not wait a third of a second to be told what happened.
     game.animationDone();
+    movePlayed();
     syncPosition([move.to], move.piece);
     announceActivation(announcer, i18n, rules, result);
     announceOutcome(announcer, i18n, game.outcome());
@@ -2536,6 +2570,9 @@ const engineRef: { current: Engine | null } = { current: null };
    */
   async function walkHistory(direction: 'back' | 'forward'): Promise<void> {
     if (walking) return;
+    // ⚠️ BEFORE THE EARLY RETURN BELOW, deliberately: a player who presses «Voltar» at the start of
+    // the game has asked for the clock to stop as plainly as one who presses it on move forty.
+    clock.pause();
     opponent.cancel();
     searching = false;
     thinking.setBusy(false);
@@ -2639,6 +2676,12 @@ const engineRef: { current: Engine | null } = { current: null };
       allowMove: approved,
     });
     setTaught([]);
+    /*
+     * ⚠️ RESET RATHER THAN LEFT RUNNING, including when a lesson hands the board back. A clock that
+     * kept draining through a lesson would hand the player their own game back with four minutes
+     * gone to something that was not their game.
+     */
+    clock.reset();
     syncPosition();
   }
 
@@ -2689,6 +2732,7 @@ const engineRef: { current: Engine | null } = { current: null };
        * with any future host (platform page, cartridge swap) that keeps the document alive after
        * dropping this root. Idempotent in practice: `mounted` guards against repeats.
        */
+      clock.dispose();
       earcons.destroy();
       engineRef.current?.dispose();
       engineRef.current = null;

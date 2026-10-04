@@ -465,8 +465,23 @@ export function createHud(deps: HudDeps): Hud {
   report.append(reportTitle, reportTable, reportFloor);
 
   // --- turn ------------------------------------------------------------------
+  /*
+   * ========================= ⚠️ THE TURN ROW LEFT THE PANEL, AND NOT THE DOCUMENT =========================
+   * The Dev, 2026-10-04: "remova o [ ] Brancas / [ ] Pretas do painel. Adicione um relógio marcado
+   * 5:00 na frente de BRANCAS e um outro igual na frente de PRETAS." The clocks answer "whose turn
+   * is it" better than this row did — the one that is draining is the one to move — so the row has
+   * nothing left to show.
+   *
+   * ⚠️ IT STAYS FOR A SCREEN READER, and that is not a hedge. The strips at the top of the board
+   * carry `aria-hidden="true"` on purpose: they are "a picture of things said elsewhere in words",
+   * and this row was the words. Deleting it outright would have moved the answer from a sentence a
+   * reader hears into a colour on a canvas it is told to ignore — on the board of a game whose
+   * whole premise is that nothing is carried by sight alone.
+   *
+   * So: `sr-only`. Gone from the panel, still said.
+   */
   const turn = doc.createElement('p');
-  turn.className = 'hud-turn';
+  turn.className = 'hud-turn sr-only';
   const swatch = doc.createElement('span');
   swatch.className = 'hud-swatch';
   swatch.setAttribute('aria-hidden', 'true');   // colour alone says nothing; the text carries it

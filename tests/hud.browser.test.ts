@@ -353,6 +353,7 @@ describe('[Panel] the sections come in the order the Dev asked for', () => {
       view: () => '2.5d',
       onHint: () => {}, arrows: () => false, onArrows: () => {},
       guard: () => false, onGuard: () => {},
+      twoPlayers: () => false, onTwoPlayers: () => {}, onCpuMove: () => {},
       themes: BOARD_THEMES, theme: () => 'brown', onTheme: () => {},
       coordinates: () => true, onCoordinates: () => {},
       canTakeBack: () => state.canTakeBack(), canReplay: () => state.canReplay(),
@@ -372,8 +373,25 @@ describe('[Panel] the sections come in the order the Dev asked for', () => {
      * be eight lines and fully visible without touching the panel's scrollbar.
      */
     expect(sections).toEqual([
-      'hud-turn', 'hud-teachers', 'hud-nav', 'section', 'hud-opening', 'hud-controls',
+      'hud-turn sr-only', 'hud-teachers', 'hud-seat', 'hud-nav', 'section', 'hud-opening',
+      'hud-controls',
     ]);
+  });
+
+  it('⚠️ the turn row is spoken and not shown, since the clocks took the picture', () => {
+    /*
+     * The Dev, 2026-10-04: "remova o [ ] Brancas / [ ] Pretas do painel." The clocks in front of
+     * BRANCAS and PRETAS answer it better — the one that is draining is the one to move.
+     *
+     * ⚠️ IT IS `sr-only` AND NOT DELETED, which this asserts because deleting it is the obvious
+     * next edit and it would be wrong: the strips that carry the clocks are `aria-hidden="true"`
+     * on purpose, so this row is the only place a screen reader is TOLD whose turn it is.
+     */
+    panel();
+    const row = hud!.root.querySelector('.hud-turn') as HTMLElement;
+    expect(row).not.toBeNull();
+    expect(row.classList.contains('sr-only')).toBe(true);
+    expect(row.textContent ?? '').toContain('Brancas');
   });
 
   it('⚠️ has no PONTUAÇÃO section — the strips beside the board carry those numbers', () => {

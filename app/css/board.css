@@ -990,7 +990,39 @@ html { background: var(--page); }
   /* ⚠️ WRAPS RATHER THAN TRUNCATES. Measured in the panel: «2 Jogadores» came out as "2 Joga…"
      beside the button, and a checkbox whose label is cut off is a checkbox nobody can read. The
      button keeps its width and drops to a second line when the two will not share one. */
+  /*
+   * ========================= THE TWO CLOCKS =========================
+   * The Dev, 2026-10-04: "um relógio marcado 5:00 na frente de BRANCAS e um outro igual na frente
+   * de PRETAS no topo da parte da tela onde está o tabuleiro."
+   *
+   * ⚠️ TABULAR FIGURES AND A FIXED WIDTH, because a clock that twitches is a clock nobody can read
+   * at a glance: proportional digits make «1:11» narrower than «5:00», and the name beside it
+   * would step sideways once a second. 3.4em holds «10:00» without reflowing if the starting time
+   * is ever raised.
+   *
+   * ⚠️ THREE STATES, NEVER BY COLOUR ALONE (1.4.1). The running clock is brighter AND bolder, the
+   * waiting one is dimmed, and a flagged one is struck through — the strike is the shape that
+   * says «this one is out» to someone who sees no colour at all.
+   */
+  .player-head { display: flex; align-items: baseline; gap: 0.35em; margin: 0; }
+  .player-clock {
+    flex: 0 0 auto; min-width: 3.4em;
+    font-variant-numeric: tabular-nums;
+    font-size: var(--ui-fs, 16px);
+    color: var(--ink-dim);
+    font-weight: 400;
+  }
+  .player-clock[data-state="running"] { color: var(--focus); font-weight: 700; }
+  .player-clock[data-state="flagged"] { color: #FF8B6B; text-decoration: line-through; }
+  /* ⚠️ The black strip reads right-to-left, so its clock sits at the outer edge like its counter. */
+  .player-strip[data-side="b"] .player-head { flex-direction: row-reverse; }
+
   .hud-seat {
+    /* ⚠️ `0 0 auto`, AND THE DEFAULT WAS A BUG I WATCHED HAPPEN. The panel is a flex column whose
+       content overflows, so a row with the default `flex-shrink: 1` is squeezed: measured on the
+       running page, the wrapped «CPU joga!» sat 28 px below a row the browser had shrunk back to
+       one line, drawn straight over «Voltar». A row that wraps must be allowed its two lines. */
+    flex: 0 0 auto;
     display: flex; align-items: center; flex-wrap: wrap; gap: 0.4em;
     min-height: var(--chess-tap, 44px);
   }

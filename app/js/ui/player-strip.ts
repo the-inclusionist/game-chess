@@ -38,6 +38,21 @@ export interface PlayerStripDeps {
   evaluation(): number | null;
   /** How many moves of this side's the engine has marked as a mistake or worse. */
   mistakes(side: Side): number;
+  /**
+   * ========================= THE CLOCK, IN FRONT OF THE NAME =========================
+   * The Dev, 2026-10-04: "adicione um relógio marcado 5:00 na frente de BRANCAS e um outro igual
+   * na frente de PRETAS no topo da parte da tela onde está o tabuleiro."
+   *
+   * Absent on a board that has no clock — a lesson, a position being studied — and the strip then
+   * draws exactly what it drew before.
+   */
+  clock?: {
+    /** `m:ss` for this side. */
+    readonly text: (side: Side) => string;
+    /** Which clock is draining, if either. */
+    readonly running: () => Side | null;
+    readonly flagged: (side: Side) => boolean;
+  };
 }
 
 export interface PlayerStrips {
@@ -59,6 +74,15 @@ export function createPlayerStrips(deps: PlayerStripDeps): PlayerStrips {
     box.className = 'player-strip';
     box.dataset.side = side;
 
+    /*
+     * ⚠️ IN FRONT OF THE NAME ON BOTH SIDES, not mirrored outward like the capture counter. The
+     * counter is mirrored because it must stay put as a row of glyphs grows beside it; a clock is
+     * a fixed five characters and never moves, and «5:00 BRANCAS … PRETAS 5:00» reads as one
+     * sentence from either end of the board, which is what two people sharing it need.
+     */
+    const clock = doc.createElement('b');
+    clock.className = 'player-clock';
+
     const name = doc.createElement('p');
     name.className = 'player-name';
 
@@ -74,8 +98,12 @@ export function createPlayerStrips(deps: PlayerStripDeps): PlayerStrips {
     if (side === 'w') row.append(count, taken);
     else row.append(taken, count);
 
-    box.append(name, row);
-    return { side, box, name, count, taken };
+    const head = doc.createElement('p');
+    head.className = 'player-head';
+    head.append(clock, name);
+
+    box.append(head, row);
+    return { side, box, name, count, taken, clock };
   };
 
   const white = make('w');
@@ -100,6 +128,20 @@ export function createPlayerStrips(deps: PlayerStripDeps): PlayerStrips {
       // reads perfectly and is silently wrong — the classic version of this display shows a
       // player their own losses and nobody notices for a week.
       s.taken.textContent = capturedGlyphs(rules, s.side === 'w' ? 'b' : 'w');
+
+      /*
+       * ⚠️ `data-state` AND NOT COLOUR ALONE (1.4.1). Three states a person can name — the clock
+       * that is draining, the one that is waiting, and one that has run out — and the running one
+       * is also the answer to "whose turn is it", which is why the turn row could leave the panel.
+       */
+      const clock = deps.clock;
+      s.clock.hidden = !clock;
+      if (clock) {
+        s.clock.textContent = clock.text(s.side);
+        s.clock.dataset.state = clock.flagged(s.side)
+          ? 'flagged'
+          : clock.running() === s.side ? 'running' : 'waiting';
+      }
     }
 
     const score = deps.evaluation();

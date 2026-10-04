@@ -58,6 +58,7 @@ export const en: Catalog = {
     'hud.countries':  'Countries',
     'hud.twoPlayers': '2 players',
     'hud.cpuMove':    'CPU plays!',
+    'clock.flag':     '{side} ran out of time.',
     'country.br':     'Brazil',
     'country.us':     'United States',
     'country.es':     'Spain',
