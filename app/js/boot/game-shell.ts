@@ -669,21 +669,6 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    */
   let lessonsOffered = false;
   /**
-   * Which teacher is on, if any — the Dev's two buttons of 2026-10-04.
-   *
-   *   · `arrows` is the teacher this game already had: it asks the engine for every move it rates
-   *     at the same level and draws them, and says the best one out loud.
-   *   · `silent` asks for exactly the same set and shows NONE of it. What it does instead is
-   *     refuse any move outside that set — a whistle, and the piece back where it started.
-   *
-   * ⚠️ ONE SETTING, NOT TWO SWITCHES. "Both at once" is not a thing a teacher can be: the second
-   * exists precisely to withhold what the first shows.
-   *
-   * ⚠️ AND THE OLD BOOLEAN IS READ ON THE WAY IN. Every board saved before today stored
-   * `hints: true`; a child coming back should not find their teacher switched off because the
-   * field grew a third value.
-   */
-  /**
    * The game's own short sounds.
    *
    * ⚠️ THE CAPTION COMES FROM THE ENGINE AND THE SOUND DOES NOT. `engine.captionSound` shows the
@@ -694,10 +679,29 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     caption: (text) => { engineRef.current?.captionSound(text); },
   });
 
-  let teacher: 'off' | 'arrows' | 'silent' =
-    remembered.teacher ?? (remembered.hints ? 'arrows' : 'off');
-  /** True for either teacher: both want the engine's set, and only one of them draws it. */
-  const teaches = (): boolean => teacher !== 'off';
+  /**
+   * The two teachers, and they are INDEPENDENT — the Dev, 2026-10-04.
+   *
+   *   · «Setas» draws every move the engine rates at the same level, and says the best one.
+   *   · «Protetor de Lances» refuses any move outside that same set: a whistle, and the piece
+   *     back where it started.
+   *
+   * ⚠️ THEY WERE ONE THREE-VALUED SETTING FOR A FEW HOURS, on my reading that the second existed
+   * to withhold what the first showed. The Dev decided otherwise the same day, and the renaming is
+   * what makes the reason plain: one is a DISPLAY and the other is a RULE. With both on, the
+   * arrows say exactly what the guard will accept, which is the gentlest way either of them works
+   * — and it is the combination a child learning openings would actually want.
+   *
+   * ⚠️ TWO OLD SHAPES ARE READ ON THE WAY IN, because neither should cost a child their setting:
+   * the three-valued `teacher` of this morning, and the `hints` boolean that every board saved
+   * before it.
+   */
+  let arrows = remembered.arrows ?? (remembered.teacher !== undefined
+    ? remembered.teacher === 'arrows'
+    : remembered.hints ?? false);
+  let guard = remembered.guard ?? (remembered.teacher === 'silent');
+  /** True for either: both want the engine's set, and only one of them draws it. */
+  const teaches = (): boolean => arrows || guard;
   let hintFen: string | null = null;
   let hinted: readonly HintMove[] = [];
   /** The hint request in the air, so a caller that must WAIT joins it instead of missing it. */
@@ -1324,10 +1328,12 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     // No engine in a two-player game, so nobody to ask.
     ...(mode === 'two' ? {} : {
       onHint: () => {
-        chooseTeacher(teacher === 'off' ? 'arrows' : 'off');
+        chooseTeacher({ arrows: !arrows });
       },
-      teacher: () => teacher,
-      onTeacher: (which) => { chooseTeacher(which); },
+      arrows: () => arrows,
+      onArrows: (on: boolean) => { chooseTeacher({ arrows: on }); },
+      guard: () => guard,
+      onGuard: (on: boolean) => { chooseTeacher({ guard: on }); },
       hintBusy: () => hinting,
     }),
 
@@ -1985,10 +1991,13 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
         refreshLessonMenu();
       } else if (mode !== 'two') {
         /*
-         * ⚠️ THE KEY CYCLES ALL THREE, because two buttons on screen must not mean fewer choices
-         * for a child who never sees them. Off, arrows, silent, off — the same order they sit in.
+         * ⚠️ THE KEY TOGGLES THE ARROWS AND LEAVES THE GUARD ALONE. It did cycle three states while
+         * there was one setting; with two independent switches a cycle would have to walk four
+         * combinations, and a key that takes four presses to get back where it started is not a
+         * shortcut. The guard is a panel control like every other, reachable by the arrows that
+         * walk `#side-column`.
          */
-        chooseTeacher(teacher === 'off' ? 'arrows' : teacher === 'arrows' ? 'silent' : 'off');
+        chooseTeacher({ arrows: !arrows });
       }
       event.preventDefault();
       return;
@@ -2111,9 +2120,9 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     blunderBar.show({ mark: entry.mark ?? '', lost: entry.lost });
     // ⚠️ `arrows`, NOT `silent`. This exists because a child is struggling, and the teacher that
     // SHOWS is the one that helps; arriving unasked at the one that only says no would be cruel.
-    if (stumbles >= STUMBLES_BEFORE_HELP && teacher === 'off') {
-      teacher = 'arrows';
-      prefs.save({ teacher });
+    if (stumbles >= STUMBLES_BEFORE_HELP && !arrows) {
+      arrows = true;
+      prefs.save({ arrows, guard });
       announcer.say(i18n.t('protected.teaching'));
       // Turning the switch on is not enough: the arrows are drawn when a suggestion arrives, and
       // nothing else is going to ask for one — the position has not changed and will not until
@@ -2142,9 +2151,10 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * Turns a teacher on or off. The one place the setting changes, so the three things that have to
    * happen together cannot drift apart: the panel, the board, and what is stored.
    */
-  function chooseTeacher(which: 'off' | 'arrows' | 'silent'): void {
-    teacher = which;
-    prefs.save({ teacher });
+  function chooseTeacher(next: { arrows?: boolean; guard?: boolean }): void {
+    if (next.arrows !== undefined) arrows = next.arrows;
+    if (next.guard !== undefined) guard = next.guard;
+    prefs.save({ arrows, guard });
     /*
      * ⚠️ THE ARROWS GO WHEN EITHER BUTTON CHANGES, not only when the teacher is switched off.
      * Pressing II while I is lit must take the arrows off the board immediately — leaving the last
@@ -2172,7 +2182,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      * anyone looking. The whistle and its caption are the channel instead, and the move being sent
      * back IS the information — for a listener as much as for a watcher.
      */
-    if (teacher === 'silent') return;
+    if (!arrows) return;
     const say = (m: Suggestion): string => `${toAlgebraic(m.move.from)} ${toAlgebraic(m.move.to)}`;
     announcer.say(moves.length > 1
       ? i18n.t('a11y.hintMany', { move: say(moves[0]), others: moves.slice(1).map(say).join(', ') })
@@ -2311,7 +2321,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      * drawing. So the set is kept either way and the arrows are withheld here — the one line that
      * separates the two teachers on the board.
      */
-    view.drawMarks(markers, teacher === 'silent' ? [] : hinted, cursor);
+    view.drawMarks(markers, arrows ? hinted : [], cursor);
   }
 
   /**
@@ -2419,14 +2429,14 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * usually not even that, because `refreshHints` set the engine going the moment the board moved.
    */
   async function readyToJudge(): Promise<void> {
-    if (teacher !== 'silent') return;
+    if (!guard) return;
     if (hintFen === rules.fen()) return;
     await askHint();
   }
 
   /** Whether Professor II would let this move happen. Synchronous: see `readyToJudge`. */
   function approved(from: Square, to: Square): boolean {
-    if (teacher !== 'silent') return true;
+    if (!guard) return true;
     /*
      * ⚠️ NO SET MEANS YES. The engine failed, or the position has none to give — and a teacher
      * that cannot name a better move has no standing to refuse this one. Refusing on an empty set
@@ -2443,7 +2453,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      * ⚠️ THE WAIT IS ONLY EVER ENTERED BY PROFESSOR II (`readyToJudge` returns at once otherwise),
      * so every other board keeps the straight synchronous path it always had.
      */
-    if (teacher === 'silent' && hintFen !== rules.fen()) {
+    if (guard && hintFen !== rules.fen()) {
       void readyToJudge().then(() => { activateNow(square); });
       return;
     }

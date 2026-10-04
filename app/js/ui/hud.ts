@@ -137,21 +137,24 @@ export interface HudDeps {
   onHint?(): void;
   hintBusy?(): boolean;
   /**
-   * Which teacher is on, if any. Present makes the pair a SWITCH rather than a verb.
+   * Whether the engine's suggestions are DRAWN. Present makes the pair switches, not verbs.
    *
-   * ========================= ⚠️ TWO BUTTONS, THREE STATES =========================
-   * The Dev, 2026-10-04: "gostaria de um botão Professor I à esquerda e outro Professor II à
-   * direita". Professor I is the teacher this game already had — it draws the arrows and says the
-   * move. Professor II draws nothing and says nothing, and instead REFUSES any move that is not
-   * one of the arrows I would have drawn.
+   * ========================= ⚠️ TWO INDEPENDENT SWITCHES =========================
+   * The Dev, 2026-10-04: «Setas» on the left, «Protetor de Lances» on the right, "e torne-os
+   * independentes, ou seja, uma pessoa poderá ter setas ligadas e protetor de lances ligado ao
+   * mesmo tempo."
    *
-   * They are one setting with three values rather than two independent switches, because "both at
-   * once" is not a thing a teacher can be: the second exists precisely to withhold what the first
-   * shows. Pressing the lit one turns it off.
+   * They were one three-valued setting for a few hours, on my reading that the second existed to
+   * withhold what the first showed. The names are what settle it: one is a DISPLAY and the other
+   * is a RULE. Wanting to see the good moves AND be stopped from playing the others is the
+   * ordinary case, not a contradiction — and with both on, the arrows say what the guard will
+   * accept, which is the gentlest way either of them can work.
    */
-  teacher?(): 'off' | 'arrows' | 'silent';
-  /** Called with the teacher the player asked for. The shell decides what that means. */
-  onTeacher?(which: 'off' | 'arrows' | 'silent'): void;
+  arrows?(): boolean;
+  onArrows?(on: boolean): void;
+  /** Whether a move outside the engine's set is refused. Independent of `arrows`. */
+  guard?(): boolean;
+  onGuard?(on: boolean): void;
 
   /**
    * The drawings available for the pieces, READ WHEN NEEDED rather than captured.
@@ -619,15 +622,12 @@ export function createHud(deps: HudDeps): Hud {
   if (deps.themes) settings.appendChild(themeBox);
 
   /*
-   * ⚠️ PRESSING THE LIT ONE TURNS IT OFF, which is what an `aria-pressed` switch promises. The
-   * shell is told which teacher was ASKED FOR rather than "toggle", so the two buttons never have
-   * to agree about whose turn it is to be off.
+   * ⚠️ EACH BUTTON TOGGLES ITS OWN SWITCH AND SAYS NOTHING ABOUT THE OTHER, which is what
+   * `aria-pressed` promises and what makes them independent. The shell is handed the new value
+   * rather than "toggle", so the button and the setting cannot disagree about what was asked.
    */
-  const ask = (which: 'arrows' | 'silent') => (): void => {
-    deps.onTeacher?.(deps.teacher?.() === which ? 'off' : which);
-  };
-  const onHintClick = ask('arrows');
-  const onSilentClick = ask('silent');
+  const onHintClick = (): void => { deps.onArrows?.(!(deps.arrows?.() ?? false)); };
+  const onSilentClick = (): void => { deps.onGuard?.(!(deps.guard?.() ?? false)); };
   hintButton.addEventListener('click', onHintClick);
   silentButton.addEventListener('click', onSilentClick);
 
@@ -845,14 +845,12 @@ export function createHud(deps: HudDeps): Hud {
       silentButton.textContent = i18n.t('hud.hintSilent');
       hintButton.disabled = false;
       silentButton.disabled = false;
-      const which = deps.teacher?.();
-      if (which === undefined) {
-        hintButton.removeAttribute('aria-pressed');
-        silentButton.removeAttribute('aria-pressed');
-      } else {
-        hintButton.setAttribute('aria-pressed', String(which === 'arrows'));
-        silentButton.setAttribute('aria-pressed', String(which === 'silent'));
-      }
+      const arrows = deps.arrows?.();
+      const guard = deps.guard?.();
+      if (arrows === undefined) hintButton.removeAttribute('aria-pressed');
+      else hintButton.setAttribute('aria-pressed', String(arrows));
+      if (guard === undefined) silentButton.removeAttribute('aria-pressed');
+      else silentButton.setAttribute('aria-pressed', String(guard));
       // ⚠️ BUSY IS NOT OFF. The switch stays on and stays pressable while the engine searches;
       // disabling it would move focus off the control the moment it was used, and would say
       // "this setting is unavailable" when what is true is "the answer is on its way".

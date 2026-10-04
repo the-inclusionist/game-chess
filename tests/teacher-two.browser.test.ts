@@ -234,6 +234,36 @@ describe('[Professor II] through the whole shell, with an engine that answers sl
     expect(shell.game().selection(), 'still in hand, ready for another try').not.toBeNull();
   });
 
+  it('⚠️ the two switches are INDEPENDENT: both can be on at once', async () => {
+    /*
+     * The Dev, 2026-10-04: "torne-os independentes, ou seja, uma pessoa poderá ter setas ligadas e
+     * protetor de lances ligado ao mesmo tempo." They were one three-valued setting for a few
+     * hours, on my reading that the second existed to withhold what the first showed. The names he
+     * chose are what settle it — «Setas» is a DISPLAY, «Protetor de Lances» is a RULE — and with
+     * both on the arrows say exactly what the guard will accept.
+     */
+    createGameShell({
+      host: document, kind: '2d', view: fakeView, visibleMirror: true,
+      makeOpponent: slowEngine(), debugName: '__both', contrastTheme: 'contrast-flat',
+    });
+    const setas = document.getElementById('hud-hint') as HTMLButtonElement;
+    const protetor = document.getElementById('hud-hint-silent') as HTMLButtonElement;
+
+    setas.click();
+    await settle();
+    protetor.click();
+    await settle();
+
+    expect(setas.getAttribute('aria-pressed'), 'arrows stayed on').toBe('true');
+    expect(protetor.getAttribute('aria-pressed'), 'and the guard went on beside it').toBe('true');
+
+    // And each turns off on its own, without touching the other.
+    setas.click();
+    await settle();
+    expect(setas.getAttribute('aria-pressed')).toBe('false');
+    expect(protetor.getAttribute('aria-pressed'), 'the guard is not collateral').toBe('true');
+  });
+
   it('plays the move the set DOES contain, once the set is there', async () => {
     const shell = createGameShell({
       host: document, kind: '2d', view: fakeView, visibleMirror: true,

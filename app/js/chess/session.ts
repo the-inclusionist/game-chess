@@ -184,15 +184,21 @@ export interface ViewSettings {
    */
   readonly mode?: 'w' | 'b' | 'two';
   /**
-   * Which teacher is on, if any. A setting, not a one-off question.
+   * Whether the engine's suggestions are DRAWN on the board.
    *
-   * ⚠️ IT WAS A BOOLEAN AND THE OLD NAME STAYS READABLE. `hints: true` is what every board saved
-   * before 2026-10-04, and a child who comes back to a game should not find their teacher switched
-   * off because the field grew a third value. `session.ts` reads the old key when the new one is
-   * absent; nothing writes it any more.
+   * ========================= ⚠️ TWO SETTINGS, NOT ONE WITH THREE VALUES =========================
+   * They were one three-valued setting for a few hours on 2026-10-04, on my reading that "both at
+   * once is not a thing a teacher can be". The Dev decided otherwise the same day, and renaming
+   * them is what makes the reason plain: «Setas» shows you the moves, «Protetor de Lances» refuses
+   * the others. Those are not two amounts of the same thing — they are a display and a rule, and
+   * wanting both is the ordinary case rather than a contradiction.
    */
+  readonly arrows?: boolean;
+  /** Whether a move outside the engine's set is refused. The «Protetor de Lances». */
+  readonly guard?: boolean;
+  /** @deprecated The three-valued setting these replaced. Read for migration, never written. */
   readonly teacher?: 'off' | 'arrows' | 'silent';
-  /** @deprecated The boolean this replaced. Read for migration, never written. See `teacher`. */
+  /** @deprecated The boolean before that. Read for migration, never written. See `arrows`. */
   readonly hints?: boolean;
   /** Which piece drawing the PROJECTED board uses. The flat board's `set` is a font, not a shape. */
   readonly design?: string;
