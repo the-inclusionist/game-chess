@@ -249,6 +249,17 @@ export interface HudDeps {
    * — the choice and the act are separate, so changing the control in the middle of a game does
    * not wipe the time two people have already spent.
    */
+  /**
+   * ========================= TAKING THE GAME AWAY WITH YOU =========================
+   * The Dev, 2026-10-04: "o lado de lances deve ter dois botões: 📋 para copiar a partida (notação
+   * pgn), 💾 para salvar o arquivo pgn no computador."
+   *
+   * ⚠️ BESIDE THE «LANCES» HEADING, which is «o lado de lances»: they are about the list, so they
+   * read with its title rather than floating under the box. Both are absent where the composition
+   * root offers neither — a lesson has no game to take home.
+   */
+  onCopyPgn?(): void;
+  onSavePgn?(): void;
   onNewGame?(): void;
   /** The current control, already written the way it is shown: `5+0`, or «sem tempo». */
   timeControl?(): string;
@@ -627,7 +638,21 @@ export function createHud(deps: HudDeps): Hud {
   // ⚠️ THE NAV LEFT THIS BOX ON 2026-10-04. The Dev's order puts «Voltar | Avançar» ABOVE the
   // move list, not under it: they are the two things a child reaches for while reading the list,
   // and a control below a list that grows is a control that walks away as the game goes on.
-  movesBox.append(movesTitle, movesList);
+  /*
+   * ⚠️ A HEADER ROW, so the two buttons sit ON the «LANCES» line rather than under it. The box
+   * below is eight lines the Dev measured out by hand; spending one of them on chrome would be
+   * taking a line of the game away to make room for a button about the game.
+   */
+  const movesHead = doc.createElement('div');
+  movesHead.className = 'hud-moves-head';
+  const copyButton = doc.createElement('button');
+  copyButton.type = 'button';
+  copyButton.className = 'hud-pgn';
+  const saveButton = doc.createElement('button');
+  saveButton.type = 'button';
+  saveButton.className = 'hud-pgn';
+  movesHead.append(movesTitle, copyButton, saveButton);
+  movesBox.append(movesHead, movesList);
 
   // ========================= NO HIGH-CONTRAST SWITCH =========================
   // There was a checkbox here and it was a second door onto one state: the palette list already
@@ -1014,6 +1039,8 @@ export function createHud(deps: HudDeps): Hud {
   const onPieceChange = (): void => { deps.onPieceSet?.(pieceField.select.value); };
   const onThemeField = (): void => { deps.onTheme?.(themeField.select.value); };
   const onCountryChange = (): void => { deps.onCountry?.(countryField.select.value); };
+  const onCopyClick = (): void => { deps.onCopyPgn?.(); };
+  const onSaveClick = (): void => { deps.onSavePgn?.(); };
   const onNewGameClick = (): void => { deps.onNewGame?.(); };
   const onTimeClick = (): void => { deps.onTimeControl?.(); };
   const onResetClockClick = (): void => { deps.onResetClock?.(); };
@@ -1026,6 +1053,8 @@ export function createHud(deps: HudDeps): Hud {
   pieceField.select.addEventListener('change', onPieceChange);
   themeField.select.addEventListener('change', onThemeField);
   countryField.select.addEventListener('change', onCountryChange);
+  copyButton.addEventListener('click', onCopyClick);
+  saveButton.addEventListener('click', onSaveClick);
   newGameButton.addEventListener('click', onNewGameClick);
   timeButton.addEventListener('click', onTimeClick);
   resetClockButton.addEventListener('click', onResetClockClick);
@@ -1285,6 +1314,16 @@ export function createHud(deps: HudDeps): Hud {
       timeButton.title = i18n.t('hud.timeControlTip');
     }
 
+    copyButton.hidden = !deps.onCopyPgn;
+    saveButton.hidden = !deps.onSavePgn;
+    if (deps.onCopyPgn) icon(copyButton, '\u{1F4CB}', 'hud.copyPgn');
+    if (deps.onSavePgn) icon(saveButton, '\u{1F4BE}', 'hud.savePgn');
+    // ⚠️ NOTHING TO TAKE AWAY FROM AN EMPTY BOARD. Disabled rather than hidden: a button that
+    // appears once the first move is played would move the heading under the player's hand.
+    const anyMoves = rules().history().length > 0;
+    copyButton.disabled = !anyMoves;
+    saveButton.disabled = !anyMoves;
+
     const two = deps.twoPlayers?.() ?? false;
     seatCheck.setAttribute('aria-pressed', String(two));
     // ⚠️ «2P» IS THE PICTURE AND «2 Jogadores» IS THE NAME. Same split as the three icons above:
@@ -1386,6 +1425,8 @@ export function createHud(deps: HudDeps): Hud {
       pieceField.select.removeEventListener('change', onPieceChange);
       themeField.select.removeEventListener('change', onThemeField);
       countryField.select.removeEventListener('change', onCountryChange);
+      copyButton.removeEventListener('click', onCopyClick);
+      saveButton.removeEventListener('click', onSaveClick);
       newGameButton.removeEventListener('click', onNewGameClick);
       timeButton.removeEventListener('click', onTimeClick);
       resetClockButton.removeEventListener('click', onResetClockClick);

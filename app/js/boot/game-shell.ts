@@ -886,6 +886,20 @@ const engineRef: { current: Engine | null } = { current: null };
     clock.start(rules.turn());
   }
 
+  /**
+   * `xadrez-2026-10-04-1532.pgn`.
+   *
+   * ⚠️ THE DATE AND THE TIME, because a child who saves three games in an afternoon gets three
+   * files and not one asked-about overwrite. Local time rather than ISO: the name is read by the
+   * person who made it, in the room they made it in.
+   */
+  function pgnFilename(): string {
+    const now = new Date();
+    const pad = (n: number): string => String(n).padStart(2, '0');
+    return `xadrez-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+      + `-${pad(now.getHours())}${pad(now.getMinutes())}.pgn`;
+  }
+
   /** The middle button of the game row: one rung along the ladder, wrapping at the end. */
   function nextControl(): void {
     rung = (rung + 1) % TIME_CONTROLS.length;
@@ -1447,6 +1461,49 @@ const engineRef: { current: Engine | null } = { current: null };
      * engine's `gameOptions` entry for `protected` is still declared but the pause card that drew
      * it has been unreachable since the quick bar went.
      */
+    /*
+     * ========================= TAKING THE GAME AWAY WITH YOU =========================
+     * The Dev, 2026-10-04: 📋 "para copiar a partida (notação pgn)", 💾 "para salvar o arquivo pgn
+     * no computador".
+     *
+     * ⚠️ BOTH SAY SO OUT LOUD. A copy that leaves no mark is indistinguishable from a button that
+     * does nothing — there is no cursor to watch and no dialog to close — so the announcer says it
+     * landed, which also means a child who cannot see the panel is told.
+     *
+     * ⚠️ AND THE CLIPBOARD IS A PERMISSION, NOT A FUNCTION CALL. `navigator.clipboard` is absent
+     * on an insecure origin and may be refused by the browser; the failure is caught and SAID
+     * rather than left in the console, because a silent refusal is the same screen as a success.
+     */
+    onCopyPgn: () => {
+      const text = rules.pgn();
+      void (async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          announcer.say(i18n.t('pgn.copied'));
+        } catch {
+          announcer.alert(i18n.t('pgn.copyFailed'));
+        }
+      })();
+    },
+    onSavePgn: () => {
+      /*
+       * ⚠️ A BLOB AND AN ANCHOR, AND THE URL IS REVOKED. An object URL holds its blob in memory
+       * for the life of the document; a child who saves twenty games in a lesson would be holding
+       * twenty copies of a score sheet for no reason. `revokeObjectURL` after the click is the
+       * whole of the cleanup, and it is safe immediately — the download has already been handed
+       * to the browser.
+       */
+      const blob = new Blob([rules.pgn()], { type: 'application/x-chess-pgn' });
+      const url = URL.createObjectURL(blob);
+      const link = host.createElement('a');
+      link.href = url;
+      link.download = pgnFilename();
+      host.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      announcer.say(i18n.t('pgn.saved', { name: link.download }));
+    },
     onNewGame: () => {
       newGame('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
       hud.refresh();

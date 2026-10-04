@@ -536,6 +536,29 @@ html { background: var(--page); }
    * the two phrases around it are not; giving all three `flex: 1 1 0` would have spent a third of
    * an 88-logical-pixel column on three characters and truncated both neighbours.
    */
+  /*
+   * ========================= THE TWO BUTTONS ON THE «LANCES» LINE =========================
+   * 📋 and 💾, beside the heading rather than under it: the box below is eight lines the Dev
+   * measured out by hand, and spending one of them on chrome would take a line of the game away
+   * to make room for a button about the game.
+   *
+   * The heading takes the slack so the two icons sit at the right-hand end, where a reader's eye
+   * is already going after the word.
+   */
+  .hud-moves-head { display: flex; align-items: center; gap: 4px; }
+  .hud-moves-head > h2 { flex: 1 1 auto; min-width: 0; margin: 0; }
+  .hud-pgn {
+    flex: 0 0 auto;
+    min-width: var(--chess-tap, 44px); min-height: var(--chess-tap, 44px);
+    display: flex; align-items: center; justify-content: center;
+    font: inherit;
+    color: var(--ink); background: var(--surface-lift);
+    border: 1px solid #506C8A; border-radius: 2px;
+    cursor: pointer;
+  }
+  .hud-pgn:hover:not(:disabled) { background: var(--surface-high); }
+  .hud-pgn:disabled { opacity: 0.4; cursor: default; }
+
   .hud-game { display: flex; flex: 0 0 auto; gap: 4px; min-height: var(--chess-tap, 44px); }
   .hud-game-btn {
     flex: 1 1 0; min-width: 0;
