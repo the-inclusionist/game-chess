@@ -514,13 +514,33 @@ html { background: var(--page); }
   .hud-swatch[data-side="w"] { background: var(--focus); }
   .hud-swatch[data-side="b"] { background: #3F2B78; }
   .hud-captured { min-height: 1.2em; font-size: 1.05em; letter-spacing: -0.04em; }
-  /* Bounded rather than greedy: `flex: 1 1 auto` let the score sheet claim the column and press
-     everything under it against the bottom edge. A fixed window of about eight lines keeps the
-     recent moves in view and leaves the controls where the player last saw them; the rest of the
-     game is one scroll away, inside the list. */
+  /*
+   * ========================= ⚠️ A BOX OF EIGHT LINES, ALWAYS =========================
+   * The Dev, 2026-10-04: "abaixo de lances, deixe uma caixa de texto com 8 linhas de altura ou
+   * mais: deve ser visível na janela sem ter que usar barra de rolagem para vê-la inteira. Esta
+   * caixa deve ter barra de rolagem própria e os lances devem ser escritos nela."
+   *
+   * ⚠️ IT WAS `max-height: 8.5em` AND IT WAS NEITHER OF THOSE THINGS. A max-height is a ceiling,
+   * so at the start of a game the box was ZERO lines tall and grew under the controls as the game
+   * went on — the panel's content shifting down under the player's hand, which is the complaint
+   * «Voltar | Avançar» was moved above the list for this morning. And 8.5em is 136 px, which at
+   * this panel's 1.25 line-height is 6.8 lines, not the eight the comment claimed.
+   *
+   * So: a HEIGHT, computed from the line count rather than guessed in ems, and drawn as a box —
+   * a border and a darker ground — because a scrolling region a child has to find has to look
+   * like one. Measured on the running page: the box ends 41 px above the panel's bottom edge, so
+   * all eight lines are in the window without touching the panel's own scrollbar.
+   */
   .hud-moves {
-    flex: 0 0 auto; max-height: 8.5em; overflow-y: auto; overscroll-behavior: contain;
-    margin: 0; padding-left: 1.7em; font-size: var(--ui-fs, 16px);
+    flex: 0 0 auto;
+    height: calc(var(--ui-fs, 16px) * 1.25 * 8);
+    overflow-y: auto; overscroll-behavior: contain;
+    margin: 0; padding: 0.1em 0.2em 0.1em 1.9em;
+    box-sizing: border-box;
+    border: 1px solid #506C8A;
+    border-radius: 2px;
+    background: #0b1119;
+    font-size: var(--ui-fs, 16px);
     font-variant-numeric: tabular-nums;
   }
   .hud-moves:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
@@ -1084,6 +1104,37 @@ html { background: var(--page); }
    * height and the box is merely drawn inside it: a child aiming anywhere along "Contorno das
    * peças" hits a control at least one rung tall, which is what their finger needs.
    */
+  /*
+   * ========================= ⚠️ THE SETTINGS SCROLL, NOT THE PANEL =========================
+   * The Dev, 2026-10-04, about the move box above: "deve ser visível na janela sem ter que usar
+   * barra de rolagem para vê-la inteira."
+   *
+   * Giving the box a fixed height was not enough. The panel is one scroller, so anything that
+   * grows ABOVE the box pushes it below the fold — and something does: the opening's name appears
+   * the moment a known line is played, and the box went 24 px past the panel's edge on move four.
+   * Measured, not predicted; it looked right on an empty board.
+   *
+   * So the settings take the remaining room and scroll inside it. `flex: 1 1 auto` with
+   * `min-height: 0` is what lets a flex child be shorter than its content; without the second
+   * half the block refuses to shrink and the panel scrolls again, which is the whole bug.
+   *
+   * The panel keeps `overflow-y: auto` as a floor for a window too short even for this — there a
+   * scrollbar is better than a clipped control — and `min-height` here keeps the settings from
+   * collapsing into a two-pixel slot on the way down.
+   */
+  /* ⚠️ TWO LINES AT MOST. Opening names run long — "Bishop's Opening: Ponziani Gambit" is three
+     lines in this column — and this sits in the part of the panel that scrolls, under the move
+     box, so an unbounded one costs the settings their room rather than the box its visibility. */
+  .hud-opening {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+  .hud-controls {
+    flex: 1 1 auto;
+    min-height: calc(var(--chess-tap, 44px) * 1.6);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
   .chess-hud p.hud-check {
     display: flex;
     align-items: center;

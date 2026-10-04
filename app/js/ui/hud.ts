@@ -713,7 +713,18 @@ export function createHud(deps: HudDeps): Hud {
    */
   root.append(turn);
   if (deps.onHint) root.appendChild(hintBox);
-  root.append(navBox, openingBox, movesBox);
+  /*
+   * ⚠️ THE OPENING'S NAME MOVED BELOW THE LIST ON 2026-10-04, and it is a layout fix rather than a
+   * change of mind about what it is. It still belongs with the move list — it is a sentence ABOUT
+   * the move list — and under it is as much "with" as over it.
+   *
+   * What forced it: the Dev asked for the move box to be eight lines and fully visible without
+   * touching the panel's scrollbar, and this name is the one thing above it whose height is not
+   * known in advance. "Abertura: Bishop's Opening: Ponziani Gambit" wraps to three lines and
+   * pushed the box 24 px past the panel's edge on move four — measured on the running build,
+   * after it had looked right on an empty board.
+   */
+  root.append(navBox, movesBox, openingBox);
   if (deps.lessons) root.appendChild(lessonBox);
   // Settled here too, not only in refresh(): the panel is drawn before anything calls refresh, and
   // a picker that flashes once before hiding is the tremor this HUD has already been reported for.

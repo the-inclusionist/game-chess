@@ -365,9 +365,14 @@ describe('[Panel] the sections come in the order the Dev asked for', () => {
   it('whose turn, the two teachers, the walk, the moves, then the settings', () => {
     panel();
     const sections = [...hud!.root.children].map((n) => n.className || n.tagName.toLowerCase());
-    // The opening's name sits with the move list because it is a sentence ABOUT the move list.
+    /*
+     * The opening's name sits with the move list because it is a sentence ABOUT it — and UNDER it
+     * since 2026-10-04, which is a layout fix rather than a change of mind: it is the one thing
+     * above the move box whose height is not known in advance, and the Dev asked for that box to
+     * be eight lines and fully visible without touching the panel's scrollbar.
+     */
     expect(sections).toEqual([
-      'hud-turn', 'hud-teachers', 'hud-nav', 'hud-opening', 'section', 'hud-controls',
+      'hud-turn', 'hud-teachers', 'hud-nav', 'section', 'hud-opening', 'hud-controls',
     ]);
   });
 
