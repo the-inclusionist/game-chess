@@ -44,7 +44,17 @@ export interface BoardView {
    */
   quads(): Quad[];
   /** Replaces every marker at once. Absent squares are cleared. */
-  setMarkers(markers: ReadonlyMap<number, Marker>): void;
+  /**
+   * The marks, plus WHERE THE CURSOR IS — a second argument rather than another entry in the map,
+   * because it is a different channel and not a competing mark.
+   *
+   * ⚠️ THE MAP HOLDS ONE KIND PER SQUARE, so while the cursor lived in it, it could only appear on
+   * a square that said nothing else. The moment a player walked onto a square lit as a legal move,
+   * the cursor VANISHED — the Dev's report of 2026-10-04, and the reason this board was hard to
+   * walk about on while the flat one was not. The flat board never had the problem because it
+   * carries its marks on the mirror's own attributes and can say two things at once.
+   */
+  setMarkers(markers: ReadonlyMap<number, Marker>, cursor?: Square | null): void;
   /**
    * The engine's suggestions, best first, drawn as arrows across the board.
    *
@@ -137,6 +147,19 @@ export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE):
    */
   const lessonAnchor = new Zdog.Anchor({ addTo: anchor });
 
+  /*
+   * ⚠️ ON DEMAND, AND FOR THE RULE THIS FILE ALREADY STATES TWICE ABOVE. Zdog re-flattens and
+   * re-sorts every shape in the graph each frame — the measured budget is 450 shapes in 1.44 ms —
+   * so sixty-four hidden cursor rings would be 64 shapes of standing cost to draw exactly ONE.
+   *
+   * ⚠️ AND IT IS ITS OWN SHAPE RATHER THAN THE SQUARE'S `outlines[i]`, which is the real reason
+   * this exists. Each square owns one dot and one outline: `move` wants the dot, `capture`,
+   * `selected` and `check` want the outline. A cursor that borrowed the outline would be silenced
+   * by any of those three — which is the defect, one layer further down, that putting the cursor
+   * in the marker map produced one layer up.
+   */
+  const cursorAnchor = new Zdog.Anchor({ addTo: anchor });
+
   /**
    * The lesson mark: an inner filled square inside a black halo.
    *
@@ -208,8 +231,9 @@ export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE):
       return out;
     },
 
-    setMarkers(markers) {
+    setMarkers(markers, cursor) {
       hideAll();
+      cursorAnchor.children = [];
       for (const [index, kind] of markers) {
         if (index < 0 || index >= SQUARE_COUNT) continue;
         // ⚠️ A lesson mark is neither a dot nor a ring, so it leaves both of those alone. That is
@@ -226,6 +250,26 @@ export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE):
         dots[index].color = kind === 'selected' ? MARKER_SELECTED : MARKER_MOVE;
         outlines[index].visible = showOutline;
         outlines[index].color = OUTLINE_COLOUR[kind];
+      }
+
+      /*
+       * ⚠️ AFTER THE LOOP AND UNCONDITIONAL, so "this square is a legal move" can never silence
+       * "this is where you are". Wider than the square's own outline (0.96 of a tile against
+       * 0.84), which is what keeps the two readable when they land together.
+       */
+      if (cursor) {
+        const { x, z } = squareCenter(cursor, TILE);
+        new Zdog.Rect({
+          addTo: cursorAnchor,
+          width: TILE * 0.96,
+          height: TILE * 0.96,
+          translate: { x, y: MARKER_LIFT, z },
+          rotate: { x: Zdog.TAU / 4 },
+          stroke: SQUARE_STROKE * 3,
+          color: OUTLINE_COLOUR.cursor,
+          fill: false,
+          backface: true,
+        });
       }
     },
 

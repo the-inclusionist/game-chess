@@ -106,7 +106,18 @@ export interface BoardView {
    * A view with no marker channel of its own draws the arrows and ignores the map; the words are
    * on the mirror's labels either way, which is where they have to be.
    */
-  drawMarks(markers: ReadonlyMap<number, Marker>, hints: readonly HintMove[]): void;
+  /**
+   * ⚠️ `cursor` IS A THIRD ARGUMENT RATHER THAN AN ENTRY IN `markers`, and that is the fix for the
+   * Dev's report of 2026-10-04. The map holds one kind per square, so a cursor inside it could
+   * only ever be shown where the square said nothing else — and it was therefore invisible on
+   * exactly the squares a player is walking towards. Where you are is a different channel from
+   * what the square means.
+   */
+  drawMarks(
+    markers: ReadonlyMap<number, Marker>,
+    hints: readonly HintMove[],
+    cursor: Square | null,
+  ): void;
   /**
    * Flies a piece, and resolves when it lands.
    *

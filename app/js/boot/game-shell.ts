@@ -2165,10 +2165,21 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     }
     const check = game.kingInCheck();
     if (check) markers.set(squareIndex(check), 'check');
-    // The keyboard cursor last, and only where nothing else already speaks for the square.
-    const at = squareIndex(cursor);
-    if (!markers.has(at)) markers.set(at, 'cursor');
-    view.drawMarks(markers, hinted);
+    /*
+     * ⚠️ THE CURSOR GOES BESIDE THE MAP, NOT IN IT, and this line used to read
+     * `if (!markers.has(at)) markers.set(at, 'cursor')` — the cursor drawn "only where nothing
+     * else already speaks for the square".
+     *
+     * Which meant it was silenced on precisely the squares a player is heading for: select a
+     * piece, and every square you could move to stops showing where you are. The Dev, 2026-10-04:
+     * "quando o cursor esta sob uma casa marcada como casa possivel de andar, o cursor some" — and
+     * it is why walking the projected and solid boards was so hard, while the flat board, which
+     * never used this map, was fine.
+     *
+     * The views draw it last and unconditionally now, each with a ring wider than the square's own
+     * marks, so the two coexist instead of competing.
+     */
+    view.drawMarks(markers, hinted, cursor);
   }
 
   /**

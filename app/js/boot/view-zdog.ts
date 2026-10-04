@@ -296,10 +296,10 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
       invalidate();
     },
 
-    drawMarks: (markers, hints) => {
+    drawMarks: (markers, hints, cursor) => {
       // A hint is drawn over the game's own state rather than competing with it for squares.
       boardView.setHintArrows(hints);
-      boardView.setMarkers(markers);
+      boardView.setMarkers(markers, cursor);
       invalidate();
     },
 

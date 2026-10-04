@@ -98,7 +98,17 @@ export interface Scene3d {
    * where the piece they were holding could go; those three facts reached them only through the
    * screen reader's labels, which is to say only if they were using one.
    */
-  setMarkers(markers: ReadonlyMap<number, Marker>): void;
+  /**
+   * The marks, plus WHERE THE CURSOR IS — and the cursor is a second argument rather than another
+   * entry in the map because it is a different channel, not a competing mark.
+   *
+   * ⚠️ THE MAP HOLDS ONE KIND PER SQUARE. While the cursor lived in it, it could only be shown on
+   * a square that said nothing else — so the moment a player moved onto a square lit as a legal
+   * move, the cursor VANISHED. That is the Dev's report of 2026-10-04 ("quando o cursor esta sob
+   * uma casa marcada como casa possivel de andar, o cursor some"), and it made the projected and
+   * solid boards unusable to walk about on, which is the one thing a cursor is for.
+   */
+  setMarkers(markers: ReadonlyMap<number, Marker>, cursor?: Square | null): void;
   /** The square under a point in canvas coordinates, or null. */
   pick(x: number, y: number, width: number, height: number): Square | null;
   /** Repaints the board. The pieces are rebuilt by their own layer, not here. */
@@ -336,7 +346,7 @@ export function createScene3d(options: Scene3dOptions): Scene3d {
       renderer.render(scene, camera);
     },
 
-    setMarkers(wanted) {
+    setMarkers(wanted, cursor) {
       // Thrown away and rebuilt. Geometries and materials are disposed, because a scene rendered
       // every frame will not forgive a leak of one mesh per move.
       for (const child of [...marks.children]) {
@@ -349,6 +359,16 @@ export function createScene3d(options: Scene3dOptions): Scene3d {
         if (index < 0 || index >= 64) continue;
         const { x: cx, z: cz } = sceneCenter({ x: index % 8, y: Math.floor(index / 8) }, TILE);
         drawMark(kind, cx, cz);
+      }
+      /*
+       * ⚠️ LAST, AND UNCONDITIONALLY. Drawn after the loop so it sits over whatever the square
+       * already says, and outside it so that "this square is a legal move" can never silence
+       * "this is where you are". Its ring is the widest of the family (0.46 against the capture
+       * ring's 0.42), which is what keeps the two readable when they land on the same square.
+       */
+      if (cursor) {
+        const { x: cx, z: cz } = sceneCenter(cursor, TILE);
+        drawMark('cursor', cx, cz);
       }
     },
 

@@ -62,6 +62,9 @@ export const createFlatView: ViewFactory = (ctx: ViewContext): BoardView => {
 
     // No marker channel: `grid-mirror.refresh()` derives its own from the state and writes them as
     // `data-mark` AND into the label, because a legal move is a marked cell and a named one.
+    // ⚠️ The flat board ignores BOTH the map and the cursor on purpose: the mirror is the board
+    // here, and it carries every mark on its own attributes — which is why it is the one view that
+    // never had the 2026-10-04 defect of a cursor silenced by the square it stood on.
     drawMarks: (_markers, hints) => { mirror.setHints(hints); },
 
     travel: (from, to) => mirror.animate(from, to, { reducedMotion: ctx.reducedMotion() }),
