@@ -23,6 +23,7 @@ import { specs3dFor } from '../render3d/geometry3d.ts';
 import { buildPiece3d, disposePiece3d } from '../render3d/pieces.ts';
 import { createScene3d, sceneCenter } from '../render3d/scene.ts';
 import { projectBoardQuads } from '../render3d/project-quads.ts';
+import { createDragToMove } from './drag-to-move.ts';
 import type { Quad } from '../render/picking.ts';
 import { createCoordinates } from '../ui/coordinates.ts';
 import { boardTheme } from '../ui/board-themes.ts';
@@ -180,6 +181,25 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
   let start = { x: 0, y: 0 };
   let holdTimer = 0;
 
+  /** The square under a client point, or null off the board. Raycast against the real meshes. */
+  const squareAt = (point: { clientX: number; clientY: number }): Square | null => {
+    const box = canvas.getBoundingClientRect();
+    return scene.pick(point.clientX - box.left, point.clientY - box.top, box.width, box.height);
+  };
+
+  /*
+   * ⚠️ PRESS, MOVE, LET GO — the gesture this board did not have. See `boot/drag-to-move.ts` for
+   * why it is a module and for how it shares the pointer with the hold-to-turn gesture.
+   */
+  const carry = createDragToMove({
+    squareAt,
+    rules: () => ctx.rules(),
+    selection: () => ctx.state().selection(),
+    activate: (square) => ctx.activate(square),
+    focus: (square) => mirror.focusSquare(square),
+    cancelHold: () => window.clearTimeout(holdTimer),
+  });
+
   canvas.addEventListener('pointerdown', (event) => {
     start = { x: event.clientX, y: event.clientY };
     last = start;
@@ -188,11 +208,19 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
     // ⚠️ The same one-second hold the projected view uses, and for the same reason: a teacher
     // pointing at a square in front of a class must not spin the board by resting a finger on it.
     holdTimer = window.setTimeout(() => { if (holding) turning = true; }, 1000);
+    carry.down(event);
     try { canvas.setPointerCapture(event.pointerId); } catch { /* no such pointer */ }
   });
 
   canvas.addEventListener('pointermove', (event) => {
-    if (!holding || !turning) return;
+    if (!holding) return;
+    /*
+     * ⚠️ THE CARRY IS OFFERED THE MOVE BEFORE THE CAMERA, AND ONLY WHILE THE TABLE IS NOT TURNING.
+     * Once the hold has fired the press belongs to the camera for good, which is what keeps a
+     * teacher who has been resting a finger on the board from flinging a piece when they move.
+     */
+    if (!turning && carry.move(event)) return;
+    if (!turning) return;
     /*
      * ⚠️ THE VIEWER WALKS AROUND THE BOARD — the opposite model to the projected view's camera,
      * where dragging pushes the TABLE (`render/camera.ts` argues that at length, and it stays as it
@@ -215,6 +243,8 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
   canvas.addEventListener('wheel', (event) => {
     if (!holding) return;
     event.preventDefault();
+    // The press is the camera's now, so whatever was in hand is put back down untouched.
+    carry.abandon();
     turning = true;
     scene.dolly(Math.sign(event.deltaY));
   }, { passive: false });
@@ -222,11 +252,14 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
   const release = (event: PointerEvent): void => {
     window.clearTimeout(holdTimer);
     const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y);
-    if (holding && !turning && moved < SLOP) {
-      const box = canvas.getBoundingClientRect();
-      const square = scene.pick(
-        event.clientX - box.left, event.clientY - box.top, box.width, box.height,
-      );
+    /*
+     * ⚠️ THE CARRY IS SETTLED BEFORE THE SLOP CHECK BELOW. A carry has travelled further than a
+     * click by definition, so `moved < SLOP` would drop it on the floor — the piece would be
+     * picked up and never put down.
+     */
+    const dropped = turning ? (carry.abandon(), false) : carry.up(event);
+    if (!dropped && holding && !turning && moved < SLOP) {
+      const square = squareAt(event);
       if (square) {
         mirror.focusSquare(square);
         ctx.activate(square);

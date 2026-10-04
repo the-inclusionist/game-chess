@@ -47,6 +47,7 @@ import type { I18n } from '../i18n/index.ts';
 import { boardTheme, DEFAULT_THEME, type BoardTheme } from './board-themes.ts';
 import { DEFAULT_SET, pieceSet, type PieceSet } from './piece-sets.ts';
 import { squareFromIndex, squareIndex } from '../render/board-geometry.ts';
+import { createDragToMove } from '../boot/drag-to-move.ts';
 
 /**
  * What a lesson is saying about one square.
@@ -560,6 +561,13 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
   }
 
   function onClick(event: MouseEvent): void {
+    /*
+     * ⚠️ A CARRY SWALLOWS THE CLICK THAT FOLLOWS IT. A press and a release on the SAME cell still
+     * produce a `click`, so without this a drag that ended where it began would act twice: the
+     * carry picks the piece up and the click immediately puts it back down. The flag is cleared
+     * here rather than on a timer, because exactly one click can follow one release.
+     */
+    if (swallowClick) { swallowClick = false; return; }
     const target = (event.target as HTMLElement).closest('button');
     if (!target) return;
     const index = cells.indexOf(target as HTMLButtonElement);
@@ -569,8 +577,50 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
     deps.onActivate(square);
   }
 
+  /*
+   * ========================= PRESS, MOVE, LET GO =========================
+   * The Dev, 2026-10-04: the mouse should work "como se fosse um aplicativo comum". Clicking
+   * already did; picking a piece UP did not, on any of the three boards.
+   *
+   * ⚠️ IT LIVES HERE RATHER THAN IN `boot/view-flat.ts` because this is where the answers are. The
+   * flat board IS this mirror — the cells, their indices, the cursor and `onActivate` are all in
+   * this file, and `rules()` and `state()` are already in its deps. Doing it from the view would
+   * have meant a second way to turn a point into a square, built out of `data-square` strings and
+   * a copy of the algebraic mapping, to reach the array that is sitting right here.
+   */
+  let swallowClick = false;
+
+  const carry = createDragToMove({
+    squareAt: (point) => {
+      const el = deps.doc.elementFromPoint(point.clientX, point.clientY);
+      const button = (el as HTMLElement | null)?.closest('button');
+      const index = button ? cells.indexOf(button as HTMLButtonElement) : -1;
+      return index < 0 ? null : squareFromIndex(index);
+    },
+    rules: () => deps.rules(),
+    selection: () => deps.state().selection(),
+    activate: (square) => deps.onActivate(square),
+    // ⚠️ `false`: the cursor follows the pointer, but moving DOM focus on every square crossed
+    // would fire a focus event per cell and fight a screen reader mid-gesture.
+    focus: (square) => setCursor(square, false),
+    cancelHold: () => { /* no camera on the flat board: nothing to call off */ },
+  });
+
+  const onPointerDown = (event: PointerEvent): void => {
+    if (event.button !== 0) return;
+    carry.down(event);
+  };
+  const onPointerMove = (event: PointerEvent): void => { carry.move(event); };
+  const onPointerUp = (event: PointerEvent): void => {
+    if (carry.up(event)) swallowClick = true;
+  };
+
   root.addEventListener('keydown', onKeyDown);
   root.addEventListener('click', onClick);
+  root.addEventListener('pointerdown', onPointerDown);
+  root.addEventListener('pointermove', onPointerMove);
+  root.addEventListener('pointerup', onPointerUp);
+  root.addEventListener('pointercancel', () => carry.abandon());
 
   if (visible) {
     root.dataset.set = set.key;
@@ -663,6 +713,9 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
     destroy() {
       root.removeEventListener('keydown', onKeyDown);
       root.removeEventListener('click', onClick);
+      root.removeEventListener('pointerdown', onPointerDown);
+      root.removeEventListener('pointermove', onPointerMove);
+      root.removeEventListener('pointerup', onPointerUp);
       root.remove();
     },
   };

@@ -43,6 +43,7 @@ import { pickTopmost, toIllustrationSpace } from '../render/picking.ts';
 import { LOGICAL_W } from '../render/resolution.ts';
 import { boardTheme } from '../ui/board-themes.ts';
 import { createCoordinates } from '../ui/coordinates.ts';
+import { createDragToMove } from './drag-to-move.ts';
 import type { BoardView, ViewContext, ViewFactory } from './view.ts';
 
 /** A drag that moved less than this was a click. About a finger's tremor, and well under a square. */
@@ -154,11 +155,43 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
     holdTimer = null;
   };
 
+  /**
+   * The square under a client point, or null off the board.
+   *
+   * ⚠️ `stage.update()` FIRST, because `quads()` reads what the renderer last flattened and a
+   * carry asks this on every pointer move — including moves that arrive between two frames.
+   */
+  const squareAt = (point: { clientX: number; clientY: number }): Square | null => {
+    const rect = canvas.getBoundingClientRect();
+    const k = upscale();
+    const at = toIllustrationSpace(
+      { x: (point.clientX - rect.left) / k, y: (point.clientY - rect.top) / k },
+      stage.viewport(),
+    );
+    stage.update();
+    const hit = pickTopmost(boardView.quads(), at);
+    return hit === null ? null : squareFromIndex(hit);
+  };
+
+  /*
+   * ⚠️ PRESS, MOVE, LET GO — the gesture this board did not have. See `boot/drag-to-move.ts` for
+   * why it is a module and for how it shares the pointer with the hold-to-turn gesture.
+   */
+  const carry = createDragToMove({
+    squareAt,
+    rules: () => ctx.rules(),
+    selection: () => ctx.state().selection(),
+    activate: (square) => ctx.activate(square),
+    focus: (square) => ctx.mirror.focusSquare(square),
+    cancelHold,
+  });
+
   canvas.addEventListener('pointerdown', (e) => {
     dragging = e.pointerId;
     last = { x: e.clientX, y: e.clientY };
     travelled = 0;
     turning = false;
+    carry.down(e);
 
     /*
      * ========================= TURNING IS A DELIBERATE ACT =========================
@@ -196,6 +229,13 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
     const dy = (e.clientY - last.y) / k;
     travelled += Math.abs(dx) + Math.abs(dy);
     last = { x: e.clientX, y: e.clientY };
+    /*
+     * ⚠️ THE CARRY IS OFFERED THE MOVE BEFORE THE CAMERA, AND ONLY WHILE THE BOARD IS NOT TURNING.
+     * Once the hold has fired the press belongs to the camera for good, which is what keeps a
+     * teacher who has been resting a finger on the board from flinging a piece when they finally
+     * move it.
+     */
+    if (!turning && carry.move(e)) { invalidate(); return; }
     // Before the hold fires this loop does nothing but keep the origin current.
     if (!turning) return;
     camera.drag(dx, dy);
@@ -216,6 +256,8 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
     if (dragging === null) return;
     e.preventDefault();
     cancelHold();
+    // The press is the camera's now, so whatever was in hand is put back down untouched.
+    carry.abandon();
     turning = true;
     canvas.dataset.turning = 'true';
     camera.dolly(Math.sign(e.deltaY));
@@ -237,19 +279,16 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
     if (turning) {
       turning = false;
       delete canvas.dataset.turning;
+      carry.abandon();
       return;
     }
+    // ⚠️ BEFORE THE SLOP CHECK. A carry has travelled further than a click by definition, so the
+    // line below would drop it on the floor — the piece would be picked up and never put down.
+    if (carry.up(e)) { invalidate(); return; }
     if (travelled >= CLICK_SLOP) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const k = upscale();
-    const point = toIllustrationSpace(
-      { x: (e.clientX - rect.left) / k, y: (e.clientY - rect.top) / k },
-      stage.viewport(),
-    );
-    stage.update();
-    const hit = pickTopmost(boardView.quads(), point);
-    if (hit !== null) ctx.activate(squareFromIndex(hit));
+    const hit = squareAt(e);
+    if (hit) ctx.activate(hit);
   });
 
   return {
