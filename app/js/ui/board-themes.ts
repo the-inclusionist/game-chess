@@ -369,7 +369,20 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
      * the distinction a chess player cannot afford to lose.
      */
     solidStroke: { light: '#000000', dark: '#000000' },
-    solid: { dark: ['#5A5A5A', '#5A5A5A', '#5A5A5A'] },
+    /*
+     * ========================= ⚠️ BLACK, AND THIS IS A REGRESSION I MADE TODAY =========================
+     * `#5A5A5A` is the shared default every board here uses for the projected dark piece, chosen
+     * for one reason: it is the darkest grey keeping 3:1 from the black stroke around it. Nobody
+     * asked what it measured against the SQUARE, and on this board, after the light and dark
+     * squares came down this morning, the answer was 1.01 — the dark piece and the dark square
+     * were the same colour, which is the exact defect the Dev reported on «Preto & Branco».
+     *
+     * Black fixes it by giving up the stroke rather than the body: #000000 against this dark
+     * square is 3.06 and against the light one 9.30, so the FILL carries the separation and the
+     * black stroke around it simply disappears into it. A piece does not need an edge when it is
+     * already 3:1 from everything it stands on.
+     */
+    solid: { dark: ['#000000', '#000000', '#000000'] },
     name: 'theme.cbsafe',
     short: 'theme.short.cbsafe',
   },
@@ -436,12 +449,29 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
      * does not exist while below 0.0007 collides with the 3:1 it owes the black filling underneath.
      *
      * So the stroke went black — which clears both squares easily — and the FILLING moved instead.
-     * `#5A5A5A` is the darkest grey that still keeps 3:1 from that black stroke (3.04) and from
-     * the white piece (6.90). The dark piece is therefore dark grey here and black on the flat
-     * board, and that is a real difference between the two views, accepted rather than overlooked.
+     *
+     * ========================= ⚠️ AND THE FILLING MOVED TO THE COLOUR OF THE SQUARE =========================
+     * The Dev, 2026-10-04: "no alto contraste Preto e Branco não há contraste entre peças pretas e
+     * casas pretas em 2.5D e 3D." Measured: `#5A5A5A` against `#5A5A5A` is 1.00. Not low — the
+     * SAME COLOUR, on the board whose entire reason for existing is contrast.
+     *
+     * ⚠️ THE OLD PARAGRAPH HERE EXPLAINED IT AWAY, and it is worth keeping what it said: "`#5A5A5A`
+     * is the darkest grey that still keeps 3:1 from that black stroke (3.04)... The dark piece is
+     * therefore dark grey here and black on the flat board, and that is a real difference between
+     * the two views, accepted rather than overlooked." Every clause is true and the conclusion is
+     * wrong, because the set it optimised was fill-against-STROKE. Nobody asked what the fill
+     * measured against the square it stands on, and this is the one board where the answer was
+     * that they are the same ink.
+     *
+     * Black is the only other answer, and it is the right one. The fill must be 3:1 from the dark
+     * square, which needs luminance at most 0.0005 — black — or at least 0.405, which is the
+     * LIGHT square and would make both pieces the same side. #000000 gives 3.04 against the dark
+     * square and 9.14 against the light one, so the body carries the separation and the black
+     * stroke around it disappears into it. A piece does not need an edge when it is already 3:1
+     * from everything it stands on — and it now matches the flat board, where it was always black.
      */
     solidStroke: { light: '#000000', dark: '#000000' },
-    solid: { dark: ['#5A5A5A', '#5A5A5A', '#5A5A5A'] },
+    solid: { dark: ['#000000', '#000000', '#000000'] },
     name: 'theme.contrast1',
     short: 'theme.short.contrast1',
     flatSolid: true,
