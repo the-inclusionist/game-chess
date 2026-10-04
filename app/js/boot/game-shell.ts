@@ -352,22 +352,27 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * through chess's own `i18n`.
    */
   /*
- * ========================= THE THREE LANGUAGES, NAMED BY COUNTRY =========================
- * The Dev, 2026-10-04: "adicione mais um dropdown: países" — in the same message that removes the
- * engine's quick bar, where the language lived as «Idioma: Português (Brasil)».
+ * ========================= THE THREE LANGUAGES, NAMED AS LANGUAGES =========================
+ * The Dev, 2026-10-04, in three steps on the same afternoon: "adicione mais um dropdown: países",
+ * then — asked what it should choose — the language, by country, then: "troque «Países» por
+ * «Idioma» (Português, Español, English)".
  *
- * ⚠️ ONE COUNTRY PER LANGUAGE IS A SIMPLIFICATION AND IT IS DELIBERATE. Spanish is spoken in
- * twenty countries and English in dozens; naming one is wrong as geography and right as a label a
- * child who cannot yet read «Español» can still recognise. The engine's own bar already made the
- * same trade for Portuguese. What the control sets is the LOCALE — the country is the name.
+ * ⚠️ THE LAST STEP SETTLES AN ARGUMENT THIS COMMENT USED TO MAKE. It said one country per
+ * language was "wrong as geography and right as a label", because a child who cannot read
+ * «Español» can recognise «Espanha». His answer is better: name the language in the language. A
+ * child who reads none of the three recognises «Español» as the shape of the word they are
+ * looking for, and nobody is told that Spanish belongs to Spain.
  *
- * ⚠️ NO FLAG EMOJI. Windows draws 🇧🇷 as the letters "BR" — it ships no country-flag glyphs — so a
- * flag here would be two capitals in a box on the Dev's own machine. The name carries it.
+ * ⚠️ THE FLAG STAYS, as the picture beside the word rather than instead of it. He asked for Noto
+ * Color Emoji by name one message earlier precisely so these three would render — Windows ships
+ * no country-flag glyphs — and dropping them now would throw that away. The order is his: pt, es,
+ * en. The key names still say `country.*`, which is now a small lie about three strings; renaming
+ * them is a rename across three catalogues and is not worth a commit of its own.
  */
 const COUNTRIES: readonly { readonly code: string; readonly label: string }[] = [
   { code: 'pt', label: 'country.br' },
-  { code: 'en', label: 'country.us' },
   { code: 'es', label: 'country.es' },
+  { code: 'en', label: 'country.us' },
 ];
 
 const engineRef: { current: Engine | null } = { current: null };
