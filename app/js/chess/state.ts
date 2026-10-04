@@ -46,6 +46,24 @@ export type Activation =
   /** The chosen destination was given up, without a piece ever being chosen. */
   | { readonly kind: 'unaimed' }
   | { readonly kind: 'moved'; readonly move: MoveResult }
+  /**
+   * A LEGAL move that something outside the rules would not accept.
+   *
+   * ========================= ⚠️ NOT THE SAME THING AS `illegal` =========================
+   * `illegal` means chess says no — the piece does not move that way, or the king would be left in
+   * check. This means chess says yes and a TEACHER says no: Professor II accepts only the moves it
+   * would have drawn arrows for (the Dev, 2026-10-04), and everything else is sent back.
+   *
+   * Telling them apart is not pedantry. The two want opposite answers: an illegal move is a
+   * misunderstanding of the rules and deserves the rules explained; a refused one is a legal move
+   * that is simply not the best, and deserves "try again" and nothing else — which is why it gets
+   * a whistle rather than a sentence.
+   *
+   * ⚠️ THE SELECTION SURVIVES IT, which is the whole point of the mode: "a peça volta pra casa
+   * inicial, permitindo que o jogador escolha outra jogada". The piece is still in hand and the
+   * legal squares are still lit; only the move did not happen.
+   */
+  | { readonly kind: 'refused'; readonly from: Square; readonly to: Square }
   | { readonly kind: 'illegal'; readonly square: Square }
   | {
       readonly kind: 'ignored';
@@ -97,6 +115,20 @@ export interface GameStateOptions {
    * own and is entitled to it.
    */
   readonly aiming?: boolean;
+  /**
+   * A second opinion on a move the rules already allow. `false` sends it back.
+   *
+   * ⚠️ IT LIVES IN THE STATE MACHINE AND NOT IN THE SHELL, because "may this move happen" is a
+   * question this file already answers and answering it in two places is how this repository has
+   * been bitten all week. The shell owns WHO is asking — a teacher, a lesson, nothing — and this
+   * owns when the question is put.
+   *
+   * ⚠️ AND IT IS SYNCHRONOUS ON PURPOSE. The caller that needs to consult an engine must have its
+   * answer ready BEFORE it activates; `activate` cannot become a promise without every view that
+   * drives it learning to wait, and a board that pauses mid-click is worse than one that asks its
+   * question a moment earlier. See `game-shell.ts`, where the hint is awaited first.
+   */
+  readonly allowMove?: (from: Square, to: Square) => boolean;
 }
 
 export interface GameState {
@@ -165,6 +197,7 @@ export function createGameState(options: GameStateOptions): GameState {
    */
   let destination: Square | null = null;
   const aiming = options.aiming ?? true;
+  const allowMove = options.allowMove;
 
   /** Works out which phase the position implies, once nothing is in flight. */
   function settle(): void {
@@ -309,7 +342,14 @@ export function createGameState(options: GameStateOptions): GameState {
        * impossible, and `select` clears it.
        */
       if (destination && piece && piece.side === rules.turn()) {
-        const move = play(square, destination);
+        // ⚠️ Captured, because the closure below loses the narrowing that `destination &&` just won.
+        const goal = destination;
+        if (allowMove
+          && rules.legalTargets(square).some((t) => t.x === goal.x && t.y === goal.y)
+          && !allowMove(square, goal)) {
+          return { kind: 'refused', from: square, to: goal };
+        }
+        const move = play(square, goal);
         if (move) return { kind: 'moved', move };
       }
 
@@ -317,6 +357,16 @@ export function createGameState(options: GameStateOptions): GameState {
       if (piece && piece.side === rules.turn()) return select(square);
 
       if (phase === 'selected' && selection) {
+        /*
+         * ⚠️ ASKED ONLY OF MOVES THE RULES ALREADY ALLOW, and asked BEFORE `play`. A teacher has no
+         * opinion about a move that was never going to happen — putting the filter in front of the
+         * legality check would let it turn "that piece does not move that way" into "try again",
+         * and the child would be told the wrong thing about their own mistake.
+         */
+        if (allowMove && targets.some((t) => t.x === square.x && t.y === square.y)
+          && !allowMove(selection, square)) {
+          return { kind: 'refused', from: selection, to: square };
+        }
         const move = play(selection, square);
         if (move) return { kind: 'moved', move };
         return { kind: 'illegal', square };

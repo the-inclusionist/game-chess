@@ -525,6 +525,19 @@ html { background: var(--page); }
   }
   .hud-moves:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
+  /*
+   * ========================= THE TWO TEACHERS, SIDE BY SIDE =========================
+   * The Dev, 2026-10-04: Professor I on the left, Professor II on the right. One row, equal
+   * halves, because neither is the secondary one — they are two ways of being taught, and a
+   * layout that made one smaller would be saying which.
+   *
+   * ⚠️ `gap` AND NOT A MARGIN: the two targets must not touch. Adjacent 44-px controls with no
+   * space between them are one 88-px control to a child with unsteady hands, and the wrong half is
+   * where the whistle lives.
+   */
+  .hud-teachers { display: flex; gap: 4px; }
+  .hud-teachers .hud-hint { flex: 1 1 0; min-width: 0; }
+
   /* Two targets side by side in an 88-logical-pixel column: --tap keeps each at 44 CSS px tall
      (WCAG 2.5.5) and they split the width, which is the one dimension there is none of. */
   .hud-hint {

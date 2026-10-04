@@ -78,6 +78,7 @@ import { createHud, type GameMode, type Hud, type ViewKind } from '../ui/hud.ts'
 import { applyLayout } from '../ui/layout.ts';
 import { createPlayerStrips } from '../ui/player-strip.ts';
 import { createScoreboard } from '../ui/scoreboard.ts';
+import { createEarcons, WHISTLE } from '../ui/earcons.ts';
 import { createSplash } from '../ui/splash.ts';
 import { createThinkingPanel } from '../ui/thinking.ts';
 import { actionPreset, hintParts } from '../ui/key-hints.ts';
@@ -588,7 +589,9 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
   // the board — the case the state machine already had and nothing in the panel could reach.
   const mode: GameMode = remembered.mode ?? 'w';
   const playerSide: Side = mode === 'b' ? 'b' : 'w';
-  let game = createGameState({ rules, playerSide, opponent: mode !== 'two' });
+  let game = createGameState({
+    rules, playerSide, opponent: mode !== 'two', allowMove: approved,
+  });
 
   let searching = false;
   /** A walk is in flight: the board must not accept a move played on top of it. */
@@ -665,9 +668,40 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * teaching path actually opens; the door is only one of its callers.
    */
   let lessonsOffered = false;
-  let hintsOn = remembered.hints ?? false;
+  /**
+   * Which teacher is on, if any — the Dev's two buttons of 2026-10-04.
+   *
+   *   · `arrows` is the teacher this game already had: it asks the engine for every move it rates
+   *     at the same level and draws them, and says the best one out loud.
+   *   · `silent` asks for exactly the same set and shows NONE of it. What it does instead is
+   *     refuse any move outside that set — a whistle, and the piece back where it started.
+   *
+   * ⚠️ ONE SETTING, NOT TWO SWITCHES. "Both at once" is not a thing a teacher can be: the second
+   * exists precisely to withhold what the first shows.
+   *
+   * ⚠️ AND THE OLD BOOLEAN IS READ ON THE WAY IN. Every board saved before today stored
+   * `hints: true`; a child coming back should not find their teacher switched off because the
+   * field grew a third value.
+   */
+  /**
+   * The game's own short sounds.
+   *
+   * ⚠️ THE CAPTION COMES FROM THE ENGINE AND THE SOUND DOES NOT. `engine.captionSound` shows the
+   * caption when the child has captions on; there is no `sfx` on the Engine a cartridge receives,
+   * so the note itself is synthesised here. See the header of `ui/earcons.ts`.
+   */
+  const earcons = createEarcons({
+    caption: (text) => { engineRef.current?.captionSound(text); },
+  });
+
+  let teacher: 'off' | 'arrows' | 'silent' =
+    remembered.teacher ?? (remembered.hints ? 'arrows' : 'off');
+  /** True for either teacher: both want the engine's set, and only one of them draws it. */
+  const teaches = (): boolean => teacher !== 'off';
   let hintFen: string | null = null;
   let hinted: readonly HintMove[] = [];
+  /** The hint request in the air, so a caller that must WAIT joins it instead of missing it. */
+  let pendingHint: Promise<void> | null = null;
 
   /**
    * ========================= PROTECTED MODE =========================
@@ -1290,13 +1324,10 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     // No engine in a two-player game, so nobody to ask.
     ...(mode === 'two' ? {} : {
       onHint: () => {
-        hintsOn = !hintsOn;
-        prefs.save({ hints: hintsOn });
-        if (!hintsOn) clearHints();
-        hud.refresh();
-        refreshHints();
+        chooseTeacher(teacher === 'off' ? 'arrows' : 'off');
       },
-      hintsOn: () => hintsOn,
+      teacher: () => teacher,
+      onTeacher: (which) => { chooseTeacher(which); },
       hintBusy: () => hinting,
     }),
 
@@ -1953,11 +1984,11 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
         lessonMode.setTeacher(!lessonMode.teacher());
         refreshLessonMenu();
       } else if (mode !== 'two') {
-        hintsOn = !hintsOn;
-        prefs.save({ hints: hintsOn });
-        if (!hintsOn) clearHints();
-        hud.refresh();
-        refreshHints();
+        /*
+         * ⚠️ THE KEY CYCLES ALL THREE, because two buttons on screen must not mean fewer choices
+         * for a child who never sees them. Off, arrows, silent, off — the same order they sit in.
+         */
+        chooseTeacher(teacher === 'off' ? 'arrows' : teacher === 'arrows' ? 'silent' : 'off');
       }
       event.preventDefault();
       return;
@@ -2078,9 +2109,11 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     stumbles++;
 
     blunderBar.show({ mark: entry.mark ?? '', lost: entry.lost });
-    if (stumbles >= STUMBLES_BEFORE_HELP && !hintsOn) {
-      hintsOn = true;
-      prefs.save({ hints: hintsOn });
+    // ⚠️ `arrows`, NOT `silent`. This exists because a child is struggling, and the teacher that
+    // SHOWS is the one that helps; arriving unasked at the one that only says no would be cruel.
+    if (stumbles >= STUMBLES_BEFORE_HELP && teacher === 'off') {
+      teacher = 'arrows';
+      prefs.save({ teacher });
       announcer.say(i18n.t('protected.teaching'));
       // Turning the switch on is not enough: the arrows are drawn when a suggestion arrives, and
       // nothing else is going to ask for one — the position has not changed and will not until
@@ -2105,6 +2138,24 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     }
   }
 
+  /**
+   * Turns a teacher on or off. The one place the setting changes, so the three things that have to
+   * happen together cannot drift apart: the panel, the board, and what is stored.
+   */
+  function chooseTeacher(which: 'off' | 'arrows' | 'silent'): void {
+    teacher = which;
+    prefs.save({ teacher });
+    /*
+     * ⚠️ THE ARROWS GO WHEN EITHER BUTTON CHANGES, not only when the teacher is switched off.
+     * Pressing II while I is lit must take the arrows off the board immediately — leaving the last
+     * set drawn would be the one state this mode exists to prevent, and a child would see the
+     * answer to the move they are about to be refused for.
+     */
+    clearHints();
+    hud.refresh();
+    refreshHints();
+  }
+
   function clearHints(): void {
     hintFen = null;
     hinted = [];
@@ -2115,6 +2166,13 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
   function showHint(moves: readonly Suggestion[]): void {
     hinted = moves.map((m) => ({ from: m.move.from, to: m.move.to, behind: m.behind }));
     syncMarks();
+    /*
+     * ⚠️ PROFESSOR II SAYS NOTHING, and this is the half that would have leaked. "A engine jogaria
+     * e2 e4" hands the answer to anyone listening, which is exactly what the mode withholds from
+     * anyone looking. The whistle and its caption are the channel instead, and the move being sent
+     * back IS the information — for a listener as much as for a watcher.
+     */
+    if (teacher === 'silent') return;
     const say = (m: Suggestion): string => `${toAlgebraic(m.move.from)} ${toAlgebraic(m.move.to)}`;
     announcer.say(moves.length > 1
       ? i18n.t('a11y.hintMany', { move: say(moves[0]), others: moves.slice(1).map(say).join(', ') })
@@ -2129,28 +2187,47 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
   function refreshHints(): void {
     const fen = rules.fen();
     if (hintFen !== null && hintFen !== fen) clearHints();
-    if (!hintsOn || hinting || game.phase() !== 'idle' || hintFen === fen) return;
+    if (!teaches() || hinting || game.phase() !== 'idle' || hintFen === fen) return;
     void askHint();
   }
 
-  async function askHint(): Promise<void> {
-    if (hinting || game.phase() !== 'idle') return;
+  /**
+   * Asks for the set, or JOINS the request already in the air.
+   *
+   * ========================= ⚠️ `if (hinting) return` WAS A HOLE, AND I FELL IN IT =========================
+   * Returning early while a request is in flight is right for the caller that only wants the
+   * arrows eventually — it is `refreshHints`, and a second search would be waste. It is wrong for
+   * the caller that has to WAIT for the answer: Professor II resolved instantly, found no set for
+   * the current position, and let the move through. Measured on the running build on 2026-10-04,
+   * with `a2–a3` sailing past a teacher that had just refused `h2–h4`.
+   *
+   * So the flight is shared. One request at a time as before, and everybody who asks gets the same
+   * promise to wait on — which is what makes the Dev's "segura o lance até chegar" true rather
+   * than true-when-the-timing-happens-to-suit.
+   */
+  function askHint(): Promise<void> {
+    if (game.phase() !== 'idle') return Promise.resolve();
+    if (pendingHint) return pendingHint;
     hinting = true;
     thinking.setBusy(true);
     hud.refresh();
     announcer.say(i18n.t('a11y.hintAsked'));
-    try {
-      const hint = await opponent.requestHint(rules.fen());
-      if (!hint) { announcer.say(i18n.t('a11y.hintNone')); return; }
-      hintFen = rules.fen();
-      showHint(hint.ties.length ? hint.ties : [{ move: hint.move, behind: 0 }]);
-    } catch {
-      announcer.say(i18n.t('status.engineFailed'));
-    } finally {
-      hinting = false;
-      thinking.setBusy(false);
-      hud.refresh();
-    }
+    pendingHint = (async () => {
+      try {
+        const hint = await opponent.requestHint(rules.fen());
+        if (!hint) { announcer.say(i18n.t('a11y.hintNone')); return; }
+        hintFen = rules.fen();
+        showHint(hint.ties.length ? hint.ties : [{ move: hint.move, behind: 0 }]);
+      } catch {
+        announcer.say(i18n.t('status.engineFailed'));
+      } finally {
+        pendingHint = null;
+        hinting = false;
+        thinking.setBusy(false);
+        hud.refresh();
+      }
+    })();
+    return pendingHint;
   }
 
   /**
@@ -2229,7 +2306,12 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      * The views draw it last and unconditionally now, each with a ring wider than the square's own
      * marks, so the two coexist instead of competing.
      */
-    view.drawMarks(markers, hinted, cursor);
+    /*
+     * ⚠️ `hinted` IS THE JUDGE'S SET AS WELL AS THE DRAWING, and Professor II needs it WITHOUT the
+     * drawing. So the set is kept either way and the arrows are withheld here — the one line that
+     * separates the two teachers on the board.
+     */
+    view.drawMarks(markers, teacher === 'silent' ? [] : hinted, cursor);
   }
 
   /**
@@ -2319,10 +2401,71 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
       });
   }
 
+  /**
+   * Professor II's verdict on a move, and the ONE place that waits for it.
+   *
+   * ========================= ⚠️ WHY THE WAIT IS HERE AND NOT IN THE STATE =========================
+   * The Dev chose this on 2026-10-04 (option B) over letting a fast move through: a mode that
+   * lapses when the engine is slow lapses exactly in the positions that are hard, which are the
+   * ones it exists for.
+   *
+   * `game.activate` is synchronous and every view drives it from a pointer or a key; making it a
+   * promise would mean teaching all of them to wait. So the question is ASKED EARLY instead — the
+   * set for this position is fetched before the activation is handed on, and by the time the state
+   * machine consults its filter the answer is already in hand.
+   *
+   * ⚠️ AND IT COSTS NOTHING AFTER THE FIRST TIME. `hintFen` matches until the position changes,
+   * and the position only changes on a move, so at most one activation per move ever waits — and
+   * usually not even that, because `refreshHints` set the engine going the moment the board moved.
+   */
+  async function readyToJudge(): Promise<void> {
+    if (teacher !== 'silent') return;
+    if (hintFen === rules.fen()) return;
+    await askHint();
+  }
+
+  /** Whether Professor II would let this move happen. Synchronous: see `readyToJudge`. */
+  function approved(from: Square, to: Square): boolean {
+    if (teacher !== 'silent') return true;
+    /*
+     * ⚠️ NO SET MEANS YES. The engine failed, or the position has none to give — and a teacher
+     * that cannot name a better move has no standing to refuse this one. Refusing on an empty set
+     * would make a broken engine look like a board that rejects everything.
+     */
+    if (hintFen !== rules.fen() || hinted.length === 0) return true;
+    return hinted.some((h) => h.from.x === from.x && h.from.y === from.y
+      && h.to.x === to.x && h.to.y === to.y);
+  }
+
   function onActivate(square: Square): void {
+    if (walking) return;
+    /*
+     * ⚠️ THE WAIT IS ONLY EVER ENTERED BY PROFESSOR II (`readyToJudge` returns at once otherwise),
+     * so every other board keeps the straight synchronous path it always had.
+     */
+    if (teacher === 'silent' && hintFen !== rules.fen()) {
+      void readyToJudge().then(() => { activateNow(square); });
+      return;
+    }
+    activateNow(square);
+  }
+
+  function activateNow(square: Square): void {
     if (walking) return;
     cursor = square;
     const result = game.activate(square);
+    if (result.kind === 'refused') {
+      /*
+       * ⚠️ A WHISTLE AND NOTHING ELSE. The move was legal; what it was not is one of the moves the
+       * teacher would have drawn. Explaining that would be handing over the answer, which is the
+       * one thing this mode is for — so the child gets "not that one, go again" and the board is
+       * exactly as they left it, piece still in hand and its squares still lit.
+       */
+      earcons.play(WHISTLE, i18n.t('sfx.whistle'));
+      syncPosition();
+      observer?.(square, result);
+      return;
+    }
     if (result.kind !== 'moved') {
       syncPosition();
       announceActivation(announcer, i18n, rules, result);
@@ -2446,6 +2589,9 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
     // that remembered each touch as a destination would turn the lesson's own answer into a move.
     game = createGameState({
       rules, playerSide, opponent: !teaching && mode !== 'two', aiming: !teaching,
+      // ⚠️ A lesson has its own teacher; Professor II must not also be marking it. `approved`
+      // answers true for every teacher but `silent`, and a lesson board never sets that.
+      allowMove: approved,
     });
     setTaught([]);
     syncPosition();
@@ -2498,6 +2644,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
        * with any future host (platform page, cartridge swap) that keeps the document alive after
        * dropping this root. Idempotent in practice: `mounted` guards against repeats.
        */
+      earcons.destroy();
       engineRef.current?.dispose();
       engineRef.current = null;
     },

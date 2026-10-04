@@ -137,10 +137,21 @@ export interface HudDeps {
   onHint?(): void;
   hintBusy?(): boolean;
   /**
-   * Whether suggestions are ON. Present makes the button a SWITCH rather than a verb — see the
-   * note where it is built.
+   * Which teacher is on, if any. Present makes the pair a SWITCH rather than a verb.
+   *
+   * ========================= ⚠️ TWO BUTTONS, THREE STATES =========================
+   * The Dev, 2026-10-04: "gostaria de um botão Professor I à esquerda e outro Professor II à
+   * direita". Professor I is the teacher this game already had — it draws the arrows and says the
+   * move. Professor II draws nothing and says nothing, and instead REFUSES any move that is not
+   * one of the arrows I would have drawn.
+   *
+   * They are one setting with three values rather than two independent switches, because "both at
+   * once" is not a thing a teacher can be: the second exists precisely to withhold what the first
+   * shows. Pressing the lit one turns it off.
    */
-  hintsOn?(): boolean;
+  teacher?(): 'off' | 'arrows' | 'silent';
+  /** Called with the teacher the player asked for. The shell decides what that means. */
+  onTeacher?(which: 'off' | 'arrows' | 'silent'): void;
 
   /**
    * The drawings available for the pieces, READ WHEN NEEDED rather than captured.
@@ -567,12 +578,23 @@ export function createHud(deps: HudDeps): Hud {
   lessonButton.className = 'hud-lesson-start';
   lessonBox.append(lessonLabel, lessonSelect, lessonButton);
 
-  const hintBox = doc.createElement('p');
+  /*
+   * ⚠️ A `role="group"` WITH A NAME, NOT TWO LOOSE BUTTONS. Two `aria-pressed` switches side by
+   * side with nothing joining them are heard as two unrelated settings, and a listener has no way
+   * to know that turning one on turns the other off. The group's label is what carries that.
+   */
+  const hintBox = doc.createElement('div');
+  hintBox.className = 'hud-teachers';
+  hintBox.setAttribute('role', 'group');
   const hintButton = doc.createElement('button');
   hintButton.type = 'button';
   hintButton.id = 'hud-hint';
   hintButton.className = 'hud-hint';
-  hintBox.appendChild(hintButton);
+  const silentButton = doc.createElement('button');
+  silentButton.type = 'button';
+  silentButton.id = 'hud-hint-silent';
+  silentButton.className = 'hud-hint';
+  hintBox.append(hintButton, silentButton);
 
   root.append(turn, openingBox, movesBox);
   if (deps.lessons) root.appendChild(lessonBox);
@@ -596,8 +618,18 @@ export function createHud(deps: HudDeps): Hud {
   if (deps.pieceSets) settings.appendChild(setBox);
   if (deps.themes) settings.appendChild(themeBox);
 
-  function onHintClick(): void { deps.onHint?.(); }
+  /*
+   * ⚠️ PRESSING THE LIT ONE TURNS IT OFF, which is what an `aria-pressed` switch promises. The
+   * shell is told which teacher was ASKED FOR rather than "toggle", so the two buttons never have
+   * to agree about whose turn it is to be off.
+   */
+  const ask = (which: 'arrows' | 'silent') => (): void => {
+    deps.onTeacher?.(deps.teacher?.() === which ? 'off' : which);
+  };
+  const onHintClick = ask('arrows');
+  const onSilentClick = ask('silent');
   hintButton.addEventListener('click', onHintClick);
+  silentButton.addEventListener('click', onSilentClick);
 
   function onLessonClick(): void { deps.onLesson?.(lessonSelect.value); }
   lessonButton.addEventListener('click', onLessonClick);
@@ -808,11 +840,19 @@ export function createHud(deps: HudDeps): Hud {
     // three thousand of them would make this game the only place they read that way.
     openingBox.textContent = opening === null ? '' : i18n.t('hud.opening', { name: opening });
     if (deps.onHint) {
+      hintBox.setAttribute('aria-label', i18n.t('hud.teachers'));
       hintButton.textContent = i18n.t('hud.hint');
+      silentButton.textContent = i18n.t('hud.hintSilent');
       hintButton.disabled = false;
-      const on = deps.hintsOn?.();
-      if (on === undefined) hintButton.removeAttribute('aria-pressed');
-      else hintButton.setAttribute('aria-pressed', String(on));
+      silentButton.disabled = false;
+      const which = deps.teacher?.();
+      if (which === undefined) {
+        hintButton.removeAttribute('aria-pressed');
+        silentButton.removeAttribute('aria-pressed');
+      } else {
+        hintButton.setAttribute('aria-pressed', String(which === 'arrows'));
+        silentButton.setAttribute('aria-pressed', String(which === 'silent'));
+      }
       // ⚠️ BUSY IS NOT OFF. The switch stays on and stays pressable while the engine searches;
       // disabling it would move focus off the control the moment it was used, and would say
       // "this setting is unavailable" when what is true is "the answer is on its way".
@@ -848,6 +888,7 @@ export function createHud(deps: HudDeps): Hud {
     refresh,
     destroy() {
       hintButton.removeEventListener('click', onHintClick);
+      silentButton.removeEventListener('click', onSilentClick);
       lessonButton.removeEventListener('click', onLessonClick);
       setSelect.removeEventListener('change', onSetChange);
       themeSelect.removeEventListener('change', onThemeChange);

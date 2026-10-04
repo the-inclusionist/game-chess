@@ -183,7 +183,16 @@ export interface ViewSettings {
    * every change of view would be a bug.
    */
   readonly mode?: 'w' | 'b' | 'two';
-  /** Whether the engine keeps a suggestion on the board. A setting, not a one-off question. */
+  /**
+   * Which teacher is on, if any. A setting, not a one-off question.
+   *
+   * ⚠️ IT WAS A BOOLEAN AND THE OLD NAME STAYS READABLE. `hints: true` is what every board saved
+   * before 2026-10-04, and a child who comes back to a game should not find their teacher switched
+   * off because the field grew a third value. `session.ts` reads the old key when the new one is
+   * absent; nothing writes it any more.
+   */
+  readonly teacher?: 'off' | 'arrows' | 'silent';
+  /** @deprecated The boolean this replaced. Read for migration, never written. See `teacher`. */
   readonly hints?: boolean;
   /** Which piece drawing the PROJECTED board uses. The flat board's `set` is a font, not a shape. */
   readonly design?: string;
