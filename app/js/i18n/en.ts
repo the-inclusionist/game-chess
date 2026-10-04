@@ -173,7 +173,7 @@ export const en: Catalog = {
     'a11y.boardLabel':  'Chess board, 8 by 8',
     'a11y.selected':    'Selected: {piece} on {square}',
     'a11y.noSelection': 'No piece selected',
-    'a11y.legalMoves':  '{count} legal moves',
+    'a11y.legalMoves':  'Legal moves: {count}',
     'a11y.aimed':       'Destination: {square}',
     'a11y.unaimed':     'Destination cleared',
     'a11y.canReach':    'Pieces that can go there: {count}',

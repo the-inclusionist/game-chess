@@ -174,7 +174,7 @@ export const es: Catalog = {
     'a11y.boardLabel':  'Tablero de ajedrez, 8 por 8',
     'a11y.selected':    'Selección: {piece} en {square}',
     'a11y.noSelection': 'Ninguna pieza seleccionada',
-    'a11y.legalMoves':  '{count} jugadas legales',
+    'a11y.legalMoves':  'Jugadas legales: {count}',
     'a11y.aimed':       'Destino: {square}',
     'a11y.unaimed':     'Destino borrado',
     'a11y.canReach':    'Piezas que pueden ir: {count}',
