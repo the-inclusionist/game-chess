@@ -105,9 +105,39 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
   let animation: MoveAnimation | null = null;
   let landed: (() => void) | null = null;
 
-  /** CSS pixels per canvas pixel. The engine scales the region by a whole number. */
-  const upscale = (): number =>
-    Math.max(1, canvas.getBoundingClientRect().width / LOGICAL_W);
+  /**
+   * CSS pixels per canvas pixel, measured now.
+   *
+   * ========================= ⚠️ `Math.max(1, ...)` IS WHAT BROKE THE MOUSE =========================
+   * This line used to floor the ratio at 1, on the premise in its old comment — "the engine scales
+   * the region by a whole number" — which was true while the board was a pixel image upscaled by
+   * whole pixels and stopped being true the moment the Dev asked for a SMALLER board on
+   * 2026-10-03. The canvas raster stayed 360 and its CSS box became 280, so the real ratio is
+   * 0.78 and this answered 1.
+   *
+   * Every pointer coordinate was then divided by 1 instead of by 0.78 — treated as if the click
+   * had landed 28% nearer the canvas's top-left corner than it had. Measured with a real mouse on
+   * 2026-10-04: clicking the pawn on e2 selected nothing and moved the cursor to d4.
+   *
+   * That is the whole of two reports. "O tabuleiro 2,5D nao funciona com mouse clicando na peca":
+   * the click resolves to an empty square somewhere up and to the left. "Ainda nao consigo
+   * arrastar e soltar": the carry asks the same question to decide whether a press is on a piece
+   * with somewhere to go, gets an empty square, and correctly refuses — so the gesture does
+   * nothing at all.
+   *
+   * ⚠️ AND THE SAME RATIO WAS ALREADY WRITTEN CORRECTLY TWENTY LINES AWAY. `cssPerPixel`, which
+   * positions the coordinate labels, has always been the unfloored `width / LOGICAL_W` — which is
+   * exactly why the letters sat in the right place while the pointer did not, and why nothing
+   * looked wrong until someone tried to play. One fact, two expressions, and they drifted. They
+   * are one expression now, and `relayout` caches it rather than restating it.
+   *
+   * The guard that remains is against a DEGENERATE box — detached, or `display: none` — because
+   * dividing by zero is a different problem from dividing by a small number.
+   */
+  const upscale = (): number => {
+    const width = canvas.getBoundingClientRect().width;
+    return width > 0 ? width / LOGICAL_W : 1;
+  };
 
   function frame(dt: number): void {
     if (animation) {
@@ -288,7 +318,16 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
     if (travelled >= CLICK_SLOP) return;
 
     const hit = squareAt(e);
-    if (hit) ctx.activate(hit);
+    if (hit) {
+      /*
+       * ⚠️ THE KEYBOARD CURSOR FOLLOWS THE MOUSE, and this line was missing while the solid view
+       * had it. Clicking a square here acted on it but left the cursor wherever the arrows had
+       * last been, so picking a piece up with the mouse and then reaching for the keyboard
+       * resumed somewhere else entirely — the two input methods disagreed about where "here" was.
+       */
+      ctx.mirror.focusSquare(hit);
+      ctx.activate(hit);
+    }
   });
 
   return {
@@ -368,7 +407,7 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
     frame,
 
     relayout: () => {
-      cssPerPixel = canvas.getBoundingClientRect().width / LOGICAL_W;
+      cssPerPixel = upscale();
       // The labels are positioned in CSS pixels, so a resize moves them even though the canvas
       // itself is only rescaled. Nothing else here needs a redraw on resize; they do.
       invalidate();

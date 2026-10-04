@@ -181,6 +181,98 @@ function judge(view, m) {
   }
 }
 
+/**
+ * ========================= 4. EVERY SQUARE CAN BE POINTED AT =========================
+ * The question this file was built to ask and did not, found the hard way on 2026-10-04: the
+ * projected view's pointer maths floored its CSS-pixels-per-canvas-pixel ratio at 1, so once the
+ * board was drawn SMALLER than its own raster every click resolved up and to the left. Clicking
+ * the pawn on e2 selected nothing and moved the cursor to d4. Click-to-move was dead, and the
+ * carry — which asks the same question to decide whether a press is on a piece — refused every
+ * time, so drag-and-drop did nothing either. Two reports, one ratio.
+ *
+ * ⚠️ IT SWEEPS RATHER THAN AIMING, and the first version of this check aimed. Aiming needs a
+ * ground truth for where each square is DRAWN, and the obvious candidate is wrong: the crossing of
+ * a file label's x with a rank label's y is not the square's centre, because `ui/coordinates.ts`
+ * pushes each label outward along ITS OWN square's outward direction, which has a horizontal
+ * component. The other candidate is worse — the view's own debug helper converts canvas to CSS
+ * with the SAME ratio the pointer uses, so a wrong ratio cancels itself and the test passes.
+ *
+ * A sweep needs no such truth. It only asks whether the board can be REACHED: drag the pointer
+ * across the canvas and the squares it finds must come out in order, and must span all eight.
+ * Under the defect only the left half of the board answered at all — the sweep stops at d and
+ * never reaches h — which is exactly the failure a player meets.
+ */
+const cursorNow = (page) => page.evaluate(() => {
+  const cell = document.querySelector('[data-square][tabindex="0"]');
+  return cell ? cell.dataset.square : null;
+});
+
+/**
+ * Clicks along a line and returns the squares it crossed, in order.
+ *
+ * ⚠️ THE LEADING STALE READING IS DROPPED, and getting that wrong made this check lie twice. The
+ * sweep starts off the board, where a click changes nothing, so the first readings are just
+ * wherever the cursor already was — and collecting them through a `Set` put that square FIRST in
+ * the order, which read as "the files come out e,a,b,c,..." when they came out a,b,c,... The skip
+ * stops at the first genuine change; after that every reading counts, including a later return to
+ * the same square, because the sweep really does cross it.
+ */
+async function sweepSquares(page, from, to, steps) {
+  const before = await cursorNow(page);
+  const found = [];
+  let moved = false;
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    await page.mouse.move(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t);
+    await page.mouse.down();
+    await page.mouse.up();
+    const landed = await cursorNow(page);
+    if (!landed) continue;
+    if (!moved) {
+      if (landed === before) continue;
+      moved = true;
+    }
+    if (found[found.length - 1] !== landed) found.push(landed);
+  }
+  return found;
+}
+
+/** The distinct values of one coordinate, in the order the sweep met them. */
+const runOf = (squares, index) => {
+  const out = [];
+  for (const name of squares) {
+    const part = name[index];
+    if (out[out.length - 1] !== part) out.push(part);
+  }
+  return out.join('');
+};
+
+async function checkPointer(page, view, labels) {
+  // The flat board is the DOM: its cells ARE the squares, so there is no projection to get wrong.
+  if (!labels.length) return;
+
+  const box = await page.evaluate(() => {
+    const c = document.querySelector('#board-canvas, canvas.stage-3d');
+    const r = c.getBoundingClientRect();
+    return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, cx: r.left + r.width / 2, cy: r.top + r.height / 2 };
+  });
+
+  // Across the board at its middle height, and down it at its middle width. Both lines cross the
+  // whole eight-by-eight whatever the camera is doing, at the default angle these views open at.
+  const across = await sweepSquares(page, { x: box.left + 1, y: box.cy }, { x: box.right - 1, y: box.cy }, 70);
+  const down = await sweepSquares(page, { x: box.cx, y: box.top + 1 }, { x: box.cx, y: box.bottom - 1 }, 70);
+
+  const files = runOf(across, 0);
+  const ranks = runOf(down, 1);
+
+  if (files !== 'abcdefgh') {
+    fail(`[${view}] sweeping across the board reaches files ${files || '(none)'}, not a..h — the pointer and the drawing disagree`);
+  }
+  if (ranks !== '87654321') {
+    fail(`[${view}] sweeping down the board reaches ranks ${ranks || '(none)'}, not 8..1 — the pointer and the drawing disagree`);
+  }
+}
+
 const { server, port } = await serve();
 const browser = await chromium.launch();
 let status = 0;
@@ -197,7 +289,9 @@ try {
     await page.getByRole('button', { name: new RegExp(`em ${view.replace(',', ',')}$`) }).click();
     // One animation frame is not enough: the view tears down a renderer and builds another.
     await page.waitForTimeout(400);
-    judge(view, await measure(page));
+    const m = await measure(page);
+    judge(view, m);
+    await checkPointer(page, view, m.labels);
   }
 } catch (error) {
   fail(`[driver] ${error.message}`);
@@ -212,6 +306,6 @@ if (problems.length) {
   console.error('');
   status = 1;
 } else {
-  console.log('Rendered-page check: targets, clipping and coordinates are right in all three views.');
+  console.log('Rendered-page check: targets, clipping, coordinates and the pointer are right in all three views.');
 }
 process.exit(status);
