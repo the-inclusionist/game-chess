@@ -406,8 +406,21 @@ function luminance(colour: string): number {
 function shade(fill: string): [string, string, string] {
   // Above this a colour has room to be darkened; below it, it has to be lifted instead.
   const light = luminance(fill) > 0.18;
+  /*
+   * ⚠️ 0.32 AND 0.56, WHICH WERE 0.28 AND 0.5 UNTIL 2026-10-04. The Dev, after the same thing was
+   * done to the 3D board: "acentue também as sombras nos tabuleiros 2,5D."
+   *
+   * The old amounts were chosen as "the smallest that clear the 1.5 this file argued for", and
+   * they landed at 1.98 and 1.94 between neighbouring planes — above the threshold at which the
+   * eye fuses two planes, and not far above it. The new ones give 2.24 and 2.21.
+   *
+   * ⚠️ WHAT STOPS THEM GOING FURTHER IS THE STROKE, not taste. Every plane owes 3:1 to the black
+   * stroke drawn around it — the Dev's own rule, from the same day — and at 0.56 the darkest plane
+   * of a white piece is #707070, which is 4.24 from black. At 0.70 it would be 2.45 and the piece
+   * would lose its outline from the inside.
+   */
   return light
-    ? [fill, towards(fill, '#000000', 0.28), towards(fill, '#000000', 0.5)]
+    ? [fill, towards(fill, '#000000', 0.32), towards(fill, '#000000', 0.56)]
     : [towards(fill, '#FFFFFF', 0.29), towards(fill, '#FFFFFF', 0.14), fill];
 }
 

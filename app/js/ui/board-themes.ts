@@ -132,7 +132,23 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
      * board, and that is a real difference between the two views, accepted rather than overlooked.
      */
     solidStroke: { light: '#000000', dark: '#000000' },
-    solid: { dark: ['#5A5A5A', '#5A5A5A', '#5A5A5A'] },
+    /*
+     * ⚠️ THREE PLANES, NOT ONE GREY REPEATED. The Dev, 2026-10-04: "acentue também as sombras nos
+     * tabuleiros 2,5D." Measured first: the LIGHT piece was shaded at 1.98 between neighbouring
+     * planes on every board here, and the DARK one was `['#5A5A5A', '#5A5A5A', '#5A5A5A']` — flat,
+     * 1.00, a grey blob with a black outline. Half the pieces on the board had no shading at all,
+     * and the comment above says why nobody noticed: it was solved as a FILL, against the stroke,
+     * and a fill has no planes to compare.
+     *
+     * ⚠️ THE RANGE IS BOXED AT BOTH ENDS AND THE BOX IS NARROW. The darkest plane may not go below
+     * #5A5A5A, which is 3.04 from the black stroke; the lightest may not go above #909090, which
+     * is 3.19 from the white piece on the other side — and telling the two SIDES apart is the one
+     * thing a chess player cannot lose. Between those two there is 2.16, split evenly at 1.46 and
+     * 1.48 a step: just under the 1.5 at which the eye fuses two planes, so what carries this
+     * piece is the top-against-side it integrates rather than either step alone. It is the most
+     * the box allows, and a great deal more than 1.00.
+     */
+    solid: { dark: ['#909090', '#747474', '#5A5A5A'] },
     name: 'theme.brown', short: 'theme.short.brown' },
   { key: 'wikipedia', light: '#ffce9e', dark: '#A36C37', ...INK, rim: '#17110a',     /*
      * ========================= ⚠️ THE PROJECTED BOARD CANNOT OUTLINE IN WHITE =========================
@@ -150,7 +166,23 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
      * board, and that is a real difference between the two views, accepted rather than overlooked.
      */
     solidStroke: { light: '#000000', dark: '#000000' },
-    solid: { dark: ['#5A5A5A', '#5A5A5A', '#5A5A5A'] },
+    /*
+     * ⚠️ THREE PLANES, NOT ONE GREY REPEATED. The Dev, 2026-10-04: "acentue também as sombras nos
+     * tabuleiros 2,5D." Measured first: the LIGHT piece was shaded at 1.98 between neighbouring
+     * planes on every board here, and the DARK one was `['#5A5A5A', '#5A5A5A', '#5A5A5A']` — flat,
+     * 1.00, a grey blob with a black outline. Half the pieces on the board had no shading at all,
+     * and the comment above says why nobody noticed: it was solved as a FILL, against the stroke,
+     * and a fill has no planes to compare.
+     *
+     * ⚠️ THE RANGE IS BOXED AT BOTH ENDS AND THE BOX IS NARROW. The darkest plane may not go below
+     * #5A5A5A, which is 3.04 from the black stroke; the lightest may not go above #909090, which
+     * is 3.19 from the white piece on the other side — and telling the two SIDES apart is the one
+     * thing a chess player cannot lose. Between those two there is 2.16, split evenly at 1.46 and
+     * 1.48 a step: just under the 1.5 at which the eye fuses two planes, so what carries this
+     * piece is the top-against-side it integrates rather than either step alone. It is the most
+     * the box allows, and a great deal more than 1.00.
+     */
+    solid: { dark: ['#909090', '#747474', '#5A5A5A'] },
     name: 'theme.wikipedia', short: 'theme.short.wikipedia' },
   { key: 'xboard', light: '#C8C365', dark: '#52704B', ...INK, rim: '#17110a',     /*
      * ========================= ⚠️ THE PROJECTED BOARD CANNOT OUTLINE IN WHITE =========================
@@ -168,7 +200,23 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
      * board, and that is a real difference between the two views, accepted rather than overlooked.
      */
     solidStroke: { light: '#000000', dark: '#000000' },
-    solid: { dark: ['#5A5A5A', '#5A5A5A', '#5A5A5A'] },
+    /*
+     * ⚠️ THREE PLANES, NOT ONE GREY REPEATED. The Dev, 2026-10-04: "acentue também as sombras nos
+     * tabuleiros 2,5D." Measured first: the LIGHT piece was shaded at 1.98 between neighbouring
+     * planes on every board here, and the DARK one was `['#5A5A5A', '#5A5A5A', '#5A5A5A']` — flat,
+     * 1.00, a grey blob with a black outline. Half the pieces on the board had no shading at all,
+     * and the comment above says why nobody noticed: it was solved as a FILL, against the stroke,
+     * and a fill has no planes to compare.
+     *
+     * ⚠️ THE RANGE IS BOXED AT BOTH ENDS AND THE BOX IS NARROW. The darkest plane may not go below
+     * #5A5A5A, which is 3.04 from the black stroke; the lightest may not go above #909090, which
+     * is 3.19 from the white piece on the other side — and telling the two SIDES apart is the one
+     * thing a chess player cannot lose. Between those two there is 2.16, split evenly at 1.46 and
+     * 1.48 a step: just under the 1.5 at which the eye fuses two planes, so what carries this
+     * piece is the top-against-side it integrates rather than either step alone. It is the most
+     * the box allows, and a great deal more than 1.00.
+     */
+    solid: { dark: ['#909090', '#747474', '#5A5A5A'] },
     name: 'theme.xboard', short: 'theme.short.xboard' },
   {
     // The Hartwig palette, flat. Yellow against indigo separates by LUMINANCE at 8.91, which is
@@ -247,7 +295,19 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
      */
     solidStroke: { light: '#000000', dark: '#000000' },
     solid: {
-      light: ['#FFE6A1', '#E0A33A', '#B8781F'],
+      /*
+       * ⚠️ DEEPENED ON 2026-10-04 at the Dev's word — 1.80/1.65 between neighbouring planes became
+       * 2.09/1.96 — and the darkest plane is still 4.17 from the black stroke it sits inside.
+       */
+      light: ['#FFE6A1', '#D89426', '#9C6212'],
+      /*
+       * ⚠️ AND THE INDIGO IS NOT DEEPENED, which is boxed rather than chosen. Its darkest plane
+       * may not go below #6545C0, which is 3.17 from the black stroke; its lightest may not go
+       * above #9C88D7, which is already only 2.47 from this palette's yellow piece — the thinnest
+       * side-telling margin of any board here. Between those two there is 2.18, which is where it
+       * already was. Pushing the top up to buy a deeper step costs 2.47 -> 1.84 between the two
+       * SIDES, and that is not a trade a chess board can make.
+       */
       dark: ['#9C88D7', '#7E63CA', '#6545C0'],
     },
   },
@@ -404,7 +464,23 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
      * solução: mudar a cor das casas do tabuleiro para conseguir um contraste melhor ao invés das
      * peças" — which is what the squares above now do. See the note on them.
      */
-    solid: { dark: ['#5A5A5A', '#5A5A5A', '#5A5A5A'] },
+    /*
+     * ⚠️ THREE PLANES, NOT ONE GREY REPEATED. The Dev, 2026-10-04: "acentue também as sombras nos
+     * tabuleiros 2,5D." Measured first: the LIGHT piece was shaded at 1.98 between neighbouring
+     * planes on every board here, and the DARK one was `['#5A5A5A', '#5A5A5A', '#5A5A5A']` — flat,
+     * 1.00, a grey blob with a black outline. Half the pieces on the board had no shading at all,
+     * and the comment above says why nobody noticed: it was solved as a FILL, against the stroke,
+     * and a fill has no planes to compare.
+     *
+     * ⚠️ THE RANGE IS BOXED AT BOTH ENDS AND THE BOX IS NARROW. The darkest plane may not go below
+     * #5A5A5A, which is 3.04 from the black stroke; the lightest may not go above #909090, which
+     * is 3.19 from the white piece on the other side — and telling the two SIDES apart is the one
+     * thing a chess player cannot lose. Between those two there is 2.16, split evenly at 1.46 and
+     * 1.48 a step: just under the 1.5 at which the eye fuses two planes, so what carries this
+     * piece is the top-against-side it integrates rather than either step alone. It is the most
+     * the box allows, and a great deal more than 1.00.
+     */
+    solid: { dark: ['#909090', '#747474', '#5A5A5A'] },
     name: 'theme.cbsafe',
     short: 'theme.short.cbsafe',
   },
@@ -471,7 +547,23 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
      * solução: mudar a cor das casas do tabuleiro para conseguir um contraste melhor ao invés das
      * peças" — which is what the squares above now do. See the note on them.
      */
-    solid: { dark: ['#5A5A5A', '#5A5A5A', '#5A5A5A'] },
+    /*
+     * ⚠️ THREE PLANES, NOT ONE GREY REPEATED. The Dev, 2026-10-04: "acentue também as sombras nos
+     * tabuleiros 2,5D." Measured first: the LIGHT piece was shaded at 1.98 between neighbouring
+     * planes on every board here, and the DARK one was `['#5A5A5A', '#5A5A5A', '#5A5A5A']` — flat,
+     * 1.00, a grey blob with a black outline. Half the pieces on the board had no shading at all,
+     * and the comment above says why nobody noticed: it was solved as a FILL, against the stroke,
+     * and a fill has no planes to compare.
+     *
+     * ⚠️ THE RANGE IS BOXED AT BOTH ENDS AND THE BOX IS NARROW. The darkest plane may not go below
+     * #5A5A5A, which is 3.04 from the black stroke; the lightest may not go above #909090, which
+     * is 3.19 from the white piece on the other side — and telling the two SIDES apart is the one
+     * thing a chess player cannot lose. Between those two there is 2.16, split evenly at 1.46 and
+     * 1.48 a step: just under the 1.5 at which the eye fuses two planes, so what carries this
+     * piece is the top-against-side it integrates rather than either step alone. It is the most
+     * the box allows, and a great deal more than 1.00.
+     */
+    solid: { dark: ['#909090', '#747474', '#5A5A5A'] },
     name: 'theme.cbwarm',
     short: 'theme.short.cbwarm',
   },
@@ -569,6 +661,14 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
      * dark square. His instruction is to answer it from the OTHER side — "vamos tentar outra
      * solução: mudar a cor das casas do tabuleiro para conseguir um contraste melhor ao invés das
      * peças" — which is what the squares above now do. See the note on them.
+     */
+    /*
+     * ⚠️ AND THIS BOARD'S PIECES STAY FLAT, alone with «Azul & Amarelo», while the other five were
+     * shaded on 2026-10-04. Shading needs room between a piece's planes, and room is exactly what
+     * a high-contrast palette spends on telling the two SIDES apart: shade the white piece down to
+     * #707070 and the grey piece up to #909090 and their planes are 1.53 apart, which is a white
+     * piece and a dark piece wearing each other's tones. On the board whose only job is that
+     * distinction, a solid that looks like a solid is the wrong thing to buy with it.
      */
     solid: { dark: ['#5A5A5A', '#5A5A5A', '#5A5A5A'] },
     name: 'theme.contrast1',

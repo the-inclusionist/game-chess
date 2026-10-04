@@ -139,8 +139,10 @@ describe('[Projected] the stroke is what touches the square', () => {
   it('takes the darkest grey the rules allow, on the boards still carried by a stroke', () => {
     // ⚠️ The request was "the darkest grey that keeps both 3:1", so this is the rule and not a
     // taste: one step darker than #5A5A5A falls under 3:1 against the black stroke.
+    // ⚠️ `side`, NOT `top`, SINCE 2026-10-04: the dark piece stopped being one grey repeated three
+    // times and became three planes, so the grey the rule produces is now the DARKEST of them.
     for (const key of ['brown', 'wikipedia', 'xboard']) {
-      expect(projectedPalette(boardTheme(key)).darkPieces.top).toBe('#5A5A5A');
+      expect(projectedPalette(boardTheme(key)).darkPieces.side).toBe('#5A5A5A');
     }
     expect(contrast('#595959', '#000000')).toBeLessThan(3);
   });
@@ -160,7 +162,11 @@ describe('[Projected] the stroke is what touches the square', () => {
      */
     const theme = boardTheme('contrast-flat');
     const p = projectedPalette(theme);
+    // ⚠️ Still ONE grey on this board, where the other five got three planes: see the note in
+    // `board-themes.ts` — shading needs room, and a high-contrast palette spends its room on
+    // telling the two sides apart.
     expect(p.darkPieces.top).toBe('#5A5A5A');
+    expect(p.darkPieces.side).toBe('#5A5A5A');
     const weakDark = contrast(p.darkPieces.top, theme.dark);
     const weakLight = contrast(p.lightPieces.top, theme.light);
     expect(weakDark).toBeGreaterThan(1.4);
