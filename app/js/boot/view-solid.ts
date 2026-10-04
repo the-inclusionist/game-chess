@@ -56,12 +56,48 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
 
   let designKey = prefs.remembered.design ?? DEFAULT_DESIGN;
   let themeKey = prefs.remembered.theme ?? '';
-  /**
-   * ⚠️ UNLIT IN HIGH CONTRAST, and this is not a style. Those palettes were solved numerically —
-   * every pair that touches clears 3:1 — and a light source moves every one of those numbers by an
-   * amount nobody measured. Lighting a high-contrast board undoes the only thing it is for.
+  /*
+   * ========================= ⚠️ THE HIGH-CONTRAST BOARDS ARE LIT AGAIN =========================
+   * The Dev, 2026-10-04: "devolva as sombras para as peças dos tabuleiros de alto-contraste no
+   * tabuleiro 3D e crie arestas pretas na versão de alto-contraste se possível."
+   *
+   * What stood here said the opposite, and said it firmly: "this is not a style. Those palettes
+   * were solved numerically — every pair that touches clears 3:1 — and a light source moves every
+   * one of those numbers by an amount nobody measured."
+   *
+   * ⚠️ «AN AMOUNT NOBODY MEASURED» WAS THE WHOLE ARGUMENT, so it was measured — by reading the
+   * pixels this canvas actually produced, not by reasoning about the shader. I reasoned about the
+   * shader first and got it wrong: every square here shares one normal, so I expected one
+   * multiplier on both and a ratio that barely moves. Sampled off the running build with the
+   * lights on, #ABABAB rendered as 173 and #5A5A5A as 91 — the dark square lifted by 1.17 and the
+   * light one by only 1.03, because the tone curve compresses the top of the range. The squares
+   * came out at 2.77 where their inks are 3.00. Under the floor, on the high-contrast board.
+   *
+   * So the BOARD stays unlit on these palettes and the PIECES are lit. The squares then render as
+   * exactly the inks that were solved for — 173 and 91 are what an unlit #ABABAB and #5A5A5A are —
+   * and the pieces get the thing the Dev asked for. It also reads correctly: on a board that is a
+   * diagram, the squares are the diagram and the pieces are the objects standing on it.
+   *
+   * ⚠️ AND THE BLACK EDGE IS WHAT MAKES THE LIT PIECES SAFE, which is the other half of his
+   * sentence and not a coincidence. A piece's body no longer owes the square anything once there
+   * is a black hull between them — the same argument the flat board's silhouette has always
+   * rested on. So the light is free to vary the body, which is what a solid needs in order to look
+   * like a solid, and the edge is what keeps it a piece.
+   *
+   * ⚠️ ONE PIECE GETS NO SHADING AND CANNOT. On «Preto & Branco» the dark piece is black, because
+   * black is the only ink that clears 3:1 from that board's dark square — see `board-themes.ts`.
+   * A light shining on black returns black. It is a flat silhouette there, which is exactly what
+   * makes it visible, and the trade is stated rather than hidden.
    */
   const unlit = (): boolean => themeKey.startsWith('contrast-');
+  /**
+   * The black edge, as an inverted hull. `null` means "whatever this board wants", which is ON for
+   * the high-contrast palettes and off for the rest — the wooden boards have three lights and real
+   * perspective doing that job, and a hull on top of them reads as a drawing convention carried
+   * over from a renderer that needed it. A child who flips the switch owns it from then on.
+   */
+  let outlineChoice: boolean | null = null;
+  const outlined = (): boolean => outlineChoice ?? themeKey.startsWith('contrast-');
 
   const canvas = doc.createElement('canvas');
   canvas.className = 'stage-3d';
@@ -170,7 +206,9 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
       const group = buildPiece3d(
         specs[piece.type],
         piece.side === 'w' ? palette.lightPieces : palette.darkPieces,
-        { unlit: unlit() },
+        // ⚠️ NOT `unlit()`: that answers for the BOARD. A lit piece on an unlit board is the
+        // whole of the fix — see the long note where `unlit` is defined.
+        { unlit: false, outline: outlined() },
       );
       const { x, z } = sceneCenter(square, TILE);
       group.position.set(x, 0, z);
@@ -199,7 +237,7 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
       carriedPiece = buildPiece3d(
         specs3dFor(designKey)[piece.type],
         piece.side === 'w' ? palette.lightPieces : palette.darkPieces,
-        { unlit: unlit() },
+        { unlit: false, outline: outlined() },
       );
       scene.pieces.add(carriedPiece);
     }
@@ -326,6 +364,11 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
        * re-projected every frame from a live perspective matrix. That is real work and it has not
        * been done — see `docs/` and the debts in the plan.
        */
+      outline: () => outlined(),
+      onOutline: (on: boolean) => {
+        outlineChoice = on;
+        drawPieces(shellHidden);
+      },
       coordinates: () => coordinates.visible(),
       onCoordinates: (on: boolean) => {
         coordinates.setVisible(on);

@@ -304,6 +304,110 @@ async function checkPointer(page, view, labels) {
   }
 }
 
+
+/*
+ * ========================= ⚠️ QUESTION 5: WHAT THE 3D CANVAS ACTUALLY PRODUCES =========================
+ * The Dev, 2026-10-04: "devolva as sombras para as peças dos tabuleiros de alto-contraste no
+ * tabuleiro 3D." Giving them back means switching the lights on for the pieces — and a light
+ * source is the one thing that can move a measured palette without anyone editing a hex value.
+ *
+ * ⚠️ I REASONED ABOUT THE SHADER FIRST AND GOT IT WRONG. Every square here shares one normal, so I
+ * expected one multiplier on both and a ratio that barely moves. With the board lit, #ABABAB came
+ * out as 173 and #5A5A5A as 91 — the dark square lifted 1.17× and the light one 1.03×, because the
+ * tone curve compresses the top of the range — and the squares rendered at 2.77 against the 3.00
+ * their inks hold. Under the floor, on the board that exists for the floor.
+ *
+ * So this reads the pixels. It is the only question in this file that cannot be answered from the
+ * DOM, and it is the reason the other four are not enough: a canvas tells the accessibility tree
+ * nothing at all.
+ */
+const LUM = (c) => {
+  const f = (v) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+};
+const RATIO = (a, bb) => {
+  const [hi, lo] = [LUM(a), LUM(bb)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+
+async function check3dInk(page) {
+  // The high-contrast board, chosen through the panel exactly as a teacher would.
+  const picked = await page.evaluate(() => {
+    const box = [...document.querySelectorAll('.hud-controls .hud-field')]
+      .find((f) => (f.textContent || '').includes('Cores do tabuleiro'));
+    if (!box) return 'the board-colour control is not in the panel';
+    const select = box.querySelector('select');
+    if (![...select.options].some((o) => o.value === 'contrast-flat')) return 'contrast-flat is gone';
+    select.value = 'contrast-flat';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    select.dispatchEvent(new FocusEvent('blur'));
+    return 'ok';
+  });
+  if (picked !== 'ok') { fail(`[3D ink] ${picked}`); return; }
+  await page.waitForTimeout(900);
+
+  const tones = await page.evaluate(() => new Promise((resolve) => {
+    const cv = document.querySelector('canvas.stage-3d');
+    if (!cv) { resolve(null); return; }
+    requestAnimationFrame(() => {
+      const c = document.createElement('canvas');
+      c.width = cv.width; c.height = cv.height;
+      const g = c.getContext('2d');
+      g.drawImage(cv, 0, 0);
+      const d = g.getImageData(0, 0, c.width, c.height).data;
+      const counts = new Map();
+      for (let i = 0; i < d.length; i += 4) {
+        const k = `${d[i]},${d[i + 1]},${d[i + 2]}`;
+        counts.set(k, (counts.get(k) || 0) + 1);
+      }
+      resolve([...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 24)
+        .map(([k, n]) => ({ rgb: k.split(',').map(Number), n })));
+    });
+  }));
+  if (!tones) { fail('[3D ink] no 3D canvas on the page'); return; }
+
+  const has = (r, g, bl) => tones.some((t) => t.rgb[0] === r && t.rgb[1] === g && t.rgb[2] === bl);
+  /*
+   * ⚠️ THE SQUARES MUST RENDER AS THEIR INKS, to the byte. #ABABAB is 171 and #5A5A5A is 90, and
+   * anything else means a light got at the board — which is what cost them the floor once already.
+   */
+  if (!has(171, 171, 171) || !has(90, 90, 90)) {
+    const greys = tones.filter((t) => t.rgb[0] === t.rgb[1] && t.rgb[1] === t.rgb[2] && t.n > 5000);
+    fail(`[3D ink] the high-contrast squares do not render as #ABABAB and #5A5A5A — the large flat `
+      + `greys on the canvas are ${greys.map((t) => t.rgb[0]).join(', ')}, so something is lighting `
+      + `the board; measured ratio ${RATIO([171, 171, 171], [90, 90, 90]).toFixed(2)} is only right `
+      + `while those two bytes are what the canvas shows`);
+  }
+  /*
+   * ⚠️ AND THE LIGHT PIECE MUST BE SPLIT ACROSS MORE THAN ONE LARGE TONE, which is the Dev's
+   * "sombras". A white piece rendered flat means the lights were switched off again.
+   *
+   * ⚠️ 1500 PIXELS, AND THE NUMBER WAS MEASURED RATHER THAN CHOSEN. The first version of this
+   * check counted tones above 300 px and stayed GREEN when the pieces were forced unlit, because
+   * the canvas carries four unrelated mid-greys of about 700 px each — the plinth and the board's
+   * own edges — and they answered the question instead of the pieces. Sampled both ways: lit, the
+   * white pieces are 4768 px at 255 and 2659 at 219; unlit, they are 10141 px at 255 and nothing
+   * else. Two tones over 1500 px is the line between those two pictures.
+   */
+  const pieceTones = tones.filter((t) => t.rgb[0] === t.rgb[1] && t.rgb[1] === t.rgb[2]
+    && t.rgb[0] > 100 && t.rgb[0] !== 171 && t.rgb[0] !== 90 && t.n > 1500);
+  if (pieceTones.length < 2) {
+    fail(`[3D ink] the light pieces render as ${pieceTones.length} large tone(s) `
+      + `(${pieceTones.map((t) => `${t.rgb[0]}×${t.n}`).join(', ')}): a lit solid is split across `
+      + `at least two, or it is a flat shape and the lights are off`);
+  }
+  /*
+   * ⚠️ AND EVERY ONE OF THOSE TONES OWES 3:1 TO THE BLACK EDGE AROUND IT. That edge is what lets
+   * the body be lit at all — it is the boundary, so the body no longer owes the square anything —
+   * and a tone that sinks into the edge takes the boundary away again.
+   */
+  for (const t of pieceTones) {
+    const r = RATIO(t.rgb, [0, 0, 0]);
+    if (r < 3) fail(`[3D ink] a lit piece tone rgb(${t.rgb.join(',')}) is ${r.toFixed(2)} from its `
+      + `own black edge, under the 3:1 that edge needs to stay an edge`);
+  }
+}
+
 const { server, port } = await serve();
 const browser = await chromium.launch();
 let status = 0;
@@ -323,6 +427,7 @@ try {
     const m = await measure(page);
     judge(view, m);
     await checkPointer(page, view, m.labels);
+    if (view === '3D') await check3dInk(page);
   }
 } catch (error) {
   fail(`[driver] ${error.message}`);
@@ -337,6 +442,6 @@ if (problems.length) {
   console.error('');
   status = 1;
 } else {
-  console.log('Rendered-page check: targets, clipping, coordinates and the pointer are right in all three views.');
+  console.log('Rendered-page check: targets, clipping, coordinates, the pointer and the 3D canvas\'s own pixels are right in all three views.');
 }
 process.exit(status);
