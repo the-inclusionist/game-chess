@@ -1646,3 +1646,34 @@ html { background: var(--page); }
    * selects a theme; the theme decides every ink.
    */
   #game-region[data-contrast="high"] .cell-coord { color: #FFFFFF; }
+
+/*
+ * ========================= ⚠️ NO SESSION CLOCK ON THIS BOARD =========================
+ * Asked for by the Dev on 2026-10-04: "remova o hud de relógio, tanto o relógio gráfico de pizza
+ * quanto a palavra tempo com o contador regressivo de uma hora embaixo dele."
+ *
+ * ⚠️ IT IS THE ENGINE'S, NOT OURS, and the engine offers no switch — on purpose. `boot/create-game`
+ * says so in as many words: "it always shows, measures one hour and turns red at the end: nothing
+ * on the child's side sets it, and nothing about it is stored" (ADR-0236, ADR-0239, ADR-0240). The
+ * clock is mounted into a row the engine builds inside `#game-region` itself, so a cartridge
+ * cannot decline the slot the way a host can; CSS is the only lever this side of the boundary.
+ *
+ * So this is a CARTRIDGE OVERRIDING AN ENGINE DECISION, and it is written down rather than
+ * slipped in. The proper fix is an engine-side option, and that belongs in the engine's own
+ * session — not here, where editing it would be reaching into another repository.
+ *
+ * ⚠️ AND THE ROW HAS TO GO WITH IT, OR A 52-PIXEL BAND STAYS BEHIND. The engine's own stylesheet
+ * already collapses the row when it holds nothing:
+ *
+ *     .hud-row:not(:has(.session-clock, .hud-faixa:not([hidden]), .hud-map > *)) { display: none }
+ *
+ * but `:has` tests PRESENCE, and a hidden clock is still present. So the rule below is that rule
+ * with the clock taken out of the list — which means the row comes back by itself the day the
+ * engine puts a band, a map or a score in it. Measured on the running page, 2026-10-04: chess
+ * fills none of the three (its scoreboard is `PONTUAÇÃO` in the side panel, and it has no
+ * minimap), so today the row is the clock and nothing else.
+ */
+#game-region .hud-row-clock { display: none; }
+#game-region .hud-row:not(:has(.hud-faixa:not([hidden]), .hud-map > *, .hud-score > *)) {
+  display: none;
+}
