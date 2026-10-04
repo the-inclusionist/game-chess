@@ -19,7 +19,7 @@
 // bytes whether it runs here or on their builder.
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
@@ -63,7 +63,19 @@ const run = (what, args) => {
   }
 };
 
+/*
+ * ========================= ⚠️ FROM AN EMPTY `dist/`, ALWAYS =========================
+ * Vite's `emptyOutDir` empties the OUT dir, which under a subpath is `dist/game-chess` — not
+ * `dist`. So a root build (`npm run build`) followed by this one leaves BOTH in the tree, and
+ * Pages serves whatever is there: the whole game a second time at the ORIGIN ROOT, on a domain
+ * that is meant to carry three hundred of them under their own slugs.
+ *
+ * Measured on this machine before this line: 83 files and 19 MB, which is the game twice over.
+ * The builder checks out fresh and would never have shown it; a `wrangler pages deploy` from a
+ * developer's tree would have published it.
+ */
 console.log(`build-pages: building for ${base}`);
+rmSync(join(REPO, 'dist'), { recursive: true, force: true });
 run('npx', ['vite', 'build']);
 run('node', ['scripts/post-build-cloudflare.mjs']);
 console.log(`build-pages: dist${base.replace(/\/$/, '')}/ is ready, dist/_headers written`);
