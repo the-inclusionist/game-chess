@@ -423,11 +423,21 @@ describe('[Panel keys] being IN the side panel is not the same as getting into i
   function shellFor() {
     fixture();
     clear();
-    // ⚠️ `mode: 'one'` AND `teaches: true` — post-Wave-2c the side panel's focusable rows need a
-    // reason to be mounted: lesson menu + hint toggle both come from these. In `mode: 'two'`
-    // with no lessons, the HUD side column has only state readouts (turn, moves) and the
-    // take-back/replay nav; `action4` lands on something to focus either way, but these two
-    // tests want ENOUGH rows to walk between, which `teaches` plus a single-player game gives.
+    /*
+     * ⚠️ `teaches: true` AND A SINGLE-PLAYER GAME, because these two tests need ENOUGH ROWS to
+     * walk between — and where those rows come from changed on 2026-10-04.
+     *
+     * They used to come from the HUD's lesson picker, which was mounted for everybody. It is now
+     * shown only to a player who took the APRENDER door (the Dev: choosing JOGAR should not be
+     * answered with a dropdown of lessons), so a freshly booted game panel has exactly ONE
+     * reachable control: the teacher toggle. `◀Voltar` and `Avançar▶` are both disabled at move
+     * zero, and a one-row panel cannot demonstrate walking OR stopping — the second test would
+     * have passed by having nowhere to go, which is no assertion at all.
+     *
+     * So both tests open the lesson list, which is also the panel this whole block was written
+     * about: the bug in the header is `action4` putting a reader INTO the lesson list and the next
+     * arrow key moving the board underneath them.
+     */
     saveSettings({ mode: 'w' });
     return makeShell({
       host: document, kind: '2d', view: fakeView({ legs: [], hidden: [] }), visibleMirror: true,
@@ -436,8 +446,11 @@ describe('[Panel keys] being IN the side panel is not the same as getting into i
     });
   }
 
-  it('⚠️ walks the panel with the arrows, and leaves the board alone', () => {
+  it('⚠️ walks the panel with the arrows, and leaves the board alone', async () => {
     const shell = shellFor();
+    expect(shell.teach()).toBe(true);
+    await untilLesson();
+
     document.getElementById('chess-board')!.focus();
     const cursor = shell.mirror.cursor();
 
@@ -465,13 +478,23 @@ describe('[Panel keys] being IN the side panel is not the same as getting into i
     expect(shell.mirror.cursor()).toEqual({ x: cursor.x + 1, y: cursor.y });
   });
 
-  it('stops at the ends rather than wrapping, like the board does', () => {
-    shellFor();
+  it('stops at the ends rather than wrapping, like the board does', async () => {
+    const shell = shellFor();
+    expect(shell.teach()).toBe(true);
+    await untilLesson();
+
     document.getElementById('chess-board')!.focus();
     press('KeyI');
     const first = document.activeElement;
+
+    // ⚠️ THERE HAS TO BE SOMEWHERE TO GO, or "it stayed put" proves nothing. Down lands on a
+    // different control; only then does running UP off the top mean anything.
+    press('KeyS');
+    expect(document.activeElement, 'a second row to walk to').not.toBe(first);
     press('KeyW');
     expect(document.activeElement).toBe(first);
+    press('KeyW');
+    expect(document.activeElement, 'clamped at the top, not wrapped to the foot').toBe(first);
   });
 });
 

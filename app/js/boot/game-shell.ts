@@ -647,6 +647,24 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * search is asked for. Selecting a piece does not change the position, so the advice survives
    * being acted on — which was the whole complaint.
    */
+  /**
+   * Whether the LEARN door was ever taken. The panel's lesson picker is shown only once it has.
+   *
+   * ⚠️ THE TITLE SCREEN'S TWO DOORS HAD STOPPED MEANING ANYTHING (the Dev, 2026-10-04): JOGAR and
+   * APRENDER diverged for exactly one click, and then the game panel offered "Aulas", a dropdown
+   * of thirteen lessons and a "Comecar" button to both. A child who chose to play was still being
+   * asked to study.
+   *
+   * ⚠️ DISTINCT FROM `teaching` ABOVE, AND THE NAMES ARE WORTH READING TWICE. `teaching` is "a
+   * lesson owns the board RIGHT NOW" and it falls back to false the moment one ends; this one is
+   * "this session is a learning session" and it never falls back. Had the picker been hung on
+   * `teaching`, it would have disappeared in the gap between finishing a lesson and choosing the
+   * next — which is the one moment it exists for.
+   *
+   * It is raised in `teach()` rather than read off the door, because `teach()` is where the
+   * teaching path actually opens; the door is only one of its callers.
+   */
+  let lessonsOffered = false;
   let hintsOn = remembered.hints ?? false;
   let hintFen: string | null = null;
   let hinted: readonly HintMove[] = [];
@@ -1292,6 +1310,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
         lessons: () => LESSONS.map((lesson) => ({
           id: lesson.id, title: lesson.title, done: learned().includes(lesson.id),
         })),
+        lessonsVisible: () => lessonsOffered,
         onLesson: (id: string) => { void startLesson(id); },
       }
       : {}),
@@ -1746,6 +1765,33 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
    * goes the day there are two things to stack — a lesson over a game, a puzzle over a lesson.
    */
   /**
+   * The controls in a panel that focus can actually REACH, in reading order.
+   *
+   * ========================= ⚠️ THE SAME LESSON, A SECOND TIME =========================
+   * This selector used to be written out in two places, and both were missing the same kind of
+   * filter. The first round added `:not([disabled])`, because the lesson menu opens on "previous"
+   * — disabled at the first step of the first lesson — so the one key that reaches the panel did
+   * NOTHING at the moment a reader was most likely to press it.
+   *
+   * ⚠️ DISABLED IS NOT THE ONLY WAY A CONTROL CAN BE UNREACHABLE, and that is what this round
+   * adds. A control that is not DRAWN cannot be focused either: `.focus()` on it is a silent
+   * no-op, the walk loses a step, and entering the panel appears to do nothing at all. Found on
+   * 2026-10-04, when the HUD's lesson picker began hiding itself for a player who chose JOGAR and
+   * became the panel's first "stop" — present in the DOM, impossible to land on.
+   *
+   * So it is ONE function now. The duplicated literal is how the same hole got dug twice.
+   *
+   * `getClientRects()` is empty for `display: none` — which is what `[hidden]` is — and the
+   * `visibility` check covers the other way to be drawn-but-unfocusable.
+   */
+  function panelStops(panel: HTMLElement): HTMLElement[] {
+    return [...panel.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href]',
+    )].filter((el) => el.getClientRects().length > 0
+      && host.defaultView?.getComputedStyle(el).visibility !== 'hidden');
+  }
+
+  /**
    * Moves focus up and down the side panel.
    *
    * ⚠️ THE PANEL IS A COLUMN OF CONTROLS AND NOTHING GAVE IT ARROWS. Tab reaches them, but a
@@ -1756,9 +1802,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
   function walkPanel(action: string | null): boolean {
     if (action !== 'up' && action !== 'down') return false;
     const panel = lessonMenu && !lessonMenu.root.hidden ? lessonMenu.root : hud.root;
-    const stops = [...panel.querySelectorAll<HTMLElement>(
-      'button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href]',
-    )];
+    const stops = panelStops(panel);
     if (stops.length === 0) return false;
     const at = stops.indexOf(host.activeElement as HTMLElement);
     // Clamped at both ends rather than wrapped, for the same reason the board's cursor is: running
@@ -1924,11 +1968,7 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
        * first lesson — so pressing this at the one moment a reader is most likely to press it did
        * NOTHING, silently, and left them on the board wondering whether the key existed.
        */
-      else {
-        panel.querySelector<HTMLElement>(
-          'button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href]',
-        )?.focus();
-      }
+      else panelStops(panel)[0]?.focus();
       event.preventDefault();
       return;
     }
@@ -2464,6 +2504,9 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
        * was really worth, kept without throwing the place away: an id that no longer resolves
        * costs one failed open instead of the whole door.
        */
+      // Raised here, past every `return false` above, so the picker appears only once a lesson is
+      // genuinely being opened: a syllabus that resolves to nothing should not advertise itself.
+      lessonsOffered = true;
       void startLesson(id).then((opened) => {
         if (!opened && fallback && fallback !== id) void startLesson(fallback);
       });

@@ -116,6 +116,23 @@ export interface HudDeps {
    * exactly that.
    */
   lessons?(): readonly { readonly id: string; readonly title: string; readonly done: boolean }[];
+  /**
+   * Whether the lesson picker should be SHOWN. Absent means always, which is what every consumer
+   * but the shell wants.
+   *
+   * ⚠️ THE TITLE SCREEN'S CHOICE HAS TO MEAN SOMETHING (the Dev, 2026-10-04). A child who presses
+   * JOGAR is choosing a game, and the panel was offering them "Aulas", a dropdown of thirteen
+   * lessons and a "Começar" button anyway — the two doors diverged for one click and then met
+   * again in the same panel.
+   *
+   * It is a predicate rather than a flag because the HUD is BUILT BEFORE THE DOOR IS CHOSEN:
+   * `splash.done` resolves on a click, which is always later than the panel that asks this.
+   *
+   * ⚠️ AND THE BOX IS HIDDEN, NOT WITHHELD. `lessons()` keeps running and the list keeps being
+   * rebuilt, because the picker has to be correct the instant it appears — a child who finishes a
+   * lesson comes back to this panel to choose the next one.
+   */
+  lessonsVisible?(): boolean;
   onLesson?(id: string): void;
   onHint?(): void;
   hintBusy?(): boolean;
@@ -559,6 +576,9 @@ export function createHud(deps: HudDeps): Hud {
 
   root.append(turn, openingBox, movesBox);
   if (deps.lessons) root.appendChild(lessonBox);
+  // Settled here too, not only in refresh(): the panel is drawn before anything calls refresh, and
+  // a picker that flashes once before hiding is the tremor this HUD has already been reported for.
+  lessonBox.hidden = deps.lessonsVisible ? !deps.lessonsVisible() : false;
   if (deps.onHint) root.appendChild(hintBox);
   if (deps.scoreboard) root.appendChild(deps.scoreboard);
   /*
@@ -757,6 +777,7 @@ export function createHud(deps: HudDeps): Hud {
      * changes except how deep it sits.
      */
     if (deps.lessons) {
+      lessonBox.hidden = deps.lessonsVisible ? !deps.lessonsVisible() : false;
       lessonLabel.textContent = i18n.t('hud.lessons');
       lessonButton.textContent = i18n.t('hud.startLesson');
       const chosen = lessonSelect.value;
