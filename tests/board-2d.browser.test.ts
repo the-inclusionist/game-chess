@@ -284,8 +284,13 @@ describe('[Themes] six named palettes, measured', () => {
 
   it('keeps the Hartwig palette recognisable, and separated by luminance', () => {
     const jose = boardTheme('jose');
-    expect(jose.white).toBe('#FFE08A');
+    // ⚠️ #FFE08A UNTIL 2026-10-04, lifted 20% toward white at the Dev's word — "melhore as cores
+    // das casas e peças do tabuleiro José de forma a aumentar o contraste entre peça clara e casa
+    // clara". Still the Hartwig amber; the squares did most of the moving.
+    expect(jose.white).toBe('#FFE6A1');
     expect(jose.black).toBe('#3F2B78');
+    // The pair it was reported for: 1.12 before, and no board here can pass 2.33 — see cb-safe.
+    expect(contrast(jose.white, jose.light)).toBeGreaterThan(1.8);
     // 8.91 — below black-against-white's 21, far above the 3:1 floor, and it is a LUMINANCE gap,
     // which is what makes it survive a colour-vision filter.
     expect(contrast(jose.white, jose.black)).toBeGreaterThan(8);
@@ -297,8 +302,10 @@ describe('[Themes] six named palettes, measured', () => {
     expect(m.root.style.getPropertyValue('--square-light')).toBe('#f0d9b5');
 
     m.setTheme('jose');
-    expect(m.root.style.getPropertyValue('--piece-white')).toBe('#FFE08A');
-    expect(m.root.style.getPropertyValue('--piece-halo')).toBe('#0E0722');
+    expect(m.root.style.getPropertyValue('--piece-white')).toBe('#FFE6A1');
+    // ⚠️ #0E0722 until 2026-10-04: at luminance 0.0153 the silhouette could not follow the dark
+    // square down far enough to let the light one come down to meet the yellow.
+    expect(m.root.style.getPropertyValue('--piece-halo')).toBe('#000000');
     m.setTheme('nonsense');
     expect(m.themeKey()).toBe(DEFAULT_THEME);
   });

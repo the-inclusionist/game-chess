@@ -173,10 +173,38 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
   {
     // The Hartwig palette, flat. Yellow against indigo separates by LUMINANCE at 8.91, which is
     // the argument `render/palette.ts` is built on and the reason it survives a CVD filter.
+    /*
+     * ========================= ⚠️ THE CREAM BOARD CAME DOWN TO MEET THE YELLOW =========================
+     * The Dev, 2026-10-04: "melhore as cores das casas e peças do tabuleiro José de forma a
+     * aumentar o contraste — entre peça clara e casa clara."
+     *
+     * It was 1.12, the WORST of every board here, and it was the plainest case of the mistake the
+     * whole file was making: a yellow piece at luminance 0.78 standing on a cream square at 0.68,
+     * excused because the silhouette is drawn between them. The silhouette is a line. What a
+     * player looks at is a yellow shape, and there was no yellow shape — there was a cream board
+     * with a slightly different cream on it, outlined.
+     *
+     *                          squares  silhouette/dark  YELLOW ON THE LIGHT SQUARE
+     *   #DCD6C8 / #7D776A         3.07             4.40        1.12
+     *   #B0ABA0 / #5E5950         3.04             3.02        1.86   <- this
+     *
+     * Three things moved and each is forced by the one before it:
+     *   · the LIGHT SQUARE came down as far as the squares' own 3:1 allows;
+     *   · which pushed the DARK SQUARE down, which the silhouette's 3:1 bounds at luminance 0.10;
+     *   · so the SILHOUETTE went from #0E0722 — a near-black indigo — to true black, because at
+     *     0.0153 it could not have followed the dark square down.
+     * The yellow was lifted 20% toward white, which is the whole of the change to the pieces: it
+     * is still the Hartwig amber, and it buys 1.77 -> 1.86 on the pair that was reported.
+     *
+     * ⚠️ 1.86 IS NOT 3, AND NO BOARD HERE CAN BE. The ceiling with a black silhouette is 2.33 and
+     * the proof is in `cb-safe`; this palette's own yellow is dimmer than white, so ITS ceiling is
+     * 1.84 at the squares' floor and 1.86 where it now sits. Against 1.12, that is the pair going
+     * from "the same colour twice" to "a shape on a board".
+     */
     key: 'jose',
-    light: '#DCD6C8',
-    dark: '#7D776A',
-    white: '#FFE08A',
+    light: '#B0ABA0',
+    dark: '#5E5950',
+    white: '#FFE6A1',
     black: '#3F2B78',
     whiteRim: '#3B2A12',
     /*
@@ -191,7 +219,9 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
      * never about the stroke drawn inside the piece, and applying it there left the piece blank.
      */
     blackRim: '#FFFFFF',
-    rim: '#0E0722',
+    // ⚠️ BLACK, not the #0E0722 near-black indigo it was: at luminance 0.0153 the silhouette could
+    // not have kept 3:1 against a dark square deep enough to let the light one come down.
+    rim: '#000000',
     name: 'theme.jose',
     short: 'theme.short.jose',
     /*
@@ -207,13 +237,17 @@ export const BOARD_THEMES: readonly BoardTheme[] = [
      * THIS palette's own measured shading — 1.53 top-against-face and 1.43 face-against-side,
      * where the originals were 1.54 and 1.42.
      *
-     * The LIGHT side keeps `#3B2A12`, because it already works: 9.50 and 3.09 against the two
-     * squares. It is a very dark brown rather than black, and it is where the warmth of this
-     * palette lives.
+     * ⚠️ THE LIGHT SIDE KEPT `#3B2A12` UNTIL 2026-10-04, "because it already works: 9.50 and 3.09
+     * against the two squares". It stopped working the moment the squares came down to meet the
+     * yellow: against the new dark square it measures 1.93, and a stroke that does not clear the
+     * square it sits on is not an edge. Black clears both at 5.86 and 3.02.
+     *
+     * What that costs is real and is the price of the Dev's report: the warm brown stroke was
+     * where this palette's warmth lived on the projected board. The warmth is in the fills now.
      */
-    solidStroke: { light: '#3B2A12', dark: '#000000' },
+    solidStroke: { light: '#000000', dark: '#000000' },
     solid: {
-      light: ['#FFE08A', '#E0A33A', '#B8781F'],
+      light: ['#FFE6A1', '#E0A33A', '#B8781F'],
       dark: ['#9C88D7', '#7E63CA', '#6545C0'],
     },
   },
