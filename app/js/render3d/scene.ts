@@ -111,6 +111,15 @@ export interface Scene3d {
   setMarkers(markers: ReadonlyMap<number, Marker>, cursor?: Square | null): void;
   /** The square under a point in canvas coordinates, or null. */
   pick(x: number, y: number, width: number, height: number): Square | null;
+  /**
+   * Where a point in canvas coordinates meets the BOARD PLANE, between squares rather than on one.
+   *
+   * ⚠️ THE PLANE, NOT THE MESHES, which is the whole difference from `pick`. A carried piece has
+   * to follow the pointer past the edge of the board and over the gaps a raycast against sixty-four
+   * boxes would answer `null` for — and `null` there means a piece that sticks mid-drag. In scene
+   * coordinates, which `sceneCenter` also speaks.
+   */
+  pointOnBoard(x: number, y: number, width: number, height: number): { x: number; z: number } | null;
   /** Repaints the board. The pieces are rebuilt by their own layer, not here. */
   setBoard(light: string, dark: string, rim: string, unlit: boolean): void;
   destroy(): void;
@@ -248,6 +257,9 @@ export function createScene3d(options: Scene3dOptions): Scene3d {
 
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
+  /** The board's visible face. See `pointOnBoard`, and the handedness note at the top. */
+  const BOARD_PLANE = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const planeHit = new THREE.Vector3();
 
   /*
    * ========================= THE MARKS, IN THE SAME VOCABULARY THE OTHER BOARDS USE =========================
@@ -425,6 +437,16 @@ export function createScene3d(options: Scene3dOptions): Scene3d {
         if (square) return square;
       }
       return null;
+    },
+
+    pointOnBoard(x, y, width, height) {
+      pointer.set((x / width) * 2 - 1, -((y / height) * 2 - 1));
+      raycaster.setFromCamera(pointer, camera);
+      // ⚠️ `y = 0` IS THE FACE A PLAYER LOOKS AT. The board's boxes occupy y 0..1 and Y POINTS
+      // DOWN here, so the top face is the plane y = 0 — the same arithmetic `MARK_Y` got backwards
+      // once already. See the handedness note at the top of this file.
+      const hit = raycaster.ray.intersectPlane(BOARD_PLANE, planeHit);
+      return hit ? { x: hit.x, z: hit.z } : null;
     },
 
     setBoard(light, dark, rim, unlit) {

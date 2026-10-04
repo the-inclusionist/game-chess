@@ -67,6 +67,12 @@ export const createFlatView: ViewFactory = (ctx: ViewContext): BoardView => {
     // never had the 2026-10-04 defect of a cursor silenced by the square it stood on.
     drawMarks: (_markers, hints) => { mirror.setHints(hints); },
 
+    // ⚠️ DELEGATED RATHER THAN DONE HERE, because the cells and their glyphs live in the mirror
+    // and so does this board's own pointer handling. A second implementation out here would mean
+    // a second way to find a cell, built from `data-square` strings, to reach the array that is
+    // already in that file.
+    carry: (from, at) => { mirror.carry(from, at); },
+
     travel: (from, to) => mirror.animate(from, to, { reducedMotion: ctx.reducedMotion() }),
 
     // The engine's `applyLayout` sizes the region, and the board is CSS inside it. Nothing here

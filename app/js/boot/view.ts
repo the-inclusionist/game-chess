@@ -119,6 +119,25 @@ export interface BoardView {
     cursor: Square | null,
   ): void;
   /**
+   * The piece the pointer is HOLDING, and where the pointer is — or `null` to put it back.
+   *
+   * ========================= ⚠️ THE PIECE HAS TO LEAVE THE SQUARE =========================
+   * The Dev, 2026-10-04: "deixar apertado o botao do mouse sobre uma peca faz o mouse PEGAR a
+   * peca e onde ela soltar e a jogada". A drag that only lights squares is a click with extra
+   * steps; what makes it a drag is that the thing is in your hand.
+   *
+   * So the view lifts the piece off its square and draws it under the pointer until this is
+   * called with `null`, which puts the position back exactly as it was — including when the drop
+   * was refused, which is the same thing as far as this is concerned: the board never changed.
+   *
+   * ⚠️ IT TAKES A CLIENT POINT, NOT A SQUARE, and that is the whole difference from `travel`. A
+   * carried piece follows the pointer CONTINUOUSLY — between squares, not from one to the next —
+   * so each view has to undo its own projection. The flat board barely has one; the projected
+   * board's is affine and invertible from the quads it already computes; the solid board's is a
+   * ray through the board plane, which its raycaster gives for free.
+   */
+  carry(from: Square | null, at: { readonly clientX: number; readonly clientY: number } | null): void;
+  /**
    * Flies a piece, and resolves when it lands.
    *
    * ⚠️ RESOLVES IMMEDIATELY UNDER REDUCED MOTION, and that is `render/animation.ts`'s rule rather

@@ -36,6 +36,9 @@ function harness(options: {
     selection: () => selection,
     activate: (square) => { log.push(`activate ${square.x},${square.y}`); selection = square; },
     focus: (square) => log.push(`focus ${square.x},${square.y}`),
+    // ⚠️ Recorded, not ignored: "the piece is in your hand" is half the gesture, and a carry that
+    // forgot to put it down would leave a board lying about where its pieces are.
+    carry: (from, at) => log.push(from && at ? `carry ${from.x},${from.y}` : 'carry none'),
     cancelHold: () => log.push('cancelHold'),
   };
   return { drag: createDragToMove(deps), log };
@@ -93,6 +96,68 @@ describe('[Carry] a press on a piece that can move becomes a carry', () => {
   });
 });
 
+describe('[Carry] ⚠️ the piece is in your HAND, and the two gestures are disjoint', () => {
+  it('says at the press whether this one can be picked up, so the camera knows to stay out', () => {
+    /*
+     * The Dev, 2026-10-04: holding the button on a piece picks the piece up, and a drag OFF a
+     * piece goes on turning the board. Before this the one-second hold armed the camera wherever
+     * the press was — so holding on a piece and then moving turned the board instead of carrying,
+     * which is the opposite of the sentence. The views ask this at `pointerdown` and simply do not
+     * arm their hold when it is true.
+     */
+    const onPiece = harness({ board: ONE_MOVER, squareAt: () => sq(4, 6) });
+    onPiece.drag.down(at(100, 100));
+    expect(onPiece.drag.grabbable(), 'a piece with somewhere to go').toBe(true);
+
+    const onEmpty = harness({ board: ONE_MOVER, squareAt: () => sq(0, 0) });
+    onEmpty.drag.down(at(100, 100));
+    expect(onEmpty.drag.grabbable(), 'bare board: the camera may have it').toBe(false);
+  });
+
+  it('⚠️ asks that question ONCE, so the gesture cannot change hands mid-press', () => {
+    // A board that answers differently on a second look — a move played elsewhere, an animation
+    // settling — must not turn a carry into a camera drag under the player's hand.
+    let where = sq(4, 6);
+    const { drag } = harness({ board: ONE_MOVER, squareAt: () => where });
+    drag.down(at(100, 100));
+    where = sq(0, 0);
+    expect(drag.grabbable()).toBe(true);
+    expect(drag.move(at(140, 100)), 'still a carry').toBe(true);
+  });
+
+  it('lifts the piece as soon as it is taken, and puts it down before the move is tried', () => {
+    let under = sq(4, 6);
+    const { drag, log } = harness({ board: ONE_MOVER, squareAt: () => under });
+    drag.down(at(100, 100));
+    drag.move(at(130, 100));
+    expect(log.filter((l) => l.startsWith('carry'))).toEqual(['carry 4,6', 'carry 4,6']);
+
+    under = sq(3, 4);
+    drag.up(at(160, 140));
+    /*
+     * ⚠️ THE ORDER IS THE ASSERTION, not the contents. `activate` repaints the position, so a
+     * piece still marked as carried would be drawn in the air over the new one — and on a REFUSED
+     * drop putting it down is the whole of "the piece goes back", because the board never changed.
+     */
+    const down = log.lastIndexOf('carry none');
+    const played = log.lastIndexOf('activate 3,4');
+    expect(down, 'put down at all').toBeGreaterThan(-1);
+    expect(played, 'the move was played').toBeGreaterThan(-1);
+    expect(`down at ${down} before played at ${played}? ${down < played}`)
+      .toBe(`down at ${down} before played at ${played}? true`);
+  });
+
+  it('⚠️ puts it down when the press is abandoned, rather than leaving it in the air', () => {
+    // The wheel and the hold timer both take a press over. A piece left floating is a position
+    // the board is lying about.
+    const { drag, log } = harness({ board: ONE_MOVER, squareAt: () => sq(4, 6) });
+    drag.down(at(100, 100));
+    drag.move(at(130, 100));
+    drag.abandon();
+    expect(log[log.length - 1]).toBe('carry none');
+  });
+});
+
 describe('[Carry] the square under the pointer lights the whole way', () => {
   it('moves the cursor on a change of square, and not on every pixel', () => {
     let under = sq(4, 6);
@@ -147,6 +212,25 @@ describe('[Carry] letting go', () => {
     under = null;
     drag.up(at(9000, 9000));
     expect(log.filter((l) => l.startsWith('activate'))).toEqual(['activate 4,6']);
+  });
+
+  it('⚠️ a drop that is not a MOVE does nothing but put the piece back', () => {
+    /*
+     * The Dev's rule, 2026-10-04: "onde ela soltar e a jogada, desde que seja permitida, senao a
+     * peca volta para o lugar inicial." Nothing else — and "nothing else" is the part worth
+     * pinning, because `activate` is a rich funnel: an empty square that is not a target would
+     * become a chosen DESTINATION, arming the other order of operations behind the player's back.
+     */
+    let under = sq(4, 6);
+    const { drag, log } = harness({ board: ONE_MOVER, squareAt: () => under });
+    drag.down(at(100, 100));
+    drag.move(at(130, 100));
+    under = sq(7, 0);                       // a square the pawn cannot reach
+    drag.up(at(400, 20));
+
+    expect(log.filter((l) => l.startsWith('activate')), 'picked up, never put anywhere')
+      .toEqual(['activate 4,6']);
+    expect(log[log.length - 1], 'and the piece is back on the board').toBe('carry none');
   });
 
   it('a release with no carry is not a carry, so the view keeps its own click', () => {

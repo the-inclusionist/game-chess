@@ -115,6 +115,14 @@ export interface GridMirror {
   /** Re-labels every cell from the current position. Call after anything changes. */
   refresh(): void;
   focusSquare(square: Square): void;
+  /**
+   * The piece the pointer is HOLDING, and where the pointer is — or `null` to put it back.
+   *
+   * ⚠️ THIS BOARD HAS NO PROJECTION TO UNDO, which is the one mercy of carrying on it: the cells
+   * are where they are, so a carried piece is a copy of the glyph pinned to the pointer and the
+   * original hidden underneath. The projected and solid boards each have to invert a camera.
+   */
+  carry(from: Square | null, at: { readonly clientX: number; readonly clientY: number } | null): void;
   cursor(): Square;
   /** Swaps the drawing. No effect on anything a screen reader hears. */
   setPieceSet(key: string): void;
@@ -620,8 +628,59 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
     // ⚠️ `false`: the cursor follows the pointer, but moving DOM focus on every square crossed
     // would fire a focus event per cell and fight a screen reader mid-gesture.
     focus: (square) => setCursor(square, false),
+    carry: (from, at) => carryPiece(from, at),
     cancelHold: () => { /* no camera on the flat board: nothing to call off */ },
   });
+
+  /** ⚠️ Not `carry`: that name is the drag GESTURE above. This is the piece in hand. */
+  function carryPiece(
+    from: Square | null,
+    at: { readonly clientX: number; readonly clientY: number } | null,
+  ): void {
+    if (!from || !at) { putDown(); return; }
+    const cell = cells[squareIndex(from)];
+    const source = cell?.querySelector<HTMLElement>('.cell-piece');
+    // An invisible mirror has no glyphs to carry; the gesture still works, it just has no picture.
+    if (!cell || !source) return;
+
+    if (carriedCell !== cell) {
+      putDown();
+      carriedCell = cell;
+      cell.dataset.carried = 'true';
+      const copy = doc.createElement('span');
+      copy.className = 'cell-piece carried-piece';
+      copy.setAttribute('aria-hidden', 'true');
+      if (source.dataset.glyph) copy.dataset.glyph = source.dataset.glyph;
+      if (source.dataset.side) copy.dataset.side = source.dataset.side;
+      // Sized from the cell it came from, so it is the same piece rather than a bigger one.
+      copy.style.width = `${cell.clientWidth}px`;
+      copy.style.height = `${cell.clientHeight}px`;
+      root.appendChild(copy);
+      carriedGlyph = copy;
+    }
+    if (carriedGlyph) {
+      carriedGlyph.style.left = `${at.clientX}px`;
+      carriedGlyph.style.top = `${at.clientY}px`;
+    }
+  }
+
+  /*
+   * ========================= THE PIECE IN HAND, ON THE FLAT BOARD =========================
+   * A single element, built when a carry starts and removed when it ends. `position: fixed` so it
+   * follows the pointer across the whole page rather than being clipped by the grid, and
+   * `pointer-events: none` so it never becomes the thing under the cursor — a carried piece that
+   * answered `elementFromPoint` would make every square it covered unreachable, which is every
+   * square the player is aiming at.
+   */
+  let carriedGlyph: HTMLElement | null = null;
+  let carriedCell: HTMLElement | null = null;
+
+  function putDown(): void {
+    carriedGlyph?.remove();
+    carriedGlyph = null;
+    if (carriedCell) delete carriedCell.dataset.carried;
+    carriedCell = null;
+  }
 
   const onPointerDown = (event: PointerEvent): void => {
     if (event.button !== 0) return;
@@ -649,6 +708,7 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
 
   return {
     root,
+    carry: carryPiece,
 
     handleKey,
     moveCursor,

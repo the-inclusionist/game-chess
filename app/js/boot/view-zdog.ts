@@ -30,8 +30,8 @@
 //     strands the shell inside its own `finally`, and the only symptom is that take-back and
 //     replay quietly stop working for the rest of the game.
 
-import type { Square } from '../chess/types.ts';
-import { squareFromIndex, squareIndex } from '../render/board-geometry.ts';
+import type { Piece, Square } from '../chess/types.ts';
+import { squareCenter, squareFromIndex, squareIndex } from '../render/board-geometry.ts';
 import { createMoveAnimation, type MoveAnimation } from '../render/animation.ts';
 import { createBoard } from '../render/board.ts';
 import { CAMERA, createZdogStage } from '../render/zdog-stage.ts';
@@ -40,7 +40,7 @@ import { createPiecesLayer } from '../render/pieces/index.ts';
 import { DEFAULT_DESIGN, PIECE_DESIGNS, pieceDesign } from '../render/pieces/sets.ts';
 import { projectedPalette } from '../render/palette.ts';
 import { pickTopmost, toIllustrationSpace } from '../render/picking.ts';
-import { LOGICAL_W } from '../render/resolution.ts';
+import { LOGICAL_W, TILE } from '../render/resolution.ts';
 import { boardTheme } from '../ui/board-themes.ts';
 import { createCoordinates } from '../ui/coordinates.ts';
 import { createDragToMove } from './drag-to-move.ts';
@@ -203,6 +203,83 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
     return hit === null ? null : squareFromIndex(hit);
   };
 
+  /** How far a carried piece is lifted off the board, in board units. Negative is up. */
+  const CARRY_LIFT = -TILE * 0.55;
+
+  let carriedFrom: Square | null = null;
+  let carriedAt: { x: number; z: number } | null = null;
+  let shellHidden: readonly Square[] = [];
+  let shellTravelling: Piece | null = null;
+
+  /**
+   * Draws the position, with whatever the shell has hidden AND whatever the pointer is holding.
+   *
+   * ⚠️ ONE PAINTER FOR TWO CALLERS. The shell hides a square while a move flies; the pointer hides
+   * one while a hand holds it. Two functions each doing half would mean a shell redraw mid-drag
+   * put the carried piece back on the board underneath the one in the air.
+   */
+  function paint(): void {
+    const hidden = carriedFrom ? [...shellHidden, carriedFrom] : shellHidden;
+    const placements = rules().placements()
+      .filter((p) => !hidden.some((sq) => sq.x === p.square.x && sq.y === p.square.y));
+    pieces.setPosition(placements);
+    // The rules have ALREADY applied a travelling move — forwards or backwards — so that piece is
+    // standing on the square it is flying TO. The carried one is standing where it still is.
+    pieces.setTravelling(carriedFrom ? rules().pieceAt(carriedFrom) : shellTravelling);
+    // ⚠️ `setTravelling` resets the traveller to the origin, so a repaint mid-carry has to put it
+    // back under the pointer or the piece jumps to the centre of the board for a frame.
+    if (carriedFrom && carriedAt) pieces.moveTravelling(carriedAt.x, CARRY_LIFT, carriedAt.z);
+    invalidate();
+  }
+
+  /**
+   * A client point as a point on the BOARD, between squares rather than on one.
+   *
+   * ========================= ⚠️ WHY THIS CAN BE DONE AT ALL =========================
+   * It is the argument `ui/coordinates.ts` makes, used backwards. Zdog's projection is
+   * ORTHOGRAPHIC — it rotates and scales and never divides by depth — so its image of the board
+   * plane is AFFINE, and an affine map is invertible from three point pairs. The three used here
+   * are a1's projected centre and its two neighbours, which give one tile along each board axis as
+   * vectors in illustration space; solving for the point in that basis gives the board position
+   * exactly, at any camera angle, with no second copy of the camera's maths.
+   *
+   * `squareAt` above answers WHICH SQUARE and is what the move needs. This answers WHERE, which is
+   * what the hand needs: a piece that snapped from square to square would not be carried, it would
+   * be teleported eight times.
+   */
+  const boardPointAt = (point: { clientX: number; clientY: number }): { x: number; z: number } => {
+    const rect = canvas.getBoundingClientRect();
+    const k = upscale();
+    const at = toIllustrationSpace(
+      { x: (point.clientX - rect.left) / k, y: (point.clientY - rect.top) / k },
+      stage.viewport(),
+    );
+    stage.update();
+    const quads = boardView.quads();
+    const centre = (sx: number, sy: number) => {
+      const c = quads[squareIndex({ x: sx, y: sy } as Square)]!.corners;
+      return {
+        x: (c[0].x + c[1].x + c[2].x + c[3].x) / 4,
+        y: (c[0].y + c[1].y + c[2].y + c[3].y) / 4,
+      };
+    };
+    const o = centre(0, 7);                       // a1
+    const along = centre(1, 7);                   // b1: one tile along +x
+    const back = centre(0, 6);                    // a2: one tile along -z
+    const ex = { x: along.x - o.x, y: along.y - o.y };
+    const ez = { x: back.x - o.x, y: back.y - o.y };
+    const det = ex.x * ez.y - ex.y * ez.x;
+    const home = squareCenter({ x: 0, y: 7 } as Square, TILE);
+    // A degenerate basis means the board is edge-on and there is no point to find; the piece stays
+    // where it was rather than flying to the origin.
+    if (Math.abs(det) < 1e-9) return carriedAt ?? { x: home.x, z: home.z };
+    const dx = at.x - o.x;
+    const dy = at.y - o.y;
+    const u = (dx * ez.y - dy * ez.x) / det;      // tiles along +x
+    const v = (ex.x * dy - ex.y * dx) / det;      // tiles along -z, because a2 is z - TILE
+    return { x: home.x + u * TILE, z: home.z - v * TILE };
+  };
+
   /*
    * ⚠️ PRESS, MOVE, LET GO — the gesture this board did not have. See `boot/drag-to-move.ts` for
    * why it is a module and for how it shares the pointer with the hold-to-turn gesture.
@@ -213,6 +290,7 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
     selection: () => ctx.state().selection(),
     activate: (square) => ctx.activate(square),
     focus: (square) => ctx.mirror.focusSquare(square),
+    carry: (from, at) => self.carry(from, at),
     cancelHold,
   });
 
@@ -234,12 +312,20 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
      * by the steady-handed. What movement does is move the ORIGIN: when the hold finally fires it
      * starts from wherever the pointer is, so nothing jumps.
      */
-    holdTimer = window.setTimeout(() => {
-      holdTimer = null;
-      if (dragging === null) return;
-      turning = true;
-      canvas.dataset.turning = 'true';
-    }, ROTATE_HOLD_MS);
+    /*
+     * ⚠️ NOT ARMED ON A PIECE. A press that landed on something it can pick up belongs to that
+     * piece for its whole life — see `grabbable()` in `boot/drag-to-move.ts`. Off a piece the hold
+     * is exactly as it was, which is what keeps a teacher pointing at a square from spinning the
+     * board (`render/camera.ts` argues that at length).
+     */
+    if (!carry.grabbable()) {
+      holdTimer = window.setTimeout(() => {
+        holdTimer = null;
+        if (dragging === null) return;
+        turning = true;
+        canvas.dataset.turning = 'true';
+      }, ROTATE_HOLD_MS);
+    }
 
     // ⚠️ Capture is attempted AFTER the timer, and its failure is survivable. `setPointerCapture`
     // THROWS for a pointer the browser does not currently have, and it used to be the last
@@ -330,7 +416,7 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
     }
   });
 
-  return {
+  const self: BoardView = {
     hudControls: {
       pieceSets: () => PIECE_DESIGNS.map((d) => ({ key: d.key, label: ctx.i18n.t(d.name) })),
       pieceSet: () => designKey,
@@ -364,13 +450,26 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
     },
 
     drawPosition: (hidden, travelling) => {
-      // The rules have ALREADY applied the move — forwards or backwards — so a travelling piece is
-      // standing on the square it is flying TO. It is left out of the static set and drawn
-      // separately, in flight.
-      const placements = rules().placements()
-        .filter((p) => !hidden.some((s) => s.x === p.square.x && s.y === p.square.y));
-      pieces.setPosition(placements);
-      pieces.setTravelling(travelling);
+      shellHidden = hidden;
+      shellTravelling = travelling;
+      paint();
+    },
+
+    carry(from, at) {
+      if (!from || !at) {
+        if (carriedFrom === null) return;
+        // ⚠️ THIS IS ALSO HOW A REFUSED DROP PUTS THE PIECE BACK. The board never changed, so
+        // simply painting without the carry restores exactly the position that was there.
+        carriedFrom = null;
+        paint();
+        return;
+      }
+      if (carriedFrom === null || carriedFrom.x !== from.x || carriedFrom.y !== from.y) {
+        carriedFrom = from;
+        paint();
+      }
+      carriedAt = boardPointAt(at);
+      pieces.moveTravelling(carriedAt.x, CARRY_LIFT, carriedAt.z);
       invalidate();
     },
 
@@ -484,4 +583,5 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
       coordinates.root.remove();
     },
   };
+  return self;
 };

@@ -34,6 +34,7 @@ function fakeView(ctx: ViewContext): BoardView {
     applyTheme: () => {},
     drawPosition: () => {},
     drawMarks: () => {},
+    carry: () => {},
     travel: () => Promise.resolve(),
     relayout: () => {},
     destroy: () => {},

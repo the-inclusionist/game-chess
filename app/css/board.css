@@ -1703,3 +1703,29 @@ html { background: var(--page); }
 #game-region .hud-row:not(:has(.hud-faixa:not([hidden]), .hud-map > *, .hud-score > *)) {
   display: none;
 }
+
+/*
+ * ========================= THE PIECE IN HAND, ON THE FLAT BOARD =========================
+ * The Dev, 2026-10-04: pressing on a piece should "pegar" it. A drag that only lights squares is
+ * a click with extra steps; what makes it a drag is that the thing is in your hand.
+ *
+ * ⚠️ `pointer-events: none` IS NOT POLISH. A carried piece sits under the cursor by definition, so
+ * one that answered `elementFromPoint` would make every square it covered unreachable — which is
+ * every square the player is aiming at. The drag would die the moment it began.
+ *
+ * ⚠️ AND THE ORIGINAL GOES INVISIBLE RATHER THAN AWAY. `visibility: hidden` keeps the cell's box,
+ * its label and its place in the grid; removing the glyph would reflow the row under the player's
+ * hand and take the square out of the screen reader's board mid-gesture.
+ */
+.board-2d [role="gridcell"][data-carried] .cell-piece { visibility: hidden; }
+
+.carried-piece {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  /* Lifted, like a piece held between two fingers rather than dragged across the table. */
+  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.55));
+}

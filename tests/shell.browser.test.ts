@@ -59,7 +59,8 @@ function fakeView(record: Recorded) {
       applyTheme: () => {},
       drawPosition: (hidden) => { record.hidden.push(hidden.map(toAlgebraic)); },
       drawMarks: () => {},
-      travel: (from: Square, to: Square) => {
+      carry: () => {},
+    travel: (from: Square, to: Square) => {
         record.legs.push(`${toAlgebraic(from)}${toAlgebraic(to)}`);
         return Promise.resolve();
       },
@@ -775,7 +776,8 @@ describe('[Camera keys] a modified arrow is not board navigation', () => {
         applyTheme: () => {},
         drawPosition: () => {},
         drawMarks: () => {},
-        travel: () => Promise.resolve(),
+        carry: () => {},
+    travel: () => Promise.resolve(),
         relayout: () => {},
         destroy: () => {},
         onKey: (event) => {
@@ -865,7 +867,8 @@ describe('[Views] the three view buttons live under the a11y bar, not in the pau
         applyTheme: () => {},
         drawPosition: () => {},
         drawMarks: () => {},
-        travel: () => Promise.resolve(),
+        carry: () => {},
+    travel: () => Promise.resolve(),
         relayout: () => {},
         destroy: () => {},
       };
@@ -1746,7 +1749,8 @@ describe('[Frame] the shell drives the renderer that is drawing now', () => {
         applyTheme: () => {},
         drawPosition: () => {},
         drawMarks: () => {},
-        travel: () => Promise.resolve(),
+        carry: () => {},
+    travel: () => Promise.resolve(),
         frame: () => {
           if (!alive) { count.afterDestroy += 1; return; }
           count.frames += 1;
@@ -1941,7 +1945,8 @@ describe('[Teardown] the shell lets go of what the region does not hold', () => 
         applyTheme: () => {},
         drawPosition: () => {},
         drawMarks: () => {},
-        travel: () => Promise.resolve(),
+        carry: () => {},
+    travel: () => Promise.resolve(),
         frame: () => { count.frames += 1; },
         onKey: () => { count.keys += 1; return false; },
         relayout: () => {},

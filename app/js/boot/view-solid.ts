@@ -135,6 +135,20 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
    * without disposing is a leak that only shows up after a long game, on the machine least able to
    * afford it.
    */
+  /** How far a carried piece is lifted off the board, in scene units. Negative is up. */
+  const CARRY_LIFT = -TILE * 0.55;
+
+  let carriedFrom: Square | null = null;
+  let carriedAt: { x: number; z: number } | null = null;
+  let carriedPiece: THREE.Group | null = null;
+
+  function dropCarried(): void {
+    if (!carriedPiece) return;
+    scene.pieces.remove(carriedPiece);
+    disposePiece3d(carriedPiece);
+    carriedPiece = null;
+  }
+
   function drawPieces(hidden: readonly Square[]): void {
     for (const child of [...scene.pieces.children]) {
       scene.pieces.remove(child);
@@ -173,6 +187,25 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
     }
   }
 
+  let shellHidden: readonly Square[] = [];
+
+  /** Builds the carried piece if it is not built, and puts it under the pointer. */
+  function liftCarried(): void {
+    if (!carriedFrom || !carriedAt) return;
+    if (!carriedPiece) {
+      const piece = ctx.rules().pieceAt(carriedFrom);
+      if (!piece) return;
+      const palette = projectedPalette(boardTheme(themeKey));
+      carriedPiece = buildPiece3d(
+        specs3dFor(designKey)[piece.type],
+        piece.side === 'w' ? palette.lightPieces : palette.darkPieces,
+        { unlit: unlit() },
+      );
+      scene.pieces.add(carriedPiece);
+    }
+    carriedPiece.position.set(carriedAt.x, CARRY_LIFT, carriedAt.z);
+  }
+
   /* ---------- the pointer: a press selects, a HOLD turns the table ---------- */
 
   let holding = false;
@@ -197,6 +230,7 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
     selection: () => ctx.state().selection(),
     activate: (square) => ctx.activate(square),
     focus: (square) => mirror.focusSquare(square),
+    carry: (from, at) => self.carry(from, at),
     cancelHold: () => window.clearTimeout(holdTimer),
   });
 
@@ -207,8 +241,12 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
     turning = false;
     // ⚠️ The same one-second hold the projected view uses, and for the same reason: a teacher
     // pointing at a square in front of a class must not spin the board by resting a finger on it.
-    holdTimer = window.setTimeout(() => { if (holding) turning = true; }, 1000);
     carry.down(event);
+    // ⚠️ NOT ARMED ON A PIECE: a press that can pick something up belongs to it for its whole
+    // life. Off a piece the hold is exactly as it was. See `grabbable()` in `boot/drag-to-move`.
+    if (!carry.grabbable()) {
+      holdTimer = window.setTimeout(() => { if (holding) turning = true; }, 1000);
+    }
     try { canvas.setPointerCapture(event.pointerId); } catch { /* no such pointer */ }
   });
 
@@ -272,7 +310,7 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
 
-  return {
+  const self: BoardView = {
     hudControls: {
       pieceSets: () => PIECE_DESIGNS.map((d) => ({ key: d.key, label: ctx.i18n.t(d.name) })),
       pieceSet: () => designKey,
@@ -303,7 +341,38 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
       drawPieces([]);
     },
 
-    drawPosition: (hidden) => { drawPieces(hidden); },
+    drawPosition: (hidden) => {
+      shellHidden = hidden;
+      drawPieces(carriedFrom ? [...hidden, carriedFrom] : hidden);
+      if (carriedFrom) liftCarried();
+    },
+
+    carry(from, at) {
+      if (!from || !at) {
+        if (carriedFrom === null) return;
+        /*
+         * ⚠️ THIS IS ALSO HOW A REFUSED DROP PUTS THE PIECE BACK. The board never changed, so
+         * redrawing without the carry restores exactly the position that was there.
+         */
+        carriedFrom = null;
+        carriedAt = null;
+        dropCarried();
+        drawPieces(shellHidden);
+        return;
+      }
+      const box = canvas.getBoundingClientRect();
+      const point = scene.pointOnBoard(
+        at.clientX - box.left, at.clientY - box.top, box.width, box.height,
+      );
+      // Off the plane entirely — behind the camera at a grazing angle. The piece stays put rather
+      // than being flung to the origin.
+      if (point) carriedAt = point;
+      if (carriedFrom === null || carriedFrom.x !== from.x || carriedFrom.y !== from.y) {
+        carriedFrom = from;
+        drawPieces([...shellHidden, from]);
+      }
+      liftCarried();
+    },
 
     drawMarks: (markers, hints, cursor) => {
       /*
@@ -448,4 +517,5 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
       coordinates.destroy();
     },
   };
+  return self;
 };
