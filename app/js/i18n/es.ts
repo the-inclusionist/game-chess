@@ -179,6 +179,7 @@ export const es: Catalog = {
     'a11y.unaimed':     'Destino borrado',
     'a11y.canReach':    'Piezas que pueden ir: {count}',
     'a11y.cellMove': 'jugada posible',
+    'a11y.cellAim': 'destino elegido',
     'a11y.cellCapture': 'captura posible',
     'a11y.cellCheck': 'en jaque',
     'a11y.cellLesson': 'la lección señala esta casilla',

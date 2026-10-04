@@ -184,6 +184,7 @@ export const pt: Catalog = {
     'a11y.unaimed':     'Destino desmarcado',
     'a11y.canReach':    'Peças que podem ir: {count}',
     'a11y.cellMove': 'lance possível',
+    'a11y.cellAim': 'destino escolhido',
     'a11y.cellCapture': 'captura possível',
     'a11y.cellCheck': 'em xeque',
     // ⚠️ NÃO CONCORDA COM A PEÇA. "nesta casa", nunca "{piece} marcada" — o catálogo carrega

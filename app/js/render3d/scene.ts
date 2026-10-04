@@ -312,6 +312,10 @@ export function createScene3d(options: Scene3dOptions): Scene3d {
   const square = (cx: number, cz: number, side: number, colour: string): void => {
     lay(new THREE.Mesh(new THREE.PlaneGeometry(side, side), flatMaterial(colour)), cx, cz);
   };
+  /** An oblong, for the two bars of the aim's cross. */
+  const square2 = (cx: number, cz: number, w: number, h: number, colour: string): void => {
+    lay(new THREE.Mesh(new THREE.PlaneGeometry(w, h), flatMaterial(colour)), cx, cz);
+  };
 
   const LESSON_INK: Record<'lesson' | 'lessonRight' | 'lessonWrong', string> = {
     lesson: MARKER_LESSON, lessonRight: MARKER_LESSON_RIGHT, lessonWrong: MARKER_LESSON_WRONG,
@@ -328,6 +332,18 @@ export function createScene3d(options: Scene3dOptions): Scene3d {
       square(cx, cz, TILE * 0.60, MARKER_LESSON_HALO);
       if (kind === 'lessonWrong') ring(cx, cz, TILE * 0.30, LESSON_INK[kind]);
       else square(cx, cz, TILE * 0.52, LESSON_INK[kind]);
+      return;
+    }
+    /*
+     * ⚠️ THE AIM IS A CROSS, and it leaves before the dot-and-ring vocabulary below rather than
+     * joining it. Two flat bars dividing the square into four: the Dev's form (2026-10-04) for
+     * the square chosen before the piece, told apart from `selected` by shape because the two
+     * mean opposite things — a piece in your hand, or an empty square in it.
+     */
+    if (kind === 'aim') {
+      const BAR = TILE * 0.09;
+      square2(cx, cz, TILE * 0.92, BAR, MARKER_SELECTED);
+      square2(cx, cz, BAR, TILE * 0.92, MARKER_SELECTED);
       return;
     }
     if (kind === 'move' || kind === 'selected') disc(cx, cz, TILE * 0.16, MARKER_MOVE);

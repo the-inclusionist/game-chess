@@ -2208,7 +2208,9 @@ export function createChessCartridge(deps: GameShellDeps): ChessCartridge {
      */
     const aimed = game.destination();
     if (aimed) {
-      markers.set(squareIndex(aimed), 'selected');
+      // The Dev's form, 2026-10-04: a CROSS on the square chosen before the piece, so the two
+      // orders of operations are told apart by shape and not by position alone.
+      markers.set(squareIndex(aimed), 'aim');
       for (const from of game.legalTargets()) markers.set(squareIndex(from), 'move');
     }
     const check = game.kingInCheck();

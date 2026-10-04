@@ -74,12 +74,16 @@ export interface BoardView {
  * Written this way, `tsc` refuses the day somebody removes the early return in `setMarkers` — the
  * lookup stops compiling instead of quietly drawing the wrong shape.
  */
+// ⚠️ `aim` is in here to satisfy the exhaustive Record and nothing reads it: an aim is a CROSS,
+// drawn by `drawAim`, and never an outline. `tsc` refusing the day a marker is added is the point
+// of the type — see the note on this record below.
 const OUTLINE_COLOUR: Record<Exclude<Marker, 'lesson' | 'lessonRight' | 'lessonWrong'>, string> = {
   cursor: MARKER_CURSOR,
   move: MARKER_MOVE,
   capture: MARKER_CAPTURE,
   selected: MARKER_SELECTED,
   check: MARKER_CHECK,
+  aim: MARKER_SELECTED,
 };
 
 export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE): BoardView {
@@ -160,6 +164,32 @@ export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE):
    */
   const cursorAnchor = new Zdog.Anchor({ addTo: anchor });
 
+  /*
+   * ⚠️ ON DEMAND, like the hints, the lessons and the cursor above, and for the same measured
+   * reason. At most ONE square is aimed at a time, so two bars built when asked beat 128 hidden
+   * ones in a graph Zdog re-flattens every frame.
+   */
+  const aimAnchor = new Zdog.Anchor({ addTo: anchor });
+
+  /** The aim: a cross dividing the square into four, the Dev's form for "I am going HERE". */
+  function drawAim(index: number): void {
+    const { x, z } = squareCenter(squareFromIndex(index), TILE);
+    const BAR = TILE * 0.09;
+    for (const [w, h] of [[TILE * 0.92, BAR], [BAR, TILE * 0.92]] as const) {
+      new Zdog.Rect({
+        addTo: aimAnchor,
+        width: w,
+        height: h,
+        translate: { x, y: MARKER_LIFT, z },
+        rotate: { x: Zdog.TAU / 4 },
+        stroke: SQUARE_STROKE,
+        color: MARKER_SELECTED,
+        fill: true,
+        backface: true,
+      });
+    }
+  }
+
   /**
    * The lesson mark: an inner filled square inside a black halo.
    *
@@ -234,6 +264,7 @@ export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE):
     setMarkers(markers, cursor) {
       hideAll();
       cursorAnchor.children = [];
+      aimAnchor.children = [];
       for (const [index, kind] of markers) {
         if (index < 0 || index >= SQUARE_COUNT) continue;
         // ⚠️ A lesson mark is neither a dot nor a ring, so it leaves both of those alone. That is
@@ -242,6 +273,12 @@ export function createBoard(parent: Anchor, initial: Palette = DEFAULT_PALETTE):
         // useful of the two.
         if (kind === 'lesson' || kind === 'lessonRight' || kind === 'lessonWrong') {
           drawLesson(index, kind);
+          continue;
+        }
+        // ⚠️ Like a lesson mark and unlike the rest: its own shape, so it leaves the square's dot
+        // and outline alone rather than competing for them.
+        if (kind === 'aim') {
+          drawAim(index);
           continue;
         }
         const showDot = kind === 'move' || kind === 'selected';

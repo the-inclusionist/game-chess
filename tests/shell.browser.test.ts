@@ -339,7 +339,19 @@ describe('[Aim] the square may be chosen before the piece, on every board', () =
     shell.activate(at('f3'));                    // reachable by the f-pawn and by the king's knight
     expect(markOn('f2'), 'the pawn that can come').toBe('move');
     expect(markOn('g1'), 'the knight that can come').toBe('move');
-    expect(markOn('f3'), 'and the square itself is the one in hand').toBeUndefined();
+    // ⚠️ AND THE SQUARE ITSELF IS A CROSS, NOT A RING. The Dev's form, 2026-10-04: `selected` and
+    // `aim` mean opposite things — a piece in your hand, an empty square in it — so they are told
+    // apart by shape rather than by which one happens to be where.
+    expect(markOn('f3'), 'the aimed square').toBe('aim');
+  });
+
+  it('⚠️ names the cross in words too, because shape alone is not a channel either', () => {
+    // WCAG 1.4.1 is literal in this file: never colour alone — and a shape nobody can see is the
+    // same failure one layer along. `a11y.cellAim` is the half a listener gets.
+    const shell = shellFor();
+    shell.activate(at('f3'));
+    const cell = document.querySelector('[data-square="f3"]')!;
+    expect(cell.getAttribute('aria-label')).toContain('destino escolhido');
   });
 
   it('lets go of the square when it is chosen twice, like putting a piece down', () => {

@@ -1442,6 +1442,32 @@ html { background: var(--page); }
   .board-2d [role="gridcell"][data-mark="capture"]::after {
     width: 78%; height: 78%; border: 3px solid #B3341F;
   }
+  /*
+   * ========================= THE AIM IS A CROSS, THE FIFTH FORM =========================
+   * The square chosen BEFORE the piece that goes to it — the Dev's second order of operations and
+   * his choice of shape (2026-10-04): the cell divided into four like a window.
+   *
+   * ⚠️ IT HAD TO DIFFER FROM `selected` IN PARTICULAR, because the two mean opposite things that
+   * would otherwise look alike: `selected` is "this piece is in your hand", this is "this empty
+   * square is". A ring and a cross are not confusable at any size; two rings would have been.
+   *
+   * ⚠️ AND IT TAKES `selected`'s INK rather than a new hue. Every marker colour's contrast against
+   * every square this game draws is measured in `render/palette.ts`, and a sixth would need that
+   * work done again to be honest. The SHAPE carries the meaning, which is the rule (1.4.1) rather
+   * than an economy — and `a11y.cellAim` says "destino escolhido" for whoever is not looking.
+   *
+   * Two gradients rather than two elements: `::after` is already the dot and the ring, `::before`
+   * is already the lesson mark, and a cell has no third pseudo-element to spend.
+   */
+  .board-2d [role="gridcell"][data-mark="aim"]::after {
+    width: 92%; height: 92%;
+    border-radius: 0;
+    background:
+      linear-gradient(to right, transparent calc(50% - 1.5px), #1B4F8A calc(50% - 1.5px),
+        #1B4F8A calc(50% + 1.5px), transparent calc(50% + 1.5px)),
+      linear-gradient(to bottom, transparent calc(50% - 1.5px), #1B4F8A calc(50% - 1.5px),
+        #1B4F8A calc(50% + 1.5px), transparent calc(50% + 1.5px));
+  }
   .board-2d [role="gridcell"][data-check] { background: #B3341F; }
 
   /*

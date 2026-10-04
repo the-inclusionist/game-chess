@@ -178,6 +178,7 @@ export const en: Catalog = {
     'a11y.unaimed':     'Destination cleared',
     'a11y.canReach':    'Pieces that can go there: {count}',
     'a11y.cellMove': 'move available',
+    'a11y.cellAim': 'chosen destination',
     'a11y.cellCapture': 'capture available',
     'a11y.cellCheck': 'in check',
     'a11y.cellLesson': 'the lesson points here',

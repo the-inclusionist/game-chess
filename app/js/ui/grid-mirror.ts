@@ -360,6 +360,10 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
       : i18n.t('square.empty', { square: where });
 
     const extras: string[] = [];
+    const aimed = state().destination();
+    // ⚠️ NEVER COLOUR ALONE, and never SHAPE alone either: the cross is the visual half, this is
+    // the half a listener gets. Said first because it is the stronger fact about the square.
+    if (aimed && sameSquare(aimed, square)) extras.push(i18n.t('a11y.cellAim'));
     if (state().legalTargets().some((t) => sameSquare(t, square))) {
       extras.push(piece ? i18n.t('a11y.cellCapture') : i18n.t('a11y.cellMove'));
     }
@@ -430,7 +434,11 @@ export function createGridMirror(deps: GridMirrorDeps): GridMirror {
        * destination would carry in the usual order, read backwards.
        */
       const coming = deps.state().destination() !== null;
-      const mark = legal ? (piece && !coming ? 'capture' : 'move') : '';
+      const aimed = deps.state().destination();
+      // ⚠️ The aimed square takes its own value, so the cross is drawn by CSS the way the dot and
+      // the ring are, rather than by a second element nobody would remember to keep in step.
+      const mark = aimed && sameSquare(aimed, square) ? 'aim'
+        : legal ? (piece && !coming ? 'capture' : 'move') : '';
       if (mark) cell.dataset.mark = mark;
       else delete cell.dataset.mark;
 

@@ -74,10 +74,22 @@ export function squareCenter(s: Square, tile: number): { x: number; z: number } 
  * while the square they were told to look at is still lit. A second ring in another colour would
  * be a 1.4.1 failure in the one mode whose whole purpose is to teach.
  *
+ * `aim` is the square chosen BEFORE the piece that goes to it — the Dev's second order of
+ * operations, and his choice of form (2026-10-04): a CROSS, dividing the square into four like a
+ * window. It had to be a fifth shape rather than a fifth colour for the rule above, and it had to
+ * be told apart from `selected` in particular, because the two mean opposite things that look
+ * alike: `selected` is "this piece is in your hand", `aim` is "this empty square is". A ring with
+ * a dot and a cross are not confusable at any size, which a second ring would have been.
+ *
+ * ⚠️ IT BORROWS `selected`'s INK rather than introducing a hue. The contrast of every marker
+ * colour against every square this game draws is measured in `render/palette.ts`, and a new one
+ * would need that work done again to be honest. The shape is carrying the meaning here, which is
+ * the rule rather than an economy.
+ *
  * `lessonRight` and `lessonWrong` answer a square the student just touched. ⚠️ They are told apart
  * by FILL, not by colour: blue and red measure 1.06:1 against each other, so a reader going by
  * lightness sees one mark, not two. Right is filled; wrong is hollow.
  */
 export type Marker =
-  | 'cursor' | 'selected' | 'move' | 'capture' | 'check'
+  | 'cursor' | 'selected' | 'move' | 'capture' | 'check' | 'aim'
   | 'lesson' | 'lessonRight' | 'lessonWrong';
