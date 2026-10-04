@@ -32,6 +32,40 @@ import type { Side } from '../chess/types.ts';
 /** Five minutes, in milliseconds. The Dev asked for a clock "marcado 5:00". */
 export const DEFAULT_CLOCK_MS = 5 * 60 * 1000;
 
+/**
+ * ========================= THE LADDER =========================
+ * The Dev, 2026-10-04: the time button toggles "entre 1+0, 2+1, 3+0, 3+2, 5+0, 10+0, 15+10, e
+ * «sem tempo»", and "<tempo> envolve número de minutos para cada lado mais acréscimo por lance em
+ * segundos".
+ *
+ * ⚠️ `null` IS «SEM TEMPO» AND IT IS A RUNG LIKE THE OTHERS, not a flag beside them. A board with
+ * no clock is a real way to play — it is how every lesson is played, and how two children arguing
+ * about a position want to play — so it sits at the end of the ladder where somebody looking for
+ * "slower" will reach it.
+ */
+export interface TimeControl {
+  /** Minutes for each side. */
+  readonly minutes: number;
+  /** Seconds added to a player's clock when their move lands (Fischer). */
+  readonly increment: number;
+}
+
+export const TIME_CONTROLS: readonly (TimeControl | null)[] = [
+  { minutes: 1, increment: 0 },
+  { minutes: 2, increment: 1 },
+  { minutes: 3, increment: 0 },
+  { minutes: 3, increment: 2 },
+  { minutes: 5, increment: 0 },
+  { minutes: 10, increment: 0 },
+  { minutes: 15, increment: 10 },
+  null,
+];
+
+/** `5+0`, the way a chess player writes it. «sem tempo» is the caller's word, not this file's. */
+export function formatControl(control: TimeControl): string {
+  return `${control.minutes}+${control.increment}`;
+}
+
 export interface ChessClockDeps {
   /** Injected so a test can drive time without waiting for it. Defaults to `performance.now()`. */
   now?: () => number;
@@ -59,8 +93,23 @@ export interface ChessClock {
   start(side: Side): void;
   /** Stops whichever is draining, keeping both times. */
   pause(): void;
-  /** Back to the starting time for both, stopped. */
+  /** Back to the starting time for both, stopped. Uses whatever `configure` last set. */
   reset(): void;
+  /**
+   * Chooses the control the NEXT reset will use.
+   *
+   * ⚠️ IT DOES NOT TOUCH THE RUNNING TIMES, which is the Dev's own separation: «Zerar Relógio» is
+   * a second button precisely so that choosing a rung in the middle of a game does not wipe the
+   * time two people have already spent.
+   */
+  configure(startMs: number, incrementMs: number): void;
+  /**
+   * Adds the increment to `side`, because their move has landed.
+   *
+   * ⚠️ TO THE SIDE THAT JUST MOVED, not the one now on move. Fischer increment pays for the move
+   * you have made; crediting the opponent instead would hand a player time for thinking.
+   */
+  addIncrement(side: Side): void;
   dispose(): void;
 }
 
@@ -81,10 +130,22 @@ export function createChessClock(deps: ChessClockDeps = {}): ChessClock {
 
   /** What each side had when its clock was last stopped. */
   const banked: Record<Side, number> = { w: startMs, b: startMs };
+  let configured = startMs;
+  let increment = 0;
   let side: Side | null = null;
   let since = 0;
   let timer: unknown = null;
-  const flagged: Record<Side, boolean> = { w: false, b: false };
+  /*
+   * ⚠️ «HAS IT RUN OUT» IS DERIVED, AND IT WAS A STORED FLAG. The flag was only ever written by the
+   * repaint tick, so between two ticks — or with the timer throttled, or in a test that drives
+   * time by hand — a clock could read 0:00 and still answer `flagged: false`. `addIncrement` then
+   * credited five seconds to a side that had already lost. Found by the test that pauses a clock
+   * past zero without letting the timer run.
+   *
+   * What a stored flag is still needed for is saying so ONCE: `announced` is that, and nothing
+   * else reads it.
+   */
+  const announced: Record<Side, boolean> = { w: false, b: false };
 
   const drained = (): number => (side === null ? 0 : now() - since);
 
@@ -92,6 +153,8 @@ export function createChessClock(deps: ChessClockDeps = {}): ChessClock {
     const left = banked[which] - (which === side ? drained() : 0);
     return left > 0 ? left : 0;
   };
+
+  const out = (which: Side): boolean => remaining(which) <= 0;
 
   const stopTimer = (): void => {
     if (timer === null) return;
@@ -109,8 +172,8 @@ export function createChessClock(deps: ChessClockDeps = {}): ChessClock {
 
   const tick = (): void => {
     const which = side;
-    if (which !== null && remaining(which) <= 0 && !flagged[which]) {
-      flagged[which] = true;
+    if (which !== null && out(which) && !announced[which]) {
+      announced[which] = true;
       // ⚠️ BANKED BEFORE THE CALLBACK, so a listener that reads the clock sees 0 and not a
       // negative number that is still falling.
       bank();
@@ -122,10 +185,10 @@ export function createChessClock(deps: ChessClockDeps = {}): ChessClock {
   return {
     remaining,
     running: () => side,
-    flagged: (which) => flagged[which],
+    flagged: out,
 
     start(which) {
-      if (flagged[which]) return;
+      if (out(which)) return;
       if (side === which) return;
       bank();
       side = which;
@@ -143,10 +206,26 @@ export function createChessClock(deps: ChessClockDeps = {}): ChessClock {
 
     reset() {
       bank();
-      banked.w = startMs;
-      banked.b = startMs;
-      flagged.w = false;
-      flagged.b = false;
+      banked.w = configured;
+      banked.b = configured;
+      announced.w = false;
+      announced.b = false;
+      deps.onTick?.();
+    },
+
+    configure(nextStartMs, nextIncrementMs) {
+      configured = nextStartMs;
+      increment = nextIncrementMs;
+    },
+
+    addIncrement(which) {
+      // ⚠️ `out(which)`, NOT a stored flag: see the note on `announced`. A side with no time left
+      // is out whether or not a timer has noticed yet.
+      if (increment === 0 || out(which)) return;
+      // ⚠️ Banked through `remaining`, so adding to the side that is STILL running credits the
+      // time it has left rather than the time it started the turn with.
+      banked[which] = remaining(which) + increment;
+      if (which === side) since = now();
       deps.onTick?.();
     },
 

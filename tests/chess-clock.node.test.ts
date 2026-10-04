@@ -4,7 +4,9 @@
 // Every number here comes from a `now()` this file controls. A test that slept would be slow, and —
 // worse — would be measuring the machine it runs on rather than the rule it is about.
 import { describe, expect, it } from 'vitest';
-import { createChessClock, formatClock, DEFAULT_CLOCK_MS } from '../app/js/ui/chess-clock.ts';
+import {
+  createChessClock, formatClock, formatControl, DEFAULT_CLOCK_MS, TIME_CONTROLS,
+} from '../app/js/ui/chess-clock.ts';
 
 /** A clock with a hand this file turns. */
 function rig(startMs = DEFAULT_CLOCK_MS) {
@@ -148,5 +150,72 @@ describe('[Clock] running out', () => {
     clock.dispose();
     advance(60_000);
     expect(clock.remaining('w')).toBe(DEFAULT_CLOCK_MS - 5_000);
+  });
+});
+
+describe('[Clock] the ladder the time button walks', () => {
+  it('is the ladder the Dev named, in his order, with «sem tempo» at the end', () => {
+    // ⚠️ ASSERTED AS THE WHOLE LIST. He named eight rungs — "1+0, 2+1, 3+0, 3+2, 5+0, 10+0, 15+10,
+    // e «sem tempo»" — and a list is the one kind of data where "it contains X" proves nothing
+    // about the thing a player actually walks through.
+    expect(TIME_CONTROLS.map((c) => (c === null ? 'none' : formatControl(c)))).toEqual([
+      '1+0', '2+1', '3+0', '3+2', '5+0', '10+0', '15+10', 'none',
+    ]);
+  });
+
+  it('⚠️ `configure` does not touch the clocks that are already running', () => {
+    /*
+     * The Dev's own separation, and the reason «Zerar Relógio» is a second button: "«Zerar
+     * Relógio» zerando o relógio para o tempo total especificado no botão anterior". Choosing a
+     * rung in the middle of a game must not wipe the time two people have spent.
+     */
+    const { clock, advance } = rig();
+    clock.start('w');
+    advance(30_000);
+    clock.configure(60_000, 0);
+    expect(clock.remaining('w')).toBe(DEFAULT_CLOCK_MS - 30_000);
+    clock.reset();
+    expect(clock.remaining('w')).toBe(60_000);
+    expect(clock.remaining('b')).toBe(60_000);
+  });
+});
+
+describe('[Clock] the increment pays for the move you made', () => {
+  it('adds it to the side that moved, not the side now on move', () => {
+    const { clock, advance } = rig();
+    clock.configure(DEFAULT_CLOCK_MS, 2_000);
+    clock.reset();
+    clock.start('w');
+    advance(10_000);
+    // White's move lands: white is credited, then black's clock starts.
+    clock.addIncrement('w');
+    clock.start('b');
+    expect(clock.remaining('w')).toBe(DEFAULT_CLOCK_MS - 10_000 + 2_000);
+    expect(clock.remaining('b')).toBe(DEFAULT_CLOCK_MS);
+  });
+
+  it('⚠️ credits the time LEFT when the side credited is still running', () => {
+    // The trap: banking `banked[side] + increment` instead of `remaining(side) + increment` hands
+    // back everything spent this turn. Ten seconds in, this clock must read 4:52 and not 5:02.
+    const { clock, advance } = rig();
+    clock.configure(DEFAULT_CLOCK_MS, 2_000);
+    clock.reset();
+    clock.start('w');
+    advance(10_000);
+    clock.addIncrement('w');
+    expect(clock.remaining('w')).toBe(DEFAULT_CLOCK_MS - 8_000);
+    advance(1_000);
+    expect(clock.remaining('w')).toBe(DEFAULT_CLOCK_MS - 9_000);
+  });
+
+  it('gives nothing to a side that has already run out', () => {
+    const { clock, advance } = rig(1_000);
+    clock.configure(1_000, 5_000);
+    clock.reset();
+    clock.start('w');
+    advance(2_000);
+    clock.pause();
+    clock.addIncrement('w');
+    expect(clock.remaining('w')).toBe(0);
   });
 });

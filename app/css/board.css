@@ -528,6 +528,33 @@ html { background: var(--page); }
    * space between them are one 88-px control to a child with unsteady hands, and the wrong half is
    * where the whistle lives.
    */
+  /*
+   * ========================= THE GAME ROW =========================
+   * «Nova partida» · «5+0» · «Zerar Relógio», where the turn row used to be.
+   *
+   * ⚠️ THE MIDDLE ONE IS NARROW AND THE OTHERS SHARE WHAT IS LEFT. «5+0» is three characters and
+   * the two phrases around it are not; giving all three `flex: 1 1 0` would have spent a third of
+   * an 88-logical-pixel column on three characters and truncated both neighbours.
+   */
+  .hud-game { display: flex; flex: 0 0 auto; gap: 4px; min-height: var(--chess-tap, 44px); }
+  .hud-game-btn {
+    flex: 1 1 0; min-width: 0;
+    min-height: var(--chess-tap, 44px);
+    padding: 0 0.3em;
+    font: inherit; font-size: var(--ui-fs, 16px);
+    color: var(--ink); background: var(--surface-lift);
+    border: 1px solid #506C8A; border-radius: 2px;
+    cursor: pointer;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .hud-game-btn:hover:not(:disabled) { background: var(--surface-high); }
+  .hud-time {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    color: var(--focus);
+  }
+
   .hud-teachers { display: flex; gap: 4px; }
   .hud-teachers .hud-hint { flex: 1 1 0; min-width: 0; }
   /*

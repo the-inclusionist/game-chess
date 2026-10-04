@@ -76,7 +76,9 @@ import { loadProgress } from '../chess/session.ts';
 import { createGridMirror, type LessonMark, type LessonSquare } from '../ui/grid-mirror.ts';
 import { createHud, type GameMode, type Hud, type ViewKind } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
-import { createChessClock, formatClock } from '../ui/chess-clock.ts';
+import {
+  createChessClock, formatClock, formatControl, TIME_CONTROLS, type TimeControl,
+} from '../ui/chess-clock.ts';
 import { createPlayerStrips } from '../ui/player-strip.ts';
 import { createEarcons, WHISTLE } from '../ui/earcons.ts';
 import { createSplash } from '../ui/splash.ts';
@@ -835,9 +837,31 @@ const engineRef: { current: Engine | null } = { current: null };
    * is the side on move. A player watching the opponent's time drain while Stockfish searches is
    * seeing something true.
    */
+  /*
+   * ⚠️ THE RUNG IS AN INDEX, NOT A CONTROL. The Dev asked the middle button to «toggle» through the
+   * ladder, so what is remembered is WHERE on it we are — which survives a change of language and
+   * is one number in `sessionStorage` rather than two.
+   */
+  let rung = TIME_CONTROLS.findIndex((c) => c?.minutes === 5 && c.increment === 0);
+  const control = (): TimeControl | null => TIME_CONTROLS[rung] ?? null;
+  const timed = (): boolean => control() !== null;
+
   const clock = createChessClock({
     onTick: () => { players.refresh(); },
-    onFlag: (side) => { announcer.alert(i18n.t('clock.flag', { side: i18n.t(`turn.${side}`) })); },
+    /*
+     * ⚠️ AND IT ENDS THE GAME NOW. It did not: "para em 0:00, diz uma vez e deixa a posição em
+     * paz", with the hook left for the other answer. The Dev, 2026-10-04: "é para terminar, com
+     * partida perdida caso o contador chegue a zero." This is that hook, used.
+     *
+     * `game.stop()` rather than anything in `rules`: a position whose clock has run out is a
+     * perfectly legal position, chess.js has nothing to say about it, and every guard that already
+     * refuses input on `over` refuses it here with no new branch.
+     */
+    onFlag: (side) => {
+      game.stop();
+      announcer.alert(i18n.t('clock.lost', { side: i18n.t(`turn.${side}`) }));
+      hud.refresh();
+    },
   });
 
   const players = createPlayerStrips({
@@ -845,7 +869,9 @@ const engineRef: { current: Engine | null } = { current: null };
     evaluation: () => reviewer.evaluation(),
     mistakes: (side) => reviewer.mistakes(side),
     clock: {
-      text: (side) => formatClock(clock.remaining(side)),
+      // ⚠️ An em dash on «sem tempo», not 0:00 and not an empty box: the clock is there, it is
+      // simply not counting, and a blank would read as a thing that failed to load.
+      text: (side) => (timed() ? formatClock(clock.remaining(side)) : '\u2014'),
       running: () => clock.running(),
       flagged: (side) => clock.flagged(side),
     },
@@ -853,9 +879,27 @@ const engineRef: { current: Engine | null } = { current: null };
 
   /** A move has landed, by either hand. The clock passes to whoever is on move. */
   function movePlayed(): void {
+    if (!timed()) return;
+    // ⚠️ THE INCREMENT GOES TO THE SIDE THAT JUST MOVED, which is the one NOT on move now.
+    clock.addIncrement(rules.turn() === 'w' ? 'b' : 'w');
     if (rules.isGameOver()) { clock.pause(); return; }
     clock.start(rules.turn());
   }
+
+  /** The middle button of the game row: one rung along the ladder, wrapping at the end. */
+  function nextControl(): void {
+    rung = (rung + 1) % TIME_CONTROLS.length;
+    applyControl();
+    hud.refresh();
+  }
+
+  function applyControl(): void {
+    const next = control();
+    clock.configure((next?.minutes ?? 5) * 60_000, (next?.increment ?? 0) * 1000);
+    if (!next) clock.pause();
+  }
+
+  applyControl();
 
   /*
    * ⚠️ `playerSide` WAS NEVER PASSED, by any of the three roots, for the whole life of this
@@ -1403,6 +1447,16 @@ const engineRef: { current: Engine | null } = { current: null };
      * engine's `gameOptions` entry for `protected` is still declared but the pause card that drew
      * it has been unreachable since the quick bar went.
      */
+    onNewGame: () => {
+      newGame('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+      hud.refresh();
+    },
+    timeControl: () => {
+      const now = control();
+      return now === null ? i18n.t('time.none') : formatControl(now);
+    },
+    onTimeControl: () => { nextControl(); },
+    onResetClock: () => { clock.reset(); hud.refresh(); },
     protect: () => protectedOn,
     onProtect: (on: boolean) => {
       protectedOn = on;

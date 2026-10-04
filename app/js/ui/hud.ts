@@ -233,6 +233,28 @@ export interface HudDeps {
    * this one lets every move through and stops the game when one of them throws it away. Reading
    * them as a row, left to right, is reading them in order of how much they interrupt.
    */
+  /**
+   * ========================= THE GAME ROW =========================
+   * The Dev, 2026-10-04: where the turn row used to be, "três botões: «Nova partida», «<tempo>»
+   * (com <tempo> togleando entre 1+0, 2+1, 3+0, 3+2, 5+0, 10+0, 15+10, e «sem tempo»), e «Zerar
+   * Relógio» zerando o relógio para o tempo total especificado no botão anterior para cada lado."
+   *
+   * ⚠️ THE MIDDLE ONE IS A BUTTON THAT CYCLES, not a list, and that is his word — «togleando». A
+   * select with eight options would be the obvious shape and the wrong one here: these are a
+   * LADDER, read in order, and a child choosing «faster» or «slower» presses the same button
+   * again rather than finding a row in a menu.
+   *
+   * ⚠️ AND CHOOSING A CONTROL DOES NOT ZERO THE CLOCKS, which is why there are three buttons and
+   * not two. "«Zerar Relógio» zerando o relógio para o tempo total especificado no botão anterior"
+   * — the choice and the act are separate, so changing the control in the middle of a game does
+   * not wipe the time two people have already spent.
+   */
+  onNewGame?(): void;
+  /** The current control, already written the way it is shown: `5+0`, or «sem tempo». */
+  timeControl?(): string;
+  /** Moves to the next rung of the ladder. */
+  onTimeControl?(): void;
+  onResetClock?(): void;
   protect?(): boolean;
   onProtect?(on: boolean): void;
   twoPlayers?(): boolean;
@@ -492,6 +514,22 @@ export function createHud(deps: HudDeps): Hud {
    *
    * So: `sr-only`. Gone from the panel, still said.
    */
+  /*
+   * The three buttons that took the turn row's place on 2026-10-04. See `onNewGame` above.
+   */
+  const gameBox = doc.createElement('p');
+  gameBox.className = 'hud-game';
+  const newGameButton = doc.createElement('button');
+  newGameButton.type = 'button';
+  newGameButton.className = 'hud-game-btn';
+  const timeButton = doc.createElement('button');
+  timeButton.type = 'button';
+  timeButton.className = 'hud-game-btn hud-time';
+  const resetClockButton = doc.createElement('button');
+  resetClockButton.type = 'button';
+  resetClockButton.className = 'hud-game-btn';
+  gameBox.append(newGameButton, timeButton, resetClockButton);
+
   const turn = doc.createElement('p');
   turn.className = 'hud-turn sr-only';
   const swatch = doc.createElement('span');
@@ -833,6 +871,7 @@ export function createHud(deps: HudDeps): Hud {
    * than pruning it: the opening's name, which is a sentence ABOUT the move list and sits with
    * it, and the lesson picker, which is hidden unless the APRENDER door was taken.
    */
+  if (deps.onNewGame) root.appendChild(gameBox);
   root.append(turn);
   if (deps.onHint) root.appendChild(hintBox);
   /*
@@ -975,6 +1014,9 @@ export function createHud(deps: HudDeps): Hud {
   const onPieceChange = (): void => { deps.onPieceSet?.(pieceField.select.value); };
   const onThemeField = (): void => { deps.onTheme?.(themeField.select.value); };
   const onCountryChange = (): void => { deps.onCountry?.(countryField.select.value); };
+  const onNewGameClick = (): void => { deps.onNewGame?.(); };
+  const onTimeClick = (): void => { deps.onTimeControl?.(); };
+  const onResetClockClick = (): void => { deps.onResetClock?.(); };
   const onProtectClick = (): void => { deps.onProtect?.(!(deps.protect?.() ?? false)); };
   const onSeatToggle = (): void => { deps.onTwoPlayers?.(!(deps.twoPlayers?.() ?? false)); };
   const onCpuClick = (): void => { deps.onCpuMove?.(); };
@@ -984,6 +1026,9 @@ export function createHud(deps: HudDeps): Hud {
   pieceField.select.addEventListener('change', onPieceChange);
   themeField.select.addEventListener('change', onThemeField);
   countryField.select.addEventListener('change', onCountryChange);
+  newGameButton.addEventListener('click', onNewGameClick);
+  timeButton.addEventListener('click', onTimeClick);
+  resetClockButton.addEventListener('click', onResetClockClick);
   protectButton.addEventListener('click', onProtectClick);
   seatCheck.addEventListener('click', onSeatToggle);
   cpuButton.addEventListener('click', onCpuClick);
@@ -1223,6 +1268,17 @@ export function createHud(deps: HudDeps): Hud {
      */
     refreshControls();
 
+    if (deps.onNewGame) {
+      newGameButton.textContent = i18n.t('hud.newGame');
+      resetClockButton.textContent = i18n.t('hud.resetClock');
+      timeButton.textContent = deps.timeControl?.() ?? '';
+      // ⚠️ The ladder's rung is the button's own text, so a reader hears «5+0» and nothing else —
+      // which is meaningless on its own. The label says what the number IS.
+      timeButton.setAttribute('aria-label',
+        i18n.t('hud.timeControl', { control: deps.timeControl?.() ?? '' }));
+      timeButton.title = i18n.t('hud.timeControlTip');
+    }
+
     const two = deps.twoPlayers?.() ?? false;
     seatCheck.setAttribute('aria-pressed', String(two));
     // ⚠️ «2P» IS THE PICTURE AND «2 Jogadores» IS THE NAME. Same split as the three icons above:
@@ -1324,6 +1380,9 @@ export function createHud(deps: HudDeps): Hud {
       pieceField.select.removeEventListener('change', onPieceChange);
       themeField.select.removeEventListener('change', onThemeField);
       countryField.select.removeEventListener('change', onCountryChange);
+      newGameButton.removeEventListener('click', onNewGameClick);
+      timeButton.removeEventListener('click', onTimeClick);
+      resetClockButton.removeEventListener('click', onResetClockClick);
       protectButton.removeEventListener('click', onProtectClick);
       seatCheck.removeEventListener('click', onSeatToggle);
       cpuButton.removeEventListener('click', onCpuClick);

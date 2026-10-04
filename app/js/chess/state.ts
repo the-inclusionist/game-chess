@@ -184,6 +184,15 @@ export interface GameState {
    * only ever knew the first. See the long note in `createGameState`.
    */
   think(): void;
+  /**
+   * Ends the game for a reason the RULES do not know about — a clock running out.
+   *
+   * ⚠️ IT IS NOT `settle()`. `settle` asks `rules.isGameOver()`, and a position whose clock has
+   * run out is a perfectly legal position: chess.js has nothing to say about it and should not.
+   * So the phase is set from outside, and every guard that already refuses input on `over` refuses
+   * it here with no new branch.
+   */
+  stop(): void;
 }
 
 export function createGameState(options: GameStateOptions): GameState {
@@ -422,6 +431,14 @@ export function createGameState(options: GameStateOptions): GameState {
 
     think() {
       if (phase === 'idle') phase = 'thinking';
+    },
+
+    stop() {
+      selection = null;
+      targets = [];
+      destination = null;
+      inFlight = null;
+      phase = 'over';
     },
 
     takeBack() {

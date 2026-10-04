@@ -195,6 +195,25 @@ describe('[Opponent] handing the turn over', () => {
     expect(game.activate(sq('d2'))).toEqual({ kind: 'ignored', reason: 'busy' });
   });
 
+  it('⚠️ `stop()` ends a game the RULES still consider playable — a clock running out', () => {
+    /*
+     * The Dev, 2026-10-04: "é para terminar, com partida perdida caso o contador chegue a zero."
+     *
+     * ⚠️ IT IS NOT `settle()`. `settle` asks `rules.isGameOver()`, and a position whose clock has
+     * run out is a perfectly legal position — chess.js has nothing to say about it and should not.
+     * So the phase is set from outside, and every guard that already refuses input on `over`
+     * refuses it here with no new branch, which is what this asserts.
+     */
+    const game = versus();
+    expect(game.phase()).toBe('idle');
+    expect(game.rules.isGameOver()).toBe(false);
+    game.stop();
+    expect(game.phase()).toBe('over');
+    expect(game.activate(sq('e2'))).toEqual({ kind: 'ignored', reason: 'over' });
+    // The position is untouched: a game lost on time is still the game that was played.
+    expect(game.rules.isGameOver()).toBe(false);
+  });
+
   it('⚠️ and `think()` on a finished game is a no-op, so nobody is asked to answer a mate', () => {
     const game = createGameState({
       rules: createRules('rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3'),
