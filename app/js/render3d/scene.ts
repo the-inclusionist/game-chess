@@ -253,8 +253,28 @@ export function createScene3d(options: Scene3dOptions): Scene3d {
   const marks = new THREE.Group();
   scene.add(marks);
 
-  /** Just clear of the board's top face, which is at y = 1. Any less and they z-fight. */
-  const MARK_Y = 1.05;
+  /**
+   * Just clear of the board's top face. ⚠️ NEGATIVE, BECAUSE Y POINTS DOWN HERE.
+   *
+   * ========================= THIS WAS `+1.05`, AND IT BURIED EVERY MARK =========================
+   * The Dev, 2026-10-04: "no tabuleiro 3D nem e possivel jogar com ele, as pecas parecem estatuas
+   * numa maquete, sem qualquer possibilidade de interacao".
+   *
+   * The clicking worked the whole time — a press selects, and the mirror says which square. What
+   * did not work was SEEING any of it, because the selection ring, the legal-move dots, the
+   * capture rings, the check ring and the cursor were all drawn UNDERNEATH THE BOARD.
+   *
+   * The arithmetic, which is worth writing out because the old comment got it exactly backwards:
+   * each square is a `BoxGeometry(TILE, 1, TILE)` centred at `y = 0.5`, so it occupies y from 0 to
+   * 1. This scene keeps the table's convention and Y POINTS DOWN (see the note at the top of this
+   * file), so the face a player looks at is the one at y = 0 and the one at y = 1 is the
+   * UNDERSIDE. `MARK_Y = 1.05` put every mark a twentieth of a unit below the bottom of the board.
+   *
+   * The old comment said "the board's top face, which is at y = 1", and that single wrong word is
+   * the whole defect. The proof it was wrong was already in the same codebase: the hint arrows in
+   * `boot/view-solid.ts` sit at y = -0.15 and have always been visible.
+   */
+  const MARK_Y = -0.05;
 
   const flatMaterial = (colour: string): THREE.Material => new THREE.MeshBasicMaterial({
     color: colour,
