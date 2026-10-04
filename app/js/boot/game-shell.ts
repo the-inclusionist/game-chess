@@ -2310,12 +2310,27 @@ const engineRef: { current: Engine | null } = { current: null };
     if (next.guard !== undefined) guard = next.guard;
     prefs.save({ arrows, guard });
     /*
-     * ⚠️ THE ARROWS GO WHEN EITHER BUTTON CHANGES, not only when the teacher is switched off.
-     * Pressing II while I is lit must take the arrows off the board immediately — leaving the last
-     * set drawn would be the one state this mode exists to prevent, and a child would see the
-     * answer to the move they are about to be refused for.
+     * ========================= ⚠️ NOTHING IS THROWN AWAY HERE ANY MORE =========================
+     * The Dev, 2026-10-04: "o botão «só permitido jogar os melhores lances» não deve sumir com as
+     * setas! Ele só deve ligar o bloqueio, ao passo que o botão setas deve ligar as setas, um
+     * independente do outro."
+     *
+     * What stood here was `clearHints()` with this reasoning: "the arrows go when EITHER button
+     * changes… pressing II while I is lit must take the arrows off the board immediately, and a
+     * child would see the answer to the move they are about to be refused for." That was true
+     * while the two were ONE setting with three values and II meant «withhold what I shows». They
+     * became independent switches this morning and the clear was left behind.
+     *
+     * ⚠️ AND IT WAS NOT EVEN DOING WHAT IT CLAIMED. `syncMarks` already draws `arrows ? hinted :
+     * []` — the set is kept either way and the arrows are withheld AT THE DRAW, which is the line
+     * that actually implements the old rule. All this did was throw away a set that was still
+     * right for the position, so pressing 🏆 blanked the board and the arrows came back when the
+     * engine had searched again. Measured on the running build: 14 arrows → 0 → 14, four seconds
+     * apart. A blink, and the Dev saw it.
+     *
+     * A stale set is still cleared, by the one caller that can tell: `refreshHints` compares
+     * `hintFen` with the position and clears when they differ.
      */
-    clearHints();
     hud.refresh();
     refreshHints();
   }

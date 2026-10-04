@@ -154,6 +154,7 @@ describe('[Professor II] through the whole shell, with an engine that answers sl
    */
   let release: ((hint: EngineMove | null) => void) | null = null;
   let asked = 0;
+  let drawnHints: number[] = [];
 
   function slowEngine() {
     return () => ({
@@ -176,7 +177,13 @@ describe('[Professor II] through the whole shell, with an engine that answers sl
     ctx.region.appendChild(ctx.mirror.root);
     return {
       hudControls: { coordinates: () => false, onCoordinates: () => {} },
-      applyTheme: () => {}, drawPosition: () => {}, drawMarks: () => {}, carry: () => {},
+      applyTheme: () => {}, drawPosition: () => {},
+      // ⚠️ RECORDS THE ARROWS IT IS HANDED. The third argument of `drawMarks` is the set the board
+      // draws as arrows, and `game-shell.ts` already withholds it there (`arrows ? hinted : []`).
+      // Watching this is the only way to see a blank FRAME — the kind of bug that fixes itself a
+      // few seconds later and is therefore invisible to a test that only looks at the end state.
+      drawMarks: (_marks, hints) => { drawnHints.push(hints.length); },
+      carry: () => {},
       travel: () => Promise.resolve(), relayout: () => {}, destroy: () => {},
     };
   };
@@ -205,7 +212,10 @@ describe('[Professor II] through the whole shell, with an engine that answers sl
   const label = (n: string): string =>
     document.querySelector(`[data-square="${n}"]`)!.getAttribute('aria-label')!;
 
-  beforeEach(() => { release = null; asked = 0; board(); clear(); saveSettings({ mode: 'w' }); });
+  beforeEach(() => {
+    release = null; asked = 0; drawnHints = [];
+    board(); clear(); saveSettings({ mode: 'w' });
+  });
   afterEach(() => { document.body.replaceChildren(); clear(); });
 
   const settle = (): Promise<void> => new Promise((r) => { setTimeout(r, 0); });
@@ -262,6 +272,53 @@ describe('[Professor II] through the whole shell, with an engine that answers sl
     await settle();
     expect(setas.getAttribute('aria-pressed')).toBe('false');
     expect(protetor.getAttribute('aria-pressed'), 'the guard is not collateral').toBe('true');
+  });
+
+  it('⚠️ turning the guard on does not blank the arrows, not even for one frame', async () => {
+    /*
+     * The Dev, 2026-10-04: "o botão «só permitido jogar os melhores lances» não deve sumir com as
+     * setas! Ele só deve ligar o bloqueio, ao passo que o botão setas deve ligar as setas, um
+     * independente do outro."
+     *
+     * ⚠️ AND IT FIXED ITSELF, WHICH IS WHY IT NEEDED A TEST AND NOT A LOOK. `chooseTeacher` called
+     * `clearHints()` on EVERY change — a rule from the hours when the two were one three-valued
+     * setting — so pressing the guard threw away a set that was still right for the position and
+     * the arrows came back when the engine had searched again. Measured on the running build: 14
+     * arrows, then 0, then 14 four seconds later. A test that asserted the END state would have
+     * been green throughout.
+     *
+     * So this asserts the FRAMES: once the arrows are up, no later frame is empty.
+     */
+    createGameShell({
+      host: document, kind: '2d', view: fakeView, visibleMirror: true,
+      makeOpponent: slowEngine(), debugName: '__noBlink', contrastTheme: 'contrast-flat',
+    });
+    const setas = document.getElementById('hud-hint') as HTMLButtonElement;
+    const protetor = document.getElementById('hud-hint-silent') as HTMLButtonElement;
+
+    setas.click();
+    await settle();
+    release!(hint([['e2', 'e4'], ['d2', 'd4']]));
+    await settle();
+    await settle();
+    expect(drawnHints.at(-1), 'the arrows are up').toBeGreaterThan(0);
+
+    const fromHere = drawnHints.length;
+    protetor.click();
+    await settle();
+    await settle();
+
+    expect(protetor.getAttribute('aria-pressed'), 'the guard went on').toBe('true');
+    expect(setas.getAttribute('aria-pressed'), 'and the arrows stayed on').toBe('true');
+    /*
+     * ⚠️ NOT «THE BOARD WAS REDRAWN». That is what this line asked for first, and it failed — zero
+     * redraws, which is the RIGHT answer: nothing on the board changes when the guard goes on, so
+     * the cheapest correct thing to do is nothing. The property is that what is drawn still has
+     * arrows in it, whether that is the old frame or a new one.
+     */
+    const after = drawnHints.slice(fromHere);
+    expect(after.filter((n) => n === 0), 'no frame went empty').toEqual([]);
+    expect(drawnHints.at(-1), 'and the arrows are still what the board holds').toBeGreaterThan(0);
   });
 
   it('plays the move the set DOES contain, once the set is there', async () => {
