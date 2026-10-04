@@ -198,13 +198,41 @@ export function createScene3d(options: Scene3dOptions): Scene3d {
    * ⚠️ NONE OF THIS APPLIES IN HIGH CONTRAST, where the materials are unlit on purpose — see
    * `render3d/pieces.ts`. The lights stay in the scene and simply have nothing to do.
    */
-  const ambient = new THREE.AmbientLight(0xffffff, 1.7);
+  /*
+   * ========================= ⚠️ THE SHADING WAS TOO SHALLOW TO SEE =========================
+   * The Dev, 2026-10-04: "as sombras no tabuleiro 3D precisam ser mais acentuadas! Eu pedi para
+   * melhorar isso e você fez o contrário, o que dificulta olhos humanos enxergarem as peças."
+   *
+   * Measured off the canvas with the old numbers — ambient 1.7, key 1.6, fill 0.6 — a white piece
+   * came out as 255 on its lit faces and 219 on the turned-away ones. That is a ratio of 1.38
+   * between the brightest and the darkest plane of a solid, and `render/palette.ts` measured that
+   * below about 1.5 the eye FUSES two neighbouring planes. The shading was under the threshold of
+   * being noticed at all, which is why «mais acentuadas» is the right word for what it needed.
+   *
+   * ⚠️ THE AMBIENT WAS CARRYING NEARLY ALL OF IT, which is the reason rather than the symptom: a
+   * term that lands equally on every face cannot describe a shape. It can only raise the whole
+   * piece, and raising a white piece towards white is how you arrive at 1.38. So the light moved
+   * out of the ambient and into the key, at about the same total.
+   *
+   *   ambient / key / fill     brightest / darkest plane     shading   darkest vs the black edge
+   *       1.7   1.6   0.6              255 / 219               1.38             15.17
+   *       0.8   2.5   0.45             248 / 190               1.75             11.30
+   *       0.5   2.9   0.35             246 / 181               1.90             10.24
+   *      0.28   3.3   0.30             249 / 176               2.06              9.68
+   *      0.12   3.6   0.28             251 / 172               2.19              9.25   <- this
+   *
+   * Four steps, each one read off the canvas rather than predicted. It stops here because the
+   * curve has flattened — the last step bought 0.13 where the first bought 0.37 — and not because
+   * of a limit: the darkest plane is still 9.25 from the black edge around it, where 3 is the
+   * floor, so there is room left if the Dev wants more.
+   */
+  const ambient = new THREE.AmbientLight(0xffffff, 0.12);
   // ⚠️ The x of both is negated along with the board's, so the illumination keeps exactly the
   // relationship to the squares it was tuned against. Mirroring the content and not the lights
   // would have moved the key light to the other side of the board as a side effect of a bug fix.
-  const key = new THREE.DirectionalLight(0xffffff, 1.6);
+  const key = new THREE.DirectionalLight(0xffffff, 3.6);
   key.position.set(BOARD_SPAN, -BOARD_SPAN * 1.4, BOARD_SPAN * 0.6);
-  const fill = new THREE.DirectionalLight(0xffffff, 0.6);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.28);
   fill.position.set(-BOARD_SPAN, -BOARD_SPAN * 0.8, -BOARD_SPAN);
   scene.add(ambient, key, fill);
 

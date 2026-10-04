@@ -386,7 +386,7 @@ async function check3dInk(page) {
    * check counted tones above 300 px and stayed GREEN when the pieces were forced unlit, because
    * the canvas carries four unrelated mid-greys of about 700 px each — the plinth and the board's
    * own edges — and they answered the question instead of the pieces. Sampled both ways: lit, the
-   * white pieces are 4768 px at 255 and 2659 at 219; unlit, they are 10141 px at 255 and nothing
+   * white pieces are 4672 px at 251 and 2738 at 172; unlit, they are 10141 px at 255 and nothing
    * else. Two tones over 1500 px is the line between those two pictures.
    */
   const pieceTones = tones.filter((t) => t.rgb[0] === t.rgb[1] && t.rgb[1] === t.rgb[2]
