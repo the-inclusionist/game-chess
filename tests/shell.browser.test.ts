@@ -1336,15 +1336,13 @@ describe('[Chrome] what steps aside for a lesson actually leaves the screen', ()
     expect(last, 'a last control').toBeDefined();
 
     /*
-     * ⚠️ TWO SCROLLERS SINCE 2026-10-04, AND THE SPEC IS UNCHANGED. The settings block took its
-     * own `overflow-y` when the Dev asked for the move box to be eight lines and fully visible
-     * without the panel's scrollbar — the panel is still the outer one, as the assertion above
-     * requires, and the controls scroll inside it. So the thing to prove is the same property by
-     * the same method: scroll everything that scrolls, and the last control must be in the box.
+     * ⚠️ THE PANEL'S OWN SCROLLBAR, AND ONLY IT. The settings block briefly had one of its own on
+     * 2026-10-04; the Dev's correction is that the panel scrolls "como se fosse um bloco só", so
+     * driving THIS element to the end has to be enough to reach the last control. If a scroller
+     * ever appears between them again, this line stops reaching and the test says so — which is
+     * the half of the spec that was missing while the controls had one.
      */
-    for (const el of [hud, ...hud.querySelectorAll('*')] as HTMLElement[]) {
-      el.scrollTop = el.scrollHeight;
-    }
+    hud.scrollTop = hud.scrollHeight;
     const box = hud.getBoundingClientRect();
     const reached = last.getBoundingClientRect();
     // At or above the foot, not exactly on it: the panel has padding, so scrolling to the end

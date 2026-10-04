@@ -1105,35 +1105,29 @@ html { background: var(--page); }
    * peças" hits a control at least one rung tall, which is what their finger needs.
    */
   /*
-   * ========================= ⚠️ THE SETTINGS SCROLL, NOT THE PANEL =========================
-   * The Dev, 2026-10-04, about the move box above: "deve ser visível na janela sem ter que usar
-   * barra de rolagem para vê-la inteira."
+   * ========================= ⚠️ EXACTLY TWO SCROLLERS, AND THEY NEST =========================
+   * The settings block had its own `overflow-y` for about twenty minutes on 2026-10-04. I gave it
+   * one so the move box above could never be pushed below the fold, and the Dev corrected the
+   * premise rather than the code: "houve um equívoco meu ao me expressar: o painel deve continuar
+   * rolável como se fosse um bloco só, dentro de si a caixa de texto de lances também deve ser
+   * rolável."
    *
-   * Giving the box a fixed height was not enough. The panel is one scroller, so anything that
-   * grows ABOVE the box pushes it below the fold — and something does: the opening's name appears
-   * the moment a known line is played, and the box went 24 px past the panel's edge on move four.
-   * Measured, not predicted; it looked right on an empty board.
+   * So the panel is ONE block that scrolls — turn, teachers, walk, move box, opening, settings,
+   * all moving together — and the move box scrolls INSIDE it. A third scroller between them is
+   * what makes a panel come apart under the hand: two regions answering the same wheel depending
+   * on where the pointer happens to be.
    *
-   * So the settings take the remaining room and scroll inside it. `flex: 1 1 auto` with
-   * `min-height: 0` is what lets a flex child be shorter than its content; without the second
-   * half the block refuses to shrink and the panel scrolls again, which is the whole bug.
-   *
-   * The panel keeps `overflow-y: auto` as a floor for a window too short even for this — there a
-   * scrollbar is better than a clipped control — and `min-height` here keeps the settings from
-   * collapsing into a two-pixel slot on the way down.
+   * ⚠️ AND THE MOVE BOX IS STILL IN THE WINDOW WITHOUT TOUCHING THE PANEL'S SCROLLBAR, which was
+   * the request that produced the wrong fix. What holds it there is the OPENING'S NAME being
+   * below it instead of above — the one thing over the box whose height was not known in advance
+   * — and that holds whether this block scrolls or not, which is why it stays.
    */
   /* ⚠️ TWO LINES AT MOST. Opening names run long — "Bishop's Opening: Ponziani Gambit" is three
-     lines in this column — and this sits in the part of the panel that scrolls, under the move
-     box, so an unbounded one costs the settings their room rather than the box its visibility. */
+     lines in this column — and it sits below the move box, where an unbounded one costs the
+     panel's length rather than the box its place in the window. */
   .hud-opening {
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
     overflow: hidden;
-  }
-  .hud-controls {
-    flex: 1 1 auto;
-    min-height: calc(var(--chess-tap, 44px) * 1.6);
-    overflow-y: auto;
-    overscroll-behavior: contain;
   }
   .chess-hud p.hud-check {
     display: flex;
