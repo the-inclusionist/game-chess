@@ -20,7 +20,13 @@
 // loads those once for all games, which is the whole arithmetic of one origin. `publicDir: false`
 // fixed it; nothing but this says it stays fixed.
 //
-// Run after `vite build --mode lib`, as part of `npm run validate`.
+// Run after `vite build --mode cartridge`, as part of `npm run validate`.
+//
+// 📌 AND IT IS NOT THE ENGINE'S CHECKER, which runs beside it. `inclusionist-check-cartridge` IMPORTS the
+// built cartridge and applies the refusals `createGame` and `mount()` apply at boot — is there a default
+// export, does the declaration conform. This one never imports anything: it READS THE EMITTED TEXT for bare
+// specifiers and compares that set with `peerDependencies`. Neither can see what the other sees, which is why
+// both run.
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -34,7 +40,7 @@ const DELIVERY = /\.(wasm|woff2?|ttf|otf|eot|mp3|ogg|wav|onnx)$/i;
 const problems = [];
 
 if (!existsSync(LIB)) {
-  problems.push(`${LIB} is missing — run \`vite build --mode lib\` first`);
+  problems.push(`${LIB} is missing — run \`vite build --mode cartridge\` first`);
 } else {
   /** Every file under `dist-lib`, at any depth. */
   const walk = (dir) => readdirSync(dir).flatMap((name) => {

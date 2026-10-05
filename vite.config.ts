@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config'; // not 'vite': vitest/config is wh
 import { fileURLToPath } from 'node:url';
 import { playwright } from '@vitest/browser-playwright';
 import { VitePWA } from 'vite-plugin-pwa';
+import { defineGameBuild } from '@the-inclusionist/engine/build';
 
 // ========================== THE ENGINE COMES FROM THE REGISTRY ==========================
 // ⚠️ THIS PARAGRAPH DESCRIBED A SYMLINK THAT NO LONGER EXISTS. It read: "`file:../SP-the-
@@ -22,51 +23,51 @@ import { VitePWA } from 'vite-plugin-pwa';
 // defaults to the browser's own speech, so nothing fetches it at boot. It is deploy weight, not
 // load weight. See docs/spike-1-file-dependency.md.
 /*
- * ========================= THE SECOND TARGET, AND WHY IT EXISTS =========================
- * ADR-0140 §1: one source tree, two builds, switched by mode.
+ * ========================= THE SECOND TARGET IS THE ENGINE'S NOW (ADR-0253) =========================
+ * ADR-0140 §1 says one source tree, two builds, switched by mode, and this file used to make BOTH:
+ * a second build object, a boolean switched off the Vite mode, and four ternaries hanging off that
+ * boolean — over `base`, `publicDir`, `plugins` and `build`. All of that is gone, and what replaced
+ * it is the `defineGameBuild` wrapper around the app config below.
  *
- *   · APP (default) — `app/index.html` and its two siblings, engine BUNDLED, PWA on. This
- *     repository's own artifact: a development, test, audit and demonstration route.
- *   · LIB (`--mode lib`) — `src/index.ts`, the cartridge. Engine and Zdog EXTERNAL. No HTML, no
- *     service worker, nothing that assumes it owns a page.
+ * ⚠️ THE REASON IS NOT TIDINESS, IT IS THAT FIVE GAMES WROTE FIVE OF THESE. ADR-0253 measured it on
+ * 2026-09-27: five of seven games declared a `build:lib`, each differently — a mode, a second config
+ * file, an npm lifecycle variable, an environment variable, a script — and one had none. What all
+ * five were writing is the same four decisions, and every one of them is about what the PLATFORM
+ * receives rather than what this game is:
  *
- * ⚠️ ONE INSTALLED ENGINE STILL TRAVELS N TIMES IF N BUNDLES INLINE IT, which is the leak this
- * target closes and `peerDependencies` does not. Declaring a peer decides what is INSTALLED;
- * `external` decides what is EMITTED. The cartridge writes a literal
- * `import … from '@the-inclusionist/engine'` and leaves resolution to whoever consumes it, so the
- * platform's single Rollup pass can emit the engine once into a chunk every game shares.
+ *   1. the engine, PixiJS and Zdog stay EXTERNAL, and matched as PREFIXES. ⚠️ This file had
+ *      `'zdog'` as an exact string, which externalises the bare name and SILENTLY INLINES every
+ *      subpath; the 15-puzzle measured 35 kB becoming 74.5 kB that way.
+ *   2. no `public/` — a cartridge declares no delivery (ADR-0117), and this game is the one that
+ *      shipped 7 MB of Stockfish in its cartridge before anybody looked;
+ *   3. no service worker — a second one would claim the platform's origin (ADR-0140 §1);
+ *   4. types emitted for the one entry, because a platform that cannot type the cartridge has a
+ *      contract that is a comment.
  *
- * 📌 WHAT IS EXTERNAL AND WHAT IS NOT, and the line is the one the record draws: the engine and
- * the SHARED render libraries. Zdog is shared — whackwhack draws with it too. Three is this
- * game's alone, with no sharing to win, so it stays inside the bundle; the architecture
- * document's answer for its 743.9 KB is the 3D view becoming a lazily imported chunk, which is a
- * different mechanism for a different problem. `chess.js` is this game's own rules.
+ * 📌 THE APP STAYS OURS, AND THAT IS THE LINE THE RECORD DRAWS (ADR-0140 §3): the manifest, the
+ * colours, the precache budget and the three views below are statements about THIS game. The engine
+ * takes the cartridge and touches nothing else — every plugin, `define`, `resolve` and `css` setting
+ * written once below applies to both targets.
  *
- * ⚠️ AND THAT DECISION HAS A CONSEQUENCE THE MANIFEST WAS GETTING WRONG. Measured on the emitted
- * package: `dist-lib` imports exactly two names — `zdog` and `@the-inclusionist/engine`. `three`
- * appears nowhere as an import, because it is INLINED into the `view-solid` chunk. So it is a
- * build-time dependency and not a runtime one, and the `dependencies` entry it used to have asked
- * every consumer to install ~620 KB that nothing they run ever loads. It is a `devDependency` now.
- * `scripts/check-cartridge.mjs` is what keeps this paragraph and the code agreeing: every name the
- * build emits must be a declared peer, and every declared peer must be a name the build emits.
+ * ⚠️ AND THE CARTRIDGE'S NAME CHANGED WITH ITS OWNER: `dist-lib/cartridge.js` and
+ * `cartridge.d.ts`, where this file emitted `dist-lib/index.js` and `dist-lib/types/src/index.d.ts`.
+ * `package.json`'s `exports` had to move with it, and `scripts/check-cartridge.mjs` reads the new
+ * name. A build that wrote the right bytes under the old name would have been a package whose
+ * `exports` point at nothing — which installs cleanly and fails at the platform's build.
  */
-const LIB_BUILD = {
-  outDir: '../dist-lib',
-  emptyOutDir: true,
-  target: 'es2022',
-  lib: {
-    entry: fileURLToPath(new URL('./src/index.ts', import.meta.url)),
-    formats: ['es' as const],
-    fileName: 'index',
-  },
-  rollupOptions: {
-    external: [/^@the-inclusionist\/engine/, 'zdog'],
-  },
-};
+/*
+ * ⚠️ A NAMED CONST AND NOT AN ARGUMENT WRITTEN IN PLACE, and it is a typing fact rather than a
+ * style one. `defineConfig` from `vitest/config` is overloaded, and when the call sits directly
+ * inside `defineGameBuild({ config: … })` the expected type — Vite's `UserConfig`, which has no
+ * `test` field — selects the plain Vite overload. The body then loses its contextual typing and
+ * `browser: 'chromium'` widens to `string`, which fails against `'chromium' | 'firefox' | 'webkit'`
+ * in a wall of eighteen nested «is not assignable» lines that say nothing about the cause.
+ *
+ * Resolved on its own first, the Vitest overload wins and the `test` block is typed as it always
+ * was. Passing it on then only has to be assignable, and a Vitest config is a Vite config with more.
+ */
+const appConfig = defineConfig(() => {
 
-export default defineConfig(({ mode }) => {
-  // The one switch. Everything below reads it rather than being written twice.
-  const lib = mode === 'lib';
   /*
    * ========================= THE SUBPATH THE PLATFORM SERVES THIS GAME AT =========================
    * ADR-0117: the catalogue lives at `o-inclusionista.jrocha.dev.br/<slug>/*` so a child's accessibility
@@ -80,7 +81,7 @@ export default defineConfig(({ mode }) => {
   const subpath = incl.replace(/\/+$/, '');
   return {
   root: 'app',
-  base: lib ? undefined : incl,
+  base: incl,
   /*
    * ⚠️ NO `public/` IN THE CARTRIDGE, AND THIS WAS MEASURED AS A DEFECT RATHER THAN FORESEEN. The
    * first lib build came out at 7.6 MB, of which 7.1 MB was `vendor/` — Vite copies `publicDir`
@@ -94,7 +95,7 @@ export default defineConfig(({ mode }) => {
    * The app build keeps them, because there the game IS the page and the opponent has to come from
    * somewhere — see the precache gate.
    */
-  publicDir: lib ? false : undefined,
+  publicDir: undefined,
   /*
    * ========================= THE STANDALONE BUILD IS A PWA =========================
    * ADR-0140: a game is a standalone PWA *and* a cartridge, from one source, and five of the six
@@ -118,7 +119,7 @@ export default defineConfig(({ mode }) => {
    * side: «precached at install, never fetched lazily at first use». The test asserts the file is
    * in the manifest, because a number in a config is not evidence.
    */
-  plugins: lib ? [] : [
+  plugins: [
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
@@ -149,7 +150,7 @@ export default defineConfig(({ mode }) => {
       },
     }),
   ],
-  build: lib ? LIB_BUILD : {
+  build: {
     /*
      * ⚠️ `../dist${subpath}` — EMPTY in dev builds, `../dist/game-chess` in the CF Pages build.
      * The `_headers` file the post-build script writes lands in `dist/`, not inside the subpath
@@ -230,11 +231,32 @@ export default defineConfig(({ mode }) => {
             enabled: true,
             headless: true,
             provider: playwright(),
-            instances: [{ browser: 'chromium' }],
+            /*
+             * ⚠️ `as const`, AND IT IS LOAD-BEARING SINCE 2026-10-04. Passing this config on to
+             * `defineGameBuild` makes TypeScript compare it against Vite's `UserConfig`, which has
+             * no `test` field; in that comparison the literal widens and `'chromium'` becomes
+             * `string`, failing `'chromium' | 'firefox' | 'webkit'` in eighteen nested lines that
+             * never name the cause. The assertion pins the literal wherever it is compared.
+             */
+            instances: [{ browser: 'chromium' as const }],
           },
         },
       },
     ],
   },
   };
+});
+
+/*
+ * ========================= THE ONE DECLARATION (ADR-0253) =========================
+ * `vite build` builds the app above, untouched. `vite build --mode cartridge` builds the cartridge,
+ * which is the engine's business and no longer this file's.
+ */
+export default defineGameBuild({
+  /*
+   * The one thing the engine cannot guess, and it is relative to the REPOSITORY ROOT — where
+   * `package.json` is and where npm and CI run — not to the `root: 'app'` the app config sets.
+   */
+  cartridge: 'src/index.ts',
+  config: appConfig,
 });

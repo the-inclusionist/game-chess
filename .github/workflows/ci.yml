@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# ========================= FIVE LINES, AND THE REST IS THE ENGINE'S =========================
+# ADR-0068 §4 refused three hundred copies of a pipeline and named the failure it was refusing:
+# «copies drift, and the ones that drift silently are the ones that STOP GATING. A gate that
+# stopped running is worse than one that never existed, because the repository still shows a
+# green tick.» So the whole pipeline lives once, in the engine, and a game invokes it.
+#
+# This repository went without one until 2026-10-04, and issue #5 is where that was written down:
+# two of the six games had no workflow at all, and one of the two was this one.
+#
+# ⚠️ AND THE REASON IT COULD NOT HAVE ONE IS GONE, WHICH IS WHY THIS FILE EXISTS NOW. Issue #5 says
+# chess «é O CANÁRIO… o único dos seis que consome a engine por `file:../SP-the-inclusionist-tracer`»
+# — compiled against the sibling TREE, so `npm ci` on a runner had nothing to install. Measured on
+# 2026-10-04 and no longer true: `package.json` declares `@the-inclusionist/engine@^11.0.0` and
+# `package-lock.json` resolves it to the registry's tarball. The canary died with the `file:`
+# dependency; the alarm is being installed over its corpse.
+#
+# ========================= ⚠️ `a11y: true`, AND IT IS A REAL AXE GATE =========================
+# The shared workflow makes the axe step opt-in and writes why: it needs a servable game, and a
+# scaffold has nothing to serve. It also writes what the opt-out means — «a game that ships to a
+# school with `a11y: false` is a game that skipped pillar 2, and the input is named so that
+# skipping it is a VISIBLE line in the caller instead of an absence.»
+#
+# The Dev chose the real thing on 2026-10-04: «Portão axe a sério… Faça isso por favor.» So
+# `test:a11y` runs `@axe-core/playwright` over the BUILT page, on the splash and in the running
+# game, against the WCAG 2.2 A and AA rules, with no allow-list. Mutation-checked the same day:
+# dropping `.thinking dt` to ~1.4:1 turned the step red and named the rule and the nodes.
+#
+# 📌 AND IT CARRIES THIS GAME'S OWN TWO GATES, because `test:a11y` is the ONLY post-build hook a
+# caller gets. `check-precache` (is the opponent really in the service worker's manifest) and
+# `check-rendered` (does the page actually draw what it computed, in all three views) would
+# otherwise run on nobody's machine but the author's. Same arrangement game-2048 uses for its
+# delivery gate, and for the same reason.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    uses: the-inclusionist/the-inclusionist-engine/.github/workflows/game-ci.yml@main
+    with:
+      a11y: true
+    # ⚠️ NO `adr-records: true`. That input needs a `records-token` secret with read access to the
+    # engine, and this repository keeps no `docs/2-Architecture/adr` tree of its own — ADR-0226
+    # allows a game to have one, it does not require it. Turning the input on without either would
+    # fail on a checkout that has nothing to check.
+    #
+    # ⚠️ AND NO `node-version`. The default is the engine's own `.node-version`, 24.14.0; this
+    # repository's `.nvmrc` says `24`, which that satisfies, and the local runs are measured on
+    # 24.14.0 already. Pinning the patch here would be a second place for it to live, and that is
+    # how two repositories end up testing on two runtimes without either of them saying so.

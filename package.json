@@ -18,12 +18,13 @@
     "test:watch": "vitest",
     "test:node": "vitest run --project node",
     "test:browser": "vitest run --project browser",
-    "validate": "npm run typecheck && vitest run && vite build && node scripts/check-precache.mjs && node scripts/check-rendered.mjs && vite build --mode lib && node scripts/check-cartridge.mjs",
+    "validate": "npm run typecheck && vitest run && vite build && npm run test:a11y && npm run build:cartridge && node scripts/check-cartridge.mjs && inclusionist-check-cartridge",
     "check:precache": "node scripts/check-precache.mjs",
     "check:rendered": "node scripts/check-rendered.mjs",
     "check:cartridge": "node scripts/check-cartridge.mjs",
-    "build:lib": "vite build --mode lib && npm run build:types",
-    "build:types": "tsc -p tsconfig.build.json"
+    "check:axe": "node scripts/check-axe.mjs",
+    "build:cartridge": "vite build --mode cartridge",
+    "test:a11y": "node scripts/check-precache.mjs && node scripts/check-rendered.mjs && node scripts/check-axe.mjs"
   },
   "dependencies": {
     "chess.js": "^1.4.0"
@@ -33,6 +34,7 @@
     "zdog": "^1.1.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@the-inclusionist/engine": "^11.0.0",
     "@types/node": "^22.0.0",
     "@types/three": "^0.185.4",
@@ -54,8 +56,8 @@
   ],
   "exports": {
     ".": {
-      "types": "./dist-lib/types/src/index.d.ts",
-      "default": "./dist-lib/index.js"
+      "types": "./dist-lib/cartridge.d.ts",
+      "default": "./dist-lib/cartridge.js"
     },
     "./package.json": "./package.json"
   }
