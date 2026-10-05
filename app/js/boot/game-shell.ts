@@ -544,12 +544,21 @@ const engineRef: { current: Engine | null } = { current: null };
    * beat it with: `setLocale` existed on the interface and was called nowhere in production, so
    * three catalogues shipped and only the browser could pick between them.
    */
+  /**
+   * Whether the starting language was CHOSEN — by the child, or by the host — rather than inherited
+   * from the device.
+   *
+   * 🔴 IT DECIDES WHETHER THIS GAME CORRECTS THE ENGINE, and the difference is a defect that
+   * reached children. See `create()`.
+   */
+  let localeWasChosen = true;
   const startingLocale = (() => {
     const saved = loadSettings().locale;
     if (saved === 'pt' || saved === 'en' || saved === 'es') return saved;
-    // The host's default, then the browser's. See `locale` in `GameShellDeps` for why the first of
-    // those two exists at all.
-    return deps.locale ?? preferredLocale(navigator.language);
+    if (deps.locale) return deps.locale;
+    // Nobody chose: the device answers, and this game has no standing to correct anybody.
+    localeWasChosen = false;
+    return preferredLocale(navigator.language);
   })();
   const i18n = createI18n(startingLocale);
   host.documentElement.lang = i18n.bcp47();
@@ -3089,6 +3098,43 @@ const engineRef: { current: Engine | null } = { current: null };
        * this door for exactly that purpose.
        */
       engine.onLocaleChange(() => { void changeLocale(engine.locale()); });
+      /*
+       * ========================= 🔴 A CHILD'S OWN CHOICE OUTRANKS HER DEVICE =========================
+       * ⚠️ THIS IS A DEFECT THAT REACHED CHILDREN, AND ONLY THE CI FOUND IT. Measured on 2026-10-05
+       * with `navigator.language` stubbed to `en-US`, which is what a GitHub runner reports and what
+       * a school's donated laptop very often reports too:
+       *
+       *   remembered = pt, device = en-US
+       *   synchronously     → «e2, peão branco»   (this game started in her language)
+       *   400 ms later      → «e2, white pawn»    (and threw it away)
+       *
+       * The line above is why, and the line above is RIGHT: the engine's 🌐 is the only language
+       * door a player sees, so this game follows it. What was wrong is that the engine had never
+       * been told what she chose. It reads `navigator.language` itself, announces that as the page's
+       * language, and this game — obediently — translated itself into the device's language and
+       * silently discarded a preference she had set on purpose.
+       *
+       * ⚠️ ONLY WHEN SOMEBODY ACTUALLY CHOSE. If the language was inherited from the device in the
+       * first place, the two already agree and this game has no standing to tell a page what to
+       * speak — on a platform there may be other games on it.
+       *
+       * ⚠️ AFTER `localeReady`, NOT AT ONCE, and that is the race rather than politeness: the
+       * engine settles its boot language asynchronously, so a `setLocale` fired before it finished
+       * is a coin toss against the value it is about to announce. `localeReady` is the engine's own
+       * word for «the language chosen at boot has loaded».
+       *
+       * 📌 AND IT GOES THROUGH THE ENGINE RATHER THAN AROUND IT. Re-translating only this game would
+       * leave her board in Portuguese inside a page whose bar, pause card and PAUSED word were all
+       * in English — which is worse than either language consistently.
+       */
+      if (localeWasChosen) {
+        void engine.localeReady().then(() => (
+          engine.locale() === startingLocale ? undefined : engine.setLocale(startingLocale)
+        )).catch(() => {
+          // A language the engine cannot load is not a reason to refuse to start: this game is
+          // already drawn in `startingLocale`, and the engine stays in whatever it managed.
+        });
+      }
       // ⚠️ ONCE, BEFORE ANYTHING HAPPENS. This used to be reached only from an event handler in the
       // flat root, so on a board that had not been touched yet — every restored game, and every
       // switch between views — the reviewer was never told to look. The advantage readout sat at a
