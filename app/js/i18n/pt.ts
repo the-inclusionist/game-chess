@@ -78,6 +78,21 @@ export const pt: Catalog = {
     'hud.resetClock':    'Zerar Relógio',
     'hud.timeControl':   'Ritmo de jogo: {control}',
     'hud.timeControlTip': 'Minutos para cada lado mais acréscimo por lance, em segundos',
+    /*
+     * ⚠️ «Blitz» E NÃO «Bliz». O Dev escreveu «Bliz» ao pedir isto em 04/10, e é o nome alemão que
+     * o mundo inteiro do xadrez usa com essa grafia — incluindo as federações brasileiras. Um
+     * botão que escrevesse «Bliz» seria o único lugar onde a criança leria assim.
+     *
+     * Os três não se traduzem, pela mesma razão que os nomes das aberturas não se traduzem: são o
+     * que se chama a estas velocidades em qualquer das três línguas. Só «Rápido» é palavra nossa,
+     * porque «rapid» em português já É rápido.
+     */
+    'hud.pace.bullet': 'Bala',
+    'hud.pace.blitz': 'Blitz',
+    'hud.pace.rapid': 'Rápido',
+    'hud.pace.none': 'Sem relógio',
+    /** `Blitz — Minutos para cada lado…`: o nome primeiro, a notação explicada a seguir. */
+    'hud.paceTip': '{pace} — {explain}',
     'time.none':         'sem tempo',
     'clock.lost':        'As {side} perderam no tempo.',
     'country.br':     '🇧🇷 Português',

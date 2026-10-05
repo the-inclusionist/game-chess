@@ -5,7 +5,7 @@
 // worse — would be measuring the machine it runs on rather than the rule it is about.
 import { describe, expect, it } from 'vitest';
 import {
-  createChessClock, formatClock, formatControl, DEFAULT_CLOCK_MS, TIME_CONTROLS,
+  createChessClock, formatClock, formatControl, paceOf, DEFAULT_CLOCK_MS, TIME_CONTROLS,
 } from '../app/js/ui/chess-clock.ts';
 
 /** A clock with a hand this file turns. */
@@ -217,5 +217,57 @@ describe('[Clock] the increment pays for the move you made', () => {
     clock.pause();
     clock.addIncrement('w');
     expect(clock.remaining('w')).toBe(0);
+  });
+});
+
+/* ========================= WHAT A PLAYER CALLS THE SPEED ========================= */
+
+describe('[Pace] the name of a speed is derived from the ladder, not tabled beside it', () => {
+  /*
+   * ⚠️ THE EXPECTATIONS ARE THE DEV'S OWN LIST, 2026-10-04, transcribed and not paraphrased:
+   * «1+0 e 1+1, "Bala"», «Em 3+0, 5+0 e 3+2, "Bliz"», «em 10+0, 15+10, e 30+0: "Rápido"».
+   *
+   * 📌 TWO OF THOSE NINE ARE NOT RUNGS OF `TIME_CONTROLS` TODAY — `1+1` and `30+0` — and they are
+   * checked anyway, which is the point of a rule over a table: the day either is added, the button
+   * is already right and there is nothing to remember. The rung the list does not mention, `2+1`,
+   * is bullet by the same boundary.
+   */
+  const asked: readonly [number, number, string][] = [
+    [1, 0, 'bullet'], [1, 1, 'bullet'], [2, 1, 'bullet'],
+    [3, 0, 'blitz'], [3, 2, 'blitz'], [5, 0, 'blitz'],
+    [10, 0, 'rapid'], [15, 10, 'rapid'], [30, 0, 'rapid'],
+  ];
+
+  it('names every control the Dev listed, and the one he did not', () => {
+    for (const [minutes, increment, pace] of asked) {
+      expect(`${minutes}+${increment}: ${paceOf({ minutes, increment })}`)
+        .toBe(`${minutes}+${increment}: ${pace}`);
+    }
+  });
+
+  it('🔴 names every rung of the ladder, so none can be added without a name', () => {
+    // This is the assertion the parallel table would not have had. A new rung gets its name from
+    // the same numbers the button already shows; there is no second place to forget.
+    for (const control of TIME_CONTROLS) {
+      if (control === null) continue;
+      const pace = paceOf(control);
+      expect(`${formatControl(control)}: ${['bullet', 'blitz', 'rapid'].includes(pace)}`)
+        .toBe(`${formatControl(control)}: true`);
+    }
+  });
+
+  it('⚠️ reads the BASE minutes and not the total, which is what players mean', () => {
+    // `3+2` is a blitz game to everyone who has been handed one: the three is what you feel.
+    // Folding the increment in would make it 5-ish and move it, correctly by arithmetic and
+    // wrongly by every usage of the word.
+    expect(paceOf({ minutes: 3, increment: 2 })).toBe('blitz');
+    expect(paceOf({ minutes: 2, increment: 10 })).toBe('bullet');
+  });
+
+  it('puts the boundaries where chess puts them', () => {
+    expect(paceOf({ minutes: 2, increment: 0 })).toBe('bullet');
+    expect(paceOf({ minutes: 3, increment: 0 })).toBe('blitz');
+    expect(paceOf({ minutes: 9, increment: 0 })).toBe('blitz');
+    expect(paceOf({ minutes: 10, increment: 0 })).toBe('rapid');
   });
 });

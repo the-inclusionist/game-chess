@@ -1532,69 +1532,55 @@ html { background: var(--page); }
    * ========================= THE OPENING, EXPLAINED =========================
    * `ui/opening-note`, above the thinking strip.
    *
-   * ⚠️ A RUN-IN HEADING, AND IT WAS MEASURED BEFORE IT WAS WRITTEN. The first version made this a
-   * `flex` row with the `h2` and the paragraph as two items, which is what `.thinking` does one
-   * rule down — and on the real page it was wrong, because `.thinking`'s items are four words each
-   * and this one's second item is three sentences. Measured at a 737 px viewport, with the strip
-   * at its 640 px width: the heading took 230 px of the line and left the paragraph 384, so the
-   * Sicilian's note came out NINE lines tall — `scrollHeight` 194 against a `clientHeight` of 86,
-   * more than half the explanation behind a scrollbar.
+   * ========================= ⚠️ ONE LINE, AND THE PROSE IS A TOOLTIP =========================
+   * The Dev's instruction of 2026-10-04: «Escreva apenas Abertura: <nome da abertura>. A descrição
+   * deixe como tooltip.» So the only thing drawn is the heading, and the paragraph that was here
+   * is `sr-only` in `ui/opening-note.ts` — still in the accessibility tree, still read aloud, zero
+   * pixels. The explanation a mouse sees is the heading's `title`.
    *
-   * So the heading runs INTO the paragraph, the pattern `.thinking dt/dd { display: inline }`
-   * already uses in this file: one flowing block, the full width of the strip, the em dash from
-   * `h2::after`. The same words now come to three lines and nothing scrolls.
+   * 📌 THIS RETIRES THREE RULES AND THE MEASUREMENTS BEHIND THEM, and they are worth one paragraph
+   * because the next person to make this panel show prose again will walk into them. The strip was
+   * briefly a `flex` row (heading and paragraph as two items, as `.thinking` does one rule down):
+   * at 640 px the heading ate 230 of the 625 available and the note came out NINE lines. It then
+   * became a run-in block with an em dash from `h2::after`, which brought it to six. And it had a
+   * `max-height` of four lines with `overflow-y: auto`, which was removed on measuring that a
+   * `section` with no `tabindex` — this one is outside `hud.root`, so `walkPanel` does not reach
+   * it either — cannot be scrolled from a keyboard at all: the cap was not an overflow, it was two
+   * lines of lost text. A single line has none of those problems.
    *
-   * ========================= 🔴 AND THERE IS NO `max-height`, WHICH IS A REVERSAL =========================
-   * This rule was first written with `max-height: calc(4 * 1.35em)` and `overflow-y: auto`, to
-   * protect the board: `#below-board` is `flex: 0 0 auto` inside `#stage-wrap`, so every pixel this
-   * panel grows is a pixel `#game-region` gives back. The reasoning was sound and the measurement
-   * refused it, at both widths:
-   *
-   *   · 1440×900 — strip 1280 px, the Sicilian's note is THREE lines, `scrollHeight` 65 against a
-   *     `clientHeight` of 65. The cap never engaged. It bought nothing.
-   *   · 737×683 — strip 640 px, the ADR-0163 minimum, SIX lines: `scrollHeight` 130 against a
-   *     `clientHeight` of 86. Two lines of the explanation behind a scrollbar.
-   *
-   * ⚠️ AND A SCROLLBAR HERE IS NOT A GRACEFUL OVERFLOW, it is lost text. A `section` with
-   * `overflow-y: auto` and no `tabindex` cannot be scrolled from the keyboard at all, and this
-   * panel is not inside `hud.root`, so `walkPanel` does not reach it either — a child who plays by
-   * keyboard would have had no way to read the last two lines. Hiding prose from the readers this
-   * game exists for, in order to keep a board 43 px taller on the narrowest supported screen, is
-   * the wrong way round.
-   *
-   * So the panel flows to its content and the board gives way. The bound is the prose:
-   * `tests/opening-notes.node.test.ts` holds every note under 400 characters, which is six lines at
-   * the 640 px minimum and three at a classroom projector's width.
+   * ⚠️ `#below-board` IS STILL `flex: 0 0 auto` INSIDE `#stage-wrap`, so whatever is drawn here is
+   * taken from the board: `#game-region` above is the `flex: 1 1 auto` that gives way. One line is
+   * the cheapest this panel can be, and that is now the reason it is one line.
    */
   .opening-note[hidden] { display: none; }
 
   .opening-note {
     display: block;
     max-width: 100%;
-    margin: 0.4em auto 0;
+    /*
+     * ⚠️ NO `auto` SIDE MARGIN, AND THAT IS NOT A TIDY-UP. `.thinking` one rule down carries
+     * `margin: 0.4em auto 0` and comes out full width; this one carried the same and came out 315 px
+     * wide and CENTRED, so «Abertura:» sat in the middle of the strip while «Pensamento da engine»
+     * directly beneath it started at the left edge. The cause is the flex cross axis: an item with
+     * an `auto` margin there stops being stretched — the margin absorbs the free space instead — and
+     * a block that shrank to its text then gets centred by it. Fixed margins keep the stretch.
+     */
+    margin: 0.4em 0 0;
     padding: 0 0.6em;
     /* The same floor as `.thinking`, and for the same ADR-0163 reason: this sits under the board,
        where `--panel-fs` would have put it at eleven pixels on a wide page. */
     font-size: var(--ui-fs, 16px);
     line-height: 1.35;
   }
-  /*
-   * ⚠️ `display: inline` ON AN `h2`, DELIBERATELY. It stays a heading in the accessibility tree —
-   * `display` changes how it is drawn and not what it is — so a screen reader still finds the
-   * section's title where a heading belongs, and a sighted reader does not lose a whole line of
-   * the board to it.
-   */
   .opening-note h2 {
-    display: inline;
     margin: 0; font-size: 1em; font-weight: 700; color: var(--ink);
     text-transform: none; letter-spacing: 0;
-  }
-  /* The separator belongs to the layout, not to the prose: three languages, one em dash. */
-  .opening-note h2::after { content: ' — '; font-weight: 400; color: var(--ink-dim); }
-  .opening-note-text {
-    display: inline;
-    margin: 0;
-    color: var(--ink-dim);
+    /*
+     * ⚠️ `help` AND NOT `default`. The explanation is only discoverable by hovering, so the cursor
+     * is the one affordance a sighted mouse user gets that there is anything to hover for. Without
+     * it the tooltip is a secret.
+     */
+    cursor: help;
   }
 
   .thinking {

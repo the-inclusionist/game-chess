@@ -84,7 +84,7 @@ import { createGridMirror, type LessonMark, type LessonSquare } from '../ui/grid
 import { createHud, type GameMode, type Hud, type ViewKind } from '../ui/hud.ts';
 import { applyLayout } from '../ui/layout.ts';
 import {
-  createChessClock, formatClock, formatControl, TIME_CONTROLS, type TimeControl,
+  createChessClock, formatClock, formatControl, paceOf, TIME_CONTROLS, type TimeControl,
 } from '../ui/chess-clock.ts';
 import { createPlayerStrips } from '../ui/player-strip.ts';
 import { createEarcons, WHISTLE } from '../ui/earcons.ts';
@@ -1534,6 +1534,15 @@ const engineRef: { current: Engine | null } = { current: null };
     timeControl: () => {
       const now = control();
       return now === null ? i18n.t('time.none') : formatControl(now);
+    },
+    /*
+     * ⚠️ THE KEY, NOT THE WORD, so a language change retranslates it with everything else. The
+     * speed is derived from the ladder's own numbers by `paceOf`, which is why adding a rung
+     * cannot leave this button saying the wrong thing.
+     */
+    paceKey: () => {
+      const now = control();
+      return now === null ? 'hud.pace.none' : `hud.pace.${paceOf(now)}`;
     },
     onTimeControl: () => { nextControl(); },
     onResetClock: () => { clock.reset(); hud.refresh(); },

@@ -263,6 +263,14 @@ export interface HudDeps {
   onNewGame?(): void;
   /** The current control, already written the way it is shown: `5+0`, or «sem tempo». */
   timeControl?(): string;
+  /**
+   * What a chess player calls the current speed — the i18n key `hud.pace.<pace>`, or
+   * `hud.pace.none` when the clock is off.
+   *
+   * ⚠️ A KEY AND NOT A WORD, so the HUD translates it with everything else on a language change.
+   * The shell derives it with `paceOf`, which reads the ladder's own numbers.
+   */
+  paceKey?(): string;
   /** Moves to the next rung of the ladder. */
   onTimeControl?(): void;
   onResetClock?(): void;
@@ -1311,7 +1319,22 @@ export function createHud(deps: HudDeps): Hud {
       // which is meaningless on its own. The label says what the number IS.
       timeButton.setAttribute('aria-label',
         i18n.t('hud.timeControl', { control: deps.timeControl?.() ?? '' }));
-      timeButton.title = i18n.t('hud.timeControlTip');
+      /*
+       * ⚠️ THE SPEED'S NAME FIRST, THE NOTATION AFTER IT. The Dev asked on 2026-10-04 for «Bala»,
+       * «Blitz» and «Rápido» as the tooltip of this button, and that is what it now opens with.
+       * The sentence that was here — what the two numbers mean — is kept behind the dash rather
+       * than replaced: knowing that `3+2` is blitz does not tell a child what the `2` is, and this
+       * button is the only place in the game that ever says so.
+       */
+      const paceKey = deps.paceKey?.();
+      timeButton.title = !paceKey || paceKey === 'hud.pace.none'
+        // ⚠️ No tail with the clock off: «minutos para cada lado» describes a thing that is not
+        // running, and a tooltip explaining a number nobody is counting is worse than no tooltip.
+        ? i18n.t(paceKey ?? 'hud.timeControlTip')
+        : i18n.t('hud.paceTip', {
+          pace: i18n.t(paceKey),
+          explain: i18n.t('hud.timeControlTip'),
+        });
     }
 
     copyButton.hidden = !deps.onCopyPgn;

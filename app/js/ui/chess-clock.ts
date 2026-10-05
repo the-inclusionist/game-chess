@@ -66,6 +66,33 @@ export function formatControl(control: TimeControl): string {
   return `${control.minutes}+${control.increment}`;
 }
 
+/** The three names a chess player has for a speed. The i18n key is `hud.pace.<this>`. */
+export type Pace = 'bullet' | 'blitz' | 'rapid';
+
+/**
+ * What a chess player calls this speed: bullet, blitz or rapid.
+ *
+ * ⚠️ A RULE AND NOT A TABLE OF EIGHT ROWS, which is the whole point. The Dev asked for these names
+ * on 2026-10-04 by listing the controls one at a time, and a second table parallel to
+ * `TIME_CONTROLS` is exactly the drift this repository keeps paying for: adding a rung and
+ * forgetting its row would fail in no test anywhere, and the button would simply stop saying what
+ * the number means. Derived from the number, it cannot go out of step with the ladder.
+ *
+ * ⚠️ AND IT READS THE BASE MINUTES, NOT THE TOTAL. These are the ordinary boundaries — under three
+ * minutes is bullet, under ten is blitz, from ten up is rapid — and they are drawn on the clock a
+ * side STARTS with. Folding the increment in would make `3+2` rapid-ish arithmetic nobody uses:
+ * `3+2` is a blitz game to every player who has ever been handed one, because the three is what
+ * you feel.
+ *
+ * 📌 The Dev's list named `1+1` and `30+0`, which are not rungs of `TIME_CONTROLS` today. The rule
+ * answers for them anyway, the day they are added: bullet and rapid, with nothing to edit here.
+ */
+export function paceOf(control: TimeControl): Pace {
+  if (control.minutes < 3) return 'bullet';
+  if (control.minutes < 10) return 'blitz';
+  return 'rapid';
+}
+
 export interface ChessClockDeps {
   /** Injected so a test can drive time without waiting for it. Defaults to `performance.now()`. */
   now?: () => number;

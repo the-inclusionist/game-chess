@@ -59,8 +59,26 @@ export function createOpeningNote(deps: OpeningNoteDeps): OpeningNotePanel {
   root.hidden = true;
 
   const title = doc.createElement('h2');
+  /*
+   * ========================= ⚠️ `sr-only`, ON THE DEV'S INSTRUCTION OF 2026-10-04 =========================
+   * «Escreva apenas Abertura: <nome da abertura>. A descrição deixe como tooltip.» So the screen
+   * shows one line and the explanation moves to the `title` of the heading, where a mouse finds it.
+   *
+   * 🔴 AND THE PARAGRAPH STAYS IN THE DOM RATHER THAN BEING DELETED, which is the whole difference
+   * between doing this and doing it in this game. A `title` is reached by HOVERING: no keyboard, no
+   * touch, no screen reader that is not also driving a pointer. Deleting the paragraph would have
+   * taken the explanation away from precisely the children this repository exists for, in order to
+   * give it to the ones with a mouse. `sr-only` keeps it in the accessibility tree, unseen and
+   * still spoken, and costs no pixel at all.
+   *
+   * ⚠️ `aria-hidden` ON THE HEADING'S TOOLTIP IS NOT NEEDED, and must not be added: a `title` is an
+   * accessible DESCRIPTION, so with the paragraph already in the tree a reader would hear the same
+   * sentence twice. That is why the `title` goes on the `h2` and the prose stays in the `p` —
+   * `role=status` reads its contents, and the heading's description is a separate thing a reader
+   * only reaches on request.
+   */
   const body = doc.createElement('p');
-  body.className = 'opening-note-text';
+  body.className = 'opening-note-text sr-only';
   root.append(title, body);
 
   let name: string | null = null;
@@ -72,6 +90,7 @@ export function createOpeningNote(deps: OpeningNoteDeps): OpeningNotePanel {
       // accessibility tree, but a new game that reaches no named line would otherwise leave the
       // last game's paragraph sitting in the DOM for a text-extraction gate to find and believe.
       title.textContent = '';
+      title.removeAttribute('title');
       body.textContent = '';
       return;
     }
@@ -86,6 +105,7 @@ export function createOpeningNote(deps: OpeningNoteDeps): OpeningNotePanel {
     if (key === null) {
       root.hidden = true;
       title.textContent = '';
+      title.removeAttribute('title');
       body.textContent = '';
       return;
     }
@@ -104,6 +124,7 @@ export function createOpeningNote(deps: OpeningNoteDeps): OpeningNotePanel {
     }
 
     title.textContent = i18n.t('hud.opening', { name });
+    title.title = text;
     body.textContent = text;
     root.hidden = false;
   }
