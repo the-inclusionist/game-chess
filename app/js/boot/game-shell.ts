@@ -72,6 +72,13 @@ import { bookId, gameLesson, isBookId } from '../teach/game-lesson.ts';
  * nothing.
  */
 import { loadOpenings, nameOpening, type OpeningBook } from '../openings/opening.ts';
+/*
+ * ⚠️ THE LOOKUP IS IMPORTED NORMALLY AND THE PROSE IS NOT, which is the same split as the book
+ * one line up. `openings/notes.ts` is a thirty-two row table and a loop; the thirty-two
+ * paragraphs behind `loadOpeningNotes` are a dynamic import per language, paid for on the first
+ * move together with the book.
+ */
+import { loadOpeningNotes } from '../openings/notes.ts';
 import { loadProgress } from '../chess/session.ts';
 import { createGridMirror, type LessonMark, type LessonSquare } from '../ui/grid-mirror.ts';
 import { createHud, type GameMode, type Hud, type ViewKind } from '../ui/hud.ts';
@@ -83,6 +90,7 @@ import { createPlayerStrips } from '../ui/player-strip.ts';
 import { createEarcons, WHISTLE } from '../ui/earcons.ts';
 import { createSplash } from '../ui/splash.ts';
 import { createThinkingPanel } from '../ui/thinking.ts';
+import { createOpeningNote } from '../ui/opening-note.ts';
 import { actionPreset, hintParts } from '../ui/key-hints.ts';
 import { VIEWS } from './views.ts';
 import { announceActivation, announceMove, announceOutcome } from './narration.ts';
@@ -593,6 +601,15 @@ const engineRef: { current: Engine | null } = { current: null };
   let fetchingOpenings = false;
   let openingName: string | null = null;
   let openingPlies = -1;
+  /**
+   * The languages whose opening prose has landed.
+   *
+   * ⚠️ A SET AND NOT A BOOLEAN, because `i18n.extend` files strings under the language they are
+   * written in: somebody who plays in Portuguese and switches to Spanish needs the Spanish file
+   * fetched too, and must not re-fetch the Portuguese one on switching back. A single `loaded`
+   * flag would have given one language its prose and the other the fallback, forever.
+   */
+  const openingNotesLoaded = new Set<string>();
   /** Who is being told what the board did. A lesson, or nobody. */
   let observer: ActivationObserver | null = null;
 
@@ -700,6 +717,7 @@ const engineRef: { current: Engine | null } = { current: null };
   // Under the board, because that is what it is about — and outside the panel, which has no room
   // for four numbers that change several times a second.
   const thinking = createThinkingPanel({ doc: host, i18n });
+  const openingNote = createOpeningNote({ doc: host, i18n });
   /**
    * Under the board rather than over it: a player being told their move gave the game away has to
    * be able to LOOK at the position while they decide. See `ui/blunder-bar.ts`.
@@ -1586,6 +1604,14 @@ const engineRef: { current: Engine | null } = { current: null };
   if (stageWrap) stageWrap.appendChild(below);
   else board.appendChild(below);
   below.appendChild(blunderBar.root);
+  /*
+   * ⚠️ BETWEEN THE BAR AND THE THINKING STRIP, on the Dev's instruction of 2026-10-04: «Texto
+   * explicativo das aberturas: coloque acima de "Pensamento da engine"». `#below-board` is the
+   * only container those words can mean, and the order inside it follows the rule the line below
+   * already stated — a warning about the move just played outranks everything, and the engine's
+   * running commentary ranks under prose a player reads at leisure.
+   */
+  below.appendChild(openingNote.root);
   // Below the blunder bar: a warning about the move just played is more urgent than the engine's
   // running commentary.
   below.appendChild(thinking.root);
@@ -1620,6 +1646,14 @@ const engineRef: { current: Engine | null } = { current: null };
     players.refresh();
     thinking.refresh?.();
     blunderBar.refresh();
+    /*
+     * ⚠️ FETCHED BEFORE THE REFRESH, and only if this game ever reached a named line. Refreshing
+     * first would put the panel through its own key-equals-value guard and hide it — correct, but
+     * it would stay hidden until the next move, because nothing else calls `refresh()`.
+     */
+    if (openingNotesLoaded.size > 0) await ensureOpeningNotes();
+    openingNote.setOpening(openingName);
+    openingNote.refresh();
   }
 
   /* ============================ NAMING THE OPENING ============================ */
@@ -1635,9 +1669,35 @@ const engineRef: { current: Engine | null } = { current: null };
    * change; walking twelve prefixes of a growing move list each time is work nobody asked for, and
    * the answer only changes when a move does.
    */
+  /**
+   * Fetches this language's opening prose, once, and hands it to `i18n`.
+   *
+   * ⚠️ IT RESOLVES WITHOUT WAITING WHEN THE LANGUAGE IS ALREADY IN, which is what makes it safe
+   * to call from `refreshOpening` on every move. The `Set` is written BEFORE the await so two
+   * moves played in the same tick cannot both start the import — the bug the book's own
+   * `fetchingOpenings` flag exists for, eleven requests deep, and not worth repeating here.
+   */
+  async function ensureOpeningNotes(): Promise<void> {
+    const code = i18n.getLocale();
+    if (openingNotesLoaded.has(code)) return;
+    openingNotesLoaded.add(code);
+    try {
+      i18n.extend(code, await loadOpeningNotes(code));
+    } catch {
+      // Prose that never arrives is a paragraph that never appears, and the name still shows in
+      // the panel. The language is dropped from the set so a later move can try again.
+      openingNotesLoaded.delete(code);
+    }
+  }
+
   function refreshOpening(): void {
     const history = rules.history();
-    if (history.length === 0) { openingName = null; openingPlies = -1; return; }
+    if (history.length === 0) {
+      openingName = null;
+      openingPlies = -1;
+      openingNote.setOpening(null);
+      return;
+    }
     if (!openings) {
       /*
        * ⚠️ "ONE FETCH, EVER" WAS A COMMENT AND NOT A GUARD. `openings` is only set when the book
@@ -1667,6 +1727,14 @@ const engineRef: { current: Engine | null } = { current: null };
     if (openingPlies === history.length) return;
     openingPlies = history.length;
     openingName = nameOpening(history.map((m) => m.san), openings)?.name ?? null;
+    openingNote.setOpening(openingName);
+    /*
+     * ⚠️ AFTER `setOpening`, NOT BEFORE, and the order is the whole of why the paragraph appears
+     * at all. `setOpening` returns early when the name has not changed, so a note whose prose
+     * landed after the name was set would never be drawn by it. `refresh()` here is what draws
+     * the paragraph for the very first named line of the very first game.
+     */
+    if (openingName !== null) void ensureOpeningNotes().then(() => openingNote.refresh());
   }
 
   /* ============================ THE TACTICS ============================ */
