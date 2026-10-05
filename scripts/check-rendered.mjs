@@ -302,8 +302,13 @@ const RATIO = (a, bb) => {
 async function check3dInk(page) {
   // The high-contrast board, chosen through the panel exactly as a teacher would.
   const picked = await page.evaluate(() => {
-    const box = [...document.querySelectorAll('.hud-controls .hud-field')]
-      .find((f) => (f.textContent || '').includes('Cores do tabuleiro'));
+    /*
+     * ⚠️ BY `data-field`, NOT BY THE WORDS IN IT. This read
+     * `.includes('Cores do tabuleiro')` and failed on 2026-10-05 against a page in English — in a
+     * gate that measures PIXELS and has no business depending on a language. The positional `id`
+     * (`hud-opt-2`) would have been no better: the order of these rows already changed once.
+     */
+    const box = document.querySelector('.hud-controls .hud-field[data-field="board-theme"]');
     if (!box) return 'the board-colour control is not in the panel';
     const select = box.querySelector('select');
     if (![...select.options].some((o) => o.value === 'contrast-flat')) return 'contrast-flat is gone';
@@ -440,27 +445,65 @@ const { server, port } = await serveDist();
 const browser = await chromium.launch();
 let status = 0;
 try {
-  const page = await browser.newPage({ viewport: { width: 1100, height: 700 } });
+/*
+ * ========================= 🔴 THE LANGUAGE IS PINNED, AND IT IS NOT A CONVENIENCE =========================
+ * This gate drives the BUILT page, and the built page chooses its language from `navigator.language`.
+ * On 2026-10-05 it ran on a GitHub runner for the first time and timed out for thirty seconds
+ * waiting for a button named «JOGAR» — on a splash whose button said PLAY, because the runner
+ * claims `en-US`. The gate was not measuring the page; it was measuring the machine, exactly as
+ * twenty-seven browser tests had been doing the day before.
+ *
+ * ⚠️ AND PLAYWRIGHT'S `locale` REALLY DOES SET `navigator.language`, which had to be measured
+ * because the equivalent option on Vitest's browser provider does NOT — that one was tried twice
+ * and silently ignored. Measured here against the real `dist/`:
+ *
+ *   (default) → nav=pt-BR  button="JOGAR"
+ *   pt-BR     → nav=pt-BR  button="JOGAR"
+ *   en-US     → nav=en-US  button="PLAY"
+ *
+ * `pt-BR` is the language this game is delivered in, so that is what the gate measures.
+ *
+ * 📌 AND THE QUESTION THE PIN COULD HAVE HIDDEN WAS ASKED BEFORE PINNING, which is the only reason
+ * the pin is honest. Running this whole gate at `en-US` — every target, the clipping, the
+ * coordinates, the pointer, the 2D arrow layer and the 3D canvas's own pixels, in all three views —
+ * PASSES. English words are longer and a target could have stopped fitting; it does not. So the pin
+ * buys determinism and hides nothing that has been looked for.
+ *
+ * ⚠️ Spanish has not been measured, and es is not de-facto covered by en: it is the longest of the
+ * three in several of these labels.
+ */
+  const context = await browser.newContext({
+    viewport: { width: 1100, height: 700 },
+    locale: 'pt-BR',
+  });
+  const page = await context.newPage();
   page.on('pageerror', (error) => fail(`[page] uncaught: ${error.message}`));
   await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load' });
 
   // Through the title screen by the PLAY door, the same way a child arrives.
   /*
-   * ⚠️ `exact: true`, AND THE DAY IT WAS NEEDED IS WORTH RECORDING. Playwright's `name` option
-   * defaults to `exact: false`, which is case-insensitive AND substring — so on 2026-10-04, the
-   * moment the teacher buttons gained the accessible name «Só é permitido JOGAR os melhores
-   * lances», this line stopped resolving the splash's door and started reaching for a button
-   * behind the splash overlay. The failure read «#splash intercepts pointer events», which names
-   * the symptom and points nowhere near the cause.
+   * ⚠️ BY ID, NOT BY THE WORD ON IT. This was `getByRole('button', { name: 'JOGAR', exact: true })`
+   * and it broke twice for two different reasons, which is what makes the id worth the change:
    *
-   * A locator that matches by substring is a locator that any new label can capture. This one
-   * wants the door and says so.
+   *   · 2026-10-04 — Playwright's `name` defaults to `exact: false`, case-insensitive AND
+   *     substring, so the moment a teacher button gained the accessible name «Só é permitido JOGAR
+   *     os melhores lances» this line stopped resolving the door and reached for a control behind
+   *     the splash overlay. The failure read «#splash intercepts pointer events», which names the
+   *     symptom and points nowhere near the cause. `exact: true` fixed that one.
+   *   · 2026-10-05 — on a runner claiming `en-US` the button says PLAY, and thirty seconds later
+   *     the gate failed for a reason that has nothing to do with what it measures.
+   *
+   * `#splash-play` is in `app/index.html` and is the thing itself rather than a description of it.
+   * The locale is pinned anyway, above, because the rest of the gate reads a rendered page — but a
+   * locator should not be the part that depends on it.
    */
-  await page.getByRole('button', { name: 'JOGAR', exact: true }).click({ timeout: 30_000 });
+  await page.locator('#splash-play').click({ timeout: 30_000 });
   await page.locator('#chess-board').waitFor({ state: 'visible', timeout: 30_000 });
 
-  for (const view of ['2D', '2,5D', '3D']) {
-    await page.getByRole('button', { name: new RegExp(`em ${view.replace(',', ',')}$`) }).click();
+  // ⚠️ `data-view` RATHER THAN THE LABEL, for the same reason as the door above: «Ver em 2,5D» is
+  // a sentence in one language, and `hud.ts` sets `el.dataset.view` on every one of the three.
+  for (const [view, kind] of [['2D', '2d'], ['2,5D', '2.5d'], ['3D', '3d']]) {
+    await page.locator(`button.hud-view[data-view="${kind}"]`).click();
     // One animation frame is not enough: the view tears down a renderer and builds another.
     await page.waitForTimeout(400);
     const m = await measure(page);

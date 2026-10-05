@@ -55,7 +55,21 @@ const browser = await chromium.launch();
  * frame and needs a context it can reach. The shortcut fails at the first `analyze()`, not at
  * launch, so it looks like an axe problem and is not.
  */
-const context = await browser.newContext({ viewport: { width: 1366, height: 768 } });
+const context = await browser.newContext({
+  viewport: { width: 1366, height: 768 },
+  /*
+   * 🔴 PINNED, like `check-rendered.mjs`, and measured the same day for the same reason: the
+   * built page reads `navigator.language`, a GitHub runner claims `en-US`, and this gate used
+   * to look for a button named «JOGAR». `pt-BR` is the language this game is delivered in.
+   *
+   * 📌 AND THE AUDIT WAS RUN AT `en-US` BEFORE THE PIN WENT IN: zero violations there too, on both
+   * screens. English labels are longer and a target that stopped fitting is exactly what axe would
+   * have caught, so the pin is determinism rather than cover.
+   *
+   * ⚠️ Spanish has not been audited, and it is not covered by English having passed.
+   */
+  locale: 'pt-BR',
+});
 const page = await context.newPage();
 
 const problems = [];
@@ -81,13 +95,9 @@ try {
   await page.waitForSelector('#splash', { state: 'visible', timeout: 30_000 });
   const onSplash = await audit('splash');
 
-  /*
-   * ⚠️ `exact: true`. Playwright's `getByRole(name)` matches SUBSTRINGS and ignores case by
-   * default, and this panel has a 🏆 button whose label contains «jogar» — measured on
-   * 2026-10-04, when it made `check-rendered.mjs` fail with a message about pointer events that
-   * had nothing to do with the cause.
-   */
-  await page.getByRole('button', { name: 'JOGAR', exact: true }).click();
+  // ⚠️ BY ID. The word on this button is a translation; `#splash-play` is the button. See the
+  // same change in `check-rendered.mjs`, which this one learned from twice.
+  await page.locator('#splash-play').click();
   await page.waitForSelector('#game-region .chess-hud', { state: 'visible', timeout: 30_000 });
   // The board's own cells, so the audit sees the grid mirror as the game builds it.
   await page.waitForSelector('[role="gridcell"]', { state: 'attached', timeout: 30_000 });

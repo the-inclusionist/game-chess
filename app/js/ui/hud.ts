@@ -856,9 +856,19 @@ export function createHud(deps: HudDeps): Hud {
   controls.className = 'hud-controls';
   controls.setAttribute('role', 'group');
 
-  const field = (): { box: HTMLElement; label: HTMLLabelElement; select: HTMLSelectElement } => {
+  /**
+   * @param name A stable handle for this row, written to `data-field`.
+   *
+   * ⚠️ IT EXISTS FOR THE GATES, AND THE ALTERNATIVES BOTH BROKE. `check-rendered.mjs` used to find
+   * the palette row by the words in it — `.includes('Cores do tabuleiro')` — and on 2026-10-05 that
+   * failed on a runner whose page was in English, in a gate that has nothing to do with language.
+   * The `id` below is no better: it is POSITIONAL (`hud-opt-0`, `hud-opt-1`, …) and the order of
+   * these rows has already changed once, on the Dev's instruction of 2026-10-04. A name is neither.
+   */
+  const field = (name: string): { box: HTMLElement; label: HTMLLabelElement; select: HTMLSelectElement } => {
     const box = doc.createElement('p');
     box.className = 'hud-field';
+    box.dataset.field = name;
     const label = doc.createElement('label');
     const select = doc.createElement('select');
     select.id = `hud-opt-${controls.children.length}`;
@@ -868,9 +878,10 @@ export function createHud(deps: HudDeps): Hud {
     return { box, label, select };
   };
 
-  const check = (): { box: HTMLElement; label: HTMLLabelElement; input: HTMLInputElement } => {
+  const check = (name: string): { box: HTMLElement; label: HTMLLabelElement; input: HTMLInputElement } => {
     const box = doc.createElement('p');
     box.className = 'hud-check';
+    box.dataset.field = name;
     const input = doc.createElement('input');
     input.type = 'checkbox';
     input.id = `hud-opt-${controls.children.length}`;
@@ -881,14 +892,14 @@ export function createHud(deps: HudDeps): Hud {
     return { box, label, input };
   };
 
-  const strengthField = field();
-  const pieceField = field();
-  const themeField = field();
+  const strengthField = field('strength');
+  const pieceField = field('piece-set');
+  const themeField = field('board-theme');
   // ⚠️ AMONG THE SELECTS AND NOT AFTER THE SWITCHES: the Dev's order of 2026-10-04 ends with
   // «coordenadas», and a list dropped below two checkboxes would have moved it off the end.
-  const countryField = field();
-  const outlineCheck = check();
-  const coordsCheck = check();
+  const countryField = field('language');
+  const outlineCheck = check('outline');
+  const coordsCheck = check('coordinates');
 
   /*
    * ========================= THE ORDER OF THE PANEL, AS THE DEV SET IT =========================
