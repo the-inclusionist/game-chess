@@ -2181,10 +2181,13 @@ engine continua a mostrar os três valores do 2D.
 - ❌ `pieceSets` (NÃO removido, 2026-10-02): valores DIFEREM por vista
   (ver acima). Fica até a engine abrir `values` como função ou chess
   remontar o cartucho em `switchView`.
-- ⏸️ `themes`: `BOARD_THEMES` é fixo em chess, independente da vista
-  (seguro para remover), mas o `themeSelect` do HUD é também âncora
-  do relatório de contraste em modo `debug` (`fillReport`). Removê-lo
-  obriga a decidir o que fazer com o relatório. Deferido.
+- ✅ `themes`: **o bloqueio caiu em 2026-10-04 e este marcador estava vencido
+  quando foi relido.** A razão escrita era que o `themeSelect` do HUD é «âncora do
+  relatório de contraste em modo `debug`». Nenhuma das duas metades é verdade hoje:
+  o relatório deixou de estar atrás de `?debug` (`b8e1a08`) e passou a pendurar-se
+  no `themeField.select` do painel — o `themeSelect` antigo vive em `settings`, que
+  não chega ao DOM desde a Onda 2c. Ou seja, `themeSelect` é código morto e removê-lo
+  não obriga a decidir nada.
 - ✅ `motion`: removido em `4a35f97` (lido em 2026-10-04; o ⏸️ aqui estava vencido).
 - ✅ `outline` / `coords`: removidos em `d286cf8`.
 - ✅ `locale`: removido em `0e16900` — nem sequer estava nesta lista.
@@ -2364,7 +2367,26 @@ no site publicado, não no build local:
 
 ⏸️ **Falta do lado do Dev**: a linha do `GAMES` no Router Worker (ponto 7
 abaixo, com o host corrigido) para `o-inclusionista.jrocha.dev.br/game-chess/*`
-chegar aqui.
+chegar aqui. As duas linhas estão escritas e commitadas no repo do
+`game-platformer` (`6e23864`); falta o push.
+
+### 🔴 A PUBLICAÇÃO COLIDIU COM UMA PÁGINA DESTE MESMO REPOSITÓRIO
+
+⚠️ **`docs/LICENSES.md` diz, sobre o conjunto de peças Hartwig: «This needs the
+Município's legal opinion BEFORE public release.»** O jogo está em público desde
+04/10, e o desenho só entra em domínio público a **2027-01-01** — a aritmética está
+feita lá: Hartwig morreu em 1956, Lei 9.610/1998 art. 41, setenta anos a contar de
+1957-01-01.
+
+Não é um detalhe de rodapé deste plano: o conjunto Hartwig é o **predefinido** nas
+vistas 2,5D e 3D, e o título da página é «Xadrez de Hartwig». Duas páginas deste
+repositório dizem agora coisas incompatíveis, e esta secção é a mais nova das duas.
+
+As três saídas já estão escritas em `docs/LICENSES.md` e são do Dev, não minhas:
+esperar por 2027-01-01, obter o parecer, ou trocar o conjunto predefinido (a engine
+precisa apenas de peças que se distingam por silhueta — Hartwig é a melhor escolha,
+não a única possível). Fica registado aqui porque o plano é onde se lê o que falta,
+e isto passou a faltar no instante em que o site subiu.
 
 **Contexto** (recebido em 2026-10-02, do trabalho de publicação do `game-platformer`
 que estreou o padrão). Cada jogo do catálogo publica em **Cloudflare Pages**, com
@@ -2740,12 +2762,17 @@ desactivado no primeiro passo. Desactivado não é a única forma de um controlo
 inalcançável. Agora há um `panelStops()` único, e o literal duplicado — que foi como o
 buraco se cavou duas vezes — desapareceu.
 
-### 📌 Achado por reportar, não consertado
+### ✅ FECHADO — as teclas de vista não eram alcançáveis pelas setas do painel
 
-As três teclas de vista (2D / 2,5D / 3D) vivem em `#side-column` mas **fora** de
-`hud.root`, e o `walkPanel` passeia só o `hud.root`. Quem joga por teclado alcança-as por
-Tab, nunca pelas setas do painel. Não foi mexido: é anterior a este trabalho e não foi
-pedido. Fica aqui para decisão.
+O achado, como ficou escrito: «as três teclas de vista vivem em `#side-column` mas
+**fora** de `hud.root`, e o `walkPanel` passeia só o `hud.root`.»
+
+⚠️ **Consertado em 2026-10-04 e este marcador estava vencido.** O `walkPanel` passeia
+`column`, não `hud.root` — e a mesma correcção fechou um defeito pior que vivia ao lado:
+a tecla de sair do painel perguntava `hud.root` enquanto a das setas perguntava `column`,
+de modo que com foco numa tecla de vista — na coluna mas fora do HUD — ela concluía «não
+estou no painel» e empurrava o foco PARA DENTRO, fazendo o contrário do que prometia.
+Duas perguntas que têm de concordar estavam escritas em dois sítios.
 
 ### 📌 Correcções a marcadores desactualizados desta página
 
@@ -3240,5 +3267,7 @@ Testes:
   inglês no repo novo, mantendo verbatim os nomes da API da engine.
 - **Domínio público do desenho de Hartwig.** O set é de 1924 e o autor morreu nos
   anos 1950. `docs/LICENSES.md` deve registrar a análise, não pressupô-la.
-- **PWA.** A engine usa `vite-plugin-pwa`. Cortado por YAGNI até que offline seja
-  requisito declarado.
+- ✅ **PWA.** Este ponto dizia «cortado por YAGNI até que offline seja requisito
+  declarado», e está vencido: o jogo tem `vite-plugin-pwa`, service worker registado
+  (confirmado no site publicado, scope `/game-chess/`), manifesto e um portão próprio
+  (`scripts/check-precache.mjs`) que exige as entradas no precache.
