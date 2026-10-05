@@ -179,7 +179,13 @@ export function bootFailed(error: unknown): void {
  * now always carries its drawings; the 2.5D and 3D views cover it with their canvas (which is
  * `position:absolute; inset:0` in the CSS so this works without a flex-flow fight).
  */
-const PER_VIEW = {
+/*
+ * 📌 EXPORTED SINCE 2026-10-05, for `src/index.ts`. The cartridge entry has to build the same deps
+ * a page builds, and a second copy of these three rows would be a second place for the contrast
+ * theme to drift — the one field whose wrong value is invisible until somebody turns high contrast
+ * on and the pieces stop separating from the squares.
+ */
+export const PER_VIEW = {
   '2d': { visibleMirror: true, debugName: '__chess2d', contrastTheme: CONTRAST_THEME },
   '2.5d': { visibleMirror: true, debugName: '__chess', contrastTheme: 'contrast-solid' },
   '3d': { visibleMirror: true, debugName: '__chess3d', contrastTheme: 'contrast-solid' },

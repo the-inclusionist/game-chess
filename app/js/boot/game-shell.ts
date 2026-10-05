@@ -31,6 +31,7 @@ import type { CartridgeHooks } from '@the-inclusionist/engine';
 import { createAnnouncer, type Announcer } from '@the-inclusionist/engine/core/a11y-sr.js';
 import { VIZ_FILTER } from '@the-inclusionist/engine/render/viz-modes.js';
 import { createChessDeclaration, SONAR_ACTION } from '../declaration/chess-declaration.ts';
+import { CHESS_ACCOMMODATIONS } from '../declaration/cartridge-answers.ts';
 import type { Suggestion } from '../chess/engine/client.ts';
 import { createStockfishClient, type StockfishClient } from '../chess/engine/stockfish-client.ts';
 import { preloadEngine } from '../chess/engine/preload.ts';
@@ -1131,13 +1132,14 @@ const engineRef: { current: Engine | null } = { current: null };
       return { pt: project('pt'), en: project('en'), es: project('es') };
     })(),
 
-    accommodations: {
-      cameraSway: false, easyMode: false, wheelchairMode: false, detectionLeniency: false,
-      intensity: false, hints: false, reducedCharacterMotion: false, caneSpacing: false,
-      textPace: false, lexicalDifficulty: false, wordHighlight: false, pieceSets: false,
-      distinguishableSuits: false, timingWindow: false, aimAssist: false, repeatedInput: false,
-      ownerColors: false, contrastOutlines: false,
-    },
+    /*
+     * ⚠️ IMPORTED SINCE 2026-10-05, where it used to be eighteen booleans written out here. The
+     * cartridge entry must make the SAME answer at module scope, before any page exists, because
+     * that is where `createGame` and `inclusionist-check-cartridge` read it. Two copies of this
+     * object would disagree silently and in the worst direction: the static copy is what a platform
+     * REFUSES on, the live copy is what it then RUNS with.
+     */
+    accommodations: CHESS_ACCOMMODATIONS,
 
     /**
      * Chess's own options, drawn by the engine's `options` panel (ADR-0182). Wave 2a opens the
