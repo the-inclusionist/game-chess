@@ -2388,6 +2388,19 @@ precisa apenas de peças que se distingam por silhueta — Hartwig é a melhor e
 não a única possível). Fica registado aqui porque o plano é onde se lê o que falta,
 e isto passou a faltar no instante em que o site subiu.
 
+#### ✅ FECHADO EM 2026-10-04 — a primeira saída, e com prazo
+
+O Dev decidiu, e nas palavras dele: «O repositório passará a ser privado até
+2027-01-01. O jogo continuará disponível na minha página pessoal apenas para
+convidados.» É a saída 1, «esperar», com a implantação estreitada para a acompanhar
+— repositório fechado, audiência reduzida a convidados, calendário cumprido. O
+registo completo, com o que a decisão NÃO resolve, está na secção «DECIDED
+2026-10-04» de `docs/LICENSES.md`.
+
+📌 Isto não cancela a saída 2. Depois de 2027-01-01 a questão do calendário
+desaparece sozinha, portanto o parecer deixa de ser urgente — não deixa de ser
+possível.
+
 **Contexto** (recebido em 2026-10-02, do trabalho de publicação do `game-platformer`
 que estreou o padrão). Cada jogo do catálogo publica em **Cloudflare Pages**, com
 um **Router Worker** em `jrocha.dev.br` a servir **todos os jogos sob UMA mesma

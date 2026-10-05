@@ -149,6 +149,34 @@ could take, for whoever reviews it:
 Recorded here rather than assumed, because the deliverable is municipally-owned software
 destined for public schools.
 
+### ✅ DECIDED 2026-10-04 BY THE DEV — shape 1, «wait», with the deployment narrowed to match
+
+The Dev's words: «O repositório passará a ser privado até 2027-01-01. O jogo continuará
+disponível na minha página pessoal apenas para convidados.»
+
+So the three shapes above are no longer open: it is **1. Wait**, and the waiting is given teeth
+rather than left as an intention. Two consequences, both already in force:
+
+- **The repository goes private until 2027-01-01**, the day the design enters the public domain
+  by the arithmetic at the top of this section.
+- **The deployment stays up and stops being public**: the game continues to be reachable on the
+  Dev's own page, to invited guests only, rather than to anyone who finds the address.
+
+⚠️ **AND THIS SECTION WAS ALREADY BEING CONTRADICTED WHEN THE DECISION ARRIVED.** It says «this
+needs the Município's legal opinion **before public release**», and the game had been published
+openly at `o-inclusionista.jrocha.dev.br/game-chess` on 2026-10-04 — with the Hartwig set as the
+default in both the 2.5D and 3D views, under a page titled «Xadrez de Hartwig». The decision above
+is what closes that gap, and it is recorded here with the gap named rather than quietly tidied,
+because a licence file that only ever shows the resolved state is a licence file nobody can audit.
+
+📌 **What the decision does NOT settle, and deliberately so.** Whether an invited-guests
+deployment is «publication» for the purposes of art. 29 is a question for counsel in exactly the
+way the three bullets above are, and nothing here should be read as answering it. What the Dev
+decided is a posture — repository closed, audience narrowed, calendar waited out — and that
+posture is strictly more conservative than the one the file was written to warn about. Shape 2,
+«get an opinion», remains available and is not cancelled by this; it is simply no longer urgent,
+because after 2027-01-01 the calendar question disappears on its own.
+
 ## The tactics — Lichess puzzle database (CC0-1.0)
 
 `app/data/puzzles.json` holds 200 puzzles drawn from
