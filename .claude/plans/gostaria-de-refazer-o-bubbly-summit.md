@@ -2342,12 +2342,29 @@ npm run build (sem INCL_BASE)
    → dist/* como antes; check-precache verde.
 ```
 
-⏸️ **Lado do Dev** (secção 2.4 abaixo e as linhas de infra fora deste
-repositório): ligar o repo ao projecto do Cloudflare Pages, confirmar que
-o Router Worker em `jrocha.dev.br` encaminha `o-inclusionista.jrocha.dev.br/game-chess/*`
-para o projecto desta Pages, e que o balde R2 responde ao binding deste
-jogo. Fica no plano porque é o passo que leva o commit a estar em frente
-de uma criança.
+✅ **Pages ligada e no ar — 2026-10-04**, em `game-chess-cfo.pages.dev`. Medido
+no site publicado, não no build local:
+
+- `/game-chess/` carrega, o Stockfish fica pronto («Pronto para jogar») e uma
+  partida corre: `1.e4 e5`, relógios a 4:57 / 5:00.
+- `document.baseURI` é a **raiz da origem** — o `<base href="/">` a fazer o seu
+  trabalho, que é o que põe `/heavy/*` na raiz do domínio.
+- O `_headers` pegou: `sw.js` e o manifest voltam com `Cache-Control: no-cache`.
+  O `index.html` vem com o `max-age=0, must-revalidate` que a própria Pages põe
+  no HTML — equivalente em efeito, e não é a nossa regra.
+- Service worker registado, scope `/game-chess/`.
+- **A Pages Function está viva e o binding R2 resolve**, e as três respostas
+  distinguem-se: `/heavy/` → 400 «no path»; host fora do catálogo → 404 «is not
+  in the mirror catalogue»; host do catálogo com chave inexistente → 404 «not in
+  bucket». ⚠️ Esta última é a que prova o binding: chegou a `env.LFS.get` e o
+  balde respondeu. Sem o binding, ou com a jurisdição errada, seria 500.
+- `https://game-chess-cfo.pages.dev/` (raiz nua) dá 404, como esperado: o
+  artefacto só publica `dist/game-chess/`. Na origem real quem resolve isso é o
+  Router.
+
+⏸️ **Falta do lado do Dev**: a linha do `GAMES` no Router Worker (ponto 7
+abaixo, com o host corrigido) para `o-inclusionista.jrocha.dev.br/game-chess/*`
+chegar aqui.
 
 **Contexto** (recebido em 2026-10-02, do trabalho de publicação do `game-platformer`
 que estreou o padrão). Cada jogo do catálogo publica em **Cloudflare Pages**, com
@@ -2500,8 +2517,15 @@ no `game-platformer` o retrato completo:
 5. **`uses`**: sem alterações — o xadrez não pede voz neural nem leitura.
 6. **Dicionários do preset**: ✅ já aterrados em `32e458d`.
 7. **Linha nova em `GAMES`** do Router Worker: `'game-chess':
-   'game-chess.pages.dev'`. Esta mudança é feita no repositório do Worker, não
-   neste.
+   'game-chess-cfo.pages.dev'`. Esta mudança é feita no repositório do Worker,
+   não neste.
+
+   ⚠️ **`game-chess-cfo`, NÃO `game-chess`** — medido em 04/10 no site já no ar.
+   O projeto de Pages ficou com outro nome do que esta linha supunha, e o nome do
+   projeto é que decide o `*.pages.dev`. Copiar a linha como estava escrita
+   apontaria a rota para um host que não existe, e o sintoma seria um 404 em
+   `o-inclusionista.jrocha.dev.br/game-chess/` com o jogo perfeitamente vivo do
+   outro lado.
 8. **Primeiro `git push`** → Cloudflare Pages cria o projeto automaticamente.
 9. **Verificar os quatro gates no instante da mudança**: `check-precache.mjs`
    procura pelo nome do ficheiro (não pelo caminho) — se já procura, continua
