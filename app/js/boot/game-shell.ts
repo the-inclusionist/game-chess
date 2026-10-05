@@ -45,6 +45,7 @@ import { createGameState, type Activation } from '../chess/state.ts';
 import { createRules, type MoveResult } from '../chess/rules.ts';
 import { type Side, type Square, toAlgebraic } from '../chess/types.ts';
 import { createI18n, preferredLocale } from '../i18n/index.ts';
+import type { LocaleCode } from '../i18n/types.ts';
 import { squareIndex, type Marker } from '../render/board-geometry.ts';
 import type { HintMove } from '../render/hint-arrows.ts';
 import { BOARD_THEMES, DEFAULT_THEME } from '../ui/board-themes.ts';
@@ -117,6 +118,27 @@ export interface GameShellDeps {
    * element is ours, instead of us answering with whichever came first in the document.
    */
   readonly region?: HTMLElement;
+  /**
+   * Which language to start in, when nothing is remembered. Omitted means ask the browser.
+   *
+   * 🔴 IT EXISTS BECAUSE THE CI FOUND 27 TESTS THAT WERE PASSING BY ACCIDENT OF THE MACHINE, on
+   * 2026-10-05, the first time this repository's suite ran anywhere but here. The boot read
+   * `navigator.language` directly; this developer's Chromium is `pt-BR` and a GitHub runner's is
+   * `en-US`, so twenty-seven browser tests asserting Portuguese strings were green locally and red
+   * there — «peão branco» expected, `"e4, white pawn"` received.
+   *
+   * ⚠️ AND IT IS THE SAME FAULT ADR-0139 §4 ALREADY NAMED ONCE IN THIS FILE, which is why the fix
+   * is a dep and not a test helper: `params` exists because a cartridge reading `location` reads
+   * the PAGE's address rather than its own, and a cartridge reading `navigator` reads the DEVICE's
+   * language rather than the one its host chose for it. On a platform page with several games that
+   * is the same class of bug, and here it was simply invisible until somebody else's computer ran
+   * the suite.
+   *
+   * 📌 THE ORDER IS UNCHANGED: a remembered language still beats this, and this beats the browser.
+   * What a host supplies is a DEFAULT, not an override — a child who chose Spanish yesterday keeps
+   * Spanish.
+   */
+  readonly locale?: LocaleCode;
   /** Which page this is. Drives the panel's view switcher and the debug global's name. */
   readonly kind: ViewKind;
   readonly view: ViewFactory;
@@ -524,9 +546,10 @@ const engineRef: { current: Engine | null } = { current: null };
    */
   const startingLocale = (() => {
     const saved = loadSettings().locale;
-    return saved === 'pt' || saved === 'en' || saved === 'es'
-      ? saved
-      : preferredLocale(navigator.language);
+    if (saved === 'pt' || saved === 'en' || saved === 'es') return saved;
+    // The host's default, then the browser's. See `locale` in `GameShellDeps` for why the first of
+    // those two exists at all.
+    return deps.locale ?? preferredLocale(navigator.language);
   })();
   const i18n = createI18n(startingLocale);
   host.documentElement.lang = i18n.bcp47();

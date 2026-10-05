@@ -27,48 +27,11 @@ import { createGameShell, type GameShell } from '../app/js/boot/standalone.ts';
 import type { BoardView, ViewContext } from '../app/js/boot/view.ts';
 import { clear, saveSettings } from '../app/js/chess/session.ts';
 import { CONTRAST_THEME } from '../app/js/ui/board-themes.ts';
-import { toAlgebraic, type Square } from '../app/js/chess/types.ts';
+import type { Square } from '../app/js/chess/types.ts';
+// 📌 Moved to a helper on 2026-10-05, when `starting-locale.browser.test.ts` needed the same
+// page and the same drawing-nothing view. See the file's own header for why not a copy.
+import { fakeView, fixture, type Recorded } from './helpers/shell-fixture.ts';
 import type { EngineMove } from '../app/js/chess/engine/client.ts';
-
-function fixture(): void {
-  document.body.innerHTML = `
-    <div id="stage-wrap" style="width: 640px; height: 360px">
-      <div id="game-region">
-        <div id="chess-board" tabindex="0"></div>
-        <div id="side-column"></div>
-      </div>
-      <div class="pause-icons" id="title-icons" role="group" aria-label="Atalhos de acessibilidade"></div>
-    </div>
-    <div id="sr-status" role="status" aria-live="polite"></div>
-    <div id="sr-alert" role="alert" aria-live="assertive"></div>
-    <svg id="cvd" class="sr-only" aria-hidden="true"></svg>
-  `;
-}
-
-interface Recorded {
-  readonly legs: string[];
-  readonly hidden: string[][];
-}
-
-/** A view that draws nothing and remembers everything. */
-function fakeView(record: Recorded) {
-  return (ctx: ViewContext): BoardView => {
-    ctx.region.appendChild(ctx.mirror.root);
-    return {
-      hudControls: { coordinates: () => false, onCoordinates: () => {} },
-      applyTheme: () => {},
-      drawPosition: (hidden) => { record.hidden.push(hidden.map(toAlgebraic)); },
-      drawMarks: () => {},
-      carry: () => {},
-    travel: (from: Square, to: Square) => {
-        record.legs.push(`${toAlgebraic(from)}${toAlgebraic(to)}`);
-        return Promise.resolve();
-      },
-      relayout: () => {},
-      destroy: () => {},
-    };
-  };
-}
 
 const settle = (): Promise<void> => new Promise((r) => { setTimeout(r, 0); });
 
@@ -88,7 +51,16 @@ const settle = (): Promise<void> => new Promise((r) => { setTimeout(r, 0); });
  */
 const live: GameShell[] = [];
 function makeShell(deps: Parameters<typeof createGameShell>[0]): GameShell {
-  const shell = createGameShell(deps);
+  /*
+   * 🔴 PORTUGUESE IS ASKED FOR HERE, ONCE, AND IT IS NOT DECORATION. Until 2026-10-05 the shell
+   * read `navigator.language` and every assertion below read whatever language that produced:
+   * green on a `pt-BR` Chromium, red on the `en-US` one GitHub runs — twenty-seven tests across
+   * three files, the first time this suite ran anywhere but on its author's machine. A test that
+   * asserts a Portuguese sentence has to ASK for Portuguese.
+   *
+   * ⚠️ BEFORE THE SPREAD, so a test that wants another language can still say so and win.
+   */
+  const shell = createGameShell({ locale: 'pt', ...deps });
   live.push(shell);
   return shell;
 }

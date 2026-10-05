@@ -65,6 +65,14 @@ beforeEach(() => {
   said = [];
   left = 0;
   shell = createGameShell({
+      /*
+       * 🔴 PINNED, AND IT IS NOT DECORATION. Until 2026-10-05 the shell read
+       * `navigator.language` and these assertions read whatever language that produced: green on a
+       * `pt-BR` Chromium, red on the `en-US` one GitHub runs — twenty-seven of them at once, the
+       * first time this suite ran anywhere but on its author's machine. A test that asserts a
+       * Portuguese sentence has to ASK for Portuguese.
+       */
+      locale: 'pt',
     host: document, kind: '2d', view: fakeView, visibleMirror: true,
     // ⚠️ The shell only knows a lesson is running when IT started one. The tests above build the
     // mode by hand, which is right for testing the driver and wrong for testing the wiring — so
@@ -657,6 +665,14 @@ describe('[Language] the switch the game never had', () => {
   beforeEach(() => {
     shell?.teardown();
     shell = createGameShell({
+      /*
+       * 🔴 PINNED, AND IT IS NOT DECORATION. Until 2026-10-05 the shell read
+       * `navigator.language` and these assertions read whatever language that produced: green on a
+       * `pt-BR` Chromium, red on the `en-US` one GitHub runs — twenty-seven of them at once, the
+       * first time this suite ran anywhere but on its author's machine. A test that asserts a
+       * Portuguese sentence has to ASK for Portuguese.
+       */
+      locale: 'pt',
       host: document, kind: '2d', view: fakeView, visibleMirror: true,
       teaches: true, debugName: '__lessonTest', contrastTheme: 'contrast-flat',
       params: new URLSearchParams('debug=true'),
@@ -779,6 +795,14 @@ describe('[No opponent] a lesson never blocks on the engine', () => {
     saveSettings({ mode: 'two' });
 
     const stranded = createGameShell({
+      /*
+       * 🔴 PINNED, AND IT IS NOT DECORATION. Until 2026-10-05 the shell read
+       * `navigator.language` and these assertions read whatever language that produced: green on a
+       * `pt-BR` Chromium, red on the `en-US` one GitHub runs — twenty-seven of them at once, the
+       * first time this suite ran anywhere but on its author's machine. A test that asserts a
+       * Portuguese sentence has to ASK for Portuguese.
+       */
+      locale: 'pt',
       host: document,
       kind: '2d',
       view: fakeView,

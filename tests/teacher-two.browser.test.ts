@@ -222,6 +222,14 @@ describe('[Professor II] through the whole shell, with an engine that answers sl
 
   it('⚠️ holds the move until the set arrives, rather than letting it through', async () => {
     const shell = createGameShell({
+      /*
+       * 🔴 PINNED, AND IT IS NOT DECORATION. Until 2026-10-05 the shell read
+       * `navigator.language` and these assertions read whatever language that produced: green on a
+       * `pt-BR` Chromium, red on the `en-US` one GitHub runs — twenty-seven of them at once, the
+       * first time this suite ran anywhere but on its author's machine. A test that asserts a
+       * Portuguese sentence has to ASK for Portuguese.
+       */
+      locale: 'pt',
       host: document, kind: '2d', view: fakeView, visibleMirror: true,
       makeOpponent: slowEngine(), debugName: '__profII', contrastTheme: 'contrast-flat',
     });
@@ -253,6 +261,14 @@ describe('[Professor II] through the whole shell, with an engine that answers sl
      * both on the arrows say exactly what the guard will accept.
      */
     createGameShell({
+      /*
+       * 🔴 PINNED, AND IT IS NOT DECORATION. Until 2026-10-05 the shell read
+       * `navigator.language` and these assertions read whatever language that produced: green on a
+       * `pt-BR` Chromium, red on the `en-US` one GitHub runs — twenty-seven of them at once, the
+       * first time this suite ran anywhere but on its author's machine. A test that asserts a
+       * Portuguese sentence has to ASK for Portuguese.
+       */
+      locale: 'pt',
       host: document, kind: '2d', view: fakeView, visibleMirror: true,
       makeOpponent: slowEngine(), debugName: '__both', contrastTheme: 'contrast-flat',
     });
@@ -290,6 +306,14 @@ describe('[Professor II] through the whole shell, with an engine that answers sl
      * So this asserts the FRAMES: once the arrows are up, no later frame is empty.
      */
     createGameShell({
+      /*
+       * 🔴 PINNED, AND IT IS NOT DECORATION. Until 2026-10-05 the shell read
+       * `navigator.language` and these assertions read whatever language that produced: green on a
+       * `pt-BR` Chromium, red on the `en-US` one GitHub runs — twenty-seven of them at once, the
+       * first time this suite ran anywhere but on its author's machine. A test that asserts a
+       * Portuguese sentence has to ASK for Portuguese.
+       */
+      locale: 'pt',
       host: document, kind: '2d', view: fakeView, visibleMirror: true,
       makeOpponent: slowEngine(), debugName: '__noBlink', contrastTheme: 'contrast-flat',
     });
@@ -323,6 +347,14 @@ describe('[Professor II] through the whole shell, with an engine that answers sl
 
   it('plays the move the set DOES contain, once the set is there', async () => {
     const shell = createGameShell({
+      /*
+       * 🔴 PINNED, AND IT IS NOT DECORATION. Until 2026-10-05 the shell read
+       * `navigator.language` and these assertions read whatever language that produced: green on a
+       * `pt-BR` Chromium, red on the `en-US` one GitHub runs — twenty-seven of them at once, the
+       * first time this suite ran anywhere but on its author's machine. A test that asserts a
+       * Portuguese sentence has to ASK for Portuguese.
+       */
+      locale: 'pt',
       host: document, kind: '2d', view: fakeView, visibleMirror: true,
       makeOpponent: slowEngine(), debugName: '__profII2', contrastTheme: 'contrast-flat',
     });
@@ -342,6 +374,14 @@ describe('[Professor II] through the whole shell, with an engine that answers sl
     // Two searches for one position is waste the engine cannot afford on school hardware, and the
     // early return that prevented it is exactly what used to make the wait a no-op.
     const shell = createGameShell({
+      /*
+       * 🔴 PINNED, AND IT IS NOT DECORATION. Until 2026-10-05 the shell read
+       * `navigator.language` and these assertions read whatever language that produced: green on a
+       * `pt-BR` Chromium, red on the `en-US` one GitHub runs — twenty-seven of them at once, the
+       * first time this suite ran anywhere but on its author's machine. A test that asserts a
+       * Portuguese sentence has to ASK for Portuguese.
+       */
+      locale: 'pt',
       host: document, kind: '2d', view: fakeView, visibleMirror: true,
       makeOpponent: slowEngine(), debugName: '__profII3', contrastTheme: 'contrast-flat',
     });
