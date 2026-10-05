@@ -158,8 +158,13 @@ describe('[Clock] the ladder the time button walks', () => {
     // ⚠️ ASSERTED AS THE WHOLE LIST. He named eight rungs — "1+0, 2+1, 3+0, 3+2, 5+0, 10+0, 15+10,
     // e «sem tempo»" — and a list is the one kind of data where "it contains X" proves nothing
     // about the thing a player actually walks through.
+    //
+    // 📌 NINE SINCE 2026-10-05, and this assertion is how it was noticed: adding the rung turned
+    // this test red on the first run, which is the whole reason it is written as the entire list.
+    // His words: «Faltou 30+0 (Rápido). Eu havia esquecido antes, lembrei e acrescentei no meu
+    // último pedido.»
     expect(TIME_CONTROLS.map((c) => (c === null ? 'none' : formatControl(c)))).toEqual([
-      '1+0', '2+1', '3+0', '3+2', '5+0', '10+0', '15+10', 'none',
+      '1+0', '2+1', '3+0', '3+2', '5+0', '10+0', '15+10', '30+0', 'none',
     ]);
   });
 

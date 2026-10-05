@@ -58,6 +58,17 @@ export const TIME_CONTROLS: readonly (TimeControl | null)[] = [
   { minutes: 5, increment: 0 },
   { minutes: 10, increment: 0 },
   { minutes: 15, increment: 10 },
+  /*
+   * ⚠️ ADDED 2026-10-05, on the Dev's correction: «Faltou 30+0 (Rápido). Eu havia esquecido antes,
+   * lembrei e acrescentei no meu último pedido.» It is the longest rung and the only one a whole
+   * school lesson fits inside — a class has fifty minutes and two children need to finish.
+   *
+   * 📌 AND `paceOf` ALREADY ANSWERED FOR IT, with nothing to edit. That is the rule-over-table
+   * decision paying for itself on its first exercise: the row went in here and the button said
+   * «Rápido» without a second place being touched, which is exactly what a parallel table of names
+   * would have made impossible to get right by accident.
+   */
+  { minutes: 30, increment: 0 },
   null,
 ];
 
