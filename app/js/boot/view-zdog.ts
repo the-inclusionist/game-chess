@@ -142,8 +142,29 @@ export const createZdogView: ViewFactory = (ctx: ViewContext): BoardView => {
    * The guard that remains is against a DEGENERATE box — detached, or `display: none` — because
    * dividing by zero is a different problem from dividing by a small number.
    */
+  /*
+   * ========================= 🔴 `offsetWidth`, NOT THE RECT, SINCE 2026-10-06 =========================
+   * ⚠️ THIS WAS A RECT AND IT BROKE THE MOMENT THE STAGE LEARNED TO SCALE. `ui/layout` now puts a
+   * `transform: scale()` on `#stage-wrap` so a phone held sideways fits, and a rect is reported in
+   * PAINTED coordinates — so this ratio came back 0.5 on an Android and 0.667 on an iPhone 14 where
+   * it should be 1. The labels and the hint arrows it places live INSIDE that transform, so they
+   * were being scaled twice: measured on the Android, the files sat 10.5 px apart over squares
+   * 22.5 px wide, bunched against the left edge. That is the Dev's «os indicadores de coordenadas
+   * ficam bagunçados no celular».
+   *
+   * 📌 AND THE POINTER MUST KEEP USING THE RECT, which is why this is not «one expression» any more
+   * however much the paragraph below wishes it were. A pointer event's `clientX` is in painted
+   * coordinates too, so rect-against-clientX is a correct pair under any transform. What this ratio
+   * does is position DOM inside the transformed subtree, where the units are LAYOUT pixels. Two
+   * questions that were the same number until something scaled the page, and are not any more.
+   *
+   * ⚠️ AND ROUNDING TO AN INTEGER WIDTH IS NOT THE OLD BUG COMING BACK. What that paragraph warns
+   * about is flooring the RATIO — 1.556 to 1, a 36% error that moved the pointer a square and a
+   * half. `offsetWidth` rounds the WIDTH: on the widest rung measured, 738.46 to 738, which moves
+   * the far file by half a pixel.
+   */
   const upscale = (): number => {
-    const width = canvas.getBoundingClientRect().width;
+    const width = canvas.offsetWidth;
     return width > 0 ? width / LOGICAL_W : 1;
   };
 

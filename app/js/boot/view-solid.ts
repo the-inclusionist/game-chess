@@ -145,13 +145,23 @@ export const createSolidView: ViewFactory = (ctx: ViewContext): BoardView => {
    * the points arrive in canvas pixels and the only work left is the centring and the CSS
    * upscale. Zdog's own viewport carries a zoom because its points arrive unzoomed.
    */
+  /*
+   * ⚠️ `offsetWidth`, NOT THE RECT, AND IT IS THE SAME FIX AS `view-zdog`'s ON 2026-10-06. Since
+   * `ui/layout` scales `#stage-wrap` to fit a phone held sideways, a rect is reported in PAINTED
+   * coordinates — and these labels are DOM inside that transform, so a painted ratio scaled them a
+   * second time and bunched them against one edge. `offsetWidth` is the layout width, which is the
+   * space the labels are actually positioned in.
+   *
+   * 📌 The pointer, twenty lines down in `squareAt`, keeps its rect on purpose: it compares against
+   * `clientX`, which is painted too, so that pair stays correct under any transform.
+   */
   const placeCoords = (): void => {
-    const box = canvas.getBoundingClientRect();
-    if (box.width < 1) return;
+    const laidOut = canvas.offsetWidth;
+    if (laidOut < 1) return;
     coordinates.place(
       projectQuads(),
       { width: canvas.width, height: canvas.height, zoom: 1 },
-      box.width / canvas.width,
+      laidOut / canvas.width,
     );
   };
 
