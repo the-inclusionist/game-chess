@@ -77,6 +77,52 @@ export interface LayoutResult {
   readonly scaleDevice: number;
 }
 
+/**
+ * How much the whole stage must be scaled down to fit a screen too short for it — 1 when it fits.
+ *
+ * ========================= 🔴 THE FLOOR IS THE ENGINE'S, SO THIS DOES NOT ARGUE WITH IT =========================
+ * The Dev asked on 2026-10-06 why a phone held sideways cuts the interface instead of shrinking it,
+ * and the answer took two wrong attempts to find. The floor is not this file's: the ENGINE sizes
+ * `#game-region` in its own `ui/layout.js`, with `MIN_K = 2` and the comment «Floor k=2: EACH
+ * viewport is at least 640×360», and it writes `width`, `height` and `--ui-fs` on that element
+ * AFTER this module runs.
+ *
+ *   · Attempt 1 — let the ladder in `applyLayout` descend below its floor. Measured WORSE on every
+ *     phone (iPhone 14: 12 px of clipping became 24), because a smaller board inside a container
+ *     the engine kept at 640×360 is two owners disagreeing.
+ *   · Attempt 2 — `zoom` on `#stage-wrap`. It fits, but it FEEDS BACK: the engine's sizing reads
+ *     `wrap.clientWidth/clientHeight`, and `zoom` inflates exactly those. At 2/3 the engine saw half
+ *     again as much room and grew the stage from 640×360 to 711×400, eating the gain.
+ *
+ * `transform` is the one that works, and the reason is precise: it scales PAINT and not LAYOUT, so
+ * `clientHeight` is unchanged — measured 390→390 — and the engine keeps producing the same stage.
+ * The page simply draws it smaller. Measured on four landscape phones, all four went from clipped
+ * to fitting exactly: 0 off the top, 0 off the bottom, 0 off the sides.
+ *
+ * ⚠️ THE RUNGS ARE THE SAME INTEGER LADDER the rest of this file obeys, not a free ratio. `steps` is
+ * how many physical pixels one art pixel is getting; the candidates are `m / steps` for whole `m`,
+ * so the board keeps landing on whole physical pixels. A screen at device ratio 1 has no rung below
+ * 1 and is left exactly as it was — there is no integer under one.
+ *
+ * ⚠️ AND WHAT IT COSTS IS TYPE. At 2/3 the engine's 16 px `--ui-fs` paints at about 10.7, under the
+ * ADR-0163 floor. The Dev took that trade knowingly on 2026-10-06: what it is traded against is not
+ * a larger font, it is an interface whose top row is amputated and, because `#stage-wrap` centres
+ * its children and `body` is `overflow: hidden`, unreachable.
+ *
+ * @param needed  Height the stage and the strip under it occupy, in layout pixels.
+ * @param room    Height actually available, in the same units.
+ * @param dpr     Device pixel ratio, which is what makes the ladder integral.
+ */
+export function fitScale(needed: number, room: number, dpr: number): number {
+  if (!(needed > 0) || !(room > 0) || needed <= room) return 1;
+  const steps = Math.max(1, Math.round(dpr));
+  for (let m = steps - 1; m >= 1; m -= 1) {
+    const candidate = m / steps;
+    if (needed * candidate <= room) return candidate;
+  }
+  return 1;
+}
+
 export function applyLayout(host: LayoutHost): LayoutResult | null {
   const wrap = host.doc.getElementById('stage-wrap');
   const board = host.doc.getElementById('chess-board');
@@ -286,6 +332,17 @@ export function applyLayout(host: LayoutHost): LayoutResult | null {
     );
     below.style.setProperty('--chess-tap', `${tapFor(width)}px`);
   }
+
+  /*
+   * ⚠️ `offsetHeight` AND `clientHeight`, NEVER `getBoundingClientRect`. The first two are LAYOUT
+   * numbers and a transform does not touch them, so this measurement is the same whether or not a
+   * previous pass left the stage scaled. A rect would come back in the previous scale's units and
+   * the stage would shrink a little further on every relayout — a fault that looks like a rendering
+   * bug and is arithmetic.
+   */
+  const fit = fitScale(stageH + (below ? below.offsetHeight : 0), wrap.clientHeight, dpr);
+  wrap.style.transformOrigin = 'center center';
+  wrap.style.transform = fit === 1 ? '' : `scale(${fit})`;
 
   return { width, height, scaleDevice };
 }
